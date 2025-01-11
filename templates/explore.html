@@ -13,36 +13,25 @@
     <script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.html5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.print.min.js"></script>
-    <script>
-        $(document).ready(function () {
-            $('#datasetTable').DataTable({
-                dom: 'Bfrtip',
-                buttons: ['csvHtml5', 'excelHtml5', 'pdfHtml5', 'print'],
-                scrollX: true,
-                autoWidth: false, // Disable automatic width calculation
-                order: [[4, 'desc']], // Order by Timestamp descending
-                columnDefs: [
-                    { width: '7%', targets: 0, className: 'dt-center' }, // KE ID column
-                    { width: '36%', targets: 1, className: 'dt-center' }, // WP ID column
-                    { width: '7%', targets: 2, className: 'dt-center' }, // KE Title column
-                    { width: '36%', targets: 3, className: 'dt-center' }, // WP Title column
-                    { width: '20%', targets: 4, className: 'dt-center' }, // Timestamp column
-                    {
-                        targets: 4, // Format Timestamp column to exclude milliseconds
-                        render: function (data, type, row) {
-                            if (type === 'display' || type === 'filter') {
-                                return data.split('.')[0]; // Remove milliseconds
-                            }
-                            return data;
-                        }
-                    }
-                ]
-            });
-        });
-    </script>
+ 
     <style>
         .dt-center {
             text-align: center;
+        }
+        .container {
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+        table {
+            width: 100%;
+        }
+        input[type="text"], input[type="email"], textarea {
+        width: 100%;
+        margin-bottom: 10px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
         }
     </style>
 </head>
@@ -62,7 +51,10 @@
                     <th>KE Title</th>
                     <th>WP ID</th>
                     <th>WP Title</th>
+                    <th>Connection Type</th>
+                    <th>Confidence Level</th>
                     <th>Timestamp</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -72,14 +64,144 @@
                     <td>{{ row['KE_Title'] }}</td>
                     <td>{{ row['WP_ID'] }}</td>
                     <td>{{ row['WP_Title'] }}</td>
+                    <td>{{ row['Connection_Type'] }}</td>
+                    <td>{{ row['Confidence_Level'] }}</td>
                     <td>{{ row['Timestamp'].split('.')[0] }}</td>
+                    <td>
+                        <button class="propose-change" data-entry="{{ row }}">Propose Change</button>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
+                        
         </table>
     </div>
+    <!-- Modal for Proposing Changes -->
+    <div id="proposalModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; border: 1px solid #ccc; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); width: 500px;">
+        <form id="proposalForm">
+            <h3>Propose Change</h3>
+            <label for="entryDetails">Selected Entry:</label>
+            <textarea id="entryDetails" readonly style="width: 100%; height: 100px; margin-bottom: 10px;"></textarea>
+
+            <h4>Your Information</h4>
+            <label for="userName">Name:</label>
+            <input type="text" id="userName" name="userName" placeholder="Your Name" required style="width: 100%; margin-bottom: 10px;">
+
+            <label for="userEmail">Email:</label>
+            <input type="email" id="userEmail" name="userEmail" placeholder="Your Email" required>
+
+            <label for="userAffiliation">Affiliation:</label>
+            <input type="text" id="userAffiliation" name="userAffiliation" placeholder="Your Affiliation" required style="width: 100%; margin-bottom: 10px;">
+
+            <h4>Proposed Changes</h4>
+            <div style="margin-bottom: 10px;">
+                <input type="checkbox" id="deleteEntry" name="proposedChange" value="delete">
+                <label for="deleteEntry">Delete this entry</label>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label for="changeConfidence">Change Confidence:</label><br>
+                <input type="radio" id="confidenceHigh" name="changeConfidence" value="high">
+                <label for="confidenceHigh">High</label><br>
+                <input type="radio" id="confidenceMedium" name="changeConfidence" value="medium">
+                <label for="confidenceMedium">Medium</label><br>
+                <input type="radio" id="confidenceLow" name="changeConfidence" value="low">
+                <label for="confidenceLow">Low</label>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label for="changeType">Change Connection Type:</label><br>
+                <input type="radio" id="typeCausative" name="changeType" value="causative">
+                <label for="typeCausative">Causative</label><br>
+                <input type="radio" id="typeResponsive" name="changeType" value="responsive">
+                <label for="typeResponsive">Responsive</label><br>
+                <input type="radio" id="typeUndefined" name="changeType" value="undefined">
+                <label for="typeUndefined">Undefined</label>
+            </div>
+
+            <div style="text-align: right;">
+                <button type="button" onclick="closeModal()">Cancel</button>
+                <button type="submit">Submit Proposal</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Overlay for Modal -->
+    <div id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999;" onclick="closeModal()"></div>
     <footer>
         <p>&copy; 2025 KE-WP Mapping Service</p>
     </footer>
+    <script>
+        $(document).ready(function () {
+            $('#datasetTable').DataTable({
+            dom: 'Bfrtip',
+            buttons: ['csvHtml5', 'excelHtml5', 'pdfHtml5', 'print'],
+            scrollX: true,
+            autoWidth: false,
+            order: [[6, 'desc']], // Order by Timestamp descending
+            columnDefs: [
+                { width: '10%', targets: 0, className: 'dt-center' }, // KE ID
+                { width: '20%', targets: 1, className: 'dt-center' }, // KE Title
+                { width: '10%', targets: 2, className: 'dt-center' }, // WP ID
+                { width: '20%', targets: 3, className: 'dt-center' }, // WP Title
+                { width: '15%', targets: 4, className: 'dt-center' }, // Connection Type
+                { width: '15%', targets: 5, className: 'dt-center' }, // Confidence Level
+                { width: '10%', targets: 6, className: 'dt-center' }, // Timestamp
+                {
+                    targets: 6, // Format Timestamp column to exclude milliseconds
+                    render: function (data, type, row) {
+                        if (type === 'display' || type === 'filter') {
+                            return data.split('.')[0]; // Remove milliseconds
+                        }
+                        return data;
+                    }
+                }
+            ]
+        });
+        });
+    </script>
+    <script>
+        function closeModal() {
+        $("#proposalModal").hide();
+        $("#modalOverlay").hide();
+    }
+
+    $(document).ready(function () {
+        // Handle "Propose Change" button click
+        $(".propose-change").click(function () {
+            const entry = $(this).data("entry");
+
+            // Populate the modal with entry details
+            $("#entryDetails").val(JSON.stringify(entry, null, 2));
+            $("#proposalModal").show();
+            $("#modalOverlay").show();
+        });
+
+        // Handle proposal form submission
+        $("#proposalForm").submit(function (event) {
+            event.preventDefault();
+
+            const proposalData = {
+                entry: $("#entryDetails").val(),
+                userName: $("#userName").val(),
+                userEmail: $("#userEmail").val(),
+                userAffiliation: $("#userAffiliation").val(),
+                proposedChanges: {
+                    delete: $("#deleteEntry").is(":checked"),
+                    confidence: $("input[name='changeConfidence']:checked").val(),
+                    type: $("input[name='changeType']:checked").val(),
+                },
+            };
+
+            $.post("/submit_proposal", proposalData)
+                .done(function () {
+                    alert("Proposal submitted successfully!");
+                    closeModal();
+                })
+                .fail(function () {
+                    alert("Failed to submit proposal.");
+                });
+        });
+    });
+    </script>
+    
 </body>
 </html>

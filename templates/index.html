@@ -52,6 +52,29 @@
         </section>
 
         <section>
+            <h2>Step 3: Additional Information</h2>
+            <div class="dropdown-container">
+                <label for="connection_type">Type of Connection:&#10;&#13;</label><br>
+                <select id="connection_type" name="connection_type" required>
+                    <option value="" disabled selected>Select Connection Type</option>
+                    <option value="causative">Causative</option>
+                    <option value="responsive">Responsive</option>
+                    <option value="undefined">Undefined</option>
+                </select>
+            </div>
+
+            <div class="dropdown-container">
+                <label for="confidence_level">Confidence Level:</label><br>
+                <select id="confidence_level" name="confidence_level" required>
+                    <option value="" disabled selected>Select Confidence Level</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+        </section>
+
+        <section>
             <h2>Submit Mapping</h2>
             <form id="mapping-form">
                 <button type="submit">Submit</button>
@@ -131,7 +154,9 @@
                     ke_id: selectedKE.val(),
                     ke_title: selectedKE.data("title"),
                     wp_id: selectedWP.val(),
-                    wp_title: selectedWP.data("title")
+                    wp_title: selectedWP.data("title"),
+                    connection_type: $("#connection_type").val(),
+                    confidence_level: $("#confidence_level").val()
                 };
 
                 $.post("/submit", formData)

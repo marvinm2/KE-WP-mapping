@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, render_template, send_file
 import pandas as pd
 import os
 import requests
+import uuid
+
 
 app = Flask(__name__)
 
@@ -67,9 +69,11 @@ def submit():
     ke_title = request.form.get('ke_title')
     wp_id = request.form.get('wp_id')
     wp_title = request.form.get('wp_title')
+    connection_type = request.form.get('connection_type')
+    confidence_level = request.form.get('confidence_level')
 
-    if not ke_id or not ke_title or not wp_id or not wp_title:
-        return jsonify({"error": "All fields (KE ID, KE Title, WP ID, WP Title) are required."}), 400
+    if not all([ke_id, ke_title, wp_id, wp_title, connection_type, confidence_level]):
+        return jsonify({"error": "All fields are required."}), 400
 
     # Load the dataset
     df = pd.read_csv("dataset.csv")
@@ -80,6 +84,8 @@ def submit():
         "KE_Title": ke_title,
         "WP_ID": wp_id,
         "WP_Title": wp_title,
+        "Connection_Type": connection_type,
+        "Confidence_Level": confidence_level,
         "Timestamp": pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')  # Exclude milliseconds
     }
     df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
@@ -88,6 +94,7 @@ def submit():
     df.to_csv("dataset.csv", index=False)
 
     return jsonify({"message": "Entry added successfully."}), 200
+
 
 
 
@@ -183,6 +190,43 @@ def ke_details():
 def pw_details():
     return render_template('pw-details.html')
 
+@app.route('/submit_proposal', methods=['POST'])
+def submit_proposal():
+    """Save user proposals as text files with the date included."""
+    entry = request.form.get('entry')
+    user_name = request.form.get('userName')
+    user_email = request.form.get('userEmail')
+    user_affiliation = request.form.get('userAffiliation')
+    proposed_changes = {
+        "delete": request.form.get('proposedChanges[delete]') == "true",
+        "confidence": request.form.get('proposedChanges[confidence]'),
+        "type": request.form.get('proposedChanges[type]')
+    }
+
+    if not all([entry, user_name, user_email, user_affiliation]):
+        return jsonify({"error": "All fields are required."}), 400
+
+    # Create a directory to store proposals
+    proposals_dir = "proposals"
+    os.makedirs(proposals_dir, exist_ok=True)
+
+    # Generate a filename with the date included
+    date_str = pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M-%S')
+    proposal_file = os.path.join(proposals_dir, f"proposal_{date_str}.txt")
+
+    # Save proposal details to the text file
+    with open(proposal_file, "w") as f:
+        f.write(f"Date: {date_str}\n")
+        f.write(f"User Name: {user_name}\n")
+        f.write(f"User Email: {user_email}\n")
+        f.write(f"User Affiliation: {user_affiliation}\n")
+        f.write(f"Selected Entry: {entry}\n")
+        f.write(f"Proposed Changes:\n")
+        f.write(f"  Delete: {proposed_changes['delete']}\n")
+        f.write(f"  Confidence: {proposed_changes['confidence']}\n")
+        f.write(f"  Type: {proposed_changes['type']}\n")
+
+    return jsonify({"message": "Proposal saved successfully."}), 200
 
 
 if __name__ == '__main__':
