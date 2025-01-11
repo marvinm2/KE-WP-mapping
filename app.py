@@ -14,7 +14,7 @@ load_dotenv()
 from authlib.integrations.flask_client import OAuth
 from flask import Flask, redirect, url_for, session
 
-app.secret_key = 'GITHUB_CLIENT_SECRET'
+app.secret_key = os.getenv('FLASK_SECRET_KEY')
 
 # Configure GitHub OAuth
 oauth = OAuth(app)
