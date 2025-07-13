@@ -293,6 +293,9 @@ def submit_proposal():
 
     return jsonify({"message": "Proposal saved successfully."}), 200
 
+@app.route('/confidence_assessment')
+def confidence_assessment():
+    return render_template('confidence-assessment.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

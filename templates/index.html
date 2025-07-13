@@ -84,28 +84,91 @@
             </div>
             <p>For more detailed pathway info, see <a href="/pw-details" target="_blank">here</a>.</p>
         </section>
+        <section id="confidence-guide" style="display: none;">
+            <h2>Step 3: Assess Confidence of Mapping</h2>
+            <p>
+                Use the guide below to assess the biological relevance and confidence level. 
+                The result will auto-fill the dropdown in Step 3.
+            </p>
 
-        <section>
-            <h2>Step 3: Additional Information</h2>
-            <div class="dropdown-container">
-                <label for="connection_type">Type of Connection:&#10;&#13;</label><br>
-                <select id="connection_type" name="connection_type" required>
-                    <option value="" disabled selected>Select Connection Type</option>
+            <div id="step1">
+                <label>1. Is the pathway related to the KE’s biological process?</label><br>
+                <select>
+                    <option value="">-- Select --</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No (Stop)</option>
+                </select>
+            </div>
+
+            <div id="step2" style="display: none;">
+                <label>2. Is the KE at molecular/cellular/tissue/organ level?</label><br>
+                <select>
+                    <option value="">-- Select --</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                </select>
+            </div>
+
+            <div id="step3" style="display: none;">
+                <label>3. Is the biological mechanism well connected?</label><br>
+                <select>
+                    <option value="">-- Select --</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                </select>
+            </div>
+
+            <div id="step4" style="display: none;">
+                <label>4. Is there experimental evidence?</label><br>
+                <select>
+                    <option value="">-- Select --</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                </select>
+            </div>
+
+            <div id="step5" style="display: none;">
+                <label>5. How specific is the pathway?</label><br>
+                <select>
+                    <option value="">-- Select --</option>
+                    <option value="high">Highly specific</option>
+                    <option value="medium">Relevant but partial</option>
+                    <option value="low">Minor or indirect</option>
+                </select>
+            </div>
+
+            <div id="step6" style="display: none;">
+                <label>6. Is the relevant part modular?</label><br>
+                <select>
+                    <option value="">-- Select --</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                </select>
+            </div>
+            <div id="step2b" style="display: none;">
+                <label>2b. Is the pathway causative or responsive to the KE?</label><br>
+                <select>
+                    <option value="">-- Select --</option>
                     <option value="causative">Causative</option>
                     <option value="responsive">Responsive</option>
-                    <option value="undefined">Undefined</option>
+                    <option value="other">Other</option>
                 </select>
             </div>
 
-            <div class="dropdown-container">
-                <label for="confidence_level">Confidence Level:</label><br>
-                <select id="confidence_level" name="confidence_level" required>
-                    <option value="" disabled selected>Select Confidence Level</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                </select>
-            </div>
+            <button id="evaluateBtn" type="button" style="display: none;" onclick="evaluateConfidence()">Evaluate Confidence</button>
+
+            <p id="ca-result" style="font-weight: bold; margin-top: 10px;"></p>
+        </section>
+
+
+        <section id="step-3-result">
+            <h2>Step 3: Results of Confidence Assessment</h2>
+            <p><strong>Confidence Level:</strong> <span id="auto-confidence">—</span></p>
+            <p><strong>Connection Type:</strong> <span id="auto-connection">—</span></p>
+
+            <!-- Hidden form fields to pass values on submit -->
+            <input type="hidden" id="confidence_level" name="confidence_level" value="">
+            <input type="hidden" id="connection_type" name="connection_type" value="">
         </section>
 
         <section>
@@ -187,7 +250,6 @@
                     console.error("Failed to load Pathway options"); // Debug log
                     $("#message").text("Failed to load Pathways").css("color", "red");
                 });
-    
             // Handle form submission
             $("#mapping-form").submit(function (event) {
                 event.preventDefault();
@@ -274,7 +336,136 @@
 
 
         });
+        // Function to evaluate confidence based on user selections
+        const steps = {
+            step1: document.querySelector('#step1 select'),
+            step2: document.querySelector('#step2 select'),
+            step3: document.querySelector('#step3 select'),
+            step4: document.querySelector('#step4 select'),
+            step5: document.querySelector('#step5 select'),
+            step6: document.querySelector('#step6 select'),
+            step2b: document.querySelector('#step2b select')
+        };
+
+        // Reveal next steps based on answers
+        steps.step1.addEventListener("change", () => {
+            if (steps.step1.value === "yes") {
+                $("#step2").show();
+            } else {
+                resetGuide();
+                $("#ca-result").text("No match: Pathway is not biologically related to KE.");
+                $("#confidence_level").val("");
+            }
+            checkEvaluateReadiness();
+        });
+        steps.step2.addEventListener("change", () => {
+            $("#step3").show();
+            $("#step2b").show();
+            checkEvaluateReadiness();
+        });
+
+        steps.step2b.addEventListener("change", checkEvaluateReadiness);
+
+        function checkEvaluateReadiness() {
+            const required = [
+                steps.step1.value,
+                steps.step2.value,
+                steps.step3.value,
+                steps.step4.value,
+                steps.step5.value,
+                steps.step2b.value
+            ];
+            if (required.every(v => v !== "")) {
+                if (steps.step5.value === "medium" && !steps.step6.value) {
+                    $("#evaluateBtn").hide();
+                } else {
+                    $("#evaluateBtn").show();
+                }
+            } else {
+                $("#evaluateBtn").hide();
+            }
+        }
+
+        steps.step3.addEventListener("change", () => {
+            $("#step4").show();
+            checkEvaluateReadiness();
+        });
+        steps.step4.addEventListener("change", () => {
+            $("#step5").show();
+            checkEvaluateReadiness();
+        });
+        steps.step5.addEventListener("change", () => {
+            if (steps.step5.value === "medium") {
+                $("#step6").show();
+            } else {
+                $("#step6").hide();
+            }
+            checkEvaluateReadiness();
+        });
+        steps.step6.addEventListener("change", checkEvaluateReadiness);
+
+        function resetGuide() {
+            const sections = ["#step2", "#step3", "#step4", "#step5", "#step6", "#step2b"];
+            sections.forEach(id => {
+                $(id).hide().find("select").val("");
+            });
+            $("#evaluateBtn").hide();
+            $("#ca-result").text("");
+            $("#auto-confidence").text("—");
+            $("#auto-connection").text("—");
+            $("#confidence_level").val("");
+            $("#connection_type").val("");
+        }
+
+
+        function evaluateConfidence() {
+            const s1 = steps.step1.value;
+            const s3 = steps.step3.value;
+            const s4 = steps.step4.value;
+            const s5 = steps.step5.value;
+            const s6 = steps.step6.value;
+            const conn = steps.step2b.value;
+
+            let confidence = "low";
+
+            if (s3 === "no" || s5 === "low") {
+                confidence = "low";
+            } else if (s5 === "medium") {
+                confidence = (s6 === "yes") ? "medium" : "low";
+            } else if (s4 === "no") {
+                confidence = "medium";
+            } else {
+                confidence = "high";
+            }
+
+            // Set visible display
+            $("#auto-confidence").text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
+            $("#auto-connection").text(conn.charAt(0).toUpperCase() + conn.slice(1));
+
+            // Set hidden input values for form submission
+            $("#confidence_level").val(confidence);
+            $("#connection_type").val(conn);
+
+            $("#evaluateBtn").hide();
+        }
+
+        function toggleAssessmentSection() {
+            const keSelected = $("#ke_id").val();
+            const wpSelected = $("#wp_id").val();
+            if (keSelected && wpSelected) {
+                $("#confidence-guide").show();
+                $("#confidence-guide")[0].scrollIntoView({ behavior: 'smooth' });
+            } else {
+                $("#confidence-guide").hide();
+                resetGuide();
+            }
+        }
+
+
+        $("#ke_id, #wp_id").change(toggleAssessmentSection);
+
     </script>
+
     
     
     
