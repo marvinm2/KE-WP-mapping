@@ -1,3 +1,70 @@
+# Environment and configuration
 .env
+.env.local
+.env.*.local
+
+# Database files
 dataset.csv
+dataset.csv.backup
+ke_wp_mapping.db
+ke_wp_mapping.db-*
+
+# Log files
+*.log
+logs/
+flask_app*.log
+
+# Development documentation
+CLAUDE.md
+/.claude
+IMPROVEMENT_PLAN.md
+
+# Cache and temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+
+# Old proposals directory (legacy)
 /proposals
