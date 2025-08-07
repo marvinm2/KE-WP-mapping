@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - KE-WP Mapping</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        .error-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 40px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .error-icon {
+            font-size: 64px;
+            color: #dc3545;
+            margin-bottom: 20px;
+        }
+        
+        .error-message {
+            font-size: 18px;
+            color: #29235C;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .error-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn-refresh {
+            background-color: #307BBF;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .btn-refresh:hover {
+            background-color: #005A6C;
+        }
+        
+        .btn-home {
+            background-color: #E6007E;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .btn-home:hover {
+            background-color: #9A1C57;
+        }
+    </style>
+</head>
+<body>
+<div class="page-container">
+    <header>
+        <h1>KE-WP Mapping Service</h1>
+    </header>
+    
+    <div class="error-container">
+        <div class="error-icon">⚠️</div>
+        <div class="error-message">
+            {{ error or "An unexpected error occurred. Please try again." }}
+        </div>
+        <div class="error-actions">
+            <button class="btn-refresh" onclick="location.reload()">Refresh Page</button>
+            <a href="/" class="btn-home">Return Home</a>
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2025 KE-WP Mapping Service</p>
+    </footer>
+</div>
+</body>
+</html>

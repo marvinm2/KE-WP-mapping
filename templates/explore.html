@@ -13,47 +13,77 @@
     <script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.html5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.print.min.js"></script>
+    
+    <!-- CSRF Token for AJAX requests -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
  
     <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #93D5F6;
+            color: #29235C;
+        }
+        
         .dt-center {
             text-align: center;
         }
+        
         .container {
-            margin: 20px auto;
+            margin: 30px auto;
             max-width: 1200px;
+            padding: 32px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
+        
         table {
             width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
         }
+        
         input[type="text"], input[type="email"], textarea {
-        width: 100%;
-        margin-bottom: 10px;
-        padding: 8px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        box-sizing: border-box;
+            width: 100%;
+            margin-bottom: 12px;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            box-sizing: border-box;
+            background-color: white;
+            font-size: 14px;
+            color: #29235C;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #307BBF;
+            box-shadow: 0 0 0 3px rgba(48, 123, 191, 0.1);
+            background-color: white;
         }
 
         .github-login {
-        background-color: white;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        padding: 10px 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .github-login p {
             margin: 0;
-            color: #333;
+            color: #29235C;
+            font-weight: 500;
         }
 
         .github-login a {
             color: #307BBF;
             text-decoration: none;
             font-weight: bold;
+            transition: color 0.3s ease;
         }
 
         .github-login a:hover {
@@ -98,13 +128,13 @@
             <tbody>
                 {% for row in dataset %}
                 <tr>
-                    <td>{{ row['KE_ID'] }}</td>
-                    <td>{{ row['KE_Title'] }}</td>
-                    <td>{{ row['WP_ID'] }}</td>
-                    <td>{{ row['WP_Title'] }}</td>
-                    <td>{{ row['Connection_Type'] }}</td>
-                    <td>{{ row['Confidence_Level'] }}</td>
-                    <td>{{ row['Timestamp'].split('.')[0] }}</td>
+                    <td>{{ row['ke_id'] or row['KE_ID'] }}</td>
+                    <td>{{ row['ke_title'] or row['KE_Title'] }}</td>
+                    <td>{{ row['wp_id'] or row['WP_ID'] }}</td>
+                    <td>{{ row['wp_title'] or row['WP_Title'] }}</td>
+                    <td>{{ row['connection_type'] or row['Connection_Type'] }}</td>
+                    <td>{{ row['confidence_level'] or row['Confidence_Level'] }}</td>
+                    <td>{{ (row['created_at'] or row['Timestamp'] or '').split('.')[0] }}</td>
                     <td>
                         <button class="propose-change" data-entry="{{ row }}">Propose Change</button>
                     </td>
@@ -117,51 +147,53 @@
     <div id="proposalModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; border: 1px solid #ccc; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); width: 500px;">
         {% if session.get('user') %}
         <form id="proposalForm">
-            <h3>Propose Change</h3>
-            <label for="entryDetails">Selected Entry:</label>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <h3>Propose Changes to Mapping Entry</h3>
+            <label for="entryDetails">Selected Entry Details:</label>
             <textarea id="entryDetails" readonly></textarea>
     
-            <h4>Your Information</h4>
-            <label for="userName">Name:</label>
-            <input type="text" id="userName" name="userName" placeholder="Your Name" required>
+            <h4>Contact Information</h4>
+            <label for="userName">Your Name:</label>
+            <input type="text" id="userName" name="userName" placeholder="Enter your full name" required>
     
-            <label for="userEmail">Email:</label>
-            <input type="email" id="userEmail" name="userEmail" placeholder="Your Email" required>
+            <label for="userEmail">Email Address:</label>
+            <input type="email" id="userEmail" name="userEmail" placeholder="Enter your email address" required>
     
-            <label for="userAffiliation">Affiliation:</label>
-            <input type="text" id="userAffiliation" name="userAffiliation" placeholder="Your Affiliation" required>
+            <label for="userAffiliation">Institution/Organization:</label>
+            <input type="text" id="userAffiliation" name="userAffiliation" placeholder="Enter your affiliation" required>
     
-            <h4>Proposed Changes</h4>
+            <h4>Suggested Changes</h4>
             <div>
                 <input type="checkbox" id="deleteEntry" name="proposedChange" value="delete">
-                <label for="deleteEntry">Delete this entry</label>
+                <label for="deleteEntry">Recommend deletion of this mapping entry</label>
             </div>
             <div>
-                <label>Change Confidence:</label><br>
+                <label><strong>Update Confidence Level:</strong></label><br>
                 <input type="radio" id="confidenceHigh" name="changeConfidence" value="high">
-                <label for="confidenceHigh">High</label><br>
+                <label for="confidenceHigh">High Confidence</label><br>
                 <input type="radio" id="confidenceMedium" name="changeConfidence" value="medium">
-                <label for="confidenceMedium">Medium</label><br>
+                <label for="confidenceMedium">Medium Confidence</label><br>
                 <input type="radio" id="confidenceLow" name="changeConfidence" value="low">
-                <label for="confidenceLow">Low</label>
+                <label for="confidenceLow">Low Confidence</label>
             </div>
             <div>
-                <label>Change Connection Type:</label><br>
+                <label><strong>Update Connection Type:</strong></label><br>
                 <input type="radio" id="typeCausative" name="changeType" value="causative">
-                <label for="typeCausative">Causative</label><br>
+                <label for="typeCausative">Causative (Pathway causes KE)</label><br>
                 <input type="radio" id="typeResponsive" name="changeType" value="responsive">
-                <label for="typeResponsive">Responsive</label><br>
+                <label for="typeResponsive">Responsive (Pathway responds to KE)</label><br>
                 <input type="radio" id="typeUndefined" name="changeType" value="undefined">
-                <label for="typeUndefined">Undefined</label>
+                <label for="typeUndefined">Undefined relationship</label>
             </div>
     
             <div style="text-align: right;">
                 <button type="button" onclick="closeModal()">Cancel</button>
-                <button type="submit">Submit Proposal</button>
+                <button type="submit">Submit Change Proposal</button>
             </div>
         </form>
         {% else %}
-            <button id="loginButton" data-url="{{ url_for('login') }}">Login with GitHub</button>
+            <p style="text-align: center; color: #666; margin: 20px 0;">You must be logged in to propose changes to mapping entries.</p>
+            <button id="loginButton" data-url="{{ url_for('login') }}" style="display: block; margin: 0 auto;">Login with GitHub to Continue</button>
         {% endif %}
     </div>
     
@@ -237,6 +269,9 @@
             $(".propose-change").click(function () {
                 const entry = $(this).data("entry");
     
+                // Store entry data for form submission
+                $("#proposalForm").data("entry", entry);
+    
                 // Populate entry details in the modal
                 $("#entryDetails").val(JSON.stringify(entry, null, 2));
     
@@ -268,6 +303,50 @@
                     window.location.href = loginUrl;
                 });
             }
+
+            // Handle proposal form submission
+            $("#proposalForm").on('submit', function(e) {
+                e.preventDefault();
+                
+                const form = $(this);
+                const entryData = form.data("entry");
+                
+                if (!entryData) {
+                    alert("Error: No entry data found");
+                    return;
+                }
+                
+                // Prepare form data
+                const formData = new FormData();
+                formData.append('entry', JSON.stringify(entryData));
+                formData.append('userName', $('#userName').val());
+                formData.append('userEmail', $('#userEmail').val());
+                formData.append('userAffiliation', $('#userAffiliation').val());
+                
+                // Handle checkbox and radio button values
+                formData.append('deleteEntry', $('#deleteEntry').is(':checked') ? 'on' : '');
+                formData.append('changeConfidence', $('input[name="changeConfidence"]:checked').val() || '');
+                formData.append('changeType', $('input[name="changeType"]:checked').val() || '');
+                
+                // Submit the proposal
+                $.ajax({
+                    url: '/submit_proposal',
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        alert('Success: ' + response.message);
+                        closeModal();
+                        // Reset form
+                        document.getElementById('proposalForm').reset();
+                    },
+                    error: function(xhr) {
+                        const errorMsg = xhr.responseJSON?.error || 'Failed to submit proposal';
+                        alert('Error: ' + errorMsg);
+                    }
+                });
+            });
         });
     </script>
     

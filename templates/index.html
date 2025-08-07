@@ -5,20 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KE-WP Mapping</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
+    
+    <!-- CSRF Token for AJAX requests -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
     <style>
         select {
-            max-width: 50%;
-            overflow-x: auto;
-            white-space: nowrap;
+            width: 100%;
+            overflow: visible;
         }
 
         .dropdown-container {
-            overflow-x: auto;
+            width: 100%;
+            overflow: visible;
         }
 
         .github-login {
@@ -79,16 +84,19 @@
         }
 
         .btn-option {
-            padding: 8px 16px;
-            border: 1px solid #ccc;
-            background-color: #93D5F6;
-            border-radius: 4px;
+            padding: 12px 20px;
+            border: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            border-radius: 5px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            font-weight: 500;
+            font-size: 14px;
+            color: #29235C;
         }
 
         .btn-option:hover {
-            background-color: #e6e6e6;
+            background-color: #e2e8f0;
+            border-color: #307BBF;
         }
 
         .btn-option.selected {
@@ -136,12 +144,19 @@
 <div class="page-container">
     <header>
         <h1>Map Key Events to WikiPathways</h1>
-        <nav style="display: flex; justify-content: center; gap: 20px; margin-top: 10px; align-items: center;">
+        <nav style="display: flex; justify-content: center; gap: 20px; margin-top: 10px; align-items: center; flex-wrap: wrap;">
             <button onclick="location.href='/explore'">Explore Dataset</button>
             <button onclick="location.href='/download'">Download Dataset</button>
+            {% if is_admin %}
+                <button onclick="location.href='/admin/proposals'" style="background-color: #EB5B25;">Admin: Manage Proposals</button>
+            {% endif %}
             <div class="github-login">
                 {% if session.get('user') %}
-                    <p>Welcome, {{ session['user']['username'] }}</p>
+                    <p>Welcome, {{ session['user']['username'] }}
+                        {% if is_admin %}
+                            <span style="color: #EB5B25; font-weight: bold;">(Admin)</span>
+                        {% endif %}
+                    </p>
                     <a href="{{ url_for('logout') }}">Logout</a>
                 {% else %}
                     <a href="{{ url_for('login') }}">Login with GitHub</a>
@@ -157,7 +172,7 @@
                     <option value="" disabled selected>Select a Key Event</option>
                 </select>
             </div>
-            <p>For more detailed KE info, see <a href="/ke-details" target="_blank">here</a>.</p>
+            <p>For detailed Key Event information, visit the <a href="/ke-details" target="_blank">Key Event details page</a>.</p>
         </section>
 
         <section>
@@ -167,18 +182,18 @@
                     <option value="" disabled selected>Select a Pathway</option>
                 </select>
             </div>
-            <p>For more detailed pathway info, see <a href="/pw-details" target="_blank">here</a>.</p>
+            <p>For detailed pathway information, visit the <a href="/pw-details" target="_blank">pathway details page</a>.</p>
         </section>
         <section id="confidence-guide" style="display: none;">
             <h2>Step 3: Assess Confidence of Mapping</h2>
             <p>
-                Use the guide below to assess the biological relevance and confidence level. 
-                The result will auto-fill the dropdown in Step 3.
+                Use the guided assessment below to evaluate the biological relevance and determine the confidence level of your mapping. 
+                Your answers will automatically populate the confidence level and connection type fields.
             </p>
 
             <div id="step1" class="assessment-step">
-                <h4>1. Is the pathway related to the KE’s biological process?
-                    <span class="tooltip" data-tooltip="Check if the pathway relates to the biological process described in the KE title or description.">❓</span>
+                <h4>1. Is the pathway biologically related to the Key Event?
+                    <span class="tooltip" data-tooltip="Determine whether the selected pathway directly relates to the biological process described in the Key Event's title and description.">❓</span>
                 </h4>
                 <div class="btn-group" data-step="step1">
                     <button class="btn-option" data-value="yes">Yes</button>
@@ -188,8 +203,8 @@
 
 
             <div id="step2" class="assessment-step" style="display: none;">
-                <h4>2. Is the KE at molecular/cellular/tissue/organ level?
-                    <span class="tooltip" data-tooltip="Only KEs at molecular, cellular, tissue, or organ level qualify for high confidence.">❓</span>
+                <h4>2. What is the biological level of the Key Event?
+                    <span class="tooltip" data-tooltip="Key Events at molecular, cellular, tissue, or organ levels are eligible for higher confidence mappings than those at individual or population levels.">❓</span>
                 </h4>
                 <div class="btn-group" data-step="step2">
                     <button class="btn-option" data-value="yes">Yes</button>
@@ -198,8 +213,8 @@
             </div>
 
             <div id="step3" class="assessment-step" style="display: none;">
-                <h4>3. Is the biological mechanism well connected?
-                    <span class="tooltip" data-tooltip="Is there in vitro/in vivo evidence that links this pathway to the KE (e.g., pathway activity upon KE occurrence)?">❓</span>
+                <h4>3. Is there evidence linking the pathway to the Key Event?
+                    <span class="tooltip" data-tooltip="Look for experimental evidence (in vitro or in vivo) demonstrating that this pathway is activated, modified, or otherwise responds when the Key Event occurs.">❓</span>
                 </h4>
                 <div class="btn-group" data-step="step3">
                     <button class="btn-option" data-value="yes">Yes</button>
@@ -208,8 +223,8 @@
             </div>
 
             <div id="step4" class="assessment-step" style="display: none;">
-                <h4>4. Is there experimental evidence?
-                    <span class="tooltip" data-tooltip="Is the pathway a close or full match to the KE? Consider specificity and completeness.">❓</span>
+                <h4>4. How well does the pathway match the Key Event?
+                    <span class="tooltip" data-tooltip="Evaluate whether the pathway is a close or complete match to the Key Event. Consider the specificity and comprehensiveness of the biological overlap.">❓</span>
                 </h4>
                 <div class="btn-group" data-step="step4">
                     <button class="btn-option" data-value="yes">Yes</button>
@@ -218,8 +233,8 @@
             </div>
 
             <div id="step5" class="assessment-step" style="display: none;">
-                <h4>5. How specific is the pathway?
-                    <span class="tooltip" data-tooltip="Does the relevant portion work independently or is it integrated in broader signaling networks?">❓</span>
+                <h4>5. How specific is the pathway to the Key Event?
+                    <span class="tooltip" data-tooltip="Assess whether the relevant pathway components function independently or are part of broader signaling networks. More specific pathways receive higher confidence ratings.">❓</span>
                 </h4>
                 <div class="btn-group" data-step="step5">
                     <button class="btn-option" data-value="high">Highly specific</button>
@@ -229,8 +244,8 @@
             </div>
 
             <div id="step6" class="assessment-step" style="display: none;">
-                <h4>6. Is the relevant part modular?
-                    <span class="tooltip" data-tooltip="Check if the pathway relates to the biological process described in the KE title or description.">❓</span>
+                <h4>6. Can the relevant pathway components function independently?
+                    <span class="tooltip" data-tooltip="Determine if the pathway components relevant to the Key Event can operate as a discrete, modular unit, or if they require extensive integration with other biological processes.">❓</span>
                 </h4>
                 <div class="btn-group" data-step="step6">
                     <button class="btn-option" data-value="yes">Yes</button>
@@ -239,31 +254,31 @@
             </div>
 
             <div id="step2b" class="assessment-step" style="display: none;">
-                <h4>2b. Is the pathway causative or responsive to the KE?
-                    <span class="tooltip" data-tooltip="Does the pathway trigger the KE (causative), react to it (responsive), or something else?">❓</span>
+                <h4>What is the relationship between the pathway and Key Event?
+                    <span class="tooltip" data-tooltip="Determine if the pathway causes the Key Event to occur (causative), responds to the Key Event after it happens (responsive), or has another type of relationship.">❓</span>
                 </h4>
                 <div class="btn-group" data-step="step2b">
                     <button class="btn-option" data-value="causative">Causative</button>
                     <button class="btn-option" data-value="responsive">Responsive</button>
-                    <button class="btn-option" data-value="other">Other</button>
+                    <button class="btn-option" data-value="other">Undefined</button>
                 </div>
             </div>
 
-            <button id="evaluateBtn" type="button" style="display: none;" onclick="evaluateConfidence()">Evaluate Confidence</button>
+            <button id="evaluateBtn" type="button" style="display: none;" onclick="evaluateConfidence()">Complete Assessment</button>
 
             <p id="ca-result" style="font-weight: bold; margin-top: 10px;"></p>
         </section>
 
 
         <section id="step-3-result">
-            <h2>Step 3: Results of Confidence Assessment</h2>
-            <p><strong>Confidence Level:</strong> <span id="auto-confidence">—</span></p>
+            <h2>Step 4: Assessment Results</h2>
+            <p><strong>Recommended Confidence Level:</strong> <span id="auto-confidence">—</span></p>
             <p><strong>Connection Type:</strong> <span id="auto-connection">—</span></p>
             <details style="margin-top: 15px;">
-                <summary style="cursor: pointer; font-weight: bold;">What do the Confidence Levels Mean?</summary>
-                <p><strong>High Confidence:</strong> A direct and specific link between the pathway and KE, supported by strong evidence. Pathway is simple and modular.</p>
-                <p><strong>Medium Confidence:</strong> Partial or indirect match, with some evidence or complexity. May require integration with other pathways.</p>
-                <p><strong>Low Confidence:</strong> Weak, unclear, or speculative link. Little or no experimental support, or only minor pathway overlap.</p>
+                <summary style="cursor: pointer; font-weight: bold;">Understanding Confidence Levels</summary>
+                <p><strong>High Confidence:</strong> Direct and specific biological link with strong experimental evidence. The pathway components function independently and specifically relate to the Key Event.</p>
+                <p><strong>Medium Confidence:</strong> Partial or indirect biological relationship with moderate evidence. May involve pathway integration or some biological complexity.</p>
+                <p><strong>Low Confidence:</strong> Weak, speculative, or unclear biological connection. Limited experimental support or only minor overlap between pathway and Key Event.</p>
             </details>
 
             <!-- Hidden form fields to pass values on submit -->
@@ -272,14 +287,15 @@
         </section>
 
         <section>
-            <h2>Submit Mapping</h2>
+            <h2>Step 5: Submit Your Mapping</h2>
             {% if session.get('user') %}
                 <form id="mapping-form">
-                    <button type="submit">Submit</button>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit">Submit KE-WP Mapping</button>
                 </form>
             {% else %}
-                <p style="color: red;">You need to be logged in to submit mappings.</p>
-                <button disabled>Submit</button>
+                <p style="color: red; font-weight: bold;">Please log in with GitHub to submit your mapping.</p>
+                <button disabled>Submit KE-WP Mapping</button>
             {% endif %}
         </section>        
 
@@ -290,305 +306,7 @@
         <p>&copy; 2025 KE-WP Mapping Service</p>
     </footer>
 
-    <script>
-        $(document).ready(function () {
-            // Retrieve the login status from the data attribute
-            const isLoggedIn = $("body").data("is-logged-in") === true;
-    
-            console.log("User login status:", isLoggedIn); // Debug log
-    
-            // Fetch KE options and populate KE dropdown sorted by KE Label
-            $.getJSON("/get_ke_options")
-                .done(function (data) {
-                    // console.log("KE options loaded:", data); // Debug log
-    
-                    // Sort data by KE Label numerically
-                    data.sort((a, b) => {
-                        const idA = parseInt(a.KElabel.match(/\d+/)[0]);
-                        const idB = parseInt(b.KElabel.match(/\d+/)[0]);
-                        return idA - idB;
-                    });
-    
-                    // Populate KE ID dropdown
-                    const dropdown = $("#ke_id");
-                    dropdown.empty();
-                    dropdown.append('<option value="" disabled selected>Select a Key Event</option>');
-                    data.forEach(option => {
-                        dropdown.append(
-                            `<option value="${option.KElabel}" data-title="${option.KEtitle}">${option.KElabel} - ${option.KEtitle}</option>`
-                        );
-                    });
-                })
-                .fail(function () {
-                    console.error("Failed to load KE options"); // Debug log
-                    $("#message").text("Failed to load Key Events").css("color", "red");
-                });
-    
-            // Fetch pathway options and populate Pathway dropdown sorted by Pathway ID
-            $.getJSON("/get_pathway_options")
-                .done(function (data) {
-                    // console.log("Pathway options loaded:", data); // Debug log
-    
-                    // Sort data by Pathway ID numerically
-                    data.sort((a, b) => {
-                        const idA = parseInt(a.pathwayID.match(/\d+/)[0]);
-                        const idB = parseInt(b.pathwayID.match(/\d+/)[0]);
-                        return idA - idB;
-                    });
-    
-                    // Populate Pathway ID dropdown
-                    const dropdown = $("#wp_id");
-                    dropdown.empty();
-                    dropdown.append('<option value="" disabled selected>Select a Pathway</option>');
-                    data.forEach(option => {
-                        dropdown.append(
-                            `<option value="${option.pathwayID}" data-title="${option.pathwayTitle}">${option.pathwayID} - ${option.pathwayTitle}</option>`
-                        );
-                    });
-                })
-                .fail(function () {
-                    console.error("Failed to load Pathway options"); // Debug log
-                    $("#message").text("Failed to load Pathways").css("color", "red");
-                });
-            // Handle form submission
-            $("#mapping-form").submit(function (event) {
-                event.preventDefault();
-
-                const formData = {
-                    ke_id: $("#ke_id").val(),
-                    ke_title: $("#ke_id option:selected").data("title"),
-                    wp_id: $("#wp_id").val(),
-                    wp_title: $("#wp_id option:selected").data("title"),
-                    connection_type: $("#connection_type").val(),
-                    confidence_level: $("#confidence_level").val()
-                };
-
-                // First, check for duplicates
-                $.post("/check", formData)
-                    .done(function (response) {
-                        $("#existing-entries").html(""); // Clear previous content
-                        if (response.pair_exists) {
-                            // Exact KE-WP pair exists, show a message
-                            $("#message").text(response.message).css("color", "red");
-                        } else if (response.ke_exists) {
-                            // KE exists but WP is new, show table for confirmation
-                            let tableHTML = `
-                                <p>${response.message}</p>
-                                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                                    <thead>
-                                        <tr style="background-color: #f2f2f2;">
-                                            <th style="border: 1px solid #ddd; padding: 8px;">KE ID</th>
-                                            <th style="border: 1px solid #ddd; padding: 8px;">WP ID</th>
-                                            <th style="border: 1px solid #ddd; padding: 8px;">Connection Type</th>
-                                            <th style="border: 1px solid #ddd; padding: 8px;">Confidence Level</th>
-                                            <th style="border: 1px solid #ddd; padding: 8px;">Timestamp</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                            `;
-                            response.ke_matches.forEach(entry => {
-                                tableHTML += `
-                                    <tr>
-                                        <td style="border: 1px solid #ddd; padding: 8px;">${entry.KE_ID}</td>
-                                        <td style="border: 1px solid #ddd; padding: 8px;">${entry.WP_ID}</td>
-                                        <td style="border: 1px solid #ddd; padding: 8px;">${entry.Connection_Type}</td>
-                                        <td style="border: 1px solid #ddd; padding: 8px;">${entry.Confidence_Level}</td>
-                                        <td style="border: 1px solid #ddd; padding: 8px;">${entry.Timestamp.split('.')[0]}</td>
-                                    </tr>
-                                `;
-                            });
-                            tableHTML += `
-                                    </tbody>
-                                </table>
-                                <p style="margin-top: 10px;">Do you want to add this new KE-WP pair?</p>
-                                <button id="confirm-submit" style="margin-top: 10px; padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">Yes</button>
-                            `;
-                            $("#existing-entries").html(tableHTML);
-
-                            // Handle confirmation button click
-                            $("#confirm-submit").click(function () {
-                                $.post("/submit", formData)
-                                    .done(function (response) {
-                                        $("#message").text(response.message).css("color", "green");
-                                        $("#existing-entries").html(""); // Clear confirmation
-                                    })
-                                    .fail(function (xhr) {
-                                        $("#message").text(xhr.responseJSON.error).css("color", "red");
-                                    });
-                            });
-                        } else {
-                            // Submit directly for new KE-WP pair
-                            $.post("/submit", formData)
-                                .done(function (response) {
-                                    $("#message").text(response.message).css("color", "green");
-                                })
-                                .fail(function (xhr) {
-                                    $("#message").text(xhr.responseJSON.error).css("color", "red");
-                                });
-                        }
-                    })
-                    .fail(function (xhr) {
-                        $("#message").text(xhr.responseJSON.error).css("color", "red");
-                    });
-            });
-
-
-
-
-        });
-        // Function to evaluate confidence based on user selections
-        const steps = {
-            step1: document.querySelector('#step1 select'),
-            step2: document.querySelector('#step2 select'),
-            step3: document.querySelector('#step3 select'),
-            step4: document.querySelector('#step4 select'),
-            step5: document.querySelector('#step5 select'),
-            step6: document.querySelector('#step6 select'),
-            step2b: document.querySelector('#step2b select')
-        };
-
-        const stepAnswers = {};
-
-        $(".btn-group").on("click", ".btn-option", function () {
-            const $btn = $(this);
-            const $group = $btn.closest(".btn-group");
-            const stepId = $group.data("step");
-            const selectedValue = $btn.data("value");
-
-            // Save the value
-            stepAnswers[stepId] = selectedValue;
-
-            // Update UI
-            $group.find(".btn-option").removeClass("selected");
-            $btn.addClass("selected");
-
-            // Show/hide next steps based on logic
-            handleStepProgression();
-        });
-
-        function handleStepProgression() {
-            const s1 = stepAnswers["step1"];
-            const s2 = stepAnswers["step2"];
-            const s2b = stepAnswers["step2b"];
-            const s3 = stepAnswers["step3"];
-            const s4 = stepAnswers["step4"];
-            const s5 = stepAnswers["step5"];
-            const s6 = stepAnswers["step6"];
-
-            // Reset visibility
-            $("#step2, #step2b, #step3, #step4, #step5, #step6").hide();
-            $("#evaluateBtn").hide();
-
-            if (s1 === "yes") {
-                $("#step2").show();
-            } else if (s1 === "no") {
-                $("#ca-result").text("No match: Pathway is not biologically related to KE.");
-                return;
-            }
-
-            if (s2) {
-                $("#step2b").show();
-                $("#step3").show();
-            }
-
-            if (s3) {
-                $("#step4").show();
-            }
-            if (s4) {
-                $("#step5").show();
-            }
-            if (s5 === "medium") {
-                $("#step6").show();
-            }
-
-            const ready = s1 && s2 && s2b && s3 && s4 && s5 && (s5 !== "medium" || s6);
-            if (ready) {
-                $("#evaluateBtn").show();
-            }
-        }
-
-
-        function checkEvaluateReadiness() {
-            const required = [
-                steps.step1.value,
-                steps.step2.value,
-                steps.step3.value,
-                steps.step4.value,
-                steps.step5.value,
-                steps.step2b.value
-            ];
-            if (required.every(v => v !== "")) {
-                if (steps.step5.value === "medium" && !steps.step6.value) {
-                    $("#evaluateBtn").hide();
-                } else {
-                    $("#evaluateBtn").show();
-                }
-            } else {
-                $("#evaluateBtn").hide();
-            }
-        }
-
-
-
-        function resetGuide() {
-            const sections = ["#step2", "#step3", "#step4", "#step5", "#step6", "#step2b"];
-            sections.forEach(id => {
-                $(id).hide().find("select").val("");
-            });
-            $("#evaluateBtn").hide();
-            $("#ca-result").text("");
-            $("#auto-confidence").text("—");
-            $("#auto-connection").text("—");
-            $("#confidence_level").val("");
-            $("#connection_type").val("");
-        }
-
-
-        function evaluateConfidence() {
-            const s1 = stepAnswers["step1"];
-            const s2 = stepAnswers["step2"];
-            const s2b = stepAnswers["step2b"];
-            const s3 = stepAnswers["step3"];
-            const s4 = stepAnswers["step4"];
-            const s5 = stepAnswers["step5"];
-            const s6 = stepAnswers["step6"];
-
-            let confidence = "low";
-
-            if (s3 === "no" || s5 === "low") {
-                confidence = "low";
-            } else if (s5 === "medium") {
-                confidence = (s6 === "yes") ? "medium" : "low";
-            } else if (s4 === "no") {
-                confidence = "medium";
-            } else {
-                confidence = "high";
-            }
-
-            $("#auto-confidence").text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
-            $("#auto-connection").text(s2b.charAt(0).toUpperCase() + s2b.slice(1));
-            $("#confidence_level").val(confidence);
-            $("#connection_type").val(s2b);
-            $("#evaluateBtn").hide();
-        }
-
-
-        function toggleAssessmentSection() {
-            const keSelected = $("#ke_id").val();
-            const wpSelected = $("#wp_id").val();
-            if (keSelected && wpSelected) {
-                $("#confidence-guide").show();
-                $("#confidence-guide")[0].scrollIntoView({ behavior: 'smooth' });
-            } else {
-                $("#confidence-guide").hide();
-                resetGuide();
-            }
-        }
-
-
-        $("#ke_id, #wp_id").change(toggleAssessmentSection);
-
-    </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
     
     
