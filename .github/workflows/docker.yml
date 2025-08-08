@@ -75,14 +75,18 @@ jobs:
         echo "ADMIN_USERS=testuser" >> test.env
         echo "FLASK_DEBUG=false" >> test.env
         
+        # Find the built image
+        IMAGE_ID=$(docker images test-image --format "table {{.ID}}" | tail -n +2 | head -n 1)
+        echo "Using image: $IMAGE_ID"
+        
         # Run container with health check
         docker run -d --name test-container \
           --env-file test.env \
           -p 5000:5000 \
-          test-image:latest
+          $IMAGE_ID
         
-        # Wait for container to start
-        sleep 15
+        # Wait for container to start (increased time for startup)
+        sleep 30
         
         # Test health endpoint
         curl -f http://localhost:5000/health || (echo "Health check failed" && docker logs test-container && exit 1)
