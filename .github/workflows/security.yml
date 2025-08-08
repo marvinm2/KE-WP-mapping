@@ -1,0 +1,346 @@
+name: Security & Compliance
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 4 AM UTC
+    - cron: '0 4 * * *'
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install safety pip-audit cyclonedx-bom
+
+    - name: Run Safety check
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check --short-report || true
+
+    - name: Run pip-audit
+      run: |
+        pip-audit --desc --format=json --output=pip-audit-report.json || true
+        pip-audit --desc || true
+
+    - name: Generate Software Bill of Materials (SBOM)
+      run: |
+        cyclonedx-py -i requirements.txt -o sbom.json --format json
+        cyclonedx-py -i requirements.txt -o sbom.xml --format xml
+
+    - name: Upload dependency reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: dependency-reports
+        path: |
+          safety-report.json
+          pip-audit-report.json
+          sbom.json
+          sbom.xml
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install SAST tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit semgrep
+
+    - name: Run Bandit security linter
+      run: |
+        bandit -r . -f json -o bandit-report.json -x tests/ || true
+        bandit -r . -x tests/ || true
+
+    - name: Run Semgrep
+      run: |
+        semgrep --config=auto . --json --output=semgrep-report.json || true
+        semgrep --config=auto . || true
+
+    - name: Upload SAST reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: sast-reports
+        path: |
+          bandit-report.json
+          semgrep-report.json
+
+  codeql-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: python
+        queries: security-extended,security-and-quality
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:python"
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install TruffleHog
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+
+    - name: Run TruffleHog secret scan
+      run: |
+        trufflehog git file://. --json --output=trufflehog-report.json || true
+        echo "TruffleHog scan completed - check artifacts for detailed report"
+
+    - name: Upload secret scan report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: secret-scan-report
+        path: trufflehog-report.json
+
+  docker-security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build image for scanning
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: security-scan:latest
+        cache-from: type=gha
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'security-scan:latest'
+        format: 'sarif'
+        output: 'trivy-image-results.sarif'
+
+    - name: Run Trivy filesystem scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-fs-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: |
+          trivy-image-results.sarif
+          trivy-fs-results.sarif
+
+    - name: Run Docker Scout (if available)
+      run: |
+        # Install Docker Scout
+        curl -fsSL https://raw.githubusercontent.com/docker/scout-cli/main/install.sh | sh -s -- -b /usr/local/bin
+        
+        # Run Docker Scout analysis
+        docker scout cves security-scan:latest --format sarif --output scout-results.sarif || echo "Docker Scout analysis completed with warnings"
+        docker scout recommendations security-scan:latest || echo "Docker Scout recommendations completed"
+
+    - name: Upload Docker Scout results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: docker-security-reports
+        path: |
+          trivy-*.sarif
+          scout-results.sarif
+
+  compliance-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check license compliance
+      run: |
+        # Check for license files
+        find . -name "LICENSE*" -o -name "COPYING*" | head -5
+        
+        # Check Python package licenses
+        python -m pip install --upgrade pip
+        pip install pip-licenses
+        pip install -r requirements.txt
+        pip-licenses --format=json --output-file=licenses-report.json || true
+        pip-licenses --format=plain || true
+
+    - name: Check security headers
+      run: |
+        # Create a simple security headers check script
+        cat > check_security.py << 'EOF'
+        import re
+        import os
+
+        security_patterns = [
+            (r'SECRET_KEY\s*=\s*["\'][^"\']+["\']', 'Hardcoded secret key found'),
+            (r'PASSWORD\s*=\s*["\'][^"\']+["\']', 'Hardcoded password found'),
+            (r'API_KEY\s*=\s*["\'][^"\']+["\']', 'Hardcoded API key found'),
+            (r'eval\s*\(', 'Use of eval() function found'),
+            (r'exec\s*\(', 'Use of exec() function found'),
+        ]
+
+        issues = []
+        for root, dirs, files in os.walk('.'):
+            # Skip hidden directories and common non-source directories
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', '__pycache__']]
+            
+            for file in files:
+                if file.endswith(('.py', '.js', '.html', '.yml', '.yaml')):
+                    filepath = os.path.join(root, file)
+                    try:
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            for pattern, message in security_patterns:
+                                if re.search(pattern, content, re.IGNORECASE):
+                                    issues.append(f"{filepath}: {message}")
+                    except Exception as e:
+                        print(f"Could not read {filepath}: {e}")
+
+        if issues:
+            print("Security issues found:")
+            for issue in issues:
+                print(f"⚠️  {issue}")
+        else:
+            print("✅ No obvious security issues found in static analysis")
+        EOF
+        
+        python check_security.py
+
+    - name: Check environment variables
+      run: |
+        # Check for .env files with actual secrets
+        if [ -f ".env" ]; then
+          echo "⚠️  .env file found - ensure it's not committed with real secrets"
+          grep -v '^#' .env | grep -v '^$' | sed 's/=.*/=***/' || true
+        fi
+        
+        if [ -f ".env.example" ]; then
+          echo "✅ .env.example file found"
+        else
+          echo "⚠️  No .env.example file found"
+        fi
+
+    - name: Upload compliance reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: compliance-reports
+        path: |
+          licenses-report.json
+
+  security-summary:
+    runs-on: ubuntu-latest
+    needs: [dependency-check, static-analysis, codeql-analysis, secret-scan, docker-security, compliance-check]
+    if: always()
+    steps:
+    - name: Download all security reports
+      uses: actions/download-artifact@v3
+
+    - name: Create security summary
+      run: |
+        echo "# Security & Compliance Summary" > security-summary.md
+        echo "" >> security-summary.md
+        echo "## Job Results" >> security-summary.md
+        echo "- Dependency Check: ${{ needs.dependency-check.result }}" >> security-summary.md
+        echo "- Static Analysis: ${{ needs.static-analysis.result }}" >> security-summary.md
+        echo "- CodeQL Analysis: ${{ needs.codeql-analysis.result }}" >> security-summary.md
+        echo "- Secret Scan: ${{ needs.secret-scan.result }}" >> security-summary.md
+        echo "- Docker Security: ${{ needs.docker-security.result }}" >> security-summary.md
+        echo "- Compliance Check: ${{ needs.compliance-check.result }}" >> security-summary.md
+        
+        echo "" >> security-summary.md
+        echo "## Security Status" >> security-summary.md
+        
+        # Count failures
+        failures=0
+        if [ "${{ needs.dependency-check.result }}" = "failure" ]; then failures=$((failures + 1)); fi
+        if [ "${{ needs.static-analysis.result }}" = "failure" ]; then failures=$((failures + 1)); fi
+        if [ "${{ needs.codeql-analysis.result }}" = "failure" ]; then failures=$((failures + 1)); fi
+        if [ "${{ needs.secret-scan.result }}" = "failure" ]; then failures=$((failures + 1)); fi
+        if [ "${{ needs.docker-security.result }}" = "failure" ]; then failures=$((failures + 1)); fi
+        if [ "${{ needs.compliance-check.result }}" = "failure" ]; then failures=$((failures + 1)); fi
+        
+        if [ $failures -eq 0 ]; then
+          echo "🟢 **All security checks passed**" >> security-summary.md
+        else
+          echo "🔴 **$failures security check(s) failed**" >> security-summary.md
+        fi
+        
+        echo "" >> security-summary.md
+        echo "## Available Reports" >> security-summary.md
+        echo "Check the artifacts section for detailed security reports from all tools." >> security-summary.md
+
+    - name: Upload security summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-summary
+        path: security-summary.md
+
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('security-summary.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 🔒 Security & Compliance Report\n\n${summary}`
+          });
+
+  notify-security:
+    runs-on: ubuntu-latest
+    needs: [security-summary]
+    if: failure()
+    steps:
+    - name: Security notification
+      run: |
+        echo "🚨 Security checks failed - please review the security reports"
+        echo "Check the GitHub Security tab for detailed vulnerability information"

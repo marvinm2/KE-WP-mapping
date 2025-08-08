@@ -1,0 +1,51 @@
+# CODEOWNERS file for KE-WP Mapping Application
+# This file defines who owns specific parts of the codebase and must approve changes
+
+# Global owners - fallback for any files not explicitly covered
+* @marvinm2
+
+# Core application files
+/app.py @marvinm2
+/config.py @marvinm2
+/services.py @marvinm2
+/error_handlers.py @marvinm2
+
+# Blueprint modules
+/blueprints/ @marvinm2
+
+# Database and models
+/models/ @marvinm2
+/migrate_csv_to_db.py @marvinm2
+
+# Templates and frontend
+/templates/ @marvinm2
+/static/ @marvinm2
+
+# Configuration files
+/.env* @marvinm2
+/requirements*.txt @marvinm2
+/docker-compose*.yml @marvinm2
+/Dockerfile @marvinm2
+/nginx.conf @marvinm2
+
+# Testing
+/tests/ @marvinm2
+/pytest.ini @marvinm2
+
+# CI/CD and workflows
+/.github/ @marvinm2
+
+# Documentation
+/README.md @marvinm2
+/CLAUDE.md @marvinm2
+/DEPLOYMENT.md @marvinm2
+/CHANGELOG.md @marvinm2
+/ARCHITECTURE.md @marvinm2
+
+# Development tools
+/Makefile @marvinm2
+/.gitignore @marvinm2
+
+# Security-sensitive files (require extra review)
+/schemas.py @marvinm2
+/blueprints/auth.py @marvinm2

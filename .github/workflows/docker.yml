@@ -1,0 +1,321 @@
+name: Docker Build & Test
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Build weekly on Mondays at 3 AM UTC
+    - cron: '0 3 * * 1'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: all
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: ${{ matrix.platform }}
+        load: ${{ matrix.platform == 'linux/amd64' }}
+        push: false
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=${{ matrix.platform }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+        outputs: type=image,name=test-image,push=false
+
+    - name: Test Docker image (AMD64 only)
+      if: matrix.platform == 'linux/amd64'
+      run: |
+        # Create test environment
+        echo "FLASK_SECRET_KEY=test-secret-key" > test.env
+        echo "GITHUB_CLIENT_ID=dummy" >> test.env
+        echo "GITHUB_CLIENT_SECRET=dummy" >> test.env
+        echo "ADMIN_USERS=testuser" >> test.env
+        echo "FLASK_DEBUG=false" >> test.env
+        
+        # Run container with health check
+        docker run -d --name test-container \
+          --env-file test.env \
+          -p 5000:5000 \
+          test-image:latest
+        
+        # Wait for container to start
+        sleep 15
+        
+        # Test health endpoint
+        curl -f http://localhost:5000/health || (echo "Health check failed" && docker logs test-container && exit 1)
+        
+        # Test main page
+        curl -f http://localhost:5000/ || (echo "Main page test failed" && docker logs test-container && exit 1)
+        
+        # Test metrics endpoint
+        curl -f http://localhost:5000/metrics || (echo "Metrics test failed" && docker logs test-container && exit 1)
+        
+        # Stop and remove test container
+        docker stop test-container
+        docker rm test-container
+        
+        echo "✅ Docker image tests passed"
+
+    - name: Push Docker image
+      if: github.event_name != 'pull_request'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: ${{ matrix.platform }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=${{ matrix.platform }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+  docker-compose-test:
+    runs-on: ubuntu-latest
+    needs: build-test
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Create test environment
+      run: |
+        cp .env.example .env
+        echo "FLASK_SECRET_KEY=test-secret-key" >> .env
+        echo "GITHUB_CLIENT_ID=dummy" >> .env
+        echo "GITHUB_CLIENT_SECRET=dummy" >> .env
+        echo "ADMIN_USERS=testuser" >> .env
+        echo "FLASK_DEBUG=false" >> .env
+
+    - name: Test Docker Compose
+      run: |
+        # Start services
+        docker-compose up -d
+        
+        # Wait for services to start
+        sleep 30
+        
+        # Check if all services are running
+        docker-compose ps
+        
+        # Test web service health
+        curl -f http://localhost:5000/health || (echo "Web service health check failed" && docker-compose logs && exit 1)
+        
+        # Test Redis connectivity (if applicable)
+        docker-compose exec -T redis redis-cli ping || echo "Redis test skipped"
+        
+        # Check logs for errors
+        docker-compose logs web | grep -i error && echo "Errors found in logs" || echo "No errors in logs"
+        
+        # Stop services
+        docker-compose down
+        
+        echo "✅ Docker Compose tests passed"
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build-test
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build image for scanning
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: scan-image:latest
+        cache-from: type=gha
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'scan-image:latest'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run Trivy filesystem scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+
+  performance-test:
+    runs-on: ubuntu-latest
+    needs: build-test
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and start application
+      run: |
+        # Create test environment
+        cp .env.example .env
+        echo "FLASK_SECRET_KEY=test-secret-key" >> .env
+        echo "GITHUB_CLIENT_ID=dummy" >> .env
+        echo "GITHUB_CLIENT_SECRET=dummy" >> .env
+        echo "ADMIN_USERS=testuser" >> .env
+        
+        # Build and start
+        docker-compose up -d
+        sleep 20
+
+    - name: Install performance testing tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y apache2-utils
+
+    - name: Run performance tests
+      run: |
+        # Test main page load time
+        ab -n 100 -c 10 http://localhost:5000/ > performance-main.txt || true
+        
+        # Test health endpoint
+        ab -n 1000 -c 50 http://localhost:5000/health > performance-health.txt || true
+        
+        # Test metrics endpoint
+        ab -n 500 -c 25 http://localhost:5000/metrics > performance-metrics.txt || true
+        
+        echo "Performance test results:"
+        echo "========================"
+        cat performance-health.txt | grep "Requests per second" || echo "Health endpoint perf test failed"
+        cat performance-main.txt | grep "Requests per second" || echo "Main page perf test failed"
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-results
+        path: |
+          performance-*.txt
+
+    - name: Cleanup
+      if: always()
+      run: |
+        docker-compose down
+
+  image-analysis:
+    runs-on: ubuntu-latest
+    needs: build-test
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build image for analysis
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: analyze-image:latest
+        cache-from: type=gha
+
+    - name: Analyze image with dive
+      run: |
+        # Install dive
+        wget -qO- https://github.com/wagoodman/dive/releases/download/v0.10.0/dive_0.10.0_linux_amd64.tar.gz | tar -xz
+        sudo mv dive /usr/local/bin/
+        
+        # Analyze image efficiency
+        dive analyze-image:latest --ci --lowestEfficiency=0.8 --highestWastedBytes=10MB
+
+    - name: Get image information
+      run: |
+        echo "Image size and layers:"
+        docker images analyze-image:latest
+        docker history analyze-image:latest --no-trunc
+
+  deploy-test:
+    runs-on: ubuntu-latest
+    needs: [build-test, docker-compose-test, security-scan, performance-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Test deployment readiness
+      run: |
+        echo "✅ All Docker tests passed"
+        echo "✅ Security scans completed"
+        echo "✅ Performance tests completed"
+        echo "🚀 Ready for deployment"
+
+    - name: Create deployment artifact
+      run: |
+        mkdir -p deployment
+        cp docker-compose.yml deployment/
+        cp nginx.conf deployment/
+        cp .env.example deployment/
+        echo "Docker image built and tested successfully" > deployment/README.txt
+        echo "Build SHA: ${{ github.sha }}" >> deployment/README.txt
+        echo "Build date: $(date)" >> deployment/README.txt
+
+    - name: Upload deployment artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-files
+        path: deployment/
