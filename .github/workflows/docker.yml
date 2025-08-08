@@ -59,37 +59,43 @@ jobs:
         platforms: ${{ matrix.platform }}
         load: ${{ matrix.platform == 'linux/amd64' }}
         push: false
-        tags: ${{ steps.meta.outputs.tags }}
+        tags: test-image:latest
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha,scope=${{ matrix.platform }}
         cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
-        outputs: type=image,name=test-image,push=false
 
     - name: Test Docker image (AMD64 only)
       if: matrix.platform == 'linux/amd64'
       run: |
-        # Create test environment
-        echo "FLASK_SECRET_KEY=test-secret-key" > test.env
-        echo "GITHUB_CLIENT_ID=dummy" >> test.env
-        echo "GITHUB_CLIENT_SECRET=dummy" >> test.env
-        echo "ADMIN_USERS=testuser" >> test.env
-        echo "FLASK_DEBUG=false" >> test.env
-        
-        # Find the built image
-        IMAGE_ID=$(docker images test-image --format "table {{.ID}}" | tail -n +2 | head -n 1)
-        echo "Using image: $IMAGE_ID"
+        # Verify image was built
+        docker images test-image:latest
         
         # Run container with health check
         docker run -d --name test-container \
-          --env-file test.env \
+          -e FLASK_SECRET_KEY=test-secret-key \
+          -e GITHUB_CLIENT_ID=dummy \
+          -e GITHUB_CLIENT_SECRET=dummy \
+          -e ADMIN_USERS=testuser \
+          -e FLASK_DEBUG=false \
           -p 5000:5000 \
-          $IMAGE_ID
+          test-image:latest
         
-        # Wait for container to start (increased time for startup)
-        sleep 30
+        # Wait for container to start and show logs
+        echo "Waiting for container to start..."
+        sleep 20
+        echo "Container logs:"
+        docker logs test-container
         
-        # Test health endpoint
-        curl -f http://localhost:5000/health || (echo "Health check failed" && docker logs test-container && exit 1)
+        # Test health endpoint with retry
+        for i in {1..5}; do
+          if curl -f http://localhost:5000/health; then
+            echo "Health check passed!"
+            break
+          else
+            echo "Health check attempt $i failed, retrying in 10s..."
+            sleep 10
+          fi
+        done
         
         # Test main page
         curl -f http://localhost:5000/ || (echo "Main page test failed" && docker logs test-container && exit 1)

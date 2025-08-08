@@ -33,7 +33,7 @@ RUN adduser --disabled-password --gecos '' appuser \
 USER appuser
 
 # Create necessary directories
-RUN mkdir -p /app/proposals /app/static/css /app/static/js
+RUN mkdir -p /app/proposals /app/static/css /app/static/js /app/data
 
 # Expose port
 EXPOSE 5000
