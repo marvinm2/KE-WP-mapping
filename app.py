@@ -143,14 +143,14 @@ def create_app(config_name: str = None):
     @general_rate_limit
     def metrics():
         """Get system metrics (JSON API)"""
-        return jsonify(metrics_collector.get_system_health())
+        return jsonify(services.metrics_collector.get_system_health())
 
     @app.route("/metrics/<endpoint_name>")
     @general_rate_limit
     def endpoint_metrics(endpoint_name):
         """Get metrics for a specific endpoint"""
         hours = request.args.get("hours", 24, type=int)
-        return jsonify(metrics_collector.get_endpoint_stats(endpoint_name, hours))
+        return jsonify(services.metrics_collector.get_endpoint_stats(endpoint_name, hours))
 
     # Application teardown
     @app.teardown_appcontext

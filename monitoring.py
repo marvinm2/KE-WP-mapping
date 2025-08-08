@@ -244,7 +244,8 @@ class MetricsCollector:
             cursor = conn.execute(
                 "SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()"
             )
-            db_size = cursor.fetchone()[0] if cursor.fetchone() else 0
+            result = cursor.fetchone()
+            db_size = result[0] if result else 0
 
             conn.close()
 
