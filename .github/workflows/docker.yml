@@ -110,7 +110,7 @@ jobs:
         echo "✅ Docker image tests passed"
 
     - name: Push Docker image
-      if: github.event_name != 'pull_request'
+      if: false  # Disable push for now - testing only
       uses: docker/build-push-action@v5
       with:
         context: .
