@@ -8,6 +8,7 @@ from authlib.integrations.flask_client import OAuth
 
 from models import CacheModel, Database, MappingModel, ProposalModel
 from monitoring import MetricsCollector
+from pathway_suggestions import PathwaySuggestionService
 from rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ class ServiceContainer:
         self._cache_model = None
         self._metrics_collector = None
         self._rate_limiter = None
+        self._pathway_suggestion_service = None
         self._oauth = None
         self._github_client = None
 
@@ -82,6 +84,14 @@ class ServiceContainer:
             logger.debug("RateLimiter instance created")
         return self._rate_limiter
 
+    @property
+    def pathway_suggestion_service(self) -> PathwaySuggestionService:
+        """Get or create pathway suggestion service instance"""
+        if self._pathway_suggestion_service is None:
+            self._pathway_suggestion_service = PathwaySuggestionService(self.cache_model)
+            logger.debug("PathwaySuggestionService instance created")
+        return self._pathway_suggestion_service
+
     def init_oauth(self, app) -> OAuth:
         """Initialize OAuth with the Flask app"""
         if self._oauth is None:
@@ -128,6 +138,7 @@ class ServiceContainer:
                 "cache_model": self._cache_model is not None,
                 "metrics_collector": self._metrics_collector is not None,
                 "rate_limiter": self._rate_limiter is not None,
+                "pathway_suggestion_service": self._pathway_suggestion_service is not None,
             },
         }
 

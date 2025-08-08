@@ -254,7 +254,28 @@
 
         <section>
             <h2>Step 2: Select Pathway</h2>
+            
+            <!-- Pathway Search -->
+            <div class="search-container" style="margin-bottom: 15px;">
+                <label for="pathway-search" style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
+                    🔍 Search Pathways:
+                </label>
+                <div style="position: relative;">
+                    <input type="text" id="pathway-search" placeholder="Type to search pathways by name or description..." 
+                           style="width: 100%; padding: 10px 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; box-sizing: border-box;">
+                    <div id="search-results" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; max-height: 200px; overflow-y: auto; z-index: 1000; display: none;">
+                    </div>
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    💡 <em>Try searching for keywords like "immune", "metabolism", "signaling", or specific gene names</em>
+                </div>
+            </div>
+            
+            <!-- Regular Dropdown -->
             <div class="dropdown-container">
+                <label for="wp_id" style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
+                    Or browse all pathways:
+                </label>
                 <select id="wp_id" name="wp_id" required>
                     <option value="" disabled selected>Select a Pathway</option>
                 </select>

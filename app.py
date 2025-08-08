@@ -101,7 +101,7 @@ def create_app(config_name: str = None):
     # Set up models for blueprints
     set_auth_models(services.github_client)
     set_api_models(
-        services.mapping_model, services.proposal_model, services.cache_model
+        services.mapping_model, services.proposal_model, services.cache_model, services.pathway_suggestion_service
     )
     set_admin_models(services.proposal_model, services.mapping_model)
     set_main_models(services.mapping_model)

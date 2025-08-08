@@ -5,6 +5,7 @@ Handles all API endpoints for data submission and retrieval
 import hashlib
 import json
 import logging
+import time
 from functools import wraps
 
 import requests
@@ -29,14 +30,16 @@ api_bp = Blueprint("api", __name__)
 mapping_model = None
 proposal_model = None
 cache_model = None
+pathway_suggestion_service = None
 
 
-def set_models(mapping, proposal, cache):
+def set_models(mapping, proposal, cache, suggestion_service=None):
     """Set the model instances"""
-    global mapping_model, proposal_model, cache_model
+    global mapping_model, proposal_model, cache_model, pathway_suggestion_service
     mapping_model = mapping
     proposal_model = proposal
     cache_model = cache
+    pathway_suggestion_service = suggestion_service
 
 
 def login_required(f):
@@ -418,3 +421,167 @@ def submit_proposal():
     except Exception as e:
         logger.error(f"Error saving proposal: {str(e)}")
         return jsonify({"error": "Failed to save proposal"}), 500
+
+
+@api_bp.route("/suggest_pathways/<ke_id>", methods=["GET"])
+@sparql_rate_limit
+def suggest_pathways(ke_id):
+    """
+    Get pathway suggestions for a specific Key Event
+    
+    Args:
+        ke_id: Key Event ID from URL parameter
+        
+    Query Parameters:
+        ke_title: Key Event title for text-based matching
+        limit: Maximum number of suggestions (default 10)
+        
+    Returns:
+        JSON response with gene-based and text-based pathway suggestions
+    """
+    try:
+        if not pathway_suggestion_service:
+            logger.error("Pathway suggestion service not available")
+            return jsonify({"error": "Suggestion service unavailable"}), 503
+            
+        # Get parameters
+        ke_title = request.args.get('ke_title', '')
+        bio_level = request.args.get('bio_level', '')
+        limit = request.args.get('limit', 10, type=int)
+        
+        # Validate limit
+        if limit > 50:
+            limit = 50
+        elif limit < 1:
+            limit = 10
+            
+        # Validate KE ID format
+        if not ke_id or len(ke_id.strip()) == 0:
+            return jsonify({"error": "Invalid Key Event ID"}), 400
+            
+        logger.info(f"Getting pathway suggestions for KE: {ke_id} (bio_level: {bio_level})")
+        
+        # Get suggestions from service with biological level context
+        suggestions = pathway_suggestion_service.get_pathway_suggestions(
+            ke_id, ke_title, bio_level, limit
+        )
+        
+        if "error" in suggestions:
+            logger.error(f"Suggestion service error: {suggestions['error']}")
+            return jsonify(suggestions), 500
+            
+        # Add metadata
+        suggestions["request_info"] = {
+            "ke_id": ke_id,
+            "ke_title": ke_title,
+            "limit": limit,
+            "timestamp": int(time.time())
+        }
+        
+        logger.info(f"Returned {suggestions.get('total_suggestions', 0)} suggestions for KE {ke_id}")
+        return jsonify(suggestions), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting pathway suggestions for {ke_id}: {str(e)}")
+        return jsonify({"error": "Failed to get pathway suggestions"}), 500
+
+
+@api_bp.route("/search_pathways", methods=["GET"])
+@sparql_rate_limit 
+def search_pathways():
+    """
+    Enhanced pathway search with fuzzy matching
+    
+    Query Parameters:
+        q: Search query string (required)
+        threshold: Minimum similarity threshold (0.0-1.0, default 0.4)
+        limit: Maximum number of results (default 20)
+        
+    Returns:
+        JSON response with matching pathways and relevance scores
+    """
+    try:
+        if not pathway_suggestion_service:
+            logger.error("Pathway suggestion service not available")
+            return jsonify({"error": "Search service unavailable"}), 503
+            
+        # Get parameters
+        query = request.args.get('q', '').strip()
+        threshold = request.args.get('threshold', 0.4, type=float)
+        limit = request.args.get('limit', 20, type=int)
+        
+        # Validate parameters
+        if not query:
+            return jsonify({"error": "Search query is required"}), 400
+            
+        if threshold < 0.1 or threshold > 1.0:
+            threshold = 0.4
+            
+        if limit > 100:
+            limit = 100
+        elif limit < 1:
+            limit = 20
+            
+        logger.info(f"Searching pathways with query: '{query}', threshold: {threshold}")
+        
+        # Perform search
+        results = pathway_suggestion_service.search_pathways(
+            query, threshold, limit
+        )
+        
+        response = {
+            "query": query,
+            "threshold": threshold,
+            "limit": limit,
+            "results": results,
+            "total_results": len(results),
+            "timestamp": int(time.time())
+        }
+        
+        logger.info(f"Found {len(results)} pathways matching '{query}'")
+        return jsonify(response), 200
+        
+    except Exception as e:
+        logger.error(f"Error searching pathways: {str(e)}")
+        return jsonify({"error": "Failed to search pathways"}), 500
+
+
+@api_bp.route("/ke_genes/<ke_id>", methods=["GET"])
+@sparql_rate_limit
+def get_ke_genes(ke_id):
+    """
+    Get genes associated with a specific Key Event
+    
+    Args:
+        ke_id: Key Event ID from URL parameter
+        
+    Returns:
+        JSON response with list of HGNC gene symbols
+    """
+    try:
+        if not pathway_suggestion_service:
+            logger.error("Pathway suggestion service not available")
+            return jsonify({"error": "Service unavailable"}), 503
+            
+        # Validate KE ID
+        if not ke_id or len(ke_id.strip()) == 0:
+            return jsonify({"error": "Invalid Key Event ID"}), 400
+            
+        logger.info(f"Getting genes for KE: {ke_id}")
+        
+        # Get genes from service
+        genes = pathway_suggestion_service._get_genes_from_ke(ke_id)
+        
+        response = {
+            "ke_id": ke_id,
+            "genes": genes,
+            "gene_count": len(genes),
+            "timestamp": int(time.time())
+        }
+        
+        logger.info(f"Found {len(genes)} genes for KE {ke_id}")
+        return jsonify(response), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting genes for KE {ke_id}: {str(e)}")
+        return jsonify({"error": "Failed to get KE genes"}), 500

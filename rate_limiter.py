@@ -164,8 +164,8 @@ def rate_limit(limit: int = 100, window: int = 3600, per_endpoint: bool = True):
 
 # Specific rate limit decorators for different use cases
 def sparql_rate_limit(f):
-    """Rate limit for SPARQL endpoints (more restrictive)"""
-    return rate_limit(limit=50, window=3600)(f)
+    """Rate limit for SPARQL endpoints (increased for development)"""
+    return rate_limit(limit=500, window=3600)(f)
 
 
 def submission_rate_limit(f):
@@ -175,4 +175,4 @@ def submission_rate_limit(f):
 
 def general_rate_limit(f):
     """General rate limit for other endpoints"""
-    return rate_limit(limit=200, window=3600)(f)
+    return rate_limit(limit=1000, window=3600)(f)
