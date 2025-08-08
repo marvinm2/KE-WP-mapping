@@ -37,6 +37,7 @@
                 <tr>
                     <th>Pathway ID</th>
                     <th>Pathway Title</th>
+                    <th>Description</th>
                     <th>Pathway Link</th>
                 </tr>
             </thead>
@@ -65,13 +66,45 @@
                     $("#pwDetailsTable").DataTable({
                         data: data,
                         columns: [
-                            { data: "pathwayID", title: "Pathway ID" },
-                            { data: "pathwayTitle", title: "Pathway Title" },
+                            { data: "pathwayID", title: "Pathway ID", width: "12%" },
+                            { data: "pathwayTitle", title: "Pathway Title", width: "30%" },
+                            {
+                                data: "pathwayDescription",
+                                title: "Description",
+                                width: "48%",
+                                render: function (data, type, row) {
+                                    if (!data) {
+                                        return '<span style="color: #666; font-style: italic;">No description available</span>';
+                                    }
+                                    
+                                    const maxLength = 200;
+                                    if (data.length <= maxLength) {
+                                        return `<div style="word-wrap: break-word; line-height: 1.3;">${data}</div>`;
+                                    }
+                                    
+                                    const shortText = data.substring(0, maxLength) + '...';
+                                    const id = 'desc-' + row.pathwayID.replace(/\s+/g, '-');
+                                    
+                                    return `
+                                        <div id="${id}" style="word-wrap: break-word; line-height: 1.3;">
+                                            <div class="description-short">
+                                                ${shortText}
+                                                <br/><a href="#" onclick="togglePwDescription('${id}'); return false;" style="color: #307BBF; font-weight: bold; font-size: 12px;">Show full</a>
+                                            </div>
+                                            <div class="description-full" style="display: none;">
+                                                ${data}
+                                                <br/><a href="#" onclick="togglePwDescription('${id}'); return false;" style="color: #307BBF; font-weight: bold; font-size: 12px;">Show less</a>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                            },
                             {
                                 data: "pathwayLink",
                                 title: "Pathway Link",
+                                width: "10%",
                                 render: function (data) {
-                                    return `<a href="${data}" target="_blank">Link</a>`;
+                                    return `<a href="${data}" target="_blank" style="color: #307BBF;">Link</a>`;
                                 },
                             },
                         ],
@@ -82,12 +115,31 @@
                         pageLength: 20,
                         searching: true,
                         info: true,
+                        scrollX: true,
+                        columnDefs: [
+                            { targets: 2, orderable: false } // Disable sorting on description column
+                        ]
                     });
                 })
                 .fail(function () {
                     console.error("Failed to load pathway options"); // Debug log
                 });
         });
+        
+        // Function to toggle description display
+        function togglePwDescription(id) {
+            const container = $("#" + id);
+            const shortDiv = container.find('.description-short');
+            const fullDiv = container.find('.description-full');
+            
+            if (shortDiv.is(':visible')) {
+                shortDiv.hide();
+                fullDiv.show();
+            } else {
+                shortDiv.show();
+                fullDiv.hide();
+            }
+        }
     </script>
 </body>
 </html>
