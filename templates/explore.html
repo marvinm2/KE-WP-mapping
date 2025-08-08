@@ -238,36 +238,42 @@
     
         document.addEventListener('DOMContentLoaded', function () {
             
-            // Retrieve user info and login status from attributes
-            const userInfoAttr = document.body.getAttribute('data-user-info');
-            const userInfo = userInfoAttr ? JSON.parse(userInfoAttr) : null;
-            const isLoggedIn = document.body.getAttribute('data-is-logged-in') === 'true';
+            // Function to autofill user data when modal is opened
+            function autofillUserData() {
+                // Retrieve user info and login status from attributes
+                const userInfoAttr = document.body.getAttribute('data-user-info');
+                const userInfo = userInfoAttr ? JSON.parse(userInfoAttr) : null;
+                const isLoggedIn = document.body.getAttribute('data-is-logged-in') === 'true';
 
-            console.log("User Info:", userInfo); // Log user info
-            console.log("Is Logged In:", isLoggedIn); // Log login status
+                console.log("User Info:", userInfo); // Log user info
+                console.log("Is Logged In:", isLoggedIn); // Log login status
 
-            // Autofill user details if logged in
-            if (isLoggedIn && userInfo) {
-                const userNameField = document.getElementById('userName');
-                const userEmailField = document.getElementById('userEmail');
+                // Autofill user details if logged in
+                if (isLoggedIn && userInfo) {
+                    const userNameField = document.getElementById('userName');
+                    const userEmailField = document.getElementById('userEmail');
 
-                console.log("userNameField:", userNameField); // Log field access
-                console.log("userEmailField:", userEmailField); // Log field access
+                    console.log("userNameField:", userNameField); // Log field access
+                    console.log("userEmailField:", userEmailField); // Log field access
 
-                if (userNameField && userInfo.username) {
-                    userNameField.value = userInfo.username;
+                    if (userNameField && userInfo.username) {
+                        userNameField.value = userInfo.username;
+                    }
+                    if (userEmailField && userInfo.email) {
+                        userEmailField.value = userInfo.email;
+                    }
+                } else {
+                    console.warn("User is not logged in or user info is missing.");
                 }
-                if (userEmailField && userInfo.email) {
-                    userEmailField.value = userInfo.email;
-                }
-            } else {
-                console.warn("User is not logged in or user info is missing.");
             }
       
     
             // Handle the "Propose Change" button click
             $(".propose-change").click(function () {
                 const entry = $(this).data("entry");
+                
+                // Check login status
+                const isLoggedIn = document.body.getAttribute('data-is-logged-in') === 'true';
     
                 // Store entry data for form submission
                 $("#proposalForm").data("entry", entry);
@@ -285,6 +291,8 @@
                 } else {
                     $("#proposalForm button[type='submit']").prop('disabled', false);
                     $("#proposalModal .login-prompt").remove(); // Remove login prompt if present
+                    // Autofill user data when modal opens and user is logged in
+                    setTimeout(autofillUserData, 100);
                 }
     
                 // Show modal
@@ -323,10 +331,19 @@
                 formData.append('userEmail', $('#userEmail').val());
                 formData.append('userAffiliation', $('#userAffiliation').val());
                 
+                // Add CSRF token
+                formData.append('csrf_token', $('input[name="csrf_token"]').val());
+                
                 // Handle checkbox and radio button values
                 formData.append('deleteEntry', $('#deleteEntry').is(':checked') ? 'on' : '');
                 formData.append('changeConfidence', $('input[name="changeConfidence"]:checked').val() || '');
                 formData.append('changeType', $('input[name="changeType"]:checked').val() || '');
+                
+                // Debug form data
+                console.log('Form data being sent:');
+                for (let [key, value] of formData.entries()) {
+                    console.log(key + ': ' + value);
+                }
                 
                 // Submit the proposal
                 $.ajax({

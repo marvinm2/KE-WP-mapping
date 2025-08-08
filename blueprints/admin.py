@@ -151,8 +151,16 @@ def approve_proposal(proposal_id: int):
         JSON response indicating success/failure
     """
     try:
+        # Extract only the required fields for validation (exclude CSRF token)
+        admin_data = {
+            'admin_notes': request.form.get('admin_notes', '')
+        }
+        
+        # Debug logging
+        logger.info(f"Admin approve request data: {admin_data}")
+        
         # Validate admin notes input
-        is_valid, validated_data, errors = validate_request_data(AdminNotesSchema, request.form)
+        is_valid, validated_data, errors = validate_request_data(AdminNotesSchema, admin_data)
         
         if not is_valid:
             logger.warning(f"Invalid admin notes in approve: {errors}")
@@ -228,8 +236,16 @@ def reject_proposal(proposal_id: int):
         JSON response indicating success/failure
     """
     try:
+        # Extract only the required fields for validation (exclude CSRF token)
+        admin_data = {
+            'admin_notes': request.form.get('admin_notes', '')
+        }
+        
+        # Debug logging
+        logger.info(f"Admin reject request data: {admin_data}")
+        
         # Validate admin notes input
-        is_valid, validated_data, errors = validate_request_data(AdminNotesSchema, request.form)
+        is_valid, validated_data, errors = validate_request_data(AdminNotesSchema, admin_data)
         
         if not is_valid:
             logger.warning(f"Invalid admin notes in reject: {errors}")

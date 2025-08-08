@@ -287,8 +287,22 @@ def submit_proposal():
         JSON response with success/error message
     """
     try:
+        # Extract only the required fields for validation (exclude CSRF token)
+        proposal_data = {
+            'entry': request.form.get('entry'),
+            'userName': request.form.get('userName'),
+            'userEmail': request.form.get('userEmail'),
+            'userAffiliation': request.form.get('userAffiliation'),
+            'deleteEntry': request.form.get('deleteEntry', ''),
+            'changeConfidence': request.form.get('changeConfidence', ''),
+            'changeType': request.form.get('changeType', '')
+        }
+        
+        # Debug logging
+        logger.info(f"Proposal submission data: {proposal_data}")
+        
         # Validate input data
-        is_valid, validated_data, errors = validate_request_data(ProposalSchema, request.form)
+        is_valid, validated_data, errors = validate_request_data(ProposalSchema, proposal_data)
         
         if not is_valid:
             logger.warning(f"Invalid proposal request: {errors}")
@@ -312,7 +326,10 @@ def submit_proposal():
         # Parse entry data to extract KE and WP IDs
         try:
             import json
-            entry_dict = json.loads(entry_data.replace("'", '"'))
+            # Handle double-serialized JSON
+            if entry_data.startswith('"') and entry_data.endswith('"'):
+                entry_data = json.loads(entry_data)  # First deserialization
+            entry_dict = json.loads(entry_data.replace("'", '"'))  # Second deserialization with quote fix
             ke_id = entry_dict.get('ke_id') or entry_dict.get('KE_ID')
             wp_id = entry_dict.get('wp_id') or entry_dict.get('WP_ID')
             

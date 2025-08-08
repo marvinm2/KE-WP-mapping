@@ -59,8 +59,8 @@ class ProposalSchema(Schema):
         validate=[
             validate.Length(min=1, max=100),
             validate.Regexp(
-                r'^[a-zA-Z\s\-\.\']+$',
-                error="Name can only contain letters, spaces, hyphens, dots, and apostrophes"
+                r'^[a-zA-Z0-9\s\-\.\'_]+$',
+                error="Name can only contain letters, numbers, spaces, hyphens, dots, apostrophes, and underscores"
             )
         ]
     )
@@ -87,7 +87,11 @@ class ProposalSchema(Schema):
         """Validate that entry is valid JSON with required fields"""
         import json
         try:
-            entry_data = json.loads(value.replace("'", '"'))
+            # Handle double-serialized JSON
+            if value.startswith('"') and value.endswith('"'):
+                value = json.loads(value)  # First deserialization
+            entry_data = json.loads(value.replace("'", '"'))  # Second deserialization with quote fix
+            
             if not isinstance(entry_data, dict):
                 raise ValidationError("Entry must be a JSON object")
             
@@ -102,8 +106,8 @@ class ProposalSchema(Schema):
             if missing_fields:
                 raise ValidationError(f"Entry missing required fields: {missing_fields}")
                 
-        except json.JSONDecodeError:
-            raise ValidationError("Entry must be valid JSON")
+        except json.JSONDecodeError as e:
+            raise ValidationError(f"Entry must be valid JSON: {str(e)}")
 
 
 class AdminNotesSchema(Schema):
