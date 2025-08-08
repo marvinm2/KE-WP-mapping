@@ -1,15 +1,9 @@
 name: Docker Build & Test
 
 on:
-  # Temporarily disabled - workflows need testing
-  # push:
-  #   branches: [ main, develop ]
-  #   tags: [ 'v*' ]
-  # pull_request:
-  #   branches: [ main ]
-  # schedule:
-  #   # Build weekly on Mondays at 3 AM UTC
-  #   - cron: '0 3 * * 1'
+  # Only manual dispatch and push to main (no PR triggers to avoid unwanted runs)
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 env:

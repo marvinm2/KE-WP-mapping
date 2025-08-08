@@ -1,11 +1,9 @@
 name: CI/CD Pipeline
 
 on:
-  # Temporarily disabled - workflows need testing
-  # push:
-  #   branches: [ main, develop ]
-  # pull_request:
-  #   branches: [ main ]
+  # Only manual dispatch and push to main (no PR triggers to avoid unwanted runs)
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
