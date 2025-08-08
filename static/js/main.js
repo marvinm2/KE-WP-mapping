@@ -14,6 +14,10 @@ class KEWPApp {
         this.setupCSRF();
         this.setupEventListeners();
         this.loadDropdownOptions();
+        
+        // Debug: Check if form exists
+        console.log("Form element found:", $("#mapping-form").length > 0);
+        console.log("Submit button found:", $("#mapping-form button[type='submit']").length > 0);
     }
 
     setupCSRF() {
@@ -43,13 +47,30 @@ class KEWPApp {
         console.log("User login status:", this.isLoggedIn);
 
         // Form submission handler
-        $("#mapping-form").on('submit', (e) => this.handleFormSubmission(e));
+        $("#mapping-form").on('submit', (e) => {
+            console.log("Form submit event triggered!");
+            this.handleFormSubmission(e);
+        });
 
         // Confidence assessment handlers
         $(".btn-group").on("click", ".btn-option", (e) => this.handleConfidenceAssessment(e));
 
         // Dropdown change handlers
         $("#ke_id, #wp_id").on('change', () => this.toggleAssessmentSection());
+        
+        // KE selection change handler for preview
+        $("#ke_id").on('change', (e) => this.handleKESelection(e));
+        
+        // Pathway selection change handler for preview
+        $("#wp_id").on('change', (e) => this.handlePathwaySelection(e));
+        
+        // Debug: Direct button click handler
+        $("#mapping-form button[type='submit']").on('click', (e) => {
+            console.log("Submit button clicked directly!");
+            e.preventDefault();
+            // Trigger the form submission manually
+            $("#mapping-form").trigger('submit');
+        });
     }
 
     loadDropdownOptions() {
@@ -77,7 +98,10 @@ class KEWPApp {
                 dropdown.append('<option value="" disabled selected>Select a Key Event</option>');
                 data.forEach(option => {
                     dropdown.append(
-                        `<option value="${option.KElabel}" data-title="${option.KEtitle}">${option.KElabel} - ${option.KEtitle}</option>`
+                        `<option value="${option.KElabel}" 
+                         data-title="${option.KEtitle}"
+                         data-description="${option.KEdescription || ''}"
+                         data-biolevel="${option.biolevel || ''}">${option.KElabel} - ${option.KEtitle}</option>`
                     );
                 });
             })
@@ -108,7 +132,9 @@ class KEWPApp {
                 dropdown.append('<option value="" disabled selected>Select a Pathway</option>');
                 data.forEach(option => {
                     dropdown.append(
-                        `<option value="${option.pathwayID}" data-title="${option.pathwayTitle}">${option.pathwayID} - ${option.pathwayTitle}</option>`
+                        `<option value="${option.pathwayID}" 
+                         data-title="${option.pathwayTitle}"
+                         data-description="${option.pathwayDescription || ''}">${option.pathwayID} - ${option.pathwayTitle}</option>`
                     );
                 });
             })
@@ -121,6 +147,7 @@ class KEWPApp {
 
     handleFormSubmission(event) {
         event.preventDefault();
+        console.log("Form submission started");
 
         const formData = {
             ke_id: $("#ke_id").val(),
@@ -128,8 +155,11 @@ class KEWPApp {
             wp_id: $("#wp_id").val(),
             wp_title: $("#wp_id option:selected").data("title"),
             connection_type: $("#connection_type").val(),
-            confidence_level: $("#confidence_level").val()
+            confidence_level: $("#confidence_level").val(),
+            csrf_token: this.csrfToken
         };
+
+        console.log("Form data:", formData);
 
         // Validate required fields
         if (!formData.ke_id || !formData.wp_id) {
@@ -139,6 +169,10 @@ class KEWPApp {
 
         if (!formData.connection_type || !formData.confidence_level) {
             this.showMessage("Please complete the confidence assessment", "error");
+            console.log("Missing confidence/connection data:", {
+                connection_type: formData.connection_type,
+                confidence_level: formData.confidence_level
+            });
             return;
         }
 
@@ -196,52 +230,175 @@ class KEWPApp {
         tableHTML += `
                     </tbody>
                 </table>
-                <div class="confirmation-section">
-                    <p>Do you want to add this new KE-WP pair?</p>
-                    <button id="confirm-submit" class="btn btn-success">Yes, Add Entry</button>
-                    <button id="cancel-submit" class="btn btn-secondary">Cancel</button>
-                </div>
+                <hr style="margin: 20px 0;">
             </div>
         `;
         
         $("#existing-entries").html(tableHTML);
+        
+        // Also show the mapping preview for the new entry
+        this.showMappingPreviewAfterTable(formData);
+    }
 
+    showMappingPreviewAfterTable(formData) {
+        // This is similar to showMappingPreview but appends to existing content
+        const selectedKE = $("#ke_id option:selected");
+        const selectedPW = $("#wp_id option:selected");
+        const keDescription = selectedKE.data('description') || '';
+        const pwDescription = selectedPW.data('description') || '';
+        const biolevel = selectedKE.data('biolevel') || '';
+        
+        // Get user information from body attributes or session
+        const isLoggedIn = $("body").data("is-logged-in") === true;
+        let userInfo = 'Anonymous';
+        if (isLoggedIn) {
+            // Try to get username from the welcome message in the header
+            const welcomeText = $('header nav p').text();
+            const usernameMatch = welcomeText.match(/Welcome,\s*([^(]+)/);
+            if (usernameMatch) {
+                userInfo = `GitHub: ${usernameMatch[1].trim()}`;
+            } else {
+                userInfo = 'GitHub user (logged in)';
+            }
+        }
+        const currentDate = new Date().toLocaleString();
+        
+        // Create collapsible descriptions
+        const keDescHtml = this.createCollapsibleDescription(keDescription, 'preview-ke-desc-table');
+        const pwDescHtml = this.createCollapsibleDescription(pwDescription, 'preview-pw-desc-table');
+        
+        let previewHTML = `
+                <h3>🔍 New Mapping Preview</h3>
+                <p>Review your new mapping that will be added:</p>
+                
+                <div class="mapping-preview" style="display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px; margin: 20px 0; width: 100%;">
+                    <div class="preview-section ke-section" style="background-color: #f0f8ff; padding: 15px; border-radius: 8px; border-left: 4px solid #307BBF; min-width: 0; word-wrap: break-word;">
+                        <h4 style="color: #307BBF; margin-top: 0;">🧬 Key Event Information</h4>
+                        <p><strong>KE ID:</strong> ${formData.ke_id}</p>
+                        <p><strong>KE Title:</strong> ${formData.ke_title}</p>
+                        <p><strong>Biological Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${biolevel || 'Not specified'}</span></p>
+                        <div><strong>Description:</strong><br/>${keDescHtml}</div>
+                    </div>
+                    
+                    <div class="preview-section wp-section" style="background-color: #f0fff0; padding: 15px; border-radius: 8px; border-left: 4px solid #E6007E; min-width: 0; word-wrap: break-word;">
+                        <h4 style="color: #E6007E; margin-top: 0;">🛤️ Pathway Information</h4>
+                        <p><strong>WP ID:</strong> ${formData.wp_id}</p>
+                        <p><strong>WP Title:</strong> ${formData.wp_title}</p>
+                        <div><strong>Description:</strong><br/>${pwDescHtml}</div>
+                    </div>
+                </div>
+                
+                <div class="preview-section" style="background-color: #fff8f0; padding: 15px; border-radius: 8px; border-left: 4px solid #EB5B25; margin: 20px 0;">
+                    <h4 style="color: #EB5B25; margin-top: 0;">📊 Mapping Metadata</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <p><strong>Connection Type:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
+                            <p><strong>Confidence Level:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span></p>
+                        </div>
+                        <div>
+                            <p><strong>Submitted by:</strong> ${userInfo}</p>
+                            <p><strong>Submission time:</strong> ${currentDate}</p>
+                            <p><strong>Entry status:</strong> <span style="color: #28a745; font-weight: 600;">New mapping</span></p>
+                            <p><strong>Data sources:</strong> <span style="font-size: 12px; color: #666;">AOP-Wiki, WikiPathways</span></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="confirmation-section" style="text-align: center; margin: 25px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                    <p style="font-size: 16px; margin-bottom: 15px;"><strong>⚠️ Do you want to add this new KE-WP mapping?</strong></p>
+                    <p style="color: #666; margin-bottom: 20px; font-size: 14px;">This will be added alongside the existing mappings shown above.</p>
+                    <button id="confirm-submit" class="btn btn-success" style="background-color: #28a745; margin-right: 10px; padding: 10px 20px;">✅ Yes, Add Entry</button>
+                    <button id="cancel-submit" class="btn btn-secondary" style="background-color: #6c757d; padding: 10px 20px;">❌ Cancel</button>
+                </div>
+        `;
+        
+        // Append to existing content
+        $("#existing-entries").append(previewHTML);
+        
         // Handle confirmation buttons
-        $("#confirm-submit").on('click', () => {
+        $("#confirm-submit").on('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             this.submitEntry(formData);
         });
 
-        $("#cancel-submit").on('click', () => {
+        $("#cancel-submit").on('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             $("#existing-entries").html("");
         });
     }
 
     showMappingPreview(formData) {
+        // Get additional data from selected options
+        const selectedKE = $("#ke_id option:selected");
+        const selectedPW = $("#wp_id option:selected");
+        const keDescription = selectedKE.data('description') || '';
+        const pwDescription = selectedPW.data('description') || '';
+        const biolevel = selectedKE.data('biolevel') || '';
+        
+        // Get user information from body attributes or session
+        const isLoggedIn = $("body").data("is-logged-in") === true;
+        let userInfo = 'Anonymous';
+        if (isLoggedIn) {
+            // Try to get username from the welcome message in the header
+            const welcomeText = $('header nav p').text();
+            const usernameMatch = welcomeText.match(/Welcome,\s*([^(]+)/);
+            if (usernameMatch) {
+                userInfo = `GitHub: ${usernameMatch[1].trim()}`;
+            } else {
+                userInfo = 'GitHub user (logged in)';
+            }
+        }
+        const currentDate = new Date().toLocaleString();
+        
+        // Create collapsible descriptions
+        const keDescHtml = this.createCollapsibleDescription(keDescription, 'preview-ke-desc');
+        const pwDescHtml = this.createCollapsibleDescription(pwDescription, 'preview-pw-desc');
+        
         let previewHTML = `
             <div class="existing-entries-container">
-                <h3>Confirm Your Mapping</h3>
-                <p>Please review your mapping details before submitting:</p>
-                <div class="mapping-preview">
-                    <div class="preview-section">
-                        <h4>Key Event Information</h4>
+                <h3>🔍 Mapping Preview & Confirmation</h3>
+                <p>Please carefully review your mapping details before submitting:</p>
+                
+                <div class="mapping-preview" style="display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px; margin: 20px 0; width: 100%;">
+                    <div class="preview-section ke-section" style="background-color: #f0f8ff; padding: 15px; border-radius: 8px; border-left: 4px solid #307BBF; min-width: 0; word-wrap: break-word;">
+                        <h4 style="color: #307BBF; margin-top: 0;">🧬 Key Event Information</h4>
                         <p><strong>KE ID:</strong> ${formData.ke_id}</p>
                         <p><strong>KE Title:</strong> ${formData.ke_title}</p>
+                        <p><strong>Biological Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${biolevel || 'Not specified'}</span></p>
+                        <div><strong>Description:</strong><br/>${keDescHtml}</div>
                     </div>
-                    <div class="preview-section">
-                        <h4>Pathway Information</h4>
+                    
+                    <div class="preview-section wp-section" style="background-color: #f0fff0; padding: 15px; border-radius: 8px; border-left: 4px solid #E6007E; min-width: 0; word-wrap: break-word;">
+                        <h4 style="color: #E6007E; margin-top: 0;">🛤️ Pathway Information</h4>
                         <p><strong>WP ID:</strong> ${formData.wp_id}</p>
                         <p><strong>WP Title:</strong> ${formData.wp_title}</p>
-                    </div>
-                    <div class="preview-section">
-                        <h4>Mapping Details</h4>
-                        <p><strong>Connection Type:</strong> ${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</p>
-                        <p><strong>Confidence Level:</strong> ${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</p>
+                        <div><strong>Description:</strong><br/>${pwDescHtml}</div>
                     </div>
                 </div>
-                <div class="confirmation-section">
-                    <p><strong>Are you sure you want to submit this mapping?</strong></p>
-                    <button id="confirm-final-submit" class="btn btn-success">Yes, Submit Mapping</button>
-                    <button id="cancel-final-submit" class="btn btn-secondary">Cancel</button>
+                
+                <div class="preview-section" style="background-color: #fff8f0; padding: 15px; border-radius: 8px; border-left: 4px solid #EB5B25; margin: 20px 0;">
+                    <h4 style="color: #EB5B25; margin-top: 0;">📊 Mapping Metadata</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <p><strong>Connection Type:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
+                            <p><strong>Confidence Level:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span></p>
+                        </div>
+                        <div>
+                            <p><strong>Submitted by:</strong> ${userInfo}</p>
+                            <p><strong>Submission time:</strong> ${currentDate}</p>
+                            <p><strong>Entry status:</strong> <span style="color: #28a745; font-weight: 600;">New mapping</span></p>
+                            <p><strong>Data sources:</strong> <span style="font-size: 12px; color: #666;">AOP-Wiki, WikiPathways</span></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="confirmation-section" style="text-align: center; margin: 25px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                    <p style="font-size: 16px; margin-bottom: 15px;"><strong>⚠️ Are you sure you want to submit this mapping?</strong></p>
+                    <p style="color: #666; margin-bottom: 20px; font-size: 14px;">This action will add the mapping to the database and make it available for other researchers.</p>
+                    <button id="confirm-final-submit" class="btn btn-success" style="background-color: #28a745; margin-right: 10px; padding: 10px 20px;">✅ Yes, Submit Mapping</button>
+                    <button id="cancel-final-submit" class="btn btn-secondary" style="background-color: #6c757d; padding: 10px 20px;">❌ Cancel</button>
                 </div>
             </div>
         `;
@@ -249,19 +406,27 @@ class KEWPApp {
         $("#existing-entries").html(previewHTML);
 
         // Handle confirmation buttons
-        $("#confirm-final-submit").on('click', () => {
+        $("#confirm-final-submit").on('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             this.submitEntry(formData);
         });
 
-        $("#cancel-final-submit").on('click', () => {
+        $("#cancel-final-submit").on('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             $("#existing-entries").html("");
         });
     }
 
     submitEntry(formData) {
+        // Show loading state
+        this.showMessage("Submitting your mapping...", "info");
+        
         $.post("/submit", formData)
             .done((response) => {
-                this.showMessage(response.message, "success");
+                // Show success message with visual feedback
+                this.showSuccessMessage(response.message, formData);
                 $("#existing-entries").html("");
                 this.resetForm();
             })
@@ -329,12 +494,137 @@ class KEWPApp {
         }
     }
 
+    handleKESelection(event) {
+        const selectedOption = $(event.target).find('option:selected');
+        const title = selectedOption.data('title') || '';
+        const description = selectedOption.data('description') || '';
+        const biolevel = selectedOption.data('biolevel') || '';
+        
+        // Show/hide KE preview
+        if (title && description) {
+            this.showKEPreview(title, description);
+        } else {
+            this.hideKEPreview();
+        }
+        
+        // Store biological level for later use in assessment
+        this.selectedBiolevel = biolevel;
+        
+        console.log('Selected KE:', { title, description, biolevel });
+    }
+
+    showKEPreview(title, description) {
+        // Remove existing preview
+        $("#ke-preview").remove();
+        
+        // Create collapsible description HTML
+        const descriptionHTML = this.createCollapsibleDescription(description, 'ke-description');
+        
+        // Create preview HTML
+        const previewHTML = `
+            <div id="ke-preview" style="margin-top: 10px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
+                <h4 style="margin: 0 0 8px 0; color: #29235C;">Key Event Details:</h4>
+                <p style="margin: 0 0 8px 0;"><strong>Title:</strong> ${title}</p>
+                ${description ? `<div><strong>Description:</strong><br/>${descriptionHTML}</div>` : '<p style="margin: 0; color: #666; font-style: italic;">No description available</p>'}
+            </div>
+        `;
+        
+        // Insert after KE dropdown
+        $("#ke_id").parent().after(previewHTML);
+    }
+    
+    handlePathwaySelection(event) {
+        const selectedOption = $(event.target).find('option:selected');
+        const title = selectedOption.data('title') || '';
+        const description = selectedOption.data('description') || '';
+        
+        // Show/hide pathway preview
+        if (title) {
+            this.showPathwayPreview(title, description);
+        } else {
+            this.hidePathwayPreview();
+        }
+        
+        console.log('Selected Pathway:', { title, description });
+    }
+
+    showPathwayPreview(title, description) {
+        // Remove existing preview
+        $("#pathway-preview").remove();
+        
+        // Create collapsible description HTML
+        const descriptionHTML = this.createCollapsibleDescription(description, 'pathway-description');
+        
+        // Create preview HTML
+        const previewHTML = `
+            <div id="pathway-preview" style="margin-top: 10px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
+                <h4 style="margin: 0 0 8px 0; color: #29235C;">Pathway Details:</h4>
+                <p style="margin: 0 0 8px 0;"><strong>Title:</strong> ${title}</p>
+                ${description ? `<div><strong>Description:</strong><br/>${descriptionHTML}</div>` : '<p style="margin: 0; color: #666; font-style: italic;">No description available</p>'}
+            </div>
+        `;
+        
+        // Insert after pathway dropdown
+        $("#wp_id").parent().after(previewHTML);
+    }
+
+    hidePathwayPreview() {
+        $("#pathway-preview").remove();
+    }
+
+    createCollapsibleDescription(description, id) {
+        if (!description) return '<span style="color: #666; font-style: italic;">No description available</span>';
+        
+        const maxLength = 300;
+        const isLong = description.length > maxLength;
+        
+        if (!isLong) {
+            return `<div style="max-width: 100%; word-wrap: break-word; line-height: 1.4;">${description}</div>`;
+        }
+        
+        const shortText = description.substring(0, maxLength) + '...';
+        
+        return `
+            <div id="${id}" style="max-width: 100%; word-wrap: break-word; line-height: 1.4;">
+                <div class="description-short">
+                    ${shortText}
+                    <br/><a href="#" onclick="KEWPApp.toggleDescription('${id}'); return false;" style="color: #307BBF; font-weight: bold;">Show full description</a>
+                </div>
+                <div class="description-full" style="display: none;">
+                    ${description}
+                    <br/><a href="#" onclick="KEWPApp.toggleDescription('${id}'); return false;" style="color: #307BBF; font-weight: bold;">Show less</a>
+                </div>
+            </div>
+        `;
+    }
+
+    static toggleDescription(id) {
+        const container = $(`#${id}`);
+        const shortDiv = container.find('.description-short');
+        const fullDiv = container.find('.description-full');
+        
+        if (shortDiv.is(':visible')) {
+            shortDiv.hide();
+            fullDiv.show();
+        } else {
+            shortDiv.show();
+            fullDiv.hide();
+        }
+    }
+
+    hideKEPreview() {
+        $("#ke-preview").remove();
+        this.selectedBiolevel = '';
+    }
+
     toggleAssessmentSection() {
         const keSelected = $("#ke_id").val();
         const wpSelected = $("#wp_id").val();
         if (keSelected && wpSelected) {
             $("#confidence-guide").show();
             $("#confidence-guide")[0].scrollIntoView({ behavior: 'smooth' });
+            // Pre-fill biological level if available
+            this.preFillBiologicalLevel();
         } else {
             $("#confidence-guide").hide();
             this.resetGuide();
@@ -345,6 +635,7 @@ class KEWPApp {
         const sections = ["#step2", "#step3", "#step4", "#step5", "#step6", "#step2b"];
         sections.forEach(id => {
             $(id).hide().find("select").val("");
+            $(id).find(".btn-option").removeClass("selected");
         });
         $("#evaluateBtn").hide();
         $("#ca-result").text("");
@@ -355,15 +646,43 @@ class KEWPApp {
         this.stepAnswers = {};
     }
 
+    preFillBiologicalLevel() {
+        // Auto-select biological level based on KE data
+        if (this.selectedBiolevel) {
+            const levelMapping = {
+                'molecular': 'yes',
+                'cellular': 'yes', 
+                'tissue': 'yes',
+                'organ': 'no',
+                'individual': 'no',
+                'population': 'no'
+            };
+            
+            const bioLevel = this.selectedBiolevel.toLowerCase();
+            for (const [level, value] of Object.entries(levelMapping)) {
+                if (bioLevel.includes(level)) {
+                    this.stepAnswers["step2"] = value;
+                    $("#step2 .btn-group").find(`.btn-option[data-value="${value}"]`).addClass('selected');
+                    // Trigger step progression to show subsequent steps
+                    this.handleStepProgression();
+                    break;
+                }
+            }
+        }
+    }
+
     resetForm() {
         $("#ke_id, #wp_id").val("").trigger('change');
+        this.hideKEPreview();
+        this.hidePathwayPreview();
         this.resetGuide();
         $("#message").text("");
+        this.selectedBiolevel = '';
     }
 
     showMessage(message, type = "info") {
         const color = type === "error" ? "red" : type === "success" ? "green" : "blue";
-        $("#message").text(message).css("color", color);
+        $("#message").text(message).css("color", color).show();
         
         // Auto-hide success messages after 5 seconds
         if (type === "success") {
@@ -371,6 +690,63 @@ class KEWPApp {
                 $("#message").fadeOut();
             }, 5000);
         }
+    }
+
+    showSuccessMessage(message, formData) {
+        // Create a comprehensive success message with the submitted data
+        const successHtml = `
+            <div class="success-message" style="display: block;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span class="success-icon">✅</span>
+                    <strong>Mapping Successfully Submitted!</strong>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="background-color: #e3f2fd; padding: 10px; border-radius: 4px;">
+                            <strong>🧬 Key Event:</strong><br>
+                            <span style="font-family: monospace;">${formData.ke_id}</span><br>
+                            <small style="color: #666;">${formData.ke_title}</small>
+                        </div>
+                        <div style="background-color: #e8f5e8; padding: 10px; border-radius: 4px;">
+                            <strong>🛤️ Pathway:</strong><br>
+                            <span style="font-family: monospace;">${formData.wp_id}</span><br>
+                            <small style="color: #666;">${formData.wp_title}</small>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #ddd;">
+                        <span style="background-color: #fff3cd; padding: 4px 8px; border-radius: 3px; margin: 0 5px;">
+                            <strong>Connection:</strong> ${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}
+                        </span>
+                        <span style="background-color: #d1ecf1; padding: 4px 8px; border-radius: 3px; margin: 0 5px;">
+                            <strong>Confidence:</strong> ${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}
+                        </span>
+                    </div>
+                    
+                    <p style="text-align: center; margin: 15px 0 5px 0; color: #28a745; font-weight: bold;">
+                        🎉 Your mapping is now part of the research database!
+                    </p>
+                    <p style="text-align: center; font-size: 14px; color: #666; margin: 5px 0;">
+                        View it in the <a href="/explore" target="_blank">dataset explorer</a> or submit another mapping below.
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        // Show the success message in the existing entries area
+        $("#existing-entries").html(successHtml);
+        
+        // Also show a simple message in the message area
+        this.showMessage("✅ " + message, "success");
+        
+        // Auto-hide the detailed success message after 10 seconds
+        setTimeout(() => {
+            $("#existing-entries").fadeOut(1000, () => {
+                $("#existing-entries").html("");
+                $("#existing-entries").show();
+            });
+        }, 10000);
     }
 }
 

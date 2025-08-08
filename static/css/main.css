@@ -346,10 +346,6 @@ button:disabled {
     .mapping-preview {
         grid-template-columns: 1fr 1fr;
     }
-    
-    .preview-section:last-child {
-        grid-column: 1 / -1;
-    }
 }
 
 .existing-entries-table {

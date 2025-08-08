@@ -12,8 +12,8 @@ class MappingSchema(Schema):
         validate=[
             validate.Length(min=3, max=50),
             validate.Regexp(
-                r'^KE:\d+$',
-                error="KE ID must be in format 'KE:number'"
+                r'^KE\s+\d+$',
+                error="KE ID must be in format 'KE number'"
             )
         ]
     )
@@ -121,8 +121,8 @@ class CheckEntrySchema(Schema):
         validate=[
             validate.Length(min=3, max=50),
             validate.Regexp(
-                r'^KE:\d+$',
-                error="KE ID must be in format 'KE:number'"
+                r'^KE\s+\d+$',
+                error="KE ID must be in format 'KE number'"
             )
         ]
     )

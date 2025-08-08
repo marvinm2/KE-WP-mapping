@@ -137,6 +137,83 @@
             opacity: 1;
         }
 
+        /* Side-by-side layout for KE and Pathway sections */
+        .selection-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .selection-section {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .selection-section h2 {
+            margin-top: 0;
+        }
+
+        /* Success message styling */
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            display: none;
+            font-weight: bold;
+            text-align: center;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-icon {
+            color: #28a745;
+            font-size: 1.2em;
+            margin-right: 10px;
+        }
+
+        /* Responsive design for smaller screens */
+        @media (max-width: 768px) {
+            .selection-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        /* Force grid layout for preview sections */
+        .mapping-preview {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 20px !important;
+        }
+
+        .preview-section {
+            min-width: 0;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* Ensure preview grid is responsive */
+        @media (max-width: 768px) {
+            .mapping-preview {
+                display: block !important;
+                grid-template-columns: none !important;
+            }
+            
+            .mapping-preview .preview-section {
+                margin-bottom: 15px;
+            }
+            
+            .preview-section[style*="grid-template-columns"] {
+                display: block !important;
+            }
+        }
 
     </style>
 </head>
@@ -157,9 +234,9 @@
                             <span style="color: #EB5B25; font-weight: bold;">(Admin)</span>
                         {% endif %}
                     </p>
-                    <a href="{{ url_for('logout') }}">Logout</a>
+                    <a href="{{ url_for('auth.logout') }}">Logout</a>
                 {% else %}
-                    <a href="{{ url_for('login') }}">Login with GitHub</a>
+                    <a href="{{ url_for('auth.login') }}">Login with GitHub</a>
                 {% endif %}
             </div>
         </nav>        
@@ -203,12 +280,12 @@
 
 
             <div id="step2" class="assessment-step" style="display: none;">
-                <h4>2. What is the biological level of the Key Event?
-                    <span class="tooltip" data-tooltip="Key Events at molecular, cellular, tissue, or organ levels are eligible for higher confidence mappings than those at individual or population levels.">❓</span>
+                <h4>2. Is the Key Event at molecular, cellular, or tissue level?
+                    <span class="tooltip" data-tooltip="Key Events at molecular, cellular, or tissue levels are eligible for higher confidence mappings than those at individual or population levels. This will be automatically pre-filled based on the selected Key Event's biological level.">❓</span>
                 </h4>
                 <div class="btn-group" data-step="step2">
-                    <button class="btn-option" data-value="yes">Yes</button>
-                    <button class="btn-option" data-value="no">No</button>
+                    <button class="btn-option" data-value="yes">Yes (molecular/cellular/tissue)</button>
+                    <button class="btn-option" data-value="no">No (organ/individual/population)</button>
                 </div>
             </div>
 
