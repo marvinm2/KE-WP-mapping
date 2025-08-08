@@ -1,5 +1,10 @@
 # KE-WP Mapping Application 🧬
 
+[![CI/CD Pipeline](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/ci.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/ci.yml)
+[![Docker Build & Test](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/docker.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/docker.yml)
+[![Code Quality](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/code-quality.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/code-quality.yml)
+[![Security & Compliance](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/security.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/security.yml)
+
 A modern Flask-based web application for mapping Key Events (KEs) to WikiPathways (WPs) with comprehensive metadata management. Built with a modular blueprint architecture for enhanced maintainability and scalability.
 
 ## 🌟 Features
@@ -23,6 +28,36 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
 - **🔧 Configuration Management**: Environment-aware settings
 - **📈 Health Monitoring**: System status and performance metrics
 - **🚨 Centralized Error Handling**: Robust error management
+
+## 🔧 CI/CD & Quality Assurance
+
+This project includes comprehensive GitHub Actions workflows for automated testing, quality assurance, and deployment:
+
+### 🔄 **CI/CD Pipeline**
+- **Matrix Testing**: Python 3.10 & 3.11 compatibility
+- **Automated Testing**: Full test suite with pytest and coverage reporting
+- **Code Formatting**: Black code formatting and isort import sorting
+- **Environment Testing**: Validates application startup and health endpoints
+
+### 🐳 **Docker Build & Test**
+- **Multi-platform Builds**: AMD64 and ARM64 architecture support
+- **Container Testing**: Automated health checks and endpoint validation
+- **Docker Compose Testing**: Full stack deployment validation
+- **Production Ready**: Optimized containers with proper security practices
+
+### 🔍 **Code Quality**
+- **Linting**: Flake8, Black, isort, MyPy, and Pylint validation
+- **Security Analysis**: Bandit, Safety, and Semgrep security scanning
+- **Complexity Analysis**: Code complexity monitoring with Radon
+- **Documentation**: Style checking and coverage validation
+
+### 🛡️ **Security & Compliance**
+- **SAST**: Static Application Security Testing with multiple tools
+- **Dependency Scanning**: Automated vulnerability detection
+- **Container Security**: Trivy container image scanning
+- **License Compliance**: Automated license checking and SBOM generation
+
+All workflows run automatically on push to main branch and can be triggered manually for testing.
 
 ## 🚀 Quick Start
 
