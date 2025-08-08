@@ -1,9 +1,10 @@
 name: Deployment
 
 on:
-  push:
-    branches: [ main ]
-    tags: [ 'v*' ]
+  # Temporarily disabled - workflows need testing
+  # push:
+  #   branches: [ main ]
+  #   tags: [ 'v*' ]
   workflow_dispatch:
     inputs:
       environment:

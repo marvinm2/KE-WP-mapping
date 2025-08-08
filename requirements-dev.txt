@@ -1,51 +1,38 @@
 # Development dependencies for KE-WP Mapping Application
 # Install with: pip install -r requirements-dev.txt
+# NOTE: Main requirements.txt already includes pytest, pytest-cov, pytest-flask
 
-# Code Quality & Linting
-flake8>=6.0.0
-black>=23.0.0
-isort>=5.12.0
-mypy>=1.5.0
-pylint>=2.17.0
+# Code Quality & Linting (compatible versions for our Flask setup)
+flake8==6.0.0
+black==23.12.1
+isort==5.12.0
+mypy==1.5.1
+pylint==2.17.7
 
-# Security Analysis
-bandit[toml]>=1.7.5
-safety>=3.0.0
-semgrep>=1.45.0
-pip-audit>=2.6.0
+# Security Analysis (pinned to avoid conflicts)
+bandit[toml]==1.7.5
+safety==3.0.1
+pip-audit==2.6.1
 
-# Testing
-pytest>=7.4.0
-pytest-cov>=4.1.0
-pytest-flask>=1.3.0
-pytest-mock>=3.11.0
-pytest-xdist>=3.3.0  # Parallel test execution
-pytest-benchmark>=4.0.0  # Performance testing
+# Additional Testing Tools (avoiding conflicts with main requirements)
+pytest-mock==3.12.0
+pytest-xdist==3.5.0
+pytest-benchmark==4.0.0
 
-# Code Complexity Analysis
-radon>=6.0.0
-xenon>=0.9.0
+# Code Complexity Analysis (lightweight tools only)
+radon==6.0.1
+xenon==0.9.1
 
-# Documentation
-pydocstyle>=6.3.0
-sphinx>=7.1.0
-sphinx-rtd-theme>=1.3.0
+# Documentation (optional tools)
+pydocstyle==6.3.0
 
-# Development Tools
-pip-licenses>=4.3.0  # License compliance
-cyclonedx-bom>=4.0.0  # Software Bill of Materials
-pre-commit>=3.4.0  # Git hooks
+# Development Tools (essential only)
+pip-licenses==4.3.2
+pre-commit==3.4.0
 
-# Database Tools
-sqlite-utils>=3.34.0  # SQLite manipulation
+# Database Tools (compatible with our SQLite setup)
+sqlite-utils==3.35.2
 
-# API Testing
-requests-mock>=1.11.0
-responses>=0.23.0
-
-# Performance Monitoring
-memory-profiler>=0.61.0
-psutil>=5.9.0
-
-# Development Server
-watchdog>=3.0.0  # File watching for auto-reload
+# API Testing (compatible with our requests version)
+requests-mock==1.11.0
+responses==0.24.1
