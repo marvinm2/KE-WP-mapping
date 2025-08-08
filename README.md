@@ -11,6 +11,11 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
 
 ### Core Functionality
 - **🔗 KE-WP Mapping**: Create relationships between Key Events and WikiPathways with connection types and confidence levels
+- **🧠 Intelligent Pathway Suggestions**: Advanced algorithm suggesting relevant pathways based on Key Events using:
+  - Multi-algorithm text similarity with biological term weighting
+  - Gene-based pathway matching with overlap analysis
+  - Domain-specific biological concept recognition
+  - Dynamic confidence scoring with non-linear scaling
 - **🔍 Data Exploration**: Interactive, searchable dataset browser with advanced filtering
 - **📝 Proposal System**: Community-driven change proposals with admin review workflow
 - **📊 Real-time SPARQL Integration**: Live data from AOP-Wiki and WikiPathways endpoints

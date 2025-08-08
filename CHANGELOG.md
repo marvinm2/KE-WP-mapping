@@ -5,6 +5,32 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-08-08
+
+### 🧠 Intelligent Pathway Suggestion System
+
+#### Added
+- **Advanced Pathway Suggestion Engine**: New `pathway_suggestions.py` service providing intelligent pathway recommendations
+- **Multi-Algorithm Text Similarity**: Weighted Jaccard, sequence matching, and substring analysis with biological term prioritization
+- **Gene-Based Pathway Matching**: Automated gene overlap analysis between Key Events and WikiPathways
+- **Domain-Specific Recognition**: Specialized matching for immune, metabolic, cellular, and renal biological processes
+- **Dynamic Confidence Scoring**: Non-linear scaling providing 0.15-0.95 confidence range with granular differentiation
+- **Biological Level Awareness**: Context-aware suggestions based on molecular, cellular, tissue, and organ levels
+- **Interactive Pathway Previews**: Zoom and pan functionality for pathway diagram exploration
+- **Comprehensive Pathway Search**: Fuzzy text search with autocomplete and relevance scoring
+
+#### Enhanced
+- **Visual Improvements**: Enlarged pathway thumbnails (140×120px) and enhanced UI readability
+- **Rate Limiting**: Increased SPARQL endpoint limits (50→500 requests/hour) for improved development experience
+- **API Endpoints**: New `/suggest_pathways`, `/search_pathways`, and `/ke_genes` endpoints
+- **Frontend JavaScript**: Enhanced main.js with pathway suggestion UI and interactive components
+
+#### Technical Features
+- **Pathway Synonym Dictionary**: 50+ biological pathway term variations for improved matching
+- **Dynamic Similarity Thresholds**: Context-aware thresholds based on KE characteristics and biological level
+- **Caching Integration**: Optimized SPARQL query caching for improved performance
+- **Comprehensive Error Handling**: Robust error management with detailed logging
+
 ## [2.0.0] - 2025-08-07
 
 ### 🏗️ Major Architecture Refactoring
