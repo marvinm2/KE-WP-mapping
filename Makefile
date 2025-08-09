@@ -47,7 +47,7 @@ clean:		## Clean up generated files
 
 setup-dev:	## Setup development environment
 	python -m venv venv
-	source venv/bin/activate && pip install -r requirements.txt
+	bash -c "source venv/bin/activate && pip install -r requirements.txt"
 	cp .env.example .env
 	@echo "Don't forget to edit .env with your actual values!"
 

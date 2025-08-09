@@ -459,39 +459,35 @@ class KEWPApp {
     handleStepProgression() {
         const s1 = this.stepAnswers["step1"];
         const s2 = this.stepAnswers["step2"];
-        const s2b = this.stepAnswers["step2b"];
         const s3 = this.stepAnswers["step3"];
         const s4 = this.stepAnswers["step4"];
         const s5 = this.stepAnswers["step5"];
-        const s6 = this.stepAnswers["step6"];
 
-        // Reset visibility
-        $("#step2, #step2b, #step3, #step4, #step5, #step6").hide();
+        // Reset visibility for new 5-step workflow
+        $("#step2, #step3, #step4, #step5").hide();
         $("#evaluateBtn").hide();
 
         if (s1 === "yes") {
             $("#step2").show();
         } else if (s1 === "no") {
-            $("#ca-result").text("Assessment stopped: Pathway is not biologically related to the Key Event.");
+            $("#ca-result").text("Assessment stopped: Pathway is not biologically relevant to the Key Event.");
             return;
         }
 
         if (s2) {
-            $("#step2b").show();
             $("#step3").show();
         }
 
         if (s3) {
             $("#step4").show();
         }
+
         if (s4) {
             $("#step5").show();
         }
-        if (s5 === "medium") {
-            $("#step6").show();
-        }
 
-        const ready = s1 && s2 && s2b && s3 && s4 && s5 && (s5 !== "medium" || s6);
+        // Check if all required steps are completed
+        const ready = s1 && s2 && s3 && s4 && s5;
         if (ready) {
             $("#evaluateBtn").show();
         }
@@ -643,7 +639,7 @@ class KEWPApp {
     }
 
     resetGuide() {
-        const sections = ["#step2", "#step3", "#step4", "#step5", "#step6", "#step2b"];
+        const sections = ["#step2", "#step3", "#step4", "#step5"];
         sections.forEach(id => {
             $(id).hide().find("select").val("");
             $(id).find(".btn-option").removeClass("selected");
@@ -658,27 +654,10 @@ class KEWPApp {
     }
 
     preFillBiologicalLevel() {
-        // Auto-select biological level based on KE data
+        // Biological level is now automatically considered in the confidence scoring
+        // No need to pre-fill UI elements, but we store it for use in evaluateConfidence
         if (this.selectedBiolevel) {
-            const levelMapping = {
-                'molecular': 'yes',
-                'cellular': 'yes', 
-                'tissue': 'yes',
-                'organ': 'no',
-                'individual': 'no',
-                'population': 'no'
-            };
-            
-            const bioLevel = this.selectedBiolevel.toLowerCase();
-            for (const [level, value] of Object.entries(levelMapping)) {
-                if (bioLevel.includes(level)) {
-                    this.stepAnswers["step2"] = value;
-                    $("#step2 .btn-group").find(`.btn-option[data-value="${value}"]`).addClass('selected');
-                    // Trigger step progression to show subsequent steps
-                    this.handleStepProgression();
-                    break;
-                }
-            }
+            console.log(`KE biological level detected: ${this.selectedBiolevel} (will be used in confidence scoring)`);
         }
     }
 
@@ -1355,7 +1334,7 @@ class KEWPApp {
                         
                         <!-- Action buttons -->
                         <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                            <button onclick="window.KEWPApp.selectSuggestedPathway('${pathwayID}', '${pathwayTitle.replace(/'/g, "\\'")}'); $('#pathway-preview-modal').remove();" 
+                            <button id="select-pathway-btn" data-pathway-id="${pathwayID}" data-pathway-title="${pathwayTitle}" 
                                     style="
                                         padding: 8px 16px; background: #307BBF; color: white; 
                                         border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
@@ -1376,6 +1355,14 @@ class KEWPApp {
         `;
         
         $("body").append(modalHtml);
+        
+        // Add event handler for select button
+        $("#select-pathway-btn").on('click', (e) => {
+            const pathwayId = $(e.target).data('pathway-id');
+            const pathwayTitle = $(e.target).data('pathway-title');
+            this.selectSuggestedPathway(pathwayId, pathwayTitle);
+            $("#pathway-preview-modal").remove();
+        });
         
         // Load the SVG
         if (svgUrl) {
@@ -1460,6 +1447,9 @@ class KEWPApp {
                             width: auto;
                             transition: transform 0.3s ease;
                             user-select: none;
+                            transform-origin: 0 0;
+                            min-width: 100%;
+                            min-height: 100%;
                          "
                          draggable="false">
                 </div>
@@ -1530,28 +1520,47 @@ class KEWPApp {
                     $img.css('transform', `scale(${scale})`);
                 }
                 
-                // Update zoom reset button text
+                // Update zoom reset button text and scrollable area
                 $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
+                updateScrollableArea();
             }
         }, 100);
+        
+        // Helper function to update scrollable area after zoom
+        const updateScrollableArea = () => {
+            const img = $img[0];
+            if (img && img.naturalWidth && img.naturalHeight) {
+                const scaledWidth = img.naturalWidth * scale;
+                const scaledHeight = img.naturalHeight * scale;
+                
+                // Set the image container size to match scaled image
+                $img.css({
+                    'width': `${scaledWidth}px`,
+                    'height': `${scaledHeight}px`
+                });
+            }
+        };
         
         // Zoom controls
         $('#zoom-in').on('click', () => {
             scale = Math.min(scale * 1.25, 5);
             $img.css('transform', `scale(${scale})`);
             $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
+            updateScrollableArea();
         });
         
         $('#zoom-out').on('click', () => {
             scale = Math.max(scale / 1.25, 0.1);
             $img.css('transform', `scale(${scale})`);
             $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
+            updateScrollableArea();
         });
         
         $('#zoom-reset').on('click', () => {
             scale = 1;
             $img.css('transform', 'scale(1)');
             $('#zoom-reset').text('100%');
+            updateScrollableArea();
             $viewport.scrollLeft(0).scrollTop(0);
         });
         
@@ -1561,6 +1570,7 @@ class KEWPApp {
             scale = containerWidth / imgWidth * 0.95;
             $img.css('transform', `scale(${scale})`);
             $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
+            updateScrollableArea();
             $viewport.scrollLeft(0).scrollTop(0);
         });
         
@@ -1573,6 +1583,7 @@ class KEWPApp {
             scale = Math.min(Math.max(scale * zoomFactor, 0.1), 5);
             $img.css('transform', `scale(${scale})`);
             $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
+            updateScrollableArea();
         });
         
         // Pan functionality
@@ -1589,8 +1600,13 @@ class KEWPApp {
                 const deltaX = e.clientX - lastX;
                 const deltaY = e.clientY - lastY;
                 
-                $viewport.scrollLeft($viewport.scrollLeft() - deltaX);
-                $viewport.scrollTop($viewport.scrollTop() - deltaY);
+                // Calculate new scroll positions
+                const newScrollLeft = $viewport.scrollLeft() - deltaX;
+                const newScrollTop = $viewport.scrollTop() - deltaY;
+                
+                // Apply scroll changes (browser will constrain to valid bounds)
+                $viewport.scrollLeft(newScrollLeft);
+                $viewport.scrollTop(newScrollTop);
                 
                 lastX = e.clientX;
                 lastY = e.clientY;
@@ -1644,31 +1660,67 @@ class KEWPApp {
 // Global function for confidence evaluation
 function evaluateConfidence() {
     const app = window.KEWPApp;
-    const s1 = app.stepAnswers["step1"];
-    const s2 = app.stepAnswers["step2"];
-    const s2b = app.stepAnswers["step2b"];
-    const s3 = app.stepAnswers["step3"];
-    const s4 = app.stepAnswers["step4"];
-    const s5 = app.stepAnswers["step5"];
-    const s6 = app.stepAnswers["step6"];
+    const s1 = app.stepAnswers["step1"]; // Biological relevance (yes/no)
+    const s2 = app.stepAnswers["step2"]; // Relationship type (causative/responsive/bidirectional/unclear)
+    const s3 = app.stepAnswers["step3"]; // Evidence quality (strong/moderate/computational/none)
+    const s4 = app.stepAnswers["step4"]; // Pathway specificity (direct/partial/weak)
+    const s5 = app.stepAnswers["step5"]; // Coverage comprehensiveness (complete/partial/limited)
 
-    let confidence = "low";
-
-    if (s3 === "no" || s5 === "low") {
-        confidence = "low";
-    } else if (s5 === "medium") {
-        confidence = (s6 === "yes") ? "medium" : "low";
-    } else if (s4 === "no") {
-        confidence = "medium";
-    } else {
-        confidence = "high";
+    // Calculate base score using new algorithm
+    let baseScore = 0;
+    
+    // Evidence quality scoring (0-3 points)
+    switch (s3) {
+        case 'strong': baseScore += 3; break;
+        case 'moderate': baseScore += 2; break;
+        case 'computational': baseScore += 1; break;
+        case 'none': baseScore += 0; break;
+    }
+    
+    // Pathway specificity scoring (0-2 points)
+    switch (s4) {
+        case 'direct': baseScore += 2; break;
+        case 'partial': baseScore += 1; break;
+        case 'weak': baseScore += 0; break;
+    }
+    
+    // Coverage comprehensiveness scoring (0-1.5 points)
+    switch (s5) {
+        case 'complete': baseScore += 1.5; break;
+        case 'partial': baseScore += 1; break;
+        case 'limited': baseScore += 0.5; break;
     }
 
+    // Add biological level modifier (+1 for molecular/cellular/tissue KEs)
+    const bioLevel = app.selectedBiolevel ? app.selectedBiolevel.toLowerCase() : '';
+    const isMolecularLevel = bioLevel.includes('molecular') || bioLevel.includes('cellular') || bioLevel.includes('tissue');
+    if (isMolecularLevel) {
+        baseScore += 1;
+        console.log(`Biological level bonus applied: +1 for ${bioLevel}`);
+    }
+
+    // Determine confidence level based on total score
+    let confidence = "low";
+    if (baseScore >= 5) {
+        confidence = "high";
+    } else if (baseScore >= 2.5) {
+        confidence = "medium";
+    } else {
+        confidence = "low";
+    }
+
+    console.log(`Confidence assessment: Evidence=${s3}, Specificity=${s4}, Coverage=${s5}, BioLevel=${bioLevel}, Score=${baseScore}, Confidence=${confidence}`);
+
+    // Update UI with results
     $("#auto-confidence").text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
-    $("#auto-connection").text(s2b.charAt(0).toUpperCase() + s2b.slice(1));
+    $("#auto-connection").text(s2.charAt(0).toUpperCase() + s2.slice(1));
     $("#confidence_level").val(confidence);
-    $("#connection_type").val(s2b);
+    $("#connection_type").val(s2);
     $("#evaluateBtn").hide();
+    
+    // Show detailed result message
+    const detailMessage = `Assessment completed: ${confidence} confidence (score: ${baseScore}/6.5)${isMolecularLevel ? ' with biological level bonus' : ''}`;
+    $("#ca-result").text(detailMessage);
     
     app.showMessage("Confidence assessment completed successfully", "success");
 }
