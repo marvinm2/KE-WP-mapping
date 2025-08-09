@@ -16,6 +16,11 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
   - Gene-based pathway matching with overlap analysis
   - Domain-specific biological concept recognition
   - Dynamic confidence scoring with non-linear scaling
+- **⚖️ Streamlined Confidence Assessment**: 5-question workflow with biological level weighting:
+  - Transparent scoring algorithm (0-6.5 points) with clear confidence thresholds
+  - Automatic +1 bonus for molecular/cellular/tissue-level Key Events
+  - Progressive question disclosure with simplified, accessible language
+  - Real-time score calculation and detailed feedback
 - **🔍 Data Exploration**: Interactive, searchable dataset browser with advanced filtering
 - **📝 Proposal System**: Community-driven change proposals with admin review workflow
 - **📊 Real-time SPARQL Integration**: Live data from AOP-Wiki and WikiPathways endpoints

@@ -5,6 +5,35 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2025-01-11
+
+### 🧠 Confidence Assessment Workflow Revision
+
+#### Enhanced
+- **Streamlined Assessment Process**: Reduced from 6 complex questions to 5 intuitive questions
+- **Biological Level Weighting**: Molecular, cellular, and tissue-level KEs receive automatic +1 confidence bonus
+- **Improved Scoring Algorithm**: Transparent point-based system (0-6.5 points) with clear thresholds
+- **Language Simplification**: Replaced complex terms like "tangentially" with "weak relationship"
+- **Progressive Disclosure**: Sequential question revealing for better user guidance
+
+#### Technical Improvements
+- **New Scoring System**: Evidence quality (0-3) + Pathway specificity (0-2) + Coverage (0-1.5) + Bio level bonus (0-1)
+- **Clear Confidence Thresholds**: High (≥5.0), Medium (≥2.5), Low (<2.5)
+- **Automatic Bio Level Detection**: KE selection automatically determines biological context
+- **Transparent Feedback**: Users see detailed score calculation (e.g., "4.5/6.5 with biological level bonus")
+
+#### User Experience
+- **Intuitive Workflow**: Gate question eliminates irrelevant mappings early
+- **Better Accessibility**: Simplified language and clear question progression  
+- **Scientific Accuracy**: Properly weights molecular mechanisms vs phenotypic endpoints
+- **Detailed Tooltips**: Comprehensive explanations for each assessment option
+
+#### Updated Components
+- `templates/index.html`: Revised 5-question assessment interface
+- `static/js/main.js`: New scoring algorithm and step progression logic
+- Confidence level descriptions updated to reflect biological weighting
+- Assessment results show transparent scoring breakdown
+
 ## [2.1.0] - 2025-08-08
 
 ### 🧠 Intelligent Pathway Suggestion System

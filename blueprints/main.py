@@ -5,7 +5,7 @@ Handles core application routes and page rendering
 import logging
 import os
 
-from flask import Blueprint, make_response, render_template, send_file, session
+from flask import Blueprint, make_response, render_template, send_file, session, request, jsonify
 
 from models import MappingModel
 from monitoring import monitor_performance
@@ -16,12 +16,16 @@ main_bp = Blueprint("main", __name__)
 
 # Global model instances (will be set by app initialization)
 mapping_model = None
+export_manager = None
+metadata_manager = None
 
 
-def set_models(mapping):
+def set_models(mapping, export_mgr=None, metadata_mgr=None):
     """Set the model instances"""
-    global mapping_model
+    global mapping_model, export_manager, metadata_manager
     mapping_model = mapping
+    export_manager = export_mgr
+    metadata_manager = metadata_mgr
 
 
 def is_admin(username: str = None) -> bool:
@@ -225,3 +229,212 @@ def pw_details():
 def confidence_assessment():
     """Confidence assessment page"""
     return render_template("confidence-assessment.html")
+
+
+# ========== Enhanced Export Routes ==========
+
+@main_bp.route("/export/<format_name>")
+@monitor_performance
+def export_dataset(format_name):
+    """Export dataset in specified format"""
+    if not export_manager:
+        return jsonify({"error": "Export functionality not available"}), 500
+    
+    try:
+        # Validate format
+        available_formats = export_manager.get_available_formats()
+        if format_name not in available_formats:
+            return jsonify({
+                "error": f"Unsupported format: {format_name}",
+                "available_formats": available_formats
+            }), 400
+        
+        # Get export options from query parameters
+        include_metadata = request.args.get('metadata', 'true').lower() == 'true'
+        include_statistics = request.args.get('statistics', 'true').lower() == 'true'
+        include_provenance = request.args.get('provenance', 'true').lower() == 'true'
+        compression = request.args.get('compression', 'snappy')
+        
+        # Export data
+        if format_name == 'json':
+            export_data = export_manager.export('json', 
+                include_metadata=include_metadata, 
+                include_provenance=include_provenance
+            )
+        elif format_name == 'jsonld':
+            export_data = export_manager.export('jsonld', 
+                include_metadata=include_metadata
+            )
+        elif format_name in ['excel', 'xlsx']:
+            export_data = export_manager.export('excel',
+                include_statistics=include_statistics,
+                include_metadata=include_metadata
+            )
+        elif format_name == 'parquet':
+            export_data = export_manager.export('parquet',
+                include_metadata_columns=include_metadata,
+                compression=compression
+            )
+        else:
+            export_data = export_manager.export(format_name)
+        
+        # Create response
+        response = make_response(export_data)
+        response.headers["Content-Type"] = export_manager.get_content_type(format_name)
+        
+        # Generate filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        extension = export_manager.get_file_extension(format_name)
+        filename = f"ke_wp_mappings_{timestamp}.{extension}"
+        
+        if format_name in ['excel', 'parquet']:
+            response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        else:
+            response.headers["Content-Disposition"] = f'inline; filename="{filename}"'
+        
+        # Add custom headers
+        response.headers["X-Dataset-Version"] = metadata_manager.metadata.get("version", "1.0.0") if metadata_manager else "1.0.0"
+        response.headers["X-Export-Format"] = format_name
+        response.headers["X-Export-Timestamp"] = datetime.now().isoformat()
+        
+        logger.info(f"Dataset exported in {format_name} format")
+        return response
+        
+    except ImportError as e:
+        return jsonify({
+            "error": f"Required dependencies not installed for {format_name} export",
+            "details": str(e)
+        }), 500
+    except Exception as e:
+        logger.error(f"Error exporting dataset in {format_name} format: {e}")
+        return jsonify({"error": "Export failed", "details": str(e)}), 500
+
+
+@main_bp.route("/export/formats")
+def list_export_formats():
+    """List available export formats"""
+    if not export_manager:
+        return jsonify({"error": "Export functionality not available"}), 500
+    
+    formats_info = {
+        "available_formats": export_manager.get_available_formats(),
+        "format_details": {
+            "csv": {
+                "description": "Comma-separated values with comprehensive metadata header",
+                "content_type": "text/csv",
+                "use_cases": ["Spreadsheet analysis", "Basic data processing"]
+            },
+            "json": {
+                "description": "Comprehensive JSON with schema, statistics, and provenance",
+                "content_type": "application/json", 
+                "use_cases": ["Web APIs", "Data interchange", "Programmatic access"]
+            },
+            "jsonld": {
+                "description": "JSON-LD format for semantic web applications",
+                "content_type": "application/ld+json",
+                "use_cases": ["Semantic web", "Linked data", "Knowledge graphs"]
+            },
+            "rdf": {
+                "description": "RDF/XML format with biological ontologies",
+                "content_type": "application/rdf+xml",
+                "use_cases": ["Ontology integration", "Semantic reasoning"]
+            },
+            "turtle": {
+                "description": "Turtle format for RDF data",
+                "content_type": "text/turtle",
+                "use_cases": ["Triple stores", "SPARQL queries"]
+            },
+            "excel": {
+                "description": "Excel workbook with multiple sheets and data dictionary",
+                "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "use_cases": ["Data analysis", "Reporting", "Manual review"]
+            },
+            "parquet": {
+                "description": "Columnar format optimized for analytics",
+                "content_type": "application/octet-stream",
+                "use_cases": ["Big data analytics", "Machine learning", "Data science"]
+            }
+        }
+    }
+    
+    return jsonify(formats_info)
+
+
+@main_bp.route("/dataset/metadata")
+def dataset_metadata():
+    """Get comprehensive dataset metadata"""
+    if not metadata_manager:
+        return jsonify({"error": "Metadata functionality not available"}), 500
+    
+    try:
+        metadata = metadata_manager.get_current_metadata()
+        return jsonify(metadata)
+    except Exception as e:
+        logger.error(f"Error retrieving dataset metadata: {e}")
+        return jsonify({"error": "Failed to retrieve metadata", "details": str(e)}), 500
+
+
+@main_bp.route("/dataset/versions")
+def dataset_versions():
+    """Get dataset version history"""
+    if not metadata_manager:
+        return jsonify({"error": "Metadata functionality not available"}), 500
+    
+    try:
+        versions = metadata_manager.get_versions()
+        return jsonify({"versions": versions})
+    except Exception as e:
+        logger.error(f"Error retrieving dataset versions: {e}")
+        return jsonify({"error": "Failed to retrieve versions", "details": str(e)}), 500
+
+
+@main_bp.route("/dataset/citation")
+def dataset_citation():
+    """Generate dataset citation in various formats"""
+    if not metadata_manager:
+        return jsonify({"error": "Metadata functionality not available"}), 500
+    
+    citation_format = request.args.get('format', 'apa').lower()
+    
+    try:
+        citation = metadata_manager.generate_citation(citation_format)
+        
+        response_data = {
+            "format": citation_format,
+            "citation": citation,
+            "available_formats": ["apa", "bibtex"]
+        }
+        
+        if citation_format == "bibtex":
+            response = make_response(citation)
+            response.headers["Content-Type"] = "application/x-bibtex"
+            response.headers["Content-Disposition"] = 'inline; filename="ke_wp_dataset.bib"'
+            return response
+        else:
+            return jsonify(response_data)
+            
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error generating citation: {e}")
+        return jsonify({"error": "Failed to generate citation", "details": str(e)}), 500
+
+
+@main_bp.route("/dataset/datacite")
+def datacite_metadata():
+    """Get DataCite XML metadata"""
+    if not metadata_manager:
+        return jsonify({"error": "Metadata functionality not available"}), 500
+    
+    try:
+        datacite_xml = metadata_manager.export_datacite_xml()
+        
+        response = make_response(datacite_xml)
+        response.headers["Content-Type"] = "application/xml"
+        response.headers["Content-Disposition"] = 'inline; filename="datacite_metadata.xml"'
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error generating DataCite metadata: {e}")
+        return jsonify({"error": "Failed to generate DataCite metadata", "details": str(e)}), 500

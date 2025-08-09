@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KE-WP Dataset Examples - Interactive Demo</title>
+    
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom styles from JavaScript examples -->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #29235C;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6c757d;
+            margin-bottom: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+        }
+
+        .section h2 {
+            color: #307BBF;
+            margin-top: 0;
+            border-bottom: 2px solid #93D5F6;
+            padding-bottom: 10px;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        .chart-wrapper {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .chart-wrapper canvas {
+            max-height: 300px !important;
+        }
+
+        .search-interface {
+            max-width: 800px;
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .search-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-input, .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .result-item {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: white;
+        }
+
+        .result-main h5 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+
+        .result-main p {
+            margin: 0;
+            color: #666;
+        }
+
+        .result-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .confidence-badge, .connection-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .confidence-high { background: #d4edda; color: #155724; }
+        .confidence-medium { background: #fff3cd; color: #856404; }
+        .confidence-low { background: #f8d7da; color: #721c24; }
+
+        .connection-causative { background: #cce5ff; color: #004085; }
+        .connection-responsive { background: #d1ecf1; color: #0c5460; }
+        .connection-other { background: #e2e3e5; color: #383d41; }
+        .connection-undefined { background: #f5f5f5; color: #6c757d; }
+
+        .stats-dashboard {
+            max-width: 900px;
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #307BBF;
+        }
+
+        .distribution-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .distribution-item h4 {
+            margin: 0 0 15px 0;
+            color: #495057;
+        }
+
+        .distribution-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 10px;
+        }
+
+        .distribution-bar .label {
+            min-width: 80px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .distribution-bar .bar {
+            height: 20px;
+            background: #307BBF;
+            border-radius: 10px;
+            min-width: 3px;
+            flex-grow: 1;
+            max-width: 200px;
+        }
+
+        .distribution-bar .value {
+            min-width: 40px;
+            text-align: right;
+            font-size: 12px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .mappings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .mappings-table th,
+        .mappings-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .mappings-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+
+        .mappings-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .download-link {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background: #307BBF;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .download-link:hover {
+            background: #2c5282;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .last-updated {
+            text-align: center;
+            margin-top: 20px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .svg-container {
+            max-width: 100%;
+            overflow: auto;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            background: white;
+            text-align: center;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .info-box h4 {
+            margin: 0 0 10px 0;
+            color: #004085;
+        }
+
+        .info-box p {
+            margin: 0;
+            color: #004085;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #307BBF;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2c5282;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        @media (max-width: 768px) {
+            .search-controls {
+                flex-direction: column;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .distribution-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .result-item {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>KE-WP Mapping Dataset Examples</h1>
+        <p class="subtitle">Interactive demonstration of the Key Event to WikiPathways mapping dataset API and visualization capabilities</p>
+
+        <div class="info-box">
+            <h4>About This Demo</h4>
+            <p>This page demonstrates various ways to access and visualize the KE-WP Mapping Dataset. The examples show real data from the platform's API endpoints. Open your browser's developer console to see detailed logging of API interactions.</p>
+        </div>
+
+        <!-- Statistics Dashboard -->
+        <div class="section">
+            <h2>📊 Real-time Statistics Dashboard</h2>
+            <div id="statsContainer">
+                <div class="loading">Loading statistics...</div>
+            </div>
+        </div>
+
+        <!-- Data Visualizations -->
+        <div class="section">
+            <h2>📈 Data Visualizations</h2>
+            <div class="charts-container">
+                <div class="chart-wrapper">
+                    <h3>Confidence Level Distribution</h3>
+                    <canvas id="confidenceChart"></canvas>
+                </div>
+                <div class="chart-wrapper">
+                    <h3>Connection Type Distribution</h3>
+                    <canvas id="connectionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Search -->
+        <div class="section">
+            <h2>🔍 Interactive Search Interface</h2>
+            <div id="searchContainer">
+                <div class="loading">Loading search interface...</div>
+            </div>
+        </div>
+
+        <!-- Sample Data Table -->
+        <div class="section">
+            <h2>📋 Sample Mappings Data</h2>
+            <div id="mappingsTable">
+                <div class="loading">Loading sample data...</div>
+            </div>
+        </div>
+
+        <!-- Data Export -->
+        <div class="section">
+            <h2>💾 Data Export Options</h2>
+            <p>Download the dataset in various formats:</p>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="exportData('json')">Export JSON</button>
+                <button class="btn btn-primary" onclick="exportData('csv')">Export CSV</button>
+                <button class="btn btn-secondary" onclick="showExportInfo()">View All Formats</button>
+            </div>
+            <div id="downloadContainer"></div>
+            <div id="exportInfo" style="display: none;">
+                <div class="info-box">
+                    <h4>Available Export Formats</h4>
+                    <ul>
+                        <li><strong>JSON</strong> - Comprehensive format with metadata and provenance</li>
+                        <li><strong>CSV</strong> - Tabular format for spreadsheet analysis</li>
+                        <li><strong>Excel</strong> - Multi-sheet workbook with data dictionary</li>
+                        <li><strong>Parquet</strong> - Columnar format optimized for analytics</li>
+                        <li><strong>RDF/Turtle</strong> - Semantic web formats with ontologies</li>
+                        <li><strong>JSON-LD</strong> - Linked data format for semantic applications</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- External Integration -->
+        <div class="section">
+            <h2>🔗 External Integration Example</h2>
+            <p>Example of integrating with external pathway visualization services:</p>
+            <div id="svgContainer" class="svg-container">
+                <div class="loading">Loading pathway diagram example...</div>
+            </div>
+        </div>
+
+        <!-- API Documentation -->
+        <div class="section">
+            <h2>📚 Quick API Reference</h2>
+            <div class="info-box">
+                <h4>Key Endpoints</h4>
+                <ul>
+                    <li><code>GET /api/v1/mappings</code> - List mappings with pagination and filtering</li>
+                    <li><code>GET /api/v1/mappings/{id}</code> - Get specific mapping</li>
+                    <li><code>GET /api/v1/mappings/stats</code> - Get dataset statistics</li>
+                    <li><code>GET /export/{format}</code> - Export data in various formats</li>
+                    <li><code>GET /dataset/metadata</code> - Get comprehensive metadata</li>
+                </ul>
+                <p><strong>Base URL:</strong> <code>https://ke-wp-mapping.org</code></p>
+                <p><strong>Rate Limits:</strong> 1000 requests/hour (general), 100 requests/hour (submissions)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load the JavaScript examples -->
+    <script src="javascript_examples.js"></script>
+    
+    <!-- Additional demo functionality -->
+    <script>
+        // Export data function for buttons
+        async function exportData(format) {
+            try {
+                const client = new KEWPDatasetClient();
+                const response = await client.exportData(format, { metadata: 'true' });
+                
+                if (format === 'json') {
+                    const data = await response.json();
+                    createDownloadLink(JSON.stringify(data, null, 2), `ke_wp_dataset.${format}`, 'application/json');
+                } else {
+                    const data = await response.text();
+                    createDownloadLink(data, `ke_wp_dataset.${format}`, 'text/csv');
+                }
+                
+                console.log(`${format.toUpperCase()} export completed`);
+            } catch (error) {
+                console.error(`Error exporting ${format}:`, error);
+                alert(`Error exporting ${format}: ${error.message}`);
+            }
+        }
+
+        // Show export format information
+        function showExportInfo() {
+            const info = document.getElementById('exportInfo');
+            info.style.display = info.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Enhanced createDownloadLink function
+        function createDownloadLink(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            
+            const downloadContainer = document.getElementById('downloadContainer');
+            
+            // Remove existing links for this format
+            const existingLinks = downloadContainer.querySelectorAll(`a[download="${filename}"]`);
+            existingLinks.forEach(link => link.remove());
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.textContent = `📥 Download ${filename}`;
+            link.className = 'download-link';
+            
+            downloadContainer.appendChild(link);
+            
+            // Show success message
+            const message = document.createElement('div');
+            message.textContent = `✅ ${filename} ready for download`;
+            message.style.color = '#28a745';
+            message.style.fontWeight = 'bold';
+            message.style.margin = '10px';
+            downloadContainer.appendChild(message);
+            
+            // Clean up URL and message after a delay
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+                if (message.parentNode) {
+                    message.parentNode.removeChild(message);
+                }
+            }, 30000);
+        }
+
+        // Error handling for the main script
+        window.addEventListener('error', function(e) {
+            console.error('JavaScript error:', e.error);
+            
+            // Show user-friendly error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.innerHTML = `
+                <h4>Demo Error</h4>
+                <p>There was an error running the demo. This might be because:</p>
+                <ul>
+                    <li>The KE-WP mapping service is not accessible</li>
+                    <li>Network connectivity issues</li>
+                    <li>CORS restrictions in the browser</li>
+                </ul>
+                <p>Check the browser console for detailed error information.</p>
+            `;
+            
+            document.body.appendChild(errorDiv);
+        });
+
+        // Add loading completion handler
+        window.addEventListener('load', function() {
+            console.log('KE-WP Dataset Demo loaded successfully');
+            console.log('Check the various sections above for interactive examples');
+            console.log('All API calls and data processing are logged to the console');
+        });
+    </script>
+</body>
+</html>
