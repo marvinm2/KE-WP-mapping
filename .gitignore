@@ -72,3 +72,5 @@ htmlcov/
 
 # Old proposals directory (legacy)
 /proposals
+
+/venv
