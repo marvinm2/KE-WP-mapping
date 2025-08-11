@@ -34,5 +34,5 @@ pre-commit==3.4.0
 sqlite-utils==3.35.2
 
 # API Testing (compatible with our requests version)
-requests-mock==1.11.0
+requests-mock==1.12.1
 responses==0.24.1
