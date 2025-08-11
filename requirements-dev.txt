@@ -17,7 +17,7 @@ pip-audit==2.6.1
 # Additional Testing Tools (avoiding conflicts with main requirements)
 pytest-mock==3.12.0
 pytest-xdist==3.5.0
-pytest-benchmark==4.0.0
+pytest-benchmark==5.1.0
 
 # Code Complexity Analysis (lightweight tools only)
 radon==6.0.1
