@@ -1,5 +1,0 @@
-version: 2
-# Temporarily disabled to avoid version conflicts - re-enable after testing
-# All update configurations are commented out to prevent automatic PRs
-# until we can properly test the workflows with our current dependencies
-updates: []
