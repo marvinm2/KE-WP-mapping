@@ -1533,7 +1533,7 @@ class KEWPApp {
                                 </div>
                                 <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')" 
                                         style="font-size: 11px; padding: 4px 8px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 3px; color: #307BBF; cursor: pointer;">
-                                    👁️ Preview Pathway
+                                    Preview Pathway
                                 </button>
                             </div>
                             <div style="width: 140px; height: 120px; border: 1px solid #ddd; border-radius: 6px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')">
@@ -1582,7 +1582,7 @@ class KEWPApp {
                                 </div>
                                 <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')" 
                                         style="font-size: 11px; padding: 4px 8px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 3px; color: #307BBF; cursor: pointer;">
-                                    👁️ Preview Pathway
+                                    Preview Pathway
                                 </button>
                             </div>
                             <div style="width: 140px; height: 120px; border: 1px solid #ddd; border-radius: 6px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')">
@@ -1728,23 +1728,47 @@ class KEWPApp {
     }
 
     selectSuggestedPathway(pathwayId, pathwayTitle) {
-        // Find the pathway option in the dropdown
-        const $dropdown = $("#wp_id");
-        const $option = $dropdown.find(`option[value="${pathwayId}"]`);
+        // Find an available pathway dropdown (either the first one or an empty second one)
+        const $pathwayGroups = $(".pathway-selection-group");
+        let $targetDropdown = null;
+        let targetGroupIndex = null;
+        
+        // First, try to find an empty dropdown
+        $pathwayGroups.each(function(index) {
+            const $dropdown = $(this).find("select[name='wp_id']");
+            if (!$dropdown.val() || $dropdown.val() === "") {
+                $targetDropdown = $dropdown;
+                targetGroupIndex = index;
+                return false; // Break the loop
+            }
+        });
+        
+        // If no empty dropdown found, use the first one
+        if (!$targetDropdown) {
+            $targetDropdown = $pathwayGroups.first().find("select[name='wp_id']");
+            targetGroupIndex = 0;
+        }
+        
+        // Find the pathway option in the target dropdown
+        const $option = $targetDropdown.find(`option[value="${pathwayId}"]`);
         
         if ($option.length > 0) {
             // Select the pathway
-            $dropdown.val(pathwayId).trigger('change');
-            console.log(`Selected suggested pathway: ${pathwayId} - ${pathwayTitle}`);
+            $targetDropdown.val(pathwayId).trigger('change');
+            console.log(`Selected suggested pathway: ${pathwayId} - ${pathwayTitle} in group ${targetGroupIndex}`);
             
             // Show success message
-            this.showMessage(`✅ Selected suggested pathway: ${pathwayTitle}`, "success");
+            this.showMessage(`Selected suggested pathway: ${pathwayTitle}`, "success");
             
             // Scroll to the pathway selection area
-            $dropdown.get(0).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            $targetDropdown.get(0).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Update the pathway selection state
+            this.updateSelectedPathways();
+            this.toggleAssessmentSection();
         } else {
             console.error(`Pathway option not found in dropdown: ${pathwayId}`);
-            this.showMessage(`⚠️ Pathway ${pathwayId} not found in dropdown. It may not be loaded yet.`, "warning");
+            this.showMessage(`Pathway ${pathwayId} not found in dropdown. It may not be loaded yet.`, "warning");
         }
     }
 
@@ -1894,7 +1918,7 @@ class KEWPApp {
                             </div>
                             <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${result.pathwayID}', '${result.pathwayTitle.replace(/'/g, "\\'")}', '${result.pathwaySvgUrl || ''}')" 
                                     style="font-size: 10px; padding: 3px 6px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 2px; color: #307BBF; cursor: pointer;">
-                                👁️ Preview
+                                Preview
                             </button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -2015,15 +2039,16 @@ class KEWPApp {
                     
                     <!-- Content -->
                     <div style="
-                        padding: 20px; overflow: auto; flex: 1;
+                        padding: 20px; overflow: auto; flex: 1; max-height: calc(95vh - 120px);
                         display: flex; flex-direction: column; align-items: center;">
                         <div id="pathway-svg-container" style="
                             width: 100%; max-width: 1200px; text-align: center;
                             border: 1px solid #ddd; border-radius: 8px; 
                             padding: 20px; background: #fafafa; position: relative;
-                            min-height: 400px;">
+                            min-height: 300px; max-height: calc(95vh - 200px);
+                            overflow: hidden;">
                             <div style="margin-bottom: 15px; color: #666;">Loading pathway diagram...</div>
-                            <div class="loading-spinner" style="display: inline-block; font-size: 32px;">🔄</div>
+                            <div class="loading-spinner" style="display: inline-block; font-size: 32px;">⟳</div>
                         </div>
                         
                         <!-- Action buttons -->
@@ -2050,8 +2075,8 @@ class KEWPApp {
         
         $("body").append(modalHtml);
         
-        // Add event handler for select button
-        $("#select-pathway-btn").on('click', (e) => {
+        // Add event handler for select button (using delegation since modal is dynamic)
+        $(document).on('click', '#select-pathway-btn', (e) => {
             const pathwayId = $(e.target).data('pathway-id');
             const pathwayTitle = $(e.target).data('pathway-title');
             this.selectSuggestedPathway(pathwayId, pathwayTitle);
@@ -2101,9 +2126,9 @@ class KEWPApp {
             const isWide = aspectRatio > 1.5;
             const isTall = aspectRatio < 0.7;
             
-            // Set container size based on image shape
+            // Set container size based on image shape, but limit to available modal space
             let containerWidth = isWide ? '100%' : (isTall ? '60%' : '80%');
-            let containerHeight = isTall ? '70vh' : (isWide ? '50vh' : '60vh');
+            let containerHeight = isTall ? '50vh' : (isWide ? '40vh' : '45vh');
             
             $container.html(`
                 <div style="margin-bottom: 15px; font-weight: bold; color: #29235C; text-align: center;">
@@ -2136,14 +2161,12 @@ class KEWPApp {
                          alt="Pathway ${pathwayID}" 
                          style="
                             display: block;
-                            max-width: none;
+                            max-width: 100%;
                             height: auto;
                             width: auto;
                             transition: transform 0.3s ease;
                             user-select: none;
                             transform-origin: 0 0;
-                            min-width: 100%;
-                            min-height: 100%;
                          "
                          draggable="false">
                 </div>
@@ -2235,22 +2258,22 @@ class KEWPApp {
             }
         };
         
-        // Zoom controls
-        $('#zoom-in').on('click', () => {
+        // Zoom controls (using delegation since modal is dynamic)
+        $(document).on('click', '#zoom-in', () => {
             scale = Math.min(scale * 1.25, 5);
             $img.css('transform', `scale(${scale})`);
             $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
             updateScrollableArea();
         });
         
-        $('#zoom-out').on('click', () => {
+        $(document).on('click', '#zoom-out', () => {
             scale = Math.max(scale / 1.25, 0.1);
             $img.css('transform', `scale(${scale})`);
             $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
             updateScrollableArea();
         });
         
-        $('#zoom-reset').on('click', () => {
+        $(document).on('click', '#zoom-reset', () => {
             scale = 1;
             $img.css('transform', 'scale(1)');
             $('#zoom-reset').text('100%');
@@ -2258,7 +2281,7 @@ class KEWPApp {
             $viewport.scrollLeft(0).scrollTop(0);
         });
         
-        $('#fit-width').on('click', () => {
+        $(document).on('click', '#fit-width', () => {
             const containerWidth = $viewport.width();
             const imgWidth = $img[0].naturalWidth;
             scale = containerWidth / imgWidth * 0.95;
