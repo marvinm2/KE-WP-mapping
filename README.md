@@ -61,19 +61,19 @@ This project includes comprehensive GitHub Actions workflows for automated testi
 - **Code Formatting**: Black code formatting and isort import sorting
 - **Environment Testing**: Validates application startup and health endpoints
 
-### 🐳 **Docker Build & Test**
+### Docker Build & Test
 - **Multi-platform Builds**: AMD64 and ARM64 architecture support
 - **Container Testing**: Automated health checks and endpoint validation
 - **Docker Compose Testing**: Full stack deployment validation
 - **Production Ready**: Optimized containers with proper security practices
 
-### 🔍 **Code Quality**
+### Code Quality
 - **Linting**: Flake8, Black, isort, MyPy, and Pylint validation
 - **Security Analysis**: Bandit, Safety, and Semgrep security scanning
 - **Complexity Analysis**: Code complexity monitoring with Radon
 - **Documentation**: Style checking and coverage validation
 
-### 🛡️ **Security & Compliance**
+### Security & Compliance
 - **SAST**: Static Application Security Testing with multiple tools
 - **Dependency Scanning**: Automated vulnerability detection
 - **Container Security**: Trivy container image scanning
@@ -81,7 +81,7 @@ This project includes comprehensive GitHub Actions workflows for automated testi
 
 All workflows run automatically on push to main branch and can be triggered manually for testing.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.8+
@@ -134,7 +134,7 @@ All workflows run automatically on push to main branch and can be triggered manu
    - Click "Login with GitHub"
    - Start mapping KE-WP relationships!
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ### Blueprint Structure
 ```
@@ -160,7 +160,7 @@ All workflows run automatically on push to main branch and can be triggered manu
 - **Configuration Classes**: Environment-specific settings (dev/prod/test)
 - **Error Handlers**: Consistent error responses across all endpoints
 
-## 📚 API Documentation
+## API Documentation
 
 ### Core Endpoints
 
@@ -198,7 +198,7 @@ All workflows run automatically on push to main branch and can be triggered manu
 | `/metrics` | GET | Application metrics |
 | `/metrics/<endpoint>` | GET | Endpoint-specific stats |
 
-## 🛡️ Security Features
+## Security Features
 
 - **OAuth 2.0**: Secure GitHub authentication
 - **CSRF Protection**: All forms protected with tokens
@@ -208,7 +208,7 @@ All workflows run automatically on push to main branch and can be triggered manu
 - **Rate Limiting**: Configurable request throttling
 - **Session Security**: HTTPOnly, Secure, SameSite cookies
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -229,7 +229,7 @@ All workflows run automatically on push to main branch and can be triggered manu
 - **ProductionConfig**: Production-ready configuration
 - **TestingConfig**: Unit testing environment
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run with test configuration
@@ -240,7 +240,7 @@ curl http://localhost:5000/health
 curl http://localhost:5000/metrics
 ```
 
-## 📈 Monitoring & Health Checks
+## Monitoring & Health Checks
 
 ### Health Check Response
 ```json
@@ -269,7 +269,7 @@ curl http://localhost:5000/metrics
 - Database performance
 - Cache hit ratios
 
-## 🔧 Development
+## Development
 
 ### Local Development
 ```bash
@@ -289,7 +289,7 @@ python app.py
 5. Add error handling
 6. Write tests
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -318,13 +318,13 @@ python app.py  # Will recreate automatically
 chmod +x start.sh
 ```
 
-## 📊 Data Sources
+## Data Sources
 
 - **Key Events**: [AOP-Wiki SPARQL Endpoint](https://aopwiki.rdf.bigcat-bioinformatics.org/sparql)
 - **WikiPathways**: [WikiPathways SPARQL Endpoint](https://sparql.wikipathways.org/sparql)
 - **Caching**: 24-hour cache for SPARQL responses
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
@@ -339,7 +339,7 @@ chmod +x start.sh
 - Add docstrings for all functions/classes
 - Maintain separation of concerns with blueprints
 
-## 📋 Changelog
+## Changelog
 
 ### Version 2.0.0 (Current)
 - ✅ **Blueprint Architecture**: Modular application design
@@ -355,17 +355,17 @@ chmod +x start.sh
 - KE-WP mapping functionality
 - Admin proposal system
 
-## 📞 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
 - **Documentation**: This README and inline code documentation
 - **Contact**: [marvin.martens@maastrichtuniversity.nl]
 
-## 📜 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **AOP-Wiki**: Key Event data and SPARQL endpoint
 - **WikiPathways**: Pathway data and SPARQL integration  
@@ -374,4 +374,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**🏆 Built with modern Flask best practices and blueprint architecture for maintainable, scalable bioinformatics applications.**
+**Built with modern Flask best practices and blueprint architecture for maintainable, scalable bioinformatics applications.**
