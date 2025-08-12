@@ -19,6 +19,9 @@ class KEWPApp {
         // Debug: Check if form exists
         console.log("Form element found:", $("#mapping-form").length > 0);
         console.log("Submit button found:", $("#mapping-form button[type='submit']").length > 0);
+        
+        // Restore form state if returning from login
+        this.restoreFormState();
     }
 
     setupCSRF() {
@@ -77,6 +80,12 @@ class KEWPApp {
             e.preventDefault();
             // Trigger the form submission manually
             $("#mapping-form").trigger('submit');
+        });
+        
+        // Save form state before login (using delegation)
+        $(document).on('click', 'a[href*="/login"]', (e) => {
+            console.log("Login link clicked, saving form state");
+            this.saveFormState();
         });
     }
 
@@ -1051,7 +1060,7 @@ class KEWPApp {
         if (keSelected && selectedPathways.length > 0) {
             this.generatePathwayAssessments(selectedPathways);
             $("#confidence-guide").show();
-            $("#confidence-guide")[0].scrollIntoView({ behavior: 'smooth' });
+            // Note: Removed auto-scroll to assessment since users may want to select multiple pathways first
             // Pre-fill biological level if available
             this.preFillBiologicalLevel();
         } else {
@@ -1760,9 +1769,7 @@ class KEWPApp {
             // Show success message
             this.showMessage(`Selected suggested pathway: ${pathwayTitle}`, "success");
             
-            // Scroll to the pathway selection area
-            $targetDropdown.get(0).scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
+            // Note: Removed auto-scroll since users may want to select additional pathways
             // Update the pathway selection state
             this.updateSelectedPathways();
             this.toggleAssessmentSection();
@@ -2371,6 +2378,146 @@ class KEWPApp {
                 lastTouchDistance = currentDistance;
             }
         });
+    }
+
+    saveFormState() {
+        try {
+            const formState = {
+                // Basic selections
+                keId: $("#ke_id").val(),
+                keTitle: $("#ke_id option:selected").data("title"),
+                keDescription: $("#ke_id option:selected").data("description"),
+                keBiolevel: $("#ke_id option:selected").data("biolevel"),
+                
+                // Pathway selections
+                pathwaySelections: [],
+                
+                // Assessment answers
+                stepAnswers: this.stepAnswers || {},
+                pathwayAssessments: this.pathwayAssessments || {},
+                selectedBiolevel: this.selectedBiolevel || "",
+                
+                // Timestamp for cleanup
+                timestamp: Date.now()
+            };
+            
+            // Collect all pathway selections
+            $(".pathway-selection-group").each(function(index) {
+                const $select = $(this).find("select[name='wp_id']");
+                const selectedValue = $select.val();
+                if (selectedValue) {
+                    const $option = $select.find("option:selected");
+                    formState.pathwaySelections.push({
+                        index: index,
+                        pathwayId: selectedValue,
+                        pathwayTitle: $option.data("title"),
+                        pathwayDescription: $option.data("description"),
+                        pathwaySvgUrl: $option.data("svg-url")
+                    });
+                }
+            });
+            
+            console.log("Saving form state:", formState);
+            localStorage.setItem('kewp_form_state', JSON.stringify(formState));
+            return true;
+        } catch (error) {
+            console.error("Failed to save form state:", error);
+            return false;
+        }
+    }
+
+    restoreFormState() {
+        try {
+            const savedState = localStorage.getItem('kewp_form_state');
+            if (!savedState) {
+                console.log("No saved form state found");
+                return false;
+            }
+            
+            const formState = JSON.parse(savedState);
+            
+            // Check if state is too old (older than 1 hour)
+            const oneHour = 60 * 60 * 1000;
+            if (Date.now() - formState.timestamp > oneHour) {
+                console.log("Form state expired, cleaning up");
+                localStorage.removeItem('kewp_form_state');
+                return false;
+            }
+            
+            console.log("Restoring form state:", formState);
+            
+            // Restore state after dropdown options are loaded
+            const restoreAfterLoad = () => {
+                // Restore KE selection
+                if (formState.keId) {
+                    $("#ke_id").val(formState.keId).trigger('change');
+                }
+                
+                // Restore pathway selections
+                if (formState.pathwaySelections && formState.pathwaySelections.length > 0) {
+                    // Ensure we have enough pathway selection groups
+                    while ($(".pathway-selection-group").length < formState.pathwaySelections.length && $(".pathway-selection-group").length < 2) {
+                        this.addPathwaySelection();
+                    }
+                    
+                    // Set each pathway selection
+                    formState.pathwaySelections.forEach((selection, index) => {
+                        const $group = $(`.pathway-selection-group[data-index="${selection.index}"]`);
+                        if ($group.length === 0) return;
+                        
+                        const $select = $group.find("select[name='wp_id']");
+                        if ($select.find(`option[value="${selection.pathwayId}"]`).length > 0) {
+                            $select.val(selection.pathwayId).trigger('change');
+                        }
+                    });
+                    
+                    // Update selections
+                    setTimeout(() => {
+                        this.updateSelectedPathways();
+                        this.toggleAssessmentSection();
+                    }, 100);
+                }
+                
+                // Restore assessment data
+                if (formState.stepAnswers) {
+                    this.stepAnswers = formState.stepAnswers;
+                }
+                if (formState.pathwayAssessments) {
+                    this.pathwayAssessments = formState.pathwayAssessments;
+                }
+                if (formState.selectedBiolevel) {
+                    this.selectedBiolevel = formState.selectedBiolevel;
+                }
+                
+                console.log("Form state restored successfully");
+                this.showMessage("Previous selections restored after login", "success");
+                
+                // Clear the saved state since it's been restored
+                localStorage.removeItem('kewp_form_state');
+            };
+            
+            // Wait for dropdown options to load, then restore
+            if (this.pathwayOptions) {
+                // Options already loaded
+                restoreAfterLoad.call(this);
+            } else {
+                // Wait for options to load
+                const checkOptions = () => {
+                    if (this.pathwayOptions) {
+                        restoreAfterLoad.call(this);
+                    } else {
+                        setTimeout(checkOptions, 200);
+                    }
+                };
+                setTimeout(checkOptions, 500);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error("Failed to restore form state:", error);
+            localStorage.removeItem('kewp_form_state'); // Clean up corrupted data
+            return false;
+        }
     }
 }
 
