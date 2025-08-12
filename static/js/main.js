@@ -16,9 +16,7 @@ class KEWPApp {
         this.loadDropdownOptions();
         this.loadDataVersions();
         
-        // Debug: Check if form exists
-        console.log("Form element found:", $("#mapping-form").length > 0);
-        console.log("Submit button found:", $("#mapping-form button[type='submit']").length > 0);
+        // Initialize form validation
         
         // Restore form state if returning from login
         this.restoreFormState();
@@ -42,17 +40,16 @@ class KEWPApp {
             }
         });
         
-        console.log('CSRF token configured for AJAX requests');
+        // CSRF token configured successfully
     }
 
     setupEventListeners() {
         // Retrieve login status
         this.isLoggedIn = $("body").data("is-logged-in") === true;
-        console.log("User login status:", this.isLoggedIn);
+        // User login status retrieved
 
         // Form submission handler
         $("#mapping-form").on('submit', (e) => {
-            console.log("Form submit event triggered!");
             this.handleFormSubmission(e);
         });
 
@@ -74,17 +71,14 @@ class KEWPApp {
         // Pathway search functionality
         this.setupPathwaySearch();
         
-        // Debug: Direct button click handler
+        // Direct button click handler fallback
         $("#mapping-form button[type='submit']").on('click', (e) => {
-            console.log("Submit button clicked directly!");
             e.preventDefault();
-            // Trigger the form submission manually
             $("#mapping-form").trigger('submit');
         });
         
         // Save form state before login (using delegation)
         $(document).on('click', 'a[href*="/login"]', (e) => {
-            console.log("Login link clicked, saving form state");
             this.saveFormState();
         });
     }
@@ -97,7 +91,6 @@ class KEWPApp {
     loadKEOptions() {
         $.getJSON("/get_ke_options")
             .done((data) => {
-                console.log(`Loaded ${data.length} KE options`);
                 
                 // Sort data by KE Label numerically
                 data.sort((a, b) => {
@@ -131,7 +124,6 @@ class KEWPApp {
     loadPathwayOptions() {
         $.getJSON("/get_pathway_options")
             .done((data) => {
-                console.log(`Loaded ${data.length} pathway options`);
                 
                 // Sort data by Pathway ID numerically
                 data.sort((a, b) => {
@@ -157,7 +149,6 @@ class KEWPApp {
 
     handleFormSubmission(event) {
         event.preventDefault();
-        console.log("Form submission started");
 
         const formData = {
             ke_id: $("#ke_id").val(),
@@ -169,7 +160,7 @@ class KEWPApp {
             csrf_token: this.csrfToken
         };
 
-        console.log("Form data:", formData);
+        // Form data prepared for submission
 
         // Validate required fields
         if (!formData.ke_id || !formData.wp_id) {
@@ -179,10 +170,6 @@ class KEWPApp {
 
         if (!formData.connection_type || !formData.confidence_level) {
             this.showMessage("Please complete the confidence assessment", "error");
-            console.log("Missing confidence/connection data:", {
-                connection_type: formData.connection_type,
-                confidence_level: formData.confidence_level
-            });
             return;
         }
 
@@ -278,7 +265,7 @@ class KEWPApp {
         const pwDescHtml = this.createCollapsibleDescription(pwDescription, 'preview-pw-desc-table');
         
         let previewHTML = `
-                <h3>🔍 New Mapping Preview</h3>
+                <h3>New Mapping Preview</h3>
                 <p>Review your new mapping that will be added:</p>
                 
                 <div class="mapping-preview" style="display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px; margin: 20px 0; width: 100%;">
@@ -291,7 +278,7 @@ class KEWPApp {
                     </div>
                     
                     <div class="preview-section wp-section" style="background-color: #f0fff0; padding: 15px; border-radius: 8px; border-left: 4px solid #E6007E; min-width: 0; word-wrap: break-word;">
-                        <h4 style="color: #E6007E; margin-top: 0;">🛤️ Pathway Information</h4>
+                        <h4 style="color: #E6007E; margin-top: 0;">Pathway Information</h4>
                         <p><strong>WP ID:</strong> ${formData.wp_id}</p>
                         <p><strong>WP Title:</strong> ${formData.wp_title}</p>
                         <div><strong>Description:</strong><br/>${pwDescHtml}</div>
@@ -299,7 +286,7 @@ class KEWPApp {
                 </div>
                 
                 <div class="preview-section" style="background-color: #fff8f0; padding: 15px; border-radius: 8px; border-left: 4px solid #EB5B25; margin: 20px 0;">
-                    <h4 style="color: #EB5B25; margin-top: 0;">📊 Mapping Metadata</h4>
+                    <h4 style="color: #EB5B25; margin-top: 0;">Mapping Metadata</h4>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div>
                             <p><strong>Connection Type:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
@@ -315,10 +302,10 @@ class KEWPApp {
                 </div>
                 
                 <div class="confirmation-section" style="text-align: center; margin: 25px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                    <p style="font-size: 16px; margin-bottom: 15px;"><strong>⚠️ Do you want to add this new KE-WP mapping?</strong></p>
+                    <p style="font-size: 16px; margin-bottom: 15px;"><strong>Do you want to add this new KE-WP mapping?</strong></p>
                     <p style="color: #666; margin-bottom: 20px; font-size: 14px;">This will be added alongside the existing mappings shown above.</p>
-                    <button id="confirm-submit" class="btn btn-success" style="background-color: #28a745; margin-right: 10px; padding: 10px 20px;">✅ Yes, Add Entry</button>
-                    <button id="cancel-submit" class="btn btn-secondary" style="background-color: #6c757d; padding: 10px 20px;">❌ Cancel</button>
+                    <button id="confirm-submit" class="btn btn-success" style="background-color: #28a745; margin-right: 10px; padding: 10px 20px;">Yes, Add Entry</button>
+                    <button id="cancel-submit" class="btn btn-secondary" style="background-color: #6c757d; padding: 10px 20px;">Cancel</button>
                 </div>
         `;
         
@@ -368,7 +355,7 @@ class KEWPApp {
         
         let previewHTML = `
             <div class="existing-entries-container">
-                <h3>🔍 Mapping Preview & Confirmation</h3>
+                <h3>Mapping Preview & Confirmation</h3>
                 <p>Please carefully review your mapping details before submitting:</p>
                 
                 <div class="mapping-preview" style="display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px; margin: 20px 0; width: 100%;">
@@ -381,7 +368,7 @@ class KEWPApp {
                     </div>
                     
                     <div class="preview-section wp-section" style="background-color: #f0fff0; padding: 15px; border-radius: 8px; border-left: 4px solid #E6007E; min-width: 0; word-wrap: break-word;">
-                        <h4 style="color: #E6007E; margin-top: 0;">🛤️ Pathway Information</h4>
+                        <h4 style="color: #E6007E; margin-top: 0;">Pathway Information</h4>
                         <p><strong>WP ID:</strong> ${formData.wp_id}</p>
                         <p><strong>WP Title:</strong> ${formData.wp_title}</p>
                         <div><strong>Description:</strong><br/>${pwDescHtml}</div>
@@ -389,7 +376,7 @@ class KEWPApp {
                 </div>
                 
                 <div class="preview-section" style="background-color: #fff8f0; padding: 15px; border-radius: 8px; border-left: 4px solid #EB5B25; margin: 20px 0;">
-                    <h4 style="color: #EB5B25; margin-top: 0;">📊 Mapping Metadata</h4>
+                    <h4 style="color: #EB5B25; margin-top: 0;">Mapping Metadata</h4>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div>
                             <p><strong>Connection Type:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
@@ -405,10 +392,10 @@ class KEWPApp {
                 </div>
                 
                 <div class="confirmation-section" style="text-align: center; margin: 25px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                    <p style="font-size: 16px; margin-bottom: 15px;"><strong>⚠️ Are you sure you want to submit this mapping?</strong></p>
+                    <p style="font-size: 16px; margin-bottom: 15px;"><strong>Are you sure you want to submit this mapping?</strong></p>
                     <p style="color: #666; margin-bottom: 20px; font-size: 14px;">This action will add the mapping to the database and make it available for other researchers.</p>
-                    <button id="confirm-final-submit" class="btn btn-success" style="background-color: #28a745; margin-right: 10px; padding: 10px 20px;">✅ Yes, Submit Mapping</button>
-                    <button id="cancel-final-submit" class="btn btn-secondary" style="background-color: #6c757d; padding: 10px 20px;">❌ Cancel</button>
+                    <button id="confirm-final-submit" class="btn btn-success" style="background-color: #28a745; margin-right: 10px; padding: 10px 20px;">Yes, Submit Mapping</button>
+                    <button id="cancel-final-submit" class="btn btn-secondary" style="background-color: #6c757d; padding: 10px 20px;">Cancel</button>
                 </div>
             </div>
         `;
@@ -492,13 +479,13 @@ class KEWPApp {
         
         // Show summary message
         if (successCount > 0 && failureCount === 0) {
-            this.showMessage(`✅ Successfully submitted ${successCount} mapping(s)!`, "success");
+            this.showMessage(`Successfully submitted ${successCount} mapping(s)!`, "success");
             $("#existing-entries").html("");
             this.resetForm();
         } else if (successCount > 0 && failureCount > 0) {
-            this.showMessage(`⚠️ Submitted ${successCount} mappings, ${failureCount} failed. Errors: ${errors.join('; ')}`, "warning");
+            this.showMessage(`Submitted ${successCount} mappings, ${failureCount} failed. Errors: ${errors.join('; ')}`, "warning");
         } else {
-            this.showMessage(`❌ All submissions failed. Errors: ${errors.join('; ')}`, "error");
+            this.showMessage(`All submissions failed. Errors: ${errors.join('; ')}`, "error");
         }
     }
 
@@ -713,7 +700,7 @@ class KEWPApp {
             this.hidePathwaySuggestions();
         }
         
-        console.log('Selected KE:', { keId, title, description, biolevel });
+        // Key Event selected
     }
 
     showKEPreview(title, description) {
@@ -754,7 +741,7 @@ class KEWPApp {
             $pathwayInfo.hide();
         }
         
-        console.log('Selected Pathway:', { pathwayId, title, description });
+        // Pathway selected
     }
 
     showPathwayInfoInGroup($container, pathwayId, title, description, svgUrl) {
@@ -848,7 +835,7 @@ class KEWPApp {
         
         $.getJSON("/get_data_versions")
             .done((data) => {
-                console.log("Version data loaded:", data);
+                // Version data loaded successfully
                 this.displayVersionInfo(data);
             })
             .fail((xhr, status, error) => {
@@ -982,7 +969,7 @@ class KEWPApp {
             $("select[name='wp_id']").first().prop('required', true);
         }
         
-        console.log("Selected pathways:", selectedPathways);
+        // Update pathway selections
     }
 
     setupPathwayEventHandlers() {
@@ -1315,12 +1302,12 @@ class KEWPApp {
         
         // Show summary message
         if (successCount > 0 && failureCount === 0) {
-            this.showMessage(`✅ Successfully submitted ${successCount} pathway mapping(s)!`, "success");
+            this.showMessage(`Successfully submitted ${successCount} pathway mapping(s)!`, "success");
             this.resetForm();
         } else if (successCount > 0 && failureCount > 0) {
-            this.showMessage(`⚠️ Submitted ${successCount} mappings, ${failureCount} failed. Errors: ${errors.join('; ')}`, "warning");
+            this.showMessage(`Submitted ${successCount} mappings, ${failureCount} failed. Errors: ${errors.join('; ')}`, "warning");
         } else {
-            this.showMessage(`❌ All submissions failed. Errors: ${errors.join('; ')}`, "error");
+            this.showMessage(`All submissions failed. Errors: ${errors.join('; ')}`, "error");
         }
     }
 
@@ -1343,7 +1330,7 @@ class KEWPApp {
         // Biological level is now automatically considered in the confidence scoring
         // No need to pre-fill UI elements, but we store it for use in evaluateConfidence
         if (this.selectedBiolevel) {
-            console.log(`KE biological level detected: ${this.selectedBiolevel} (will be used in confidence scoring)`);
+            // Biological level detected for confidence scoring
         }
     }
 
@@ -1390,7 +1377,7 @@ class KEWPApp {
         const successHtml = `
             <div class="success-message" style="display: block;">
                 <div style="text-align: center; margin-bottom: 20px;">
-                    <span class="success-icon">✅</span>
+                    <span class="success-icon">✓</span>
                     <strong>Mapping Successfully Submitted!</strong>
                 </div>
                 
@@ -1402,7 +1389,7 @@ class KEWPApp {
                             <small style="color: #666;">${formData.ke_title}</small>
                         </div>
                         <div style="background-color: #e8f5e8; padding: 10px; border-radius: 4px;">
-                            <strong>🛤️ Pathway:</strong><br>
+                            <strong>Pathway:</strong><br>
                             <span style="font-family: monospace;">${formData.wp_id}</span><br>
                             <small style="color: #666;">${formData.wp_title}</small>
                         </div>
@@ -1431,7 +1418,7 @@ class KEWPApp {
         $("#existing-entries").html(successHtml);
         
         // Also show a simple message in the message area
-        this.showMessage("✅ " + message, "success");
+        this.showMessage(message, "success");
         
         // Auto-hide the detailed success message after 10 seconds
         setTimeout(() => {
@@ -1443,7 +1430,7 @@ class KEWPApp {
     }
 
     loadPathwaySuggestions(keId, keTitle) {
-        console.log(`Loading pathway suggestions for KE: ${keId} (bio_level: ${this.selectedBiolevel})`);
+        // Loading pathway suggestions
         
         // Show loading indicator
         this.showPathwaySuggestionsLoading();
@@ -1456,7 +1443,7 @@ class KEWPApp {
         // Make AJAX request for suggestions with biological level context
         $.getJSON(`/suggest_pathways/${encodedKeId}?ke_title=${encodedKeTitle}&bio_level=${encodedBioLevel}&limit=8`)
             .done((data) => {
-                console.log('Pathway suggestions loaded:', data);
+                // Pathway suggestions loaded successfully
                 this.displayPathwaySuggestions(data);
             })
             .fail((xhr, status, error) => {
@@ -1471,9 +1458,9 @@ class KEWPApp {
         
         const loadingHtml = `
             <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
-                <h3 style="margin: 0 0 10px 0; color: #29235C;">💡 Suggested Pathways</h3>
+                <h3 style="margin: 0 0 10px 0; color: #29235C;">Suggested Pathways</h3>
                 <div style="display: flex; align-items: center; color: #666;">
-                    <div style="margin-right: 10px;">🔄</div>
+                    <div style="margin-right: 10px; font-size: 12px;">Loading...</div>
                     <span>Loading pathway suggestions...</span>
                 </div>
             </div>
@@ -1552,7 +1539,7 @@ class KEWPApp {
                                      onmouseover="this.style.transform='scale(1.05)'"
                                      onmouseout="this.style.transform='scale(1)'"
                                      alt="Pathway thumbnail">
-                                <div style="display: none; font-size: 32px; color: #999;">🛤️</div>
+                                <div style="display: none; font-size: 12px; color: #999; text-align: center; padding: 10px;">No image</div>
                             </div>
                         </div>
                     </div>
@@ -1566,7 +1553,7 @@ class KEWPApp {
         if (data.text_based_suggestions && data.text_based_suggestions.length > 0) {
             suggestionsHtml += `
                 <div class="suggestion-section">
-                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">📝 Text-Based Matches</h4>
+                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">Text-Based Matches</h4>
                     <div class="suggestion-list">
             `;
             
@@ -1601,7 +1588,7 @@ class KEWPApp {
                                      onmouseover="this.style.transform='scale(1.05)'"
                                      onmouseout="this.style.transform='scale(1)'"
                                      alt="Pathway thumbnail">
-                                <div style="display: none; font-size: 32px; color: #999;">🛤️</div>
+                                <div style="display: none; font-size: 12px; color: #999; text-align: center; padding: 10px;">No image</div>
                             </div>
                         </div>
                     </div>
@@ -1638,7 +1625,7 @@ class KEWPApp {
 
         const noSuggestionsHtml = `
             <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
-                <h3 style="margin: 0 0 10px 0; color: #29235C;">💡 Pathway Suggestions</h3>
+                <h3 style="margin: 0 0 10px 0; color: #29235C;">Pathway Suggestions</h3>
                 <div style="color: #666; text-align: center; padding: 20px;">
                     <div style="font-size: 32px; margin-bottom: 10px;">🔍</div>
                     <div style="margin-bottom: 8px;">${message}</div>
@@ -1664,9 +1651,9 @@ class KEWPApp {
         
         const errorHtml = `
             <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
-                <h3 style="margin: 0 0 10px 0; color: #29235C;">💡 Pathway Suggestions</h3>
+                <h3 style="margin: 0 0 10px 0; color: #29235C;">Pathway Suggestions</h3>
                 <div style="color: #dc3545; text-align: center; padding: 20px;">
-                    <div style="font-size: 32px; margin-bottom: 10px;">⚠️</div>
+                    <div style="font-size: 16px; margin-bottom: 10px; color: #666; font-weight: bold;">Warning</div>
                     <div>${errorMessage}</div>
                     <div style="margin-top: 10px; font-size: 12px; color: #666;">
                         You can still browse pathways manually using the dropdown below
@@ -1764,7 +1751,7 @@ class KEWPApp {
         if ($option.length > 0) {
             // Select the pathway
             $targetDropdown.val(pathwayId).trigger('change');
-            console.log(`Selected suggested pathway: ${pathwayId} - ${pathwayTitle} in group ${targetGroupIndex}`);
+            // Suggested pathway selected
             
             // Show success message
             this.showMessage(`Selected suggested pathway: ${pathwayTitle}`, "success");
@@ -1873,7 +1860,7 @@ class KEWPApp {
         const $searchResults = $("#search-results");
         
         // Show loading
-        $searchResults.html('<div style="padding: 10px; color: #666;">🔄 Searching...</div>').show();
+        $searchResults.html('<div style="padding: 10px; color: #666;">Searching...</div>').show();
         
         // Make search request
         $.getJSON(`/search_pathways?q=${encodeURIComponent(query)}&threshold=0.2&limit=10`)
@@ -1882,7 +1869,7 @@ class KEWPApp {
             })
             .fail((xhr, status, error) => {
                 console.error('Search failed:', error);
-                $searchResults.html('<div style="padding: 10px; color: #dc3545;">❌ Search failed. Please try again.</div>');
+                $searchResults.html('<div style="padding: 10px; color: #dc3545;">Search failed. Please try again.</div>');
             });
     }
 
@@ -1942,7 +1929,7 @@ class KEWPApp {
                                      onmouseover="this.style.transform='scale(1.05)'"
                                      onmouseout="this.style.transform='scale(1)'"
                                      alt="Pathway thumbnail">
-                                <div style="display: none; font-size: 16px; color: #999;">🛤️</div>
+                                <div style="display: none; font-size: 10px; color: #999; text-align: center; padding: 5px;">No image</div>
                             </div>
                         </div>
                     </div>
@@ -1974,11 +1961,11 @@ class KEWPApp {
         if ($option.length > 0) {
             // Select the pathway
             $dropdown.val(pathwayId).trigger('change');
-            console.log(`Selected pathway from search: ${pathwayId} - ${pathwayTitle}`);
-            this.showMessage(`✅ Selected pathway: ${pathwayTitle}`, "success");
+            // Pathway selected from search results
+            this.showMessage(`Selected pathway: ${pathwayTitle}`, "success");
         } else {
             // Pathway not in dropdown - need to add it dynamically
-            console.log(`Adding new pathway to dropdown: ${pathwayId} - ${pathwayTitle}`);
+            // Adding pathway to dropdown
             
             // Add option to dropdown
             $dropdown.append(`<option value="${pathwayId}" data-title="${pathwayTitle}">${pathwayId} - ${pathwayTitle}</option>`);
@@ -2055,7 +2042,7 @@ class KEWPApp {
                             min-height: 300px; max-height: calc(95vh - 200px);
                             overflow: hidden;">
                             <div style="margin-bottom: 15px; color: #666;">Loading pathway diagram...</div>
-                            <div class="loading-spinner" style="display: inline-block; font-size: 32px;">⟳</div>
+                            <div class="loading-spinner" style="display: inline-block; font-size: 32px;">Loading...</div>
                         </div>
                         
                         <!-- Action buttons -->
@@ -2064,7 +2051,7 @@ class KEWPApp {
                                     style="
                                         padding: 8px 16px; background: #307BBF; color: white; 
                                         border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                                ✅ Select This Pathway
+                                Select This Pathway
                             </button>
                             <a href="https://www.wikipathways.org/index.php/Pathway:${pathwayID}" 
                                target="_blank" 
@@ -2072,7 +2059,7 @@ class KEWPApp {
                                     padding: 8px 16px; background: #f8f9fa; color: #307BBF; 
                                     border: 1px solid #307BBF; border-radius: 4px; 
                                     text-decoration: none; font-size: 14px; display: inline-block;">
-                                🔗 View on WikiPathways
+                                View on WikiPathways
                             </a>
                         </div>
                     </div>
@@ -2096,7 +2083,7 @@ class KEWPApp {
         } else {
             $("#pathway-svg-container").html(`
                 <div style="color: #666; padding: 40px;">
-                    <div style="font-size: 48px; margin-bottom: 15px;">🛤️</div>
+                    <div style="font-size: 14px; margin-bottom: 15px; color: #666;">No diagram available</div>
                     <div>Pathway diagram not available</div>
                     <div style="font-size: 12px; margin-top: 8px;">
                         You can view the pathway on WikiPathways using the link below
@@ -2200,9 +2187,9 @@ class KEWPApp {
                     <object data="${svgUrl}" 
                             type="image/svg+xml" 
                             style="width: 100%; height: 600px; border: none;"
-                            onload="console.log('SVG loaded as object')">
+                            onload="/* SVG loaded */">
                         <div style="padding: 40px; text-align: center; color: #666;">
-                            <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
+                            <div style="font-size: 16px; margin-bottom: 15px; color: #dc3545; font-weight: bold;">Error</div>
                             <div>Unable to load pathway diagram</div>
                             <div style="font-size: 12px; margin-top: 8px;">
                                 The diagram may not be available or there might be a connection issue.<br>
@@ -2417,7 +2404,7 @@ class KEWPApp {
                 }
             });
             
-            console.log("Saving form state:", formState);
+            // Saving form state to localStorage
             localStorage.setItem('kewp_form_state', JSON.stringify(formState));
             return true;
         } catch (error) {
@@ -2430,7 +2417,6 @@ class KEWPApp {
         try {
             const savedState = localStorage.getItem('kewp_form_state');
             if (!savedState) {
-                console.log("No saved form state found");
                 return false;
             }
             
@@ -2439,12 +2425,11 @@ class KEWPApp {
             // Check if state is too old (older than 1 hour)
             const oneHour = 60 * 60 * 1000;
             if (Date.now() - formState.timestamp > oneHour) {
-                console.log("Form state expired, cleaning up");
                 localStorage.removeItem('kewp_form_state');
                 return false;
             }
             
-            console.log("Restoring form state:", formState);
+            // Restoring form state from localStorage
             
             // Restore state after dropdown options are loaded
             const restoreAfterLoad = () => {
@@ -2489,7 +2474,7 @@ class KEWPApp {
                     this.selectedBiolevel = formState.selectedBiolevel;
                 }
                 
-                console.log("Form state restored successfully");
+                // Form state restored successfully
                 this.showMessage("Previous selections restored after login", "success");
                 
                 // Clear the saved state since it's been restored
@@ -2560,7 +2545,7 @@ function evaluateConfidence() {
     const isMolecularLevel = bioLevel.includes('molecular') || bioLevel.includes('cellular') || bioLevel.includes('tissue');
     if (isMolecularLevel) {
         baseScore += 1;
-        console.log(`Biological level bonus applied: +1 for ${bioLevel}`);
+        // Biological level bonus applied
     }
 
     // Determine confidence level based on total score
@@ -2573,7 +2558,7 @@ function evaluateConfidence() {
         confidence = "low";
     }
 
-    console.log(`Confidence assessment: Evidence=${s3}, Specificity=${s4}, Coverage=${s5}, BioLevel=${bioLevel}, Score=${baseScore}, Confidence=${confidence}`);
+    // Confidence assessment completed
 
     // Update UI with results
     $("#auto-confidence").text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
