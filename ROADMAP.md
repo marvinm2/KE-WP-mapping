@@ -1,28 +1,35 @@
 # Pathway Suggestion System - Future Roadmap
 
-## 🎯 **Vision Statement**
+## Vision Statement
 
 Transform the KE-WP mapping platform into an intelligent, AI-powered biological knowledge discovery system that leverages cutting-edge machine learning, comprehensive data integration, and advanced visualization to accelerate adverse outcome pathway research.
 
-## 📊 **Current System Overview**
+## Current System Overview
 
-### **Existing Features (v2.1.1)**
-- ✅ Multi-algorithm text similarity with biological term weighting
-- ✅ Gene-based pathway matching with overlap analysis
-- ✅ Domain-specific biological concept recognition
-- ✅ Dynamic confidence scoring (0.15-0.95 range)
-- ✅ Interactive pathway previews with zoom/pan
-- ✅ Biological level awareness (molecular, cellular, tissue, organ)
-- ✅ **Streamlined Confidence Assessment (NEW)**: 5-question workflow with biological level weighting
-- ✅ **Transparent Scoring Algorithm (NEW)**: 0-6.5 point system with clear confidence thresholds
-- ✅ **Simplified User Interface (NEW)**: Accessible language and progressive question disclosure
+### Existing Features (v2.2.0 - August 2025)
+- Multi-algorithm text similarity with biological term weighting
+- Gene-based pathway matching with overlap analysis
+- Domain-specific biological concept recognition
+- Dynamic confidence scoring (0.15-0.95 range)
+- Interactive pathway previews with zoom/pan
+- Biological level awareness (molecular, cellular, tissue, organ)
+- **Streamlined Confidence Assessment**: 5-question workflow with biological level weighting
+- **Transparent Scoring Algorithm**: 0-7.5 point system with biological level bonus
+- **Simplified User Interface**: Accessible language and progressive question disclosure
+- **Enhanced User Experience (NEW August 2025)**:
+  - Multiple pathway selection per Key Event with dynamic interface
+  - Pathway descriptions and figure previews in selection dropdown
+  - Data source version information display (AOP-Wiki, WikiPathways)
+  - Ctrl+click navigation support for new tabs
+  - Fixed molecular bonus calculation and admin approval system
+  - Docker deployment with proper admin configuration
 
-## 🚀 **Improvement Categories & Priorities**
+## Improvement Categories & Priorities
 
-### **🏆 Phase 1: High-Impact, Near-Term (3-6 months)**
+### Phase 1: High-Impact, Near-Term (3-6 months)
 
-#### **1. Machine Learning Integration (Critical)**
-- **Priority**: 🔥 **HIGH**
+#### 1. Machine Learning Integration (Critical)
+- **Priority**: HIGH
 - **Impact**: Revolutionary improvement in suggestion quality
 - **Complexity**: High
 - **Technologies**: BioBERT/SciBERT, transformers, embeddings
@@ -31,8 +38,8 @@ Transform the KE-WP mapping platform into an intelligent, AI-powered biological 
   - Neural pathway ranking models
   - User feedback integration for continuous learning
 
-#### **2. Multi-Database Integration (Critical)**
-- **Priority**: 🔥 **HIGH**
+#### 2. Multi-Database Integration (Critical)
+- **Priority**: HIGH
 - **Impact**: Dramatic expansion of pathway coverage
 - **Complexity**: Medium
 - **Technologies**: KEGG API, Reactome, Gene Ontology
@@ -41,8 +48,8 @@ Transform the KE-WP mapping platform into an intelligent, AI-powered biological 
   - Reactome hierarchical pathways
   - GO term-based biological process matching
 
-#### **3. Advanced Visualization & UX (High)**
-- **Priority**: 🟡 **HIGH**
+#### 3. Advanced Visualization & UX (High)
+- **Priority**: HIGH
 - **Impact**: Significantly improved user experience
 - **Complexity**: Medium
 - **Technologies**: D3.js, Cytoscape.js, WebGL
@@ -51,10 +58,10 @@ Transform the KE-WP mapping platform into an intelligent, AI-powered biological 
   - Side-by-side pathway comparison
   - Enhanced confidence score explanations
 
-### **📈 Phase 2: Enhanced Intelligence (6-12 months)**
+### Phase 2: Enhanced Intelligence (6-12 months)
 
-#### **4. Advanced Analytics & Insights (High)**
-- **Priority**: 🟡 **HIGH**
+#### 4. Advanced Analytics & Insights (High)
+- **Priority**: HIGH
 - **Impact**: Research-grade analytical capabilities
 - **Complexity**: High
 - **Technologies**: NetworkX, graph algorithms, statistical analysis
@@ -63,8 +70,8 @@ Transform the KE-WP mapping platform into an intelligent, AI-powered biological 
   - Pathway community detection
   - Temporal pathway modeling
 
-#### **5. Literature Mining & NLP (Medium-High)**
-- **Priority**: 🟠 **MEDIUM-HIGH**
+#### 5. Literature Mining & NLP (Medium-High)
+- **Priority**: MEDIUM-HIGH
 - **Impact**: Evidence-based suggestions from literature
 - **Complexity**: Very High
 - **Technologies**: PubMed API, spaCy, biomedical NER
@@ -73,8 +80,8 @@ Transform the KE-WP mapping platform into an intelligent, AI-powered biological 
   - Named entity recognition for biological concepts
   - Citation-based confidence scoring
 
-#### **6. Performance & Scalability (Medium-High)**
-- **Priority**: 🟠 **MEDIUM-HIGH**
+#### 6. Performance & Scalability (Medium-High)
+- **Priority**: MEDIUM-HIGH
 - **Impact**: System responsiveness and reliability
 - **Complexity**: Medium
 - **Technologies**: Redis, Celery, caching strategies

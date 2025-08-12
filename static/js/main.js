@@ -592,19 +592,61 @@ class KEWPApp {
     }
     
     handlePathwaySelection(event) {
-        const selectedOption = $(event.target).find('option:selected');
+        const $select = $(event.target);
+        const $group = $select.closest('.pathway-selection-group');
+        const $pathwayInfo = $group.find('.pathway-info');
+        
+        const selectedOption = $select.find('option:selected');
         const title = selectedOption.data('title') || '';
         const description = selectedOption.data('description') || '';
         const svgUrl = selectedOption.data('svg-url') || '';
+        const pathwayId = selectedOption.val();
         
-        // Show/hide pathway preview
+        // Show pathway information within the group
         if (title) {
-            this.showPathwayDetails(title, description, svgUrl);
+            this.showPathwayInfoInGroup($pathwayInfo, pathwayId, title, description, svgUrl);
         } else {
-            this.hidePathwayPreview();
+            $pathwayInfo.hide();
         }
         
-        console.log('Selected Pathway:', { title, description });
+        console.log('Selected Pathway:', { pathwayId, title, description });
+    }
+
+    showPathwayInfoInGroup($container, pathwayId, title, description, svgUrl) {
+        // Create collapsible description HTML
+        const descriptionHTML = this.createCollapsibleDescription(description, `pathway-description-${pathwayId}`);
+        
+        // Create figure preview HTML (smaller for inline display)
+        const figureHTML = svgUrl ? `
+            <div style="margin: 10px 0; text-align: center;">
+                <div style="border: 1px solid #ddd; border-radius: 4px; padding: 8px; background: white; display: inline-block;">
+                    <img src="${svgUrl}" 
+                         style="max-width: 200px; max-height: 120px; object-fit: contain; cursor: pointer;" 
+                         onclick="window.KEWPApp.showPathwayPreview('${pathwayId}', '${title.replace(/'/g, "\\'")}', '${svgUrl}')"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
+                         onload="this.style.display='block'; this.nextElementSibling.style.display='none'"
+                         alt="Pathway diagram">
+                    <div style="display: none; color: #666; font-style: italic; padding: 15px; font-size: 12px;">
+                        Diagram not available
+                    </div>
+                </div>
+                <div style="margin-top: 5px; font-size: 11px; color: #666;">
+                    Click to enlarge
+                </div>
+            </div>
+        ` : '';
+        
+        // Create preview HTML
+        const infoHTML = `
+            <div style="border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 10px;">
+                <h5 style="margin: 0 0 8px 0; color: #29235C; font-size: 14px;">Pathway: ${title}</h5>
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">ID: ${pathwayId}</div>
+                ${description ? `<div style="margin-bottom: 10px; font-size: 13px;">${descriptionHTML}</div>` : '<div style="margin-bottom: 10px; color: #999; font-style: italic; font-size: 13px;">No description available</div>'}
+                ${figureHTML}
+            </div>
+        `;
+        
+        $container.html(infoHTML).show();
     }
 
     showPathwayDetails(title, description, svgUrl = '') {
@@ -721,23 +763,37 @@ class KEWPApp {
         const $selections = $("#pathway-selections");
         const currentCount = $selections.find(".pathway-selection-group").length;
         
+        // Limit to maximum 2 pathways
+        if (currentCount >= 2) {
+            this.showMessage("Maximum of 2 pathways allowed for optimal assessment workflow.", "warning");
+            return;
+        }
+        
         // Create new pathway selection group
         const newIndex = currentCount;
         const $newGroup = $(`
-            <div class="pathway-selection-group" data-index="${newIndex}">
-                <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;">
-                    <select name="wp_id" required style="flex: 1;">
-                        <option value="" disabled selected>Select a Pathway</option>
-                    </select>
-                    <button type="button" class="remove-pathway-btn" onclick="window.KEWPApp.removePathwaySelection(${newIndex})" 
-                            style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                        −
-                    </button>
+            <div class="pathway-selection-group" data-index="${newIndex}" style="flex: 1; min-width: 300px; max-width: calc(50% - 10px);">
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc;">
+                    <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 15px;">
+                        <select name="wp_id" required style="flex: 1;">
+                            <option value="" disabled selected>Select Second Pathway</option>
+                        </select>
+                        <button type="button" class="remove-pathway-btn" onclick="window.KEWPApp.removePathwaySelection(${newIndex})" 
+                                style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            Remove
+                        </button>
+                    </div>
+                    <div class="pathway-info" style="min-height: 100px; display: none;">
+                        <!-- Pathway information will be inserted here -->
+                    </div>
                 </div>
             </div>
         `);
         
         $selections.append($newGroup);
+        
+        // Update the first pathway button text
+        $selections.find(".add-pathway-btn").text("Max 2").prop("disabled", true).css("background", "#6c757d");
         
         // Populate the new dropdown with pathway options
         if (this.pathwayOptions) {
@@ -843,8 +899,21 @@ class KEWPApp {
 
     toggleAssessmentSection() {
         const keSelected = $("#ke_id").val();
-        const wpSelected = $("#wp_id").val();
-        if (keSelected && wpSelected) {
+        const selectedPathways = [];
+        $("select[name='wp_id']").each((index, dropdown) => {
+            const value = $(dropdown).val();
+            if (value) {
+                const option = $(dropdown).find('option:selected');
+                selectedPathways.push({
+                    id: value,
+                    title: option.data('title') || value,
+                    index: $(dropdown).closest('.pathway-selection-group').data('index')
+                });
+            }
+        });
+        
+        if (keSelected && selectedPathways.length > 0) {
+            this.generatePathwayAssessments(selectedPathways);
             $("#confidence-guide").show();
             $("#confidence-guide")[0].scrollIntoView({ behavior: 'smooth' });
             // Pre-fill biological level if available
@@ -852,6 +921,109 @@ class KEWPApp {
         } else {
             $("#confidence-guide").hide();
             this.resetGuide();
+        }
+    }
+
+    generatePathwayAssessments(selectedPathways) {
+        const $assessments = $("#pathway-assessments");
+        $assessments.empty();
+        
+        selectedPathways.forEach((pathway, index) => {
+            const assessmentHTML = this.createPathwayAssessment(pathway, index);
+            $assessments.append(assessmentHTML);
+        });
+        
+        // Show completion button if assessments exist
+        if (selectedPathways.length > 0) {
+            $("#assessment-completion").show();
+        } else {
+            $("#assessment-completion").hide();
+        }
+        
+        // Update assessment status
+        this.updateAssessmentStatus();
+    }
+
+    createPathwayAssessment(pathway, index) {
+        const assessmentId = `assessment-${pathway.index}`;
+        
+        return `
+            <div class="pathway-assessment" data-pathway-id="${pathway.id}" data-pathway-index="${pathway.index}" 
+                 style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px; background: #fefefe;">
+                
+                <h3 style="margin: 0 0 15px 0; color: #29235C; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                    Assessment for: ${pathway.title}
+                    <span style="font-size: 14px; color: #666; font-weight: normal;">(${pathway.id})</span>
+                </h3>
+                
+                <div class="assessment-steps" data-assessment-id="${assessmentId}">
+                    <div class="assessment-step" data-step="step1">
+                        <h4>1. Is this pathway biologically relevant to the Key Event?</h4>
+                        <div class="btn-group" data-step="step1" data-assessment="${assessmentId}">
+                            <button class="btn-option" data-value="yes">Yes</button>
+                            <button class="btn-option" data-value="no">No (Skip)</button>
+                        </div>
+                    </div>
+
+                    <div class="assessment-step" data-step="step2" style="display: none;">
+                        <h4>2. What is the relationship between the pathway and Key Event?</h4>
+                        <div class="btn-group" data-step="step2" data-assessment="${assessmentId}">
+                            <button class="btn-option" data-value="causative">Causative</button>
+                            <button class="btn-option" data-value="responsive">Responsive</button>
+                            <button class="btn-option" data-value="bidirectional">Bidirectional</button>
+                            <button class="btn-option" data-value="unclear">Unclear</button>
+                        </div>
+                    </div>
+
+                    <div class="assessment-step" data-step="step3" style="display: none;">
+                        <h4>3. What evidence supports this mapping?</h4>
+                        <div class="btn-group" data-step="step3" data-assessment="${assessmentId}">
+                            <button class="btn-option" data-value="strong">Strong experimental</button>
+                            <button class="btn-option" data-value="moderate">Moderate experimental</button>
+                            <button class="btn-option" data-value="computational">Computational/literature</button>
+                            <button class="btn-option" data-value="none">No direct evidence</button>
+                        </div>
+                    </div>
+
+                    <div class="assessment-step" data-step="step4" style="display: none;">
+                        <h4>4. How closely does the pathway relate to this Key Event?</h4>
+                        <div class="btn-group" data-step="step4" data-assessment="${assessmentId}">
+                            <button class="btn-option" data-value="direct">Direct relationship</button>
+                            <button class="btn-option" data-value="partial">Partial relationship</button>
+                            <button class="btn-option" data-value="weak">Weak relationship</button>
+                        </div>
+                    </div>
+
+                    <div class="assessment-step" data-step="step5" style="display: none;">
+                        <h4>5. How comprehensive is the pathway coverage of the Key Event?</h4>
+                        <div class="btn-group" data-step="step5" data-assessment="${assessmentId}">
+                            <button class="btn-option" data-value="complete">Complete coverage</button>
+                            <button class="btn-option" data-value="partial">Partial coverage</button>
+                            <button class="btn-option" data-value="limited">Limited coverage</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="assessment-result" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; display: none;">
+                    <p><strong>Result:</strong> <span class="confidence-result">—</span></p>
+                    <p><strong>Connection:</strong> <span class="connection-result">—</span></p>
+                    <p class="score-details" style="font-size: 12px; color: #666; margin: 5px 0 0 0;">—</p>
+                </div>
+            </div>
+        `;
+    }
+
+    updateAssessmentStatus() {
+        const totalAssessments = $('.pathway-assessment').length;
+        const completedAssessments = $('.pathway-assessment .assessment-result:visible').length;
+        
+        const statusText = `${completedAssessments}/${totalAssessments} assessments completed`;
+        $('#assessment-status').text(statusText);
+        
+        if (completedAssessments === totalAssessments && totalAssessments > 0) {
+            $('#complete-all-assessments').text('Proceed to Submission').css('background', '#28a745');
+        } else {
+            $('#complete-all-assessments').text('Complete All Assessments').css('background', '#6c757d');
         }
     }
 

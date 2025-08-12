@@ -276,16 +276,21 @@
                 <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
                     Or browse all pathways:
                 </label>
-                <div id="pathway-selections">
-                    <div class="pathway-selection-group" data-index="0">
-                        <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;">
-                            <select name="wp_id" required style="flex: 1;">
-                                <option value="" disabled selected>Select a Pathway</option>
-                            </select>
-                            <button type="button" class="add-pathway-btn" onclick="window.KEWPApp.addPathwaySelection()" 
-                                    style="background: #307BBF; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                                +
-                            </button>
+                <div id="pathway-selections" style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div class="pathway-selection-group" data-index="0" style="flex: 1; min-width: 300px; max-width: calc(50% - 10px);">
+                        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc;">
+                            <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 15px;">
+                                <select name="wp_id" required style="flex: 1;">
+                                    <option value="" disabled selected>Select First Pathway</option>
+                                </select>
+                                <button type="button" class="add-pathway-btn" onclick="window.KEWPApp.addPathwaySelection()" 
+                                        style="background: #307BBF; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                                    Add 2nd
+                                </button>
+                            </div>
+                            <div class="pathway-info" style="min-height: 100px; display: none;">
+                                <!-- Pathway information will be inserted here -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -294,71 +299,23 @@
             <p>For detailed pathway information, visit the <a href="/pw-details" target="_blank">pathway details page</a>.</p>
         </section>
         <section id="confidence-guide" style="display: none;">
-            <h2>Step 3: Assess Confidence of Mapping</h2>
+            <h2>Step 3: Assess Confidence of Mappings</h2>
             <p>
-                Use the guided assessment below to evaluate the biological relevance and determine the confidence level of your mapping. 
-                Your answers will automatically populate the confidence level and connection type fields.
+                Use the guided assessment below to evaluate the biological relevance and determine the confidence level for each pathway mapping. 
+                Your answers will automatically populate the confidence level and connection type fields for each individual mapping.
             </p>
-
-            <div id="step1" class="assessment-step">
-                <h4>1. Is this pathway biologically relevant to the Key Event?
-                    <span class="tooltip" data-tooltip="Determine whether the selected pathway directly relates to the biological process described in the Key Event's title and description.">❓</span>
-                </h4>
-                <div class="btn-group" data-step="step1">
-                    <button class="btn-option" data-value="yes">Yes</button>
-                    <button class="btn-option" data-value="no">No (Stop)</button>
-                </div>
+            
+            <div id="pathway-assessments">
+                <!-- Individual pathway assessments will be inserted here -->
             </div>
 
-            <div id="step2" class="assessment-step" style="display: none;">
-                <h4>2. What is the relationship between the pathway and Key Event?
-                    <span class="tooltip" data-tooltip="Causative: The pathway causes the Key Event to occur.\nResponsive: The pathway responds to or is activated by the Key Event.\nBidirectional: The pathway both causes and responds to the Key Event.\nUnclear: The relationship exists but the direction is not well established.">❓</span>
-                </h4>
-                <div class="btn-group" data-step="step2">
-                    <button class="btn-option" data-value="causative">Causative</button>
-                    <button class="btn-option" data-value="responsive">Responsive</button>
-                    <button class="btn-option" data-value="bidirectional">Bidirectional</button>
-                    <button class="btn-option" data-value="unclear">Unclear</button>
-                </div>
+            <div id="assessment-completion" style="text-align: center; margin: 20px 0; display: none;">
+                <button id="complete-all-assessments" type="button" 
+                        style="background: #28a745; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 16px; cursor: pointer;">
+                    Complete All Assessments
+                </button>
+                <p id="assessment-status" style="margin-top: 10px; font-weight: bold;"></p>
             </div>
-
-            <div id="step3" class="assessment-step" style="display: none;">
-                <h4>3. What evidence supports this mapping?
-                    <span class="tooltip" data-tooltip="Strong experimental: Direct in vivo or in vitro studies showing pathway involvement in the Key Event.\nModerate experimental: Some experimental data but limited or indirect.\nComputational/literature: Bioinformatics analysis or literature inference without direct experimental validation.\nNo direct evidence: Mapping based on biological plausibility only.">❓</span>
-                </h4>
-                <div class="btn-group" data-step="step3">
-                    <button class="btn-option" data-value="strong">Strong experimental</button>
-                    <button class="btn-option" data-value="moderate">Moderate experimental</button>
-                    <button class="btn-option" data-value="computational">Computational/literature</button>
-                    <button class="btn-option" data-value="none">No direct evidence</button>
-                </div>
-            </div>
-
-            <div id="step4" class="assessment-step" style="display: none;">
-                <h4>4. How closely does the pathway relate to this Key Event?
-                    <span class="tooltip" data-tooltip="Direct relationship: The pathway is central to this Key Event mechanism.\nPartial relationship: The pathway is involved but also performs other functions.\nWeak relationship: The pathway is only loosely connected to this Key Event.">❓</span>
-                </h4>
-                <div class="btn-group" data-step="step4">
-                    <button class="btn-option" data-value="direct">Direct relationship</button>
-                    <button class="btn-option" data-value="partial">Partial relationship</button>
-                    <button class="btn-option" data-value="weak">Weak relationship</button>
-                </div>
-            </div>
-
-            <div id="step5" class="assessment-step" style="display: none;">
-                <h4>5. How comprehensive is the pathway coverage of the Key Event?
-                    <span class="tooltip" data-tooltip="Complete: The pathway fully explains the Key Event mechanism.\nPartial: The pathway explains major aspects of the Key Event.\nLimited: The pathway explains only minor aspects of the Key Event.">❓</span>
-                </h4>
-                <div class="btn-group" data-step="step5">
-                    <button class="btn-option" data-value="complete">Complete coverage</button>
-                    <button class="btn-option" data-value="partial">Partial coverage</button>
-                    <button class="btn-option" data-value="limited">Limited coverage</button>
-                </div>
-            </div>
-
-            <button id="evaluateBtn" type="button" style="display: none;" onclick="evaluateConfidence()">Complete Assessment</button>
-
-            <p id="ca-result" style="font-weight: bold; margin-top: 10px;"></p>
         </section>
 
 

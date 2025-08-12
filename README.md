@@ -1,4 +1,4 @@
-# KE-WP Mapping Application 🧬
+# KE-WP Mapping Application
 
 [![CI/CD Pipeline](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/ci.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/ci.yml)
 [![Docker Build & Test](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/docker.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/docker.yml)
@@ -7,43 +7,55 @@
 
 A modern Flask-based web application for mapping Key Events (KEs) to WikiPathways (WPs) with comprehensive metadata management. Built with a modular blueprint architecture for enhanced maintainability and scalability.
 
-## 🌟 Features
+## Features
 
 ### Core Functionality
-- **🔗 KE-WP Mapping**: Create relationships between Key Events and WikiPathways with connection types and confidence levels
-- **🧠 Intelligent Pathway Suggestions**: Advanced algorithm suggesting relevant pathways based on Key Events using:
+- **KE-WP Mapping**: Create relationships between Key Events and WikiPathways with connection types and confidence levels
+- **Multiple Pathway Selection**: Map multiple WikiPathways to a single Key Event with individual confidence assessments
+- **Intelligent Pathway Suggestions**: Advanced algorithm suggesting relevant pathways based on Key Events using:
   - Multi-algorithm text similarity with biological term weighting
   - Gene-based pathway matching with overlap analysis
   - Domain-specific biological concept recognition
   - Dynamic confidence scoring with non-linear scaling
-- **⚖️ Streamlined Confidence Assessment**: 5-question workflow with biological level weighting:
-  - Transparent scoring algorithm (0-6.5 points) with clear confidence thresholds
+- **Enhanced Pathway Selection**: Comprehensive pathway information display including:
+  - Pathway descriptions with collapsible text
+  - SVG diagram previews with click-to-expand functionality
+  - Data source version information (AOP-Wiki, WikiPathways)
+- **Streamlined Confidence Assessment**: 5-question workflow with biological level weighting:
+  - Transparent scoring algorithm (0-7.5 points) with biological level bonus
   - Automatic +1 bonus for molecular/cellular/tissue-level Key Events
   - Progressive question disclosure with simplified, accessible language
   - Real-time score calculation and detailed feedback
-- **🔍 Data Exploration**: Interactive, searchable dataset browser with advanced filtering
-- **📝 Proposal System**: Community-driven change proposals with admin review workflow
-- **📊 Real-time SPARQL Integration**: Live data from AOP-Wiki and WikiPathways endpoints
-- **💾 Export Capabilities**: Download datasets in multiple formats
+- **Data Exploration**: Interactive, searchable dataset browser with advanced filtering
+- **Proposal System**: Community-driven change proposals with admin review workflow
+- **Real-time SPARQL Integration**: Live data from AOP-Wiki and WikiPathways endpoints
+- **Export Capabilities**: Download datasets in multiple formats
+
+### User Experience Enhancements
+- **Navigation Support**: Ctrl+click functionality on buttons for opening in new tabs
+- **Pathway Previews**: Inline pathway information with figure previews in selection interface
+- **Data Provenance**: Version information display for data sources in application footer
+- **Responsive Design**: Horizontal layout support for multi-pathway interface (max 2 pathways)
 
 ### Security & Authentication
-- **🔐 GitHub OAuth Integration**: Secure authentication with GitHub
-- **👥 Role-based Access Control**: Admin dashboard for proposal management
-- **🛡️ CSRF Protection**: Comprehensive security against cross-site attacks
-- **🚦 Rate Limiting**: API protection with intelligent throttling
+- **GitHub OAuth Integration**: Secure authentication with GitHub
+- **Role-based Access Control**: Admin dashboard for proposal management with proper Docker deployment support
+- **CSRF Protection**: Comprehensive security against cross-site attacks
+- **Rate Limiting**: API protection with intelligent throttling
 
 ### Architecture
-- **🏗️ Blueprint Modular Design**: Clean separation of concerns
-- **⚙️ Dependency Injection**: Testable and maintainable code structure
-- **🔧 Configuration Management**: Environment-aware settings
-- **📈 Health Monitoring**: System status and performance metrics
-- **🚨 Centralized Error Handling**: Robust error management
+- **Blueprint Modular Design**: Clean separation of concerns
+- **Dependency Injection**: Testable and maintainable code structure
+- **Configuration Management**: Environment-aware settings with Docker support
+- **Health Monitoring**: System status and performance metrics
+- **Centralized Error Handling**: Robust error management
+- **Database Migrations**: Automatic schema updates with admin field support
 
-## 🔧 CI/CD & Quality Assurance
+## CI/CD & Quality Assurance
 
 This project includes comprehensive GitHub Actions workflows for automated testing, quality assurance, and deployment:
 
-### 🔄 **CI/CD Pipeline**
+### CI/CD Pipeline
 - **Matrix Testing**: Python 3.10 & 3.11 compatibility
 - **Automated Testing**: Full test suite with pytest and coverage reporting
 - **Code Formatting**: Black code formatting and isort import sorting
