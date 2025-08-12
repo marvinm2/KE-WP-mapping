@@ -54,7 +54,7 @@ class KEWPApp {
         });
 
         // Confidence assessment handlers
-        $(".btn-group").on("click", ".btn-option", (e) => this.handleConfidenceAssessment(e));
+        $(document).on("click", ".btn-group .btn-option", (e) => this.handleConfidenceAssessment(e));
 
         // Dropdown change handlers
         $("#ke_id").on('change', () => this.toggleAssessmentSection());
@@ -64,6 +64,9 @@ class KEWPApp {
         
         // Setup pathway event handlers
         this.setupPathwayEventHandlers();
+        
+        // Assessment completion handler
+        $(document).on('click', '#complete-all-assessments', () => this.handleCompleteAllAssessments());
         
         // Pathway search functionality
         this.setupPathwaySearch();
@@ -494,17 +497,150 @@ class KEWPApp {
         const $btn = $(event.target);
         const $group = $btn.closest(".btn-group");
         const stepId = $group.data("step");
+        const assessmentId = $group.data("assessment");
         const selectedValue = $btn.data("value");
+        const $pathwayAssessment = $btn.closest(".pathway-assessment");
+        const pathwayId = $pathwayAssessment.data("pathway-id");
 
-        // Save the value
-        this.stepAnswers[stepId] = selectedValue;
+        // Initialize pathway-specific answers if not exists
+        if (!this.pathwayAssessments) {
+            this.pathwayAssessments = {};
+        }
+        if (!this.pathwayAssessments[pathwayId]) {
+            this.pathwayAssessments[pathwayId] = {};
+        }
+
+        // Save the value for this specific pathway
+        this.pathwayAssessments[pathwayId][stepId] = selectedValue;
 
         // Update UI
         $group.find(".btn-option").removeClass("selected");
         $btn.addClass("selected");
 
         // Show/hide next steps based on logic
-        this.handleStepProgression();
+        this.handlePathwayStepProgression($pathwayAssessment, pathwayId);
+        
+        // Update overall assessment status
+        this.updateAssessmentStatus();
+    }
+
+    handlePathwayStepProgression($pathwayAssessment, pathwayId) {
+        const answers = this.pathwayAssessments[pathwayId];
+        const s1 = answers["step1"];
+        const s2 = answers["step2"];
+        const s3 = answers["step3"];
+        const s4 = answers["step4"];
+        const s5 = answers["step5"];
+
+        // Find steps within this pathway assessment
+        const $steps = $pathwayAssessment.find(".assessment-step");
+        
+        // Reset visibility for new 5-step workflow
+        $steps.filter("[data-step='step2'], [data-step='step3'], [data-step='step4'], [data-step='step5']").hide();
+
+        if (s1 === "yes") {
+            $steps.filter("[data-step='step2']").show();
+            
+            if (s2) {
+                $steps.filter("[data-step='step3']").show();
+                
+                if (s3) {
+                    $steps.filter("[data-step='step4']").show();
+                    
+                    if (s4) {
+                        $steps.filter("[data-step='step5']").show();
+                        
+                        if (s5) {
+                            // Complete assessment for this pathway
+                            this.evaluatePathwayConfidence($pathwayAssessment, pathwayId);
+                        }
+                    }
+                }
+            }
+        } else if (s1 === "no") {
+            // Skip this pathway - mark as not relevant
+            this.markPathwayAsSkipped($pathwayAssessment, pathwayId);
+        }
+    }
+
+    evaluatePathwayConfidence($pathwayAssessment, pathwayId) {
+        const answers = this.pathwayAssessments[pathwayId];
+        
+        // Use existing confidence evaluation logic
+        let baseScore = 0;
+        let connectionType = "undefined";
+
+        // Evidence quality scoring
+        const evidenceScores = { "strong": 3, "moderate": 2, "computational": 1, "none": 0 };
+        baseScore += evidenceScores[answers["step3"]] || 0;
+
+        // Pathway specificity scoring  
+        const specificityScores = { "direct": 2, "partial": 1, "weak": 0 };
+        baseScore += specificityScores[answers["step4"]] || 0;
+
+        // Coverage comprehensiveness scoring
+        const coverageScores = { "complete": 1.5, "partial": 1, "limited": 0.5 };
+        baseScore += coverageScores[answers["step5"]] || 0;
+
+        // Connection type from step 2
+        connectionType = answers["step2"] || "unclear";
+
+        // Apply biological level bonus
+        const isMolecularLevel = this.selectedBiolevel && 
+            ['molecular', 'cellular', 'tissue'].includes(this.selectedBiolevel.toLowerCase());
+        
+        if (isMolecularLevel) {
+            baseScore += 1; // Biological level bonus
+        }
+
+        // Determine confidence level
+        let confidence;
+        if (baseScore >= 5.0) {
+            confidence = "high";
+        } else if (baseScore >= 2.5) {
+            confidence = "medium";  
+        } else {
+            confidence = "low";
+        }
+
+        // Update pathway assessment result
+        const $result = $pathwayAssessment.find(".assessment-result");
+        const maxScore = isMolecularLevel ? 7.5 : 6.5;
+        
+        $result.find(".confidence-result").text(`${confidence} confidence`);
+        $result.find(".connection-result").text(connectionType);
+        $result.find(".score-details").text(`Score: ${baseScore.toFixed(1)}/${maxScore}${isMolecularLevel ? ' with biological level bonus' : ''}`);
+        $result.show();
+
+        // Store results for submission
+        if (!this.pathwayResults) {
+            this.pathwayResults = {};
+        }
+        this.pathwayResults[pathwayId] = {
+            confidence: confidence,
+            connection_type: connectionType,
+            score: baseScore,
+            answers: answers
+        };
+    }
+
+    markPathwayAsSkipped($pathwayAssessment, pathwayId) {
+        const $result = $pathwayAssessment.find(".assessment-result");
+        $result.find(".confidence-result").text("Not relevant (skipped)");
+        $result.find(".connection-result").text("N/A");
+        $result.find(".score-details").text("Pathway marked as not biologically relevant");
+        $result.css("background", "#f8d7da").show();
+        
+        // Store skipped status
+        if (!this.pathwayResults) {
+            this.pathwayResults = {};
+        }
+        this.pathwayResults[pathwayId] = {
+            confidence: "not_relevant",
+            connection_type: "undefined",
+            score: 0,
+            skipped: true
+        };
     }
 
     handleStepProgression() {
@@ -1027,6 +1163,158 @@ class KEWPApp {
         }
     }
 
+    handleCompleteAllAssessments() {
+        const totalAssessments = $('.pathway-assessment').length;
+        const completedAssessments = $('.pathway-assessment .assessment-result:visible').length;
+        
+        if (completedAssessments !== totalAssessments) {
+            this.showMessage("Please complete all pathway assessments before proceeding.", "warning");
+            return;
+        }
+        
+        // Show confirmation dialog with individual mapping summaries
+        this.showMultiPathwayConfirmation();
+    }
+
+    showMultiPathwayConfirmation() {
+        const keTitle = $("#ke_id option:selected").text();
+        const keId = $("#ke_id").val();
+        
+        let confirmationHTML = `
+            <div class="confirmation-dialog" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+                <div style="background: white; border-radius: 8px; padding: 30px; max-width: 800px; max-height: 80vh; overflow-y: auto;">
+                    <h2 style="margin-top: 0; color: #29235C;">Confirm Multiple Pathway Mappings</h2>
+                    <p><strong>Key Event:</strong> ${keTitle}</p>
+                    <div style="margin: 20px 0;">
+        `;
+        
+        // Add each pathway mapping summary
+        $('.pathway-assessment').each((index, element) => {
+            const $assessment = $(element);
+            const pathwayId = $assessment.data('pathway-id');
+            const pathwayTitle = this.pathwayOptions.find(p => p.pathwayID === pathwayId)?.pathwayTitle || pathwayId;
+            const result = this.pathwayResults[pathwayId];
+            
+            if (!result || result.skipped) {
+                confirmationHTML += `
+                    <div style="border: 1px solid #f8d7da; background: #f8d7da; padding: 15px; margin: 10px 0; border-radius: 4px;">
+                        <h4 style="margin: 0 0 8px 0; color: #721c24;">${pathwayTitle} (${pathwayId})</h4>
+                        <p style="margin: 0; color: #721c24;"><strong>Status:</strong> Skipped (not biologically relevant)</p>
+                    </div>
+                `;
+            } else {
+                confirmationHTML += `
+                    <div style="border: 1px solid #e2e8f0; background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 4px;">
+                        <h4 style="margin: 0 0 8px 0; color: #29235C;">${pathwayTitle} (${pathwayId})</h4>
+                        <p style="margin: 5px 0;"><strong>Confidence:</strong> ${result.confidence}</p>
+                        <p style="margin: 5px 0;"><strong>Connection Type:</strong> ${result.connection_type}</p>
+                        <p style="margin: 5px 0;"><strong>Score:</strong> ${result.score.toFixed(1)}</p>
+                    </div>
+                `;
+            }
+        });
+        
+        confirmationHTML += `
+                    </div>
+                    <div style="text-align: center; margin-top: 25px;">
+                        <button id="confirm-multi-submit" style="background: #28a745; color: white; border: none; padding: 15px 30px; border-radius: 6px; margin-right: 10px; cursor: pointer;">
+                            Submit All Mappings
+                        </button>
+                        <button id="cancel-multi-submit" style="background: #6c757d; color: white; border: none; padding: 15px 30px; border-radius: 6px; cursor: pointer;">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        $('body').append(confirmationHTML);
+        
+        // Add event handlers
+        $('#confirm-multi-submit').on('click', () => {
+            $('.confirmation-dialog').remove();
+            this.submitMultiplePathwayMappings();
+        });
+        
+        $('#cancel-multi-submit').on('click', () => {
+            $('.confirmation-dialog').remove();
+        });
+    }
+
+    submitMultiplePathwayMappings() {
+        const keId = $("#ke_id").val();
+        const keTitle = $("#ke_id option:selected").text();
+        const userInfo = $("body").data("user-info") || "Anonymous";
+        
+        const mappingsToSubmit = [];
+        
+        // Prepare individual mappings for each non-skipped pathway
+        $('.pathway-assessment').each((index, element) => {
+            const $assessment = $(element);
+            const pathwayId = $assessment.data('pathway-id');
+            const pathwayTitle = this.pathwayOptions.find(p => p.pathwayID === pathwayId)?.pathwayTitle || pathwayId;
+            const result = this.pathwayResults[pathwayId];
+            
+            if (result && !result.skipped) {
+                mappingsToSubmit.push({
+                    ke_id: keId,
+                    ke_title: keTitle,
+                    wp_id: pathwayId,
+                    wp_title: pathwayTitle,
+                    connection_type: result.connection_type,
+                    confidence_level: result.confidence,
+                    created_by: userInfo
+                });
+            }
+        });
+        
+        if (mappingsToSubmit.length === 0) {
+            this.showMessage("No valid mappings to submit. All pathways were marked as not relevant.", "warning");
+            return;
+        }
+        
+        // Submit each mapping individually
+        this.submitIndividualMappings(mappingsToSubmit);
+    }
+
+    async submitIndividualMappings(mappings) {
+        this.showMessage(`Submitting ${mappings.length} pathway mappings...`, "info");
+        
+        let successCount = 0;
+        let failureCount = 0;
+        const errors = [];
+        
+        for (const mapping of mappings) {
+            try {
+                await new Promise((resolve, reject) => {
+                    $.post("/submit", mapping)
+                        .done((response) => {
+                            successCount++;
+                            resolve(response);
+                        })
+                        .fail((xhr) => {
+                            failureCount++;
+                            const errorMsg = xhr.responseJSON?.error || `Failed to submit mapping for ${mapping.wp_id}`;
+                            errors.push(`${mapping.wp_id}: ${errorMsg}`);
+                            reject(errorMsg);
+                        });
+                });
+            } catch (e) {
+                // Error already handled above
+            }
+        }
+        
+        // Show summary message
+        if (successCount > 0 && failureCount === 0) {
+            this.showMessage(`✅ Successfully submitted ${successCount} pathway mapping(s)!`, "success");
+            this.resetForm();
+        } else if (successCount > 0 && failureCount > 0) {
+            this.showMessage(`⚠️ Submitted ${successCount} mappings, ${failureCount} failed. Errors: ${errors.join('; ')}`, "warning");
+        } else {
+            this.showMessage(`❌ All submissions failed. Errors: ${errors.join('; ')}`, "error");
+        }
+    }
+
     resetGuide() {
         const sections = ["#step2", "#step3", "#step4", "#step5"];
         sections.forEach(id => {
@@ -1057,9 +1345,17 @@ class KEWPApp {
         const $selections = $("#pathway-selections");
         $selections.find(".pathway-selection-group").not(':first').remove();
         
-        // Reset the first pathway dropdown
+        // Reset the first pathway dropdown and button
         $("select[name='wp_id']").val("").trigger('change');
+        $selections.find(".add-pathway-btn").text("Add 2nd").prop("disabled", false).css("background", "#307BBF");
+        $selections.find(".pathway-info").hide();
         $("#wp_id").val("");
+        
+        // Reset assessment data
+        this.pathwayAssessments = {};
+        this.pathwayResults = {};
+        $("#pathway-assessments").empty();
+        $("#assessment-completion").hide();
         
         this.hideKEPreview();
         this.hidePathwayPreview();
