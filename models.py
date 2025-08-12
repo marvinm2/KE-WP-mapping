@@ -98,6 +98,9 @@ class Database:
 
             # Migrate proposals table to add admin fields if needed
             self._migrate_proposals_admin_fields(conn)
+            
+            # Migrate mappings table to add updated_by field if needed
+            self._migrate_mappings_updated_by_field(conn)
 
             conn.commit()
             logger.info("Database initialized successfully")
@@ -146,6 +149,27 @@ class Database:
 
         except Exception as e:
             logger.error(f"Error migrating proposals table: {e}")
+            raise
+
+    def _migrate_mappings_updated_by_field(self, conn):
+        """
+        Add updated_by field to mappings table if it doesn't exist
+
+        Args:
+            conn: Database connection
+        """
+        try:
+            # Check if updated_by field exists
+            cursor = conn.execute("PRAGMA table_info(mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "updated_by" not in columns:
+                logger.info("Adding missing updated_by field to mappings table")
+                conn.execute("ALTER TABLE mappings ADD COLUMN updated_by TEXT")
+                logger.info("Successfully migrated mappings table with updated_by field")
+
+        except Exception as e:
+            logger.error(f"Error migrating mappings table: {e}")
             raise
 
 

@@ -273,12 +273,23 @@
             
             <!-- Regular Dropdown -->
             <div class="dropdown-container">
-                <label for="wp_id" style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
                     Or browse all pathways:
                 </label>
-                <select id="wp_id" name="wp_id" required>
-                    <option value="" disabled selected>Select a Pathway</option>
-                </select>
+                <div id="pathway-selections">
+                    <div class="pathway-selection-group" data-index="0">
+                        <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;">
+                            <select name="wp_id" required style="flex: 1;">
+                                <option value="" disabled selected>Select a Pathway</option>
+                            </select>
+                            <button type="button" class="add-pathway-btn" onclick="window.KEWPApp.addPathwaySelection()" 
+                                    style="background: #307BBF; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                                +
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="wp_id" name="wp_id" />
             </div>
             <p>For detailed pathway information, visit the <a href="/pw-details" target="_blank">pathway details page</a>.</p>
         </section>
@@ -386,6 +397,14 @@
     </div>
     <footer>
         <p>&copy; 2025 KE-WP Mapping Service</p>
+        <div id="data-sources-info" style="margin-top: 10px; font-size: 12px; color: #666;">
+            <div style="margin-bottom: 5px;">
+                <strong>Data Sources:</strong>
+            </div>
+            <div id="version-info" style="line-height: 1.4;">
+                Loading version information...
+            </div>
+        </div>
     </footer>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

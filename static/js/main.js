@@ -14,6 +14,7 @@ class KEWPApp {
         this.setupCSRF();
         this.setupEventListeners();
         this.loadDropdownOptions();
+        this.loadDataVersions();
         
         // Debug: Check if form exists
         console.log("Form element found:", $("#mapping-form").length > 0);
@@ -56,13 +57,13 @@ class KEWPApp {
         $(".btn-group").on("click", ".btn-option", (e) => this.handleConfidenceAssessment(e));
 
         // Dropdown change handlers
-        $("#ke_id, #wp_id").on('change', () => this.toggleAssessmentSection());
+        $("#ke_id").on('change', () => this.toggleAssessmentSection());
         
         // KE selection change handler for preview
         $("#ke_id").on('change', (e) => this.handleKESelection(e));
         
-        // Pathway selection change handler for preview
-        $("#wp_id").on('change', (e) => this.handlePathwaySelection(e));
+        // Setup pathway event handlers
+        this.setupPathwayEventHandlers();
         
         // Pathway search functionality
         this.setupPathwaySearch();
@@ -129,17 +130,11 @@ class KEWPApp {
                     return idA - idB;
                 });
 
-                // Populate Pathway ID dropdown
-                const dropdown = $("#wp_id");
-                dropdown.empty();
-                dropdown.append('<option value="" disabled selected>Select a Pathway</option>');
-                data.forEach(option => {
-                    dropdown.append(
-                        `<option value="${option.pathwayID}" 
-                         data-title="${option.pathwayTitle}"
-                         data-description="${option.pathwayDescription || ''}">${option.pathwayID} - ${option.pathwayTitle}</option>`
-                    );
-                });
+                // Store pathway options for later use
+                this.pathwayOptions = data;
+                
+                // Populate all pathway dropdowns
+                this.populatePathwayDropdowns();
             })
             .fail((xhr, status, error) => {
                 console.error("Failed to load Pathway options:", error);
@@ -426,17 +421,73 @@ class KEWPApp {
         // Show loading state
         this.showMessage("Submitting your mapping...", "info");
         
-        $.post("/submit", formData)
-            .done((response) => {
-                // Show success message with visual feedback
-                this.showSuccessMessage(response.message, formData);
-                $("#existing-entries").html("");
-                this.resetForm();
-            })
-            .fail((xhr) => {
-                const errorMsg = xhr.responseJSON?.error || "Failed to submit entry";
-                this.showMessage(errorMsg, "error");
-            });
+        // Handle multiple pathway IDs
+        const pathwayIds = formData.wp_id.split(',').filter(id => id.trim());
+        
+        if (pathwayIds.length === 1) {
+            // Single pathway - use existing logic
+            $.post("/submit", formData)
+                .done((response) => {
+                    this.showSuccessMessage(response.message, formData);
+                    $("#existing-entries").html("");
+                    this.resetForm();
+                })
+                .fail((xhr) => {
+                    const errorMsg = xhr.responseJSON?.error || "Failed to submit entry";
+                    this.showMessage(errorMsg, "error");
+                });
+        } else {
+            // Multiple pathways - submit each separately
+            this.submitMultiplePathways(formData, pathwayIds);
+        }
+    }
+
+    async submitMultiplePathways(baseFormData, pathwayIds) {
+        let successCount = 0;
+        let failureCount = 0;
+        const errors = [];
+        
+        for (const pathwayId of pathwayIds) {
+            // Get pathway title for this ID
+            const pathwayOption = this.pathwayOptions.find(opt => opt.pathwayID === pathwayId.trim());
+            const pathwayTitle = pathwayOption ? pathwayOption.pathwayTitle : pathwayId;
+            
+            // Create individual submission
+            const individualFormData = {
+                ...baseFormData,
+                wp_id: pathwayId.trim(),
+                wp_title: pathwayTitle
+            };
+            
+            try {
+                await new Promise((resolve, reject) => {
+                    $.post("/submit", individualFormData)
+                        .done(() => {
+                            successCount++;
+                            resolve();
+                        })
+                        .fail((xhr) => {
+                            failureCount++;
+                            const errorMsg = xhr.responseJSON?.error || `Failed to submit mapping for ${pathwayId}`;
+                            errors.push(`${pathwayId}: ${errorMsg}`);
+                            reject();
+                        });
+                });
+            } catch (e) {
+                // Error already handled above
+            }
+        }
+        
+        // Show summary message
+        if (successCount > 0 && failureCount === 0) {
+            this.showMessage(`✅ Successfully submitted ${successCount} mapping(s)!`, "success");
+            $("#existing-entries").html("");
+            this.resetForm();
+        } else if (successCount > 0 && failureCount > 0) {
+            this.showMessage(`⚠️ Submitted ${successCount} mappings, ${failureCount} failed. Errors: ${errors.join('; ')}`, "warning");
+        } else {
+            this.showMessage(`❌ All submissions failed. Errors: ${errors.join('; ')}`, "error");
+        }
     }
 
     handleConfidenceAssessment(event) {
@@ -544,10 +595,11 @@ class KEWPApp {
         const selectedOption = $(event.target).find('option:selected');
         const title = selectedOption.data('title') || '';
         const description = selectedOption.data('description') || '';
+        const svgUrl = selectedOption.data('svg-url') || '';
         
         // Show/hide pathway preview
         if (title) {
-            this.showPathwayPreview(title, description);
+            this.showPathwayDetails(title, description, svgUrl);
         } else {
             this.hidePathwayPreview();
         }
@@ -555,19 +607,41 @@ class KEWPApp {
         console.log('Selected Pathway:', { title, description });
     }
 
-    showPathwayPreview(title, description) {
+    showPathwayDetails(title, description, svgUrl = '') {
         // Remove existing preview
         $("#pathway-preview").remove();
         
         // Create collapsible description HTML
         const descriptionHTML = this.createCollapsibleDescription(description, 'pathway-description');
         
+        // Create figure preview HTML
+        const figureHTML = svgUrl ? `
+            <div style="margin: 10px 0;">
+                <strong>Pathway Diagram Preview:</strong>
+                <div style="margin-top: 8px; text-align: center; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: white;">
+                    <img src="${svgUrl}" 
+                         style="max-width: 300px; max-height: 200px; object-fit: contain; cursor: pointer;" 
+                         onclick="window.KEWPApp.showPathwayPreview($('#wp_id').val(), '${title.replace(/'/g, "\\'")}', '${svgUrl}')"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
+                         onload="this.style.display='block'; this.nextElementSibling.style.display='none'"
+                         alt="Pathway diagram">
+                    <div style="display: none; color: #666; font-style: italic; padding: 20px;">
+                        Pathway diagram not available
+                    </div>
+                </div>
+                <div style="margin-top: 5px; font-size: 11px; color: #666;">
+                    Click diagram to view full size
+                </div>
+            </div>
+        ` : '';
+        
         // Create preview HTML
         const previewHTML = `
             <div id="pathway-preview" style="margin-top: 10px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
                 <h4 style="margin: 0 0 8px 0; color: #29235C;">Pathway Details:</h4>
                 <p style="margin: 0 0 8px 0;"><strong>Title:</strong> ${title}</p>
-                ${description ? `<div><strong>Description:</strong><br/>${descriptionHTML}</div>` : '<p style="margin: 0; color: #666; font-style: italic;">No description available</p>'}
+                ${description ? `<div style="margin-bottom: 10px;"><strong>Description:</strong><br/>${descriptionHTML}</div>` : '<p style="margin: 0 0 10px 0; color: #666; font-style: italic;">No description available</p>'}
+                ${figureHTML}
             </div>
         `;
         
@@ -577,6 +651,149 @@ class KEWPApp {
 
     hidePathwayPreview() {
         $("#pathway-preview").remove();
+    }
+
+    loadDataVersions() {
+        // Only load version info if we're on a page that has the version info element
+        if ($("#version-info").length === 0) {
+            return;
+        }
+        
+        $.getJSON("/get_data_versions")
+            .done((data) => {
+                console.log("Version data loaded:", data);
+                this.displayVersionInfo(data);
+            })
+            .fail((xhr, status, error) => {
+                console.warn("Failed to load version information:", error);
+                $("#version-info").html('<span style="color: #999;">Version information unavailable</span>');
+            });
+    }
+
+    displayVersionInfo(versions) {
+        let versionHtml = '';
+        
+        if (versions.aop_wiki) {
+            versionHtml += `
+                <div style="margin-bottom: 3px;">
+                    <strong>AOP-Wiki:</strong> ${versions.aop_wiki.version}
+                    ${versions.aop_wiki.date !== 'Unknown' ? ` (${versions.aop_wiki.date})` : ''}
+                </div>
+            `;
+        }
+        
+        if (versions.wikipathways) {
+            versionHtml += `
+                <div style="margin-bottom: 3px;">
+                    <strong>WikiPathways:</strong> ${versions.wikipathways.version}
+                    ${versions.wikipathways.date !== 'Unknown' ? ` (${versions.wikipathways.date})` : ''}
+                </div>
+            `;
+        }
+        
+        if (versionHtml) {
+            $("#version-info").html(versionHtml);
+        } else {
+            $("#version-info").html('<span style="color: #999;">Version information not available</span>');
+        }
+    }
+
+    populatePathwayDropdowns() {
+        // Populate all existing pathway dropdowns
+        $("select[name='wp_id']").each((index, dropdown) => {
+            const $dropdown = $(dropdown);
+            $dropdown.empty();
+            $dropdown.append('<option value="" disabled selected>Select a Pathway</option>');
+            
+            this.pathwayOptions.forEach(option => {
+                const svgUrl = `https://www.wikipathways.org/wikipathways-assets/pathways/${option.pathwayID}/${option.pathwayID}.svg`;
+                $dropdown.append(
+                    `<option value="${option.pathwayID}" 
+                     data-title="${option.pathwayTitle}"
+                     data-description="${option.pathwayDescription || ''}"
+                     data-svg-url="${svgUrl}">${option.pathwayID} - ${option.pathwayTitle}</option>`
+                );
+            });
+        });
+    }
+
+    addPathwaySelection() {
+        const $selections = $("#pathway-selections");
+        const currentCount = $selections.find(".pathway-selection-group").length;
+        
+        // Create new pathway selection group
+        const newIndex = currentCount;
+        const $newGroup = $(`
+            <div class="pathway-selection-group" data-index="${newIndex}">
+                <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;">
+                    <select name="wp_id" required style="flex: 1;">
+                        <option value="" disabled selected>Select a Pathway</option>
+                    </select>
+                    <button type="button" class="remove-pathway-btn" onclick="window.KEWPApp.removePathwaySelection(${newIndex})" 
+                            style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        −
+                    </button>
+                </div>
+            </div>
+        `);
+        
+        $selections.append($newGroup);
+        
+        // Populate the new dropdown with pathway options
+        if (this.pathwayOptions) {
+            this.populatePathwayDropdowns();
+        }
+        
+        // Update event handlers for the new dropdown
+        this.setupPathwayEventHandlers();
+        
+        // Update the hidden input field
+        this.updateSelectedPathways();
+    }
+
+    removePathwaySelection(index) {
+        const $group = $(`.pathway-selection-group[data-index="${index}"]`);
+        $group.remove();
+        
+        // Update the hidden input field
+        this.updateSelectedPathways();
+        
+        // Hide pathway preview if this was the displayed one
+        this.hidePathwayPreview();
+    }
+
+    updateSelectedPathways() {
+        const selectedPathways = [];
+        $("select[name='wp_id']").each((index, dropdown) => {
+            const value = $(dropdown).val();
+            if (value) {
+                selectedPathways.push(value);
+            }
+        });
+        
+        // Update the hidden field with selected pathways (comma-separated)
+        $("#wp_id").val(selectedPathways.join(','));
+        
+        // Update form validation state
+        const hasSelection = selectedPathways.length > 0;
+        $("select[name='wp_id']").prop('required', !hasSelection);
+        if (hasSelection) {
+            $("select[name='wp_id']").first().prop('required', true);
+        }
+        
+        console.log("Selected pathways:", selectedPathways);
+    }
+
+    setupPathwayEventHandlers() {
+        // Remove existing handlers to prevent duplication
+        $(document).off('change', "select[name='wp_id']");
+        
+        // Add pathway selection change handlers
+        $(document).on('change', "select[name='wp_id']", (e) => {
+            this.handlePathwaySelection(e);
+            this.updateSelectedPathways();
+            this.toggleAssessmentSection();
+        });
     }
 
     createCollapsibleDescription(description, id) {
@@ -662,7 +879,16 @@ class KEWPApp {
     }
 
     resetForm() {
-        $("#ke_id, #wp_id").val("").trigger('change');
+        $("#ke_id").val("").trigger('change');
+        
+        // Reset pathway selections - remove all but first dropdown
+        const $selections = $("#pathway-selections");
+        $selections.find(".pathway-selection-group").not(':first').remove();
+        
+        // Reset the first pathway dropdown
+        $("select[name='wp_id']").val("").trigger('change');
+        $("#wp_id").val("");
+        
         this.hideKEPreview();
         this.hidePathwayPreview();
         this.resetGuide();
@@ -1719,10 +1945,21 @@ function evaluateConfidence() {
     $("#evaluateBtn").hide();
     
     // Show detailed result message
-    const detailMessage = `Assessment completed: ${confidence} confidence (score: ${baseScore}/6.5)${isMolecularLevel ? ' with biological level bonus' : ''}`;
+    const maxScore = isMolecularLevel ? 7.5 : 6.5;
+    const detailMessage = `Assessment completed: ${confidence} confidence (score: ${baseScore}/${maxScore})${isMolecularLevel ? ' with biological level bonus' : ''}`;
     $("#ca-result").text(detailMessage);
     
     app.showMessage("Confidence assessment completed successfully", "success");
+}
+
+// Universal function to handle Ctrl+click for opening in new tabs
+function handleCtrlClick(event, url) {
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) { // Ctrl (Windows/Linux) or Cmd (Mac)
+        window.open(url, '_blank');
+    } else {
+        window.location.href = url;
+    }
 }
 
 // Initialize app when document is ready

@@ -307,6 +307,128 @@ def get_pathway_options():
         return jsonify({"error": "Failed to fetch pathway options"}), 500
 
 
+@api_bp.route("/get_data_versions", methods=["GET"])
+@sparql_rate_limit
+def get_data_versions():
+    """Fetch version information from AOP-Wiki and WikiPathways SPARQL endpoints."""
+    try:
+        versions = {}
+        
+        # Get AOP-Wiki version info
+        try:
+            aop_query = """
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX dc: <http://purl.org/dc/elements/1.1/>
+            PREFIX dcterms: <http://purl.org/dc/terms/>
+            
+            SELECT DISTINCT ?version ?date ?comment
+            WHERE {
+                ?dataset a <http://rdfs.org/ns/void#Dataset> .
+                OPTIONAL { ?dataset dcterms:hasVersion ?version }
+                OPTIONAL { ?dataset dcterms:created ?date }
+                OPTIONAL { ?dataset rdfs:comment ?comment }
+            } LIMIT 1
+            """
+            
+            aop_endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
+            aop_response = requests.post(
+                aop_endpoint,
+                data={"query": aop_query, "format": "json"},
+                headers={"Accept": "application/json"},
+                timeout=10
+            )
+            
+            if aop_response.status_code == 200:
+                aop_data = aop_response.json()
+                if aop_data.get("results", {}).get("bindings"):
+                    result = aop_data["results"]["bindings"][0]
+                    versions["aop_wiki"] = {
+                        "source": "AOP-Wiki RDF",
+                        "version": result.get("version", {}).get("value", "Unknown"),
+                        "date": result.get("date", {}).get("value", "Unknown"),
+                        "comment": result.get("comment", {}).get("value", ""),
+                        "endpoint": aop_endpoint
+                    }
+                else:
+                    versions["aop_wiki"] = {
+                        "source": "AOP-Wiki RDF",
+                        "version": "Available",
+                        "date": "Unknown",
+                        "comment": "SPARQL endpoint accessible",
+                        "endpoint": aop_endpoint
+                    }
+                    
+        except Exception as e:
+            logger.warning(f"Could not fetch AOP-Wiki version: {e}")
+            versions["aop_wiki"] = {
+                "source": "AOP-Wiki RDF",
+                "version": "Unknown",
+                "date": "Unknown",
+                "comment": f"Error: {str(e)}",
+                "endpoint": "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
+            }
+        
+        # Get WikiPathways version info
+        try:
+            wp_query = """
+            PREFIX void: <http://rdfs.org/ns/void#>
+            PREFIX dcterms: <http://purl.org/dc/terms/>
+            PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+            
+            SELECT DISTINCT ?version ?date ?title
+            WHERE {
+                ?dataset a void:Dataset .
+                OPTIONAL { ?dataset dcterms:hasVersion ?version }
+                OPTIONAL { ?dataset dcterms:created ?date }
+                OPTIONAL { ?dataset dcterms:title ?title }
+            } LIMIT 1
+            """
+            
+            wp_endpoint = "https://sparql.wikipathways.org/sparql"
+            wp_response = requests.post(
+                wp_endpoint,
+                data={"query": wp_query, "format": "json"},
+                headers={"Accept": "application/json"},
+                timeout=10
+            )
+            
+            if wp_response.status_code == 200:
+                wp_data = wp_response.json()
+                if wp_data.get("results", {}).get("bindings"):
+                    result = wp_data["results"]["bindings"][0]
+                    versions["wikipathways"] = {
+                        "source": "WikiPathways",
+                        "version": result.get("version", {}).get("value", "Current"),
+                        "date": result.get("date", {}).get("value", "Unknown"),
+                        "comment": result.get("title", {}).get("value", ""),
+                        "endpoint": wp_endpoint
+                    }
+                else:
+                    versions["wikipathways"] = {
+                        "source": "WikiPathways",
+                        "version": "Current",
+                        "date": "Unknown",
+                        "comment": "SPARQL endpoint accessible",
+                        "endpoint": wp_endpoint
+                    }
+                    
+        except Exception as e:
+            logger.warning(f"Could not fetch WikiPathways version: {e}")
+            versions["wikipathways"] = {
+                "source": "WikiPathways",
+                "version": "Unknown",
+                "date": "Unknown", 
+                "comment": f"Error: {str(e)}",
+                "endpoint": "https://sparql.wikipathways.org/sparql"
+            }
+        
+        return jsonify(versions), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching data versions: {e}")
+        return jsonify({"error": "Failed to load data version information"}), 500
+
+
 @api_bp.route("/submit_proposal", methods=["POST"])
 @login_required
 @submission_rate_limit

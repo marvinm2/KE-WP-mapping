@@ -9,6 +9,7 @@ services:
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - ADMIN_USERS=${ADMIN_USERS}
       - FLASK_DEBUG=false
       - FLASK_ENV=production
     volumes:
