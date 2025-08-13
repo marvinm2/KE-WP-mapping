@@ -707,3 +707,227 @@ def get_ke_genes(ke_id):
     except Exception as e:
         logger.error(f"Error getting genes for KE {ke_id}: {str(e)}")
         return jsonify({"error": "Failed to get KE genes"}), 500
+
+
+@api_bp.route("/get_aop_options", methods=["GET"])
+@sparql_rate_limit
+def get_aop_options():
+    """Fetch AOP options from SPARQL endpoint for network visualization"""
+    try:
+        sparql_query = """
+        PREFIX aopo: <http://aopkb.org/aop_ontology#>
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+        SELECT ?AOPtitle ?AOPlabel ?AOPpage ?AOPdescription
+        WHERE {
+          ?AOP a aopo:AdverseOutcomePathway ; 
+               dc:title ?AOPtitle ; 
+               rdfs:label ?AOPlabel; 
+               foaf:page ?AOPpage .
+          OPTIONAL { ?AOP dc:description ?AOPdescription }
+        }
+        ORDER BY ?AOPtitle
+        """
+        endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
+
+        # Check cache first
+        query_hash = hashlib.md5(sparql_query.encode()).hexdigest()
+        cached_response = cache_model.get_cached_response(endpoint, query_hash)
+
+        if cached_response:
+            logger.info("Serving AOP options from cache")
+            return jsonify(json.loads(cached_response)), 200
+
+        response = requests.post(
+            endpoint,
+            data={"query": sparql_query},
+            headers={
+                "Accept": "application/sparql-results+json",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            timeout=30,
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            if "results" not in data or "bindings" not in data["results"]:
+                logger.error("Invalid SPARQL response format for AOPs")
+                return jsonify({"error": "Invalid response from AOP service"}), 500
+
+            results = [
+                {
+                    "AOPtitle": binding.get("AOPtitle", {}).get("value", ""),
+                    "AOPlabel": binding.get("AOPlabel", {}).get("value", ""),
+                    "AOPpage": binding.get("AOPpage", {}).get("value", ""),
+                    "AOPdescription": binding.get("AOPdescription", {}).get("value", ""),
+                }
+                for binding in data["results"]["bindings"]
+                if all(key in binding for key in ["AOPtitle", "AOPlabel", "AOPpage"])
+            ]
+
+            # Cache the response
+            cache_model.cache_response(endpoint, query_hash, json.dumps(results), 24)
+            logger.info(f"Fetched and cached {len(results)} AOP options")
+            return jsonify(results), 200
+        else:
+            logger.error(
+                f"SPARQL AOP Query Failed: {response.status_code} - {response.text}"
+            )
+            return jsonify({"error": "Failed to fetch AOP options"}), 500
+    except requests.exceptions.Timeout:
+        logger.error("SPARQL AOP request timeout")
+        return jsonify({"error": "Service timeout - please try again"}), 503
+    except Exception as e:
+        logger.error(f"Error fetching AOP options: {str(e)}")
+        return jsonify({"error": "Failed to fetch AOP options"}), 500
+
+
+@api_bp.route("/get_aop_network/<aop_id>", methods=["GET"])
+@sparql_rate_limit
+def get_aop_network(aop_id):
+    """Fetch network data for a specific AOP including KEs, relationships, and molecular details"""
+    try:
+        # Validate AOP ID
+        if not aop_id or len(aop_id.strip()) == 0:
+            return jsonify({"error": "Invalid AOP ID"}), 400
+
+        sparql_query = f"""
+        PREFIX aopo: <http://aopkb.org/aop_ontology#>
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+        PREFIX nci: <http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#>
+
+        SELECT ?KEtitle ?KElabel ?KEpage ?biolevel ?KEtype ?upstreamKE ?downstreamKE
+        WHERE {{
+          ?AOP a aopo:AdverseOutcomePathway ; 
+               foaf:page <{aop_id}> ;
+               aopo:has_key_event ?KE .
+          
+          ?KE dc:title ?KEtitle ; 
+              rdfs:label ?KElabel; 
+              foaf:page ?KEpage .
+              
+          OPTIONAL {{ ?KE nci:C25664 ?biolevel }}
+          OPTIONAL {{ ?KE a ?KEtype }}
+          
+          OPTIONAL {{
+            ?KER a aopo:KeyEventRelationship ;
+                 aopo:has_upstream_key_event ?KE ;
+                 aopo:has_downstream_key_event ?downstreamKE .
+          }}
+          
+          OPTIONAL {{
+            ?KER2 a aopo:KeyEventRelationship ;
+                  aopo:has_downstream_key_event ?KE ;
+                  aopo:has_upstream_key_event ?upstreamKE .
+          }}
+        }}
+        """
+        endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
+
+        # Check cache first
+        query_hash = hashlib.md5(sparql_query.encode()).hexdigest()
+        cached_response = cache_model.get_cached_response(endpoint, query_hash)
+
+        if cached_response:
+            logger.info(f"Serving AOP network for {aop_id} from cache")
+            return jsonify(json.loads(cached_response)), 200
+
+        response = requests.post(
+            endpoint,
+            data={"query": sparql_query},
+            headers={
+                "Accept": "application/sparql-results+json",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            timeout=30,
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            if "results" not in data or "bindings" not in data["results"]:
+                logger.error("Invalid SPARQL response format for AOP network")
+                return jsonify({"error": "Invalid response from AOP network service"}), 500
+
+            # Process results into network structure
+            nodes = {}
+            edges = []
+            
+            for binding in data["results"]["bindings"]:
+                ke_page = binding.get("KEpage", {}).get("value", "")
+                ke_title = binding.get("KEtitle", {}).get("value", "")
+                ke_label = binding.get("KElabel", {}).get("value", "")
+                bio_level = binding.get("biolevel", {}).get("value", "")
+                ke_type = binding.get("KEtype", {}).get("value", "")
+                
+                # Determine KE classification for color coding
+                ke_class = "intermediate"  # default
+                if "MolecularInitiatingEvent" in ke_type:
+                    ke_class = "mie"
+                elif "AdverseOutcome" in ke_type:
+                    ke_class = "ao"
+                
+                # Add node if not already present
+                if ke_page not in nodes:
+                    nodes[ke_page] = {
+                        "id": ke_page,
+                        "title": ke_title,
+                        "label": ke_label,
+                        "bio_level": bio_level,
+                        "ke_type": ke_type,
+                        "ke_class": ke_class
+                    }
+                
+                # Add edges for relationships
+                upstream = binding.get("upstreamKE", {}).get("value", "")
+                downstream = binding.get("downstreamKE", {}).get("value", "")
+                
+                if upstream and upstream != ke_page:
+                    edges.append({
+                        "source": upstream,
+                        "target": ke_page,
+                        "type": "upstream_to_downstream"
+                    })
+                
+                if downstream and downstream != ke_page:
+                    edges.append({
+                        "source": ke_page,
+                        "target": downstream,
+                        "type": "upstream_to_downstream"
+                    })
+
+            # Remove duplicate edges
+            unique_edges = []
+            edge_set = set()
+            for edge in edges:
+                edge_key = (edge["source"], edge["target"])
+                if edge_key not in edge_set:
+                    edge_set.add(edge_key)
+                    unique_edges.append(edge)
+
+            result = {
+                "aop_id": aop_id,
+                "nodes": list(nodes.values()),
+                "edges": unique_edges,
+                "node_count": len(nodes),
+                "edge_count": len(unique_edges)
+            }
+
+            # Cache the response
+            cache_model.cache_response(endpoint, query_hash, json.dumps(result), 24)
+            logger.info(f"Fetched and cached AOP network for {aop_id}: {len(nodes)} nodes, {len(unique_edges)} edges")
+            return jsonify(result), 200
+        else:
+            logger.error(
+                f"SPARQL AOP Network Query Failed: {response.status_code} - {response.text}"
+            )
+            return jsonify({"error": "Failed to fetch AOP network data"}), 500
+    except requests.exceptions.Timeout:
+        logger.error("SPARQL AOP network request timeout")
+        return jsonify({"error": "Service timeout - please try again"}), 503
+    except Exception as e:
+        logger.error(f"Error fetching AOP network for {aop_id}: {str(e)}")
+        return jsonify({"error": "Failed to fetch AOP network data"}), 500
