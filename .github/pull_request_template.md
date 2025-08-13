@@ -6,14 +6,14 @@
 ### Type of Change
 <!-- Mark the relevant option with an 'x' -->
 
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📚 Documentation update
-- [ ] 🏗️ Refactor (code change that neither fixes a bug nor adds a feature)
-- [ ] ⚡ Performance improvement
-- [ ] 🔧 Configuration change
-- [ ] 🧪 Test addition or improvement
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] Refactor (code change that neither fixes a bug nor adds a feature)
+- [ ] Performance improvement
+- [ ] Configuration change
+- [ ] Test addition or improvement
 
 ### Changes Made
 <!-- List the specific changes made in this PR -->

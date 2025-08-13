@@ -1,6 +1,6 @@
 # Architecture Documentation
 
-## 🏗️ KE-WP Mapping Application Architecture
+## KE-WP Mapping Application Architecture
 
 This document provides a comprehensive overview of the application's architecture, design patterns, and technical implementation.
 

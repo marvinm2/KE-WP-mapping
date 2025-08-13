@@ -116,7 +116,7 @@ class KEWPApp {
             })
             .fail((xhr, status, error) => {
                 console.error("Failed to load KE options:", error);
-                const errorMsg = xhr.responseJSON?.error || "Failed to load Key Events";
+                const errorMsg = xhr.responseJSON?.error || "Unable to load Key Events. Please check your internet connection and try refreshing the page.";
                 this.showMessage(errorMsg, "error");
             });
     }
@@ -142,7 +142,7 @@ class KEWPApp {
             })
             .fail((xhr, status, error) => {
                 console.error("Failed to load Pathway options:", error);
-                const errorMsg = xhr.responseJSON?.error || "Failed to load Pathways";
+                const errorMsg = xhr.responseJSON?.error || "Unable to load Pathways. Please check your internet connection and try refreshing the page.";
                 this.showMessage(errorMsg, "error");
             });
     }
@@ -164,12 +164,19 @@ class KEWPApp {
 
         // Validate required fields
         if (!formData.ke_id || !formData.wp_id) {
-            this.showMessage("Please select both a Key Event and a Pathway", "error");
+            this.showMessage("Please select both a Key Event and at least one Pathway before submitting.", "error");
             return;
         }
 
+        // Check if we have multiple pathways (from multi-pathway assessment)
+        if (this.multiPathwayResults && this.multiPathwayResults.length > 1) {
+            this.handleMultiPathwaySubmission();
+            return;
+        }
+
+        // Single pathway submission - existing logic
         if (!formData.connection_type || !formData.confidence_level) {
-            this.showMessage("Please complete the confidence assessment", "error");
+            this.showMessage("Please complete the confidence assessment for all selected pathways before submitting.", "error");
             return;
         }
 
@@ -190,7 +197,7 @@ class KEWPApp {
                 }
             })
             .fail((xhr) => {
-                const errorMsg = xhr.responseJSON?.error || "Failed to check entry";
+                const errorMsg = xhr.responseJSON?.error || "Unable to verify mapping. Please try again or contact support if the problem persists.";
                 this.showMessage(errorMsg, "error");
             });
     }
@@ -269,25 +276,25 @@ class KEWPApp {
                 <p>Review your new mapping that will be added:</p>
                 
                 <div class="mapping-preview" style="display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px; margin: 20px 0; width: 100%;">
-                    <div class="preview-section ke-section" style="background-color: #f0f8ff; padding: 15px; border-radius: 8px; border-left: 4px solid #307BBF; min-width: 0; word-wrap: break-word;">
-                        <h4 style="color: #307BBF; margin-top: 0;">🧬 Key Event Information</h4>
+                    <div class="preview-section ke-section preview-section-ke">
+                        <h4 class="preview-header-ke">🧬 Key Event Information</h4>
                         <p><strong>KE ID:</strong> ${formData.ke_id}</p>
                         <p><strong>KE Title:</strong> ${formData.ke_title}</p>
                         <p><strong>Biological Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${biolevel || 'Not specified'}</span></p>
                         <div><strong>Description:</strong><br/>${keDescHtml}</div>
                     </div>
                     
-                    <div class="preview-section wp-section" style="background-color: #f0fff0; padding: 15px; border-radius: 8px; border-left: 4px solid #E6007E; min-width: 0; word-wrap: break-word;">
-                        <h4 style="color: #E6007E; margin-top: 0;">Pathway Information</h4>
+                    <div class="preview-section wp-section preview-section-wp">
+                        <h4 class="preview-header-wp">Pathway Information</h4>
                         <p><strong>WP ID:</strong> ${formData.wp_id}</p>
                         <p><strong>WP Title:</strong> ${formData.wp_title}</p>
                         <div><strong>Description:</strong><br/>${pwDescHtml}</div>
                     </div>
                 </div>
                 
-                <div class="preview-section" style="background-color: #fff8f0; padding: 15px; border-radius: 8px; border-left: 4px solid #EB5B25; margin: 20px 0;">
-                    <h4 style="color: #EB5B25; margin-top: 0;">Mapping Metadata</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="preview-section preview-section-metadata">
+                    <h4 class="preview-header-metadata">Mapping Metadata</h4>
+                    <div class="grid-two-column">
                         <div>
                             <p><strong>Connection Type:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
                             <p><strong>Confidence Level:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span></p>
@@ -301,11 +308,11 @@ class KEWPApp {
                     </div>
                 </div>
                 
-                <div class="confirmation-section" style="text-align: center; margin: 25px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                    <p style="font-size: 16px; margin-bottom: 15px;"><strong>Do you want to add this new KE-WP mapping?</strong></p>
-                    <p style="color: #666; margin-bottom: 20px; font-size: 14px;">This will be added alongside the existing mappings shown above.</p>
-                    <button id="confirm-submit" class="btn btn-success" style="background-color: #28a745; margin-right: 10px; padding: 10px 20px;">Yes, Add Entry</button>
-                    <button id="cancel-submit" class="btn btn-secondary" style="background-color: #6c757d; padding: 10px 20px;">Cancel</button>
+                <div class="confirmation-section">
+                    <p class="confirmation-title"><strong>Do you want to add this new KE-WP mapping?</strong></p>
+                    <p class="confirmation-subtitle">This will be added alongside the existing mappings shown above.</p>
+                    <button id="confirm-submit" class="btn-success-custom">Yes, Add Entry</button>
+                    <button id="cancel-submit" class="btn-secondary-custom">Cancel</button>
                 </div>
         `;
         
@@ -359,25 +366,25 @@ class KEWPApp {
                 <p>Please carefully review your mapping details before submitting:</p>
                 
                 <div class="mapping-preview" style="display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px; margin: 20px 0; width: 100%;">
-                    <div class="preview-section ke-section" style="background-color: #f0f8ff; padding: 15px; border-radius: 8px; border-left: 4px solid #307BBF; min-width: 0; word-wrap: break-word;">
-                        <h4 style="color: #307BBF; margin-top: 0;">🧬 Key Event Information</h4>
+                    <div class="preview-section ke-section preview-section-ke">
+                        <h4 class="preview-header-ke">🧬 Key Event Information</h4>
                         <p><strong>KE ID:</strong> ${formData.ke_id}</p>
                         <p><strong>KE Title:</strong> ${formData.ke_title}</p>
                         <p><strong>Biological Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${biolevel || 'Not specified'}</span></p>
                         <div><strong>Description:</strong><br/>${keDescHtml}</div>
                     </div>
                     
-                    <div class="preview-section wp-section" style="background-color: #f0fff0; padding: 15px; border-radius: 8px; border-left: 4px solid #E6007E; min-width: 0; word-wrap: break-word;">
-                        <h4 style="color: #E6007E; margin-top: 0;">Pathway Information</h4>
+                    <div class="preview-section wp-section preview-section-wp">
+                        <h4 class="preview-header-wp">Pathway Information</h4>
                         <p><strong>WP ID:</strong> ${formData.wp_id}</p>
                         <p><strong>WP Title:</strong> ${formData.wp_title}</p>
                         <div><strong>Description:</strong><br/>${pwDescHtml}</div>
                     </div>
                 </div>
                 
-                <div class="preview-section" style="background-color: #fff8f0; padding: 15px; border-radius: 8px; border-left: 4px solid #EB5B25; margin: 20px 0;">
-                    <h4 style="color: #EB5B25; margin-top: 0;">Mapping Metadata</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="preview-section preview-section-metadata">
+                    <h4 class="preview-header-metadata">Mapping Metadata</h4>
+                    <div class="grid-two-column">
                         <div>
                             <p><strong>Connection Type:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
                             <p><strong>Confidence Level:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span></p>
@@ -391,11 +398,11 @@ class KEWPApp {
                     </div>
                 </div>
                 
-                <div class="confirmation-section" style="text-align: center; margin: 25px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                    <p style="font-size: 16px; margin-bottom: 15px;"><strong>Are you sure you want to submit this mapping?</strong></p>
-                    <p style="color: #666; margin-bottom: 20px; font-size: 14px;">This action will add the mapping to the database and make it available for other researchers.</p>
-                    <button id="confirm-final-submit" class="btn btn-success" style="background-color: #28a745; margin-right: 10px; padding: 10px 20px;">Yes, Submit Mapping</button>
-                    <button id="cancel-final-submit" class="btn btn-secondary" style="background-color: #6c757d; padding: 10px 20px;">Cancel</button>
+                <div class="confirmation-section">
+                    <p class="confirmation-title"><strong>Are you sure you want to submit this mapping?</strong></p>
+                    <p class="confirmation-subtitle">This action will add the mapping to the database and make it available for other researchers.</p>
+                    <button id="confirm-final-submit" class="btn-success-custom">Yes, Submit Mapping</button>
+                    <button id="cancel-final-submit" class="btn-secondary-custom">Cancel</button>
                 </div>
             </div>
         `;
@@ -417,23 +424,49 @@ class KEWPApp {
     }
 
     submitEntry(formData) {
+        // Check authentication before submitting
+        if (!this.isLoggedIn) {
+            this.showMessage("Please log in with GitHub to submit mappings.", "error");
+            setTimeout(() => {
+                // Save form state before redirecting to login
+                this.saveFormState();
+                window.location.href = '/auth/login';
+            }, 2000);
+            return;
+        }
+        
         // Show loading state
         this.showMessage("Submitting your mapping...", "info");
         
         // Handle multiple pathway IDs
         const pathwayIds = formData.wp_id.split(',').filter(id => id.trim());
         
+        console.log('Submitting form data:', formData);
+        console.log('Number of pathways:', pathwayIds.length);
+        
         if (pathwayIds.length === 1) {
             // Single pathway - use existing logic
             $.post("/submit", formData)
                 .done((response) => {
+                    console.log('Submission successful:', response);
                     this.showSuccessMessage(response.message, formData);
                     $("#existing-entries").html("");
                     this.resetForm();
                 })
                 .fail((xhr) => {
-                    const errorMsg = xhr.responseJSON?.error || "Failed to submit entry";
-                    this.showMessage(errorMsg, "error");
+                    console.error('Submission failed:', xhr);
+                    console.log('Status:', xhr.status, 'Response:', xhr.responseText);
+                    
+                    if (xhr.status === 401 || xhr.status === 403) {
+                        this.showMessage("Please log in to submit mappings.", "error");
+                        setTimeout(() => {
+                            this.saveFormState();
+                            window.location.href = '/auth/login';
+                        }, 2000);
+                    } else {
+                        const errorMsg = xhr.responseJSON?.error || "Unable to submit mapping. Please try again or check your internet connection.";
+                        this.showMessage(errorMsg, "error");
+                    }
                 });
         } else {
             // Multiple pathways - submit each separately
@@ -446,7 +479,27 @@ class KEWPApp {
         let failureCount = 0;
         const errors = [];
         
+        // Show loading state for multiple pathway submission
+        const loadingHtml = `
+            <div class="loading-container">
+                <div class="loading-title">
+                    Submitting Multiple Pathway Mappings
+                </div>
+                <div class="loading-subtitle">
+                    Processing ${pathwayIds.length} pathway mapping(s)...
+                </div>
+                <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <div id="submission-progress" class="loading-progress">
+                    Preparing submissions...
+                </div>
+            </div>
+        `;
+        $("#existing-entries").html(loadingHtml);
+        
         for (const pathwayId of pathwayIds) {
+            // Update progress
+            $("#submission-progress").text(`Processing pathway ${successCount + failureCount + 1} of ${pathwayIds.length}: ${pathwayId}`);
+            
             // Get pathway title for this ID
             const pathwayOption = this.pathwayOptions.find(opt => opt.pathwayID === pathwayId.trim());
             const pathwayTitle = pathwayOption ? pathwayOption.pathwayTitle : pathwayId;
@@ -463,15 +516,20 @@ class KEWPApp {
                     $.post("/submit", individualFormData)
                         .done(() => {
                             successCount++;
+                            $("#submission-progress").text(`Successfully submitted ${successCount} of ${pathwayIds.length} mappings`);
                             resolve();
                         })
                         .fail((xhr) => {
                             failureCount++;
-                            const errorMsg = xhr.responseJSON?.error || `Failed to submit mapping for ${pathwayId}`;
+                            const errorMsg = xhr.responseJSON?.error || `Unable to submit mapping for ${pathwayId}. Please try again.`;
                             errors.push(`${pathwayId}: ${errorMsg}`);
+                            $("#submission-progress").text(`Completed ${successCount + failureCount} of ${pathwayIds.length} mappings (${failureCount} failed)`);
                             reject();
                         });
                 });
+                
+                // Small delay to show progress
+                await new Promise(resolve => setTimeout(resolve, 200));
             } catch (e) {
                 // Error already handled above
             }
@@ -483,9 +541,9 @@ class KEWPApp {
             $("#existing-entries").html("");
             this.resetForm();
         } else if (successCount > 0 && failureCount > 0) {
-            this.showMessage(`Submitted ${successCount} mappings, ${failureCount} failed. Errors: ${errors.join('; ')}`, "warning");
+            this.showMessage(`Successfully submitted ${successCount} mapping(s), but ${failureCount} failed. Please review the errors and try again for the failed mappings.`, "warning");
         } else {
-            this.showMessage(`All submissions failed. Errors: ${errors.join('; ')}`, "error");
+            this.showMessage(`All mapping submissions failed. Please check your internet connection and try again. If the problem persists, contact support.`, "error");
         }
     }
 
@@ -873,9 +931,11 @@ class KEWPApp {
     }
 
     populatePathwayDropdowns() {
-        // Populate all existing pathway dropdowns
+        // Populate all existing pathway dropdowns while preserving current selections
         $("select[name='wp_id']").each((index, dropdown) => {
             const $dropdown = $(dropdown);
+            const currentValue = $dropdown.val(); // Store current selection
+            
             $dropdown.empty();
             $dropdown.append('<option value="" disabled selected>Select a Pathway</option>');
             
@@ -888,6 +948,11 @@ class KEWPApp {
                      data-svg-url="${svgUrl}">${option.pathwayID} - ${option.pathwayTitle}</option>`
                 );
             });
+            
+            // Restore the previous selection if it existed
+            if (currentValue && currentValue !== '') {
+                $dropdown.val(currentValue);
+            }
         });
     }
 
@@ -948,6 +1013,21 @@ class KEWPApp {
         
         // Hide pathway preview if this was the displayed one
         this.hidePathwayPreview();
+        
+        // Check if there's only one pathway group left, and if so, revert the "Add 2nd" button
+        const $selections = $("#pathway-selections");
+        const remainingGroups = $selections.find(".pathway-selection-group").length;
+        
+        if (remainingGroups === 1) {
+            // Revert the "Add 2nd" button to its original state
+            $selections.find(".add-pathway-btn")
+                .text("Add 2nd")
+                .prop("disabled", false)
+                .css("background", "#307BBF");
+        }
+        
+        // Toggle assessment section to update based on remaining pathways
+        this.toggleAssessmentSection();
     }
 
     updateSelectedPathways() {
@@ -1044,12 +1124,34 @@ class KEWPApp {
             }
         });
         
+        // Debug logging
+        console.log('toggleAssessmentSection called:', {
+            keSelected: keSelected,
+            selectedPathwaysCount: selectedPathways.length,
+            selectedPathways: selectedPathways
+        });
+        
         if (keSelected && selectedPathways.length > 0) {
-            this.generatePathwayAssessments(selectedPathways);
+            // Show the confidence guide section
             $("#confidence-guide").show();
-            // Note: Removed auto-scroll to assessment since users may want to select multiple pathways first
-            // Pre-fill biological level if available
-            this.preFillBiologicalLevel();
+            
+            // Show loading state in the pathway assessments area
+            $("#pathway-assessments").html(`
+                <div style="text-align: center; padding: 20px;">
+                    <div style="margin-bottom: 10px; color: #666;">Generating confidence assessments...</div>
+                    <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                </div>
+            `);
+            
+            // Hide assessment completion section while loading
+            $("#assessment-completion").hide();
+            
+            // Delay to show loading state, then generate assessments
+            setTimeout(() => {
+                this.generatePathwayAssessments(selectedPathways);
+                // Pre-fill biological level if available
+                this.preFillBiologicalLevel();
+            }, 300);
         } else {
             $("#confidence-guide").hide();
             this.resetGuide();
@@ -1057,10 +1159,13 @@ class KEWPApp {
     }
 
     generatePathwayAssessments(selectedPathways) {
+        console.log('generatePathwayAssessments called with:', selectedPathways);
+        
         const $assessments = $("#pathway-assessments");
         $assessments.empty();
         
         selectedPathways.forEach((pathway, index) => {
+            console.log(`Creating assessment ${index} for pathway:`, pathway);
             const assessmentHTML = this.createPathwayAssessment(pathway, index);
             $assessments.append(assessmentHTML);
         });
@@ -1080,8 +1185,7 @@ class KEWPApp {
         const assessmentId = `assessment-${pathway.index}`;
         
         return `
-            <div class="pathway-assessment" data-pathway-id="${pathway.id}" data-pathway-index="${pathway.index}" 
-                 style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px; background: #fefefe;">
+            <div class="pathway-assessment pathway-assessment-container" data-pathway-id="${pathway.id}" data-pathway-index="${pathway.index}">
                 
                 <h3 style="margin: 0 0 15px 0; color: #29235C; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
                     Assessment for: ${pathway.title}
@@ -1136,7 +1240,7 @@ class KEWPApp {
                     </div>
                 </div>
                 
-                <div class="assessment-result" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; display: none;">
+                <div class="assessment-result">
                     <p><strong>Result:</strong> <span class="confidence-result">—</span></p>
                     <p><strong>Connection:</strong> <span class="connection-result">—</span></p>
                     <p class="score-details" style="font-size: 12px; color: #666; margin: 5px 0 0 0;">—</p>
@@ -1168,8 +1272,356 @@ class KEWPApp {
             return;
         }
         
-        // Show confirmation dialog with individual mapping summaries
-        this.showMultiPathwayConfirmation();
+        // Show Step 4 results instead of jumping to confirmation
+        this.populateStep4Results();
+        this.showStep4();
+    }
+
+    populateStep4Results() {
+        const selectedPathways = [];
+        $("select[name='wp_id']").each((index, dropdown) => {
+            const value = $(dropdown).val();
+            if (value) {
+                const option = $(dropdown).find('option:selected');
+                selectedPathways.push({
+                    id: value,
+                    title: option.data('title') || value,
+                    index: $(dropdown).closest('.pathway-selection-group').data('index')
+                });
+            }
+        });
+
+        if (selectedPathways.length <= 1) {
+            // Single pathway - show existing single pathway Step 4 content
+            $('#single-pathway-results').show();
+            $('#multi-pathway-results').hide();
+            return;
+        }
+        
+        // Hide single pathway results, show multi-pathway results
+        $('#single-pathway-results').hide();
+        $('#multi-pathway-results').show();
+
+        // Multi-pathway Step 4 results
+        let resultsHTML = `
+            <div class="multi-pathway-results">
+                <h3>Assessment Results Summary</h3>
+                <p>Review the confidence assessments for each pathway mapping:</p>
+                <div class="results-table">
+        `;
+
+        selectedPathways.forEach(pathway => {
+            const result = this.pathwayResults[pathway.id];
+            if (!result) return;
+
+            const confidenceClass = result.confidence === 'high' ? 'success' : 
+                                  result.confidence === 'medium' ? 'warning' : 'secondary';
+            
+            const connectionTypeDisplay = result.connection_type.charAt(0).toUpperCase() + result.connection_type.slice(1);
+            const confidenceDisplay = result.confidence.charAt(0).toUpperCase() + result.confidence.slice(1);
+
+            resultsHTML += `
+                <div class="result-item" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin: 10px 0; background: #f8fafc;">
+                    <h4 style="margin: 0 0 10px 0; color: #29235C;">${pathway.title}</h4>
+                    <p style="margin: 5px 0;"><strong>Pathway ID:</strong> ${pathway.id}</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
+                        <div>
+                            <p style="margin: 5px 0;"><strong>Confidence Level:</strong> 
+                                <span class="confidence-badge confidence-${result.confidence}" style="background: ${confidenceClass === 'success' ? '#d4edda' : confidenceClass === 'warning' ? '#fff3cd' : '#e2e3e5'}; color: ${confidenceClass === 'success' ? '#155724' : confidenceClass === 'warning' ? '#856404' : '#495057'}; padding: 2px 8px; border-radius: 3px; font-weight: bold;">
+                                    ${confidenceDisplay}
+                                </span>
+                            </p>
+                            <p style="margin: 5px 0;"><strong>Connection Type:</strong> ${connectionTypeDisplay}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 5px 0;"><strong>Assessment Score:</strong> ${result.score.toFixed(1)}</p>
+                            <p style="margin: 5px 0; font-size: 0.9em; color: #666;"><strong>Basis:</strong> ${result.evidence || 'Multi-factor assessment'}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        resultsHTML += `
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 6px; border-left: 4px solid #307BBF;">
+                    <p style="margin: 0; font-weight: bold; color: #29235C;">Ready to Submit</p>
+                    <p style="margin: 5px 0 0 0; color: #555;">All assessments completed. Review the results above and proceed to Step 5 to submit your mappings.</p>
+                </div>
+            </div>
+        `;
+
+        // Update Step 4 content
+        $('#step-3-result').html(`
+            <h2>Step 4: Assessment Results</h2>
+            ${resultsHTML}
+        `);
+
+        // Store results for form submission
+        this.multiPathwayResults = selectedPathways.map(pathway => ({
+            ...pathway,
+            ...this.pathwayResults[pathway.id]
+        }));
+    }
+
+    showStep4() {
+        // Show Step 4 section
+        $('#step-3-result').show();
+        
+        // Scroll to Step 4
+        $('html, body').animate({
+            scrollTop: $('#step-3-result').offset().top - 20
+        }, 500);
+        
+        // Enable Step 5 (submission section)
+        $('#step-5-submit').show();
+        $('#mapping-form button[type="submit"]').prop('disabled', false).text('Review & Submit Mappings');
+        
+        this.showMessage("Assessment completed! Review your results in Step 4 and proceed to Step 5.", "success");
+    }
+
+    // Map UI connection types to server-accepted values
+    mapConnectionTypeForServer(uiConnectionType) {
+        const mapping = {
+            'causative': 'causative',
+            'responsive': 'responsive', 
+            'bidirectional': 'other',
+            'unclear': 'undefined'
+        };
+        return mapping[uiConnectionType] || 'undefined';
+    }
+
+    async handleMultiPathwaySubmission() {
+        this.showMessage("Checking for duplicate mappings...", "info");
+        
+        const keId = $("#ke_id").val();
+        const keTitle = $("#ke_id option:selected").data("title");
+        
+        const checkResults = [];
+        let hasExactDuplicates = false;
+        
+        // Check each pathway for duplicates
+        for (const pathway of this.multiPathwayResults) {
+            const checkData = {
+                ke_id: keId,
+                ke_title: keTitle,
+                wp_id: pathway.id,
+                wp_title: pathway.title,
+                connection_type: this.mapConnectionTypeForServer(pathway.connection_type),
+                confidence_level: pathway.confidence,
+                csrf_token: this.csrfToken
+            };
+            
+            try {
+                const response = await $.post("/check", checkData);
+                checkResults.push({
+                    pathway: pathway,
+                    checkResult: response,
+                    formData: checkData
+                });
+                
+                if (response.pair_exists) {
+                    hasExactDuplicates = true;
+                }
+            } catch (error) {
+                console.error('Error checking pathway:', pathway.id, error);
+                this.showMessage("Error checking for duplicates. Please try again.", "error");
+                return;
+            }
+        }
+        
+        // If any exact duplicates found, show error and stop
+        if (hasExactDuplicates) {
+            const duplicatePathways = checkResults
+                .filter(r => r.checkResult.pair_exists)
+                .map(r => r.pathway.title)
+                .join(', ');
+            this.showMessage(`Duplicate mappings found for: ${duplicatePathways}. Please remove these pathways or modify their assessment.`, "error");
+            return;
+        }
+        
+        // Show comprehensive preview with all mappings and existing entries
+        this.showMultiPathwayPreview(checkResults);
+    }
+
+    showMultiPathwayPreview(checkResults) {
+        const keId = $("#ke_id").val();
+        const keTitle = $("#ke_id option:selected").data("title");
+        const keDescription = $("#ke_id option:selected").data('description') || '';
+        const biolevel = $("#ke_id option:selected").data('biolevel') || '';
+        
+        // Get user information
+        const isLoggedIn = $("body").data("is-logged-in") === true;
+        let userInfo = 'Anonymous';
+        if (isLoggedIn) {
+            const welcomeText = $('header nav p').text();
+            const usernameMatch = welcomeText.match(/Welcome,\s*([^(]+)/);
+            if (usernameMatch) {
+                userInfo = `GitHub: ${usernameMatch[1].trim()}`;
+            }
+        }
+        
+        let previewHTML = `
+            <div class="existing-entries-container">
+                <h3>Multi-Pathway Mapping Preview & Confirmation</h3>
+                <p>Please carefully review all your pathway mappings before submitting:</p>
+                
+                <div class="ke-info-section" style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <h4 style="color: #29235C; margin-top: 0;">🧬 Key Event Information</h4>
+                    <p><strong>KE ID:</strong> ${keId}</p>
+                    <p><strong>KE Title:</strong> ${keTitle}</p>
+                    <p><strong>Biological Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${biolevel || 'Not specified'}</span></p>
+                    <div><strong>Description:</strong><br/>${this.createCollapsibleDescription(keDescription, 'preview-ke-desc')}</div>
+                </div>
+                
+                <h4>New Mappings to be Added (${checkResults.length})</h4>
+        `;
+        
+        // Show each new mapping
+        checkResults.forEach((result, index) => {
+            const pathway = result.pathway;
+            const confidenceClass = pathway.confidence === 'high' ? '#d4edda' : 
+                                  pathway.confidence === 'medium' ? '#fff3cd' : '#f8d7da';
+            const confidenceColor = pathway.confidence === 'high' ? '#155724' : 
+                                  pathway.confidence === 'medium' ? '#856404' : '#721c24';
+            
+            previewHTML += `
+                <div class="new-mapping-item" style="border: 2px solid #307BBF; background: #f0f8ff; padding: 15px; margin: 10px 0; border-radius: 6px;">
+                    <h5 style="color: #29235C; margin-top: 0;">Mapping ${index + 1}: ${pathway.title}</h5>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <p><strong>Pathway ID:</strong> ${pathway.id}</p>
+                            <p><strong>Connection Type:</strong> ${pathway.connection_type.charAt(0).toUpperCase() + pathway.connection_type.slice(1)}</p>
+                        </div>
+                        <div>
+                            <p><strong>Confidence Level:</strong> 
+                                <span style="background: ${confidenceClass}; color: ${confidenceColor}; padding: 2px 8px; border-radius: 3px; font-weight: bold;">
+                                    ${pathway.confidence.charAt(0).toUpperCase() + pathway.confidence.slice(1)}
+                                </span>
+                            </p>
+                            <p><strong>Assessment Score:</strong> ${pathway.score.toFixed(1)}</p>
+                        </div>
+                    </div>
+                    <p><strong>User:</strong> ${userInfo}</p>
+                </div>
+            `;
+        });
+        
+        // Show existing entries if any
+        const hasExistingEntries = checkResults.some(r => r.checkResult.ke_exists);
+        if (hasExistingEntries) {
+            previewHTML += `<h4>Existing Mappings for this Key Event</h4>`;
+            
+            checkResults.forEach(result => {
+                if (result.checkResult.ke_exists && result.checkResult.existing_entries) {
+                    result.checkResult.existing_entries.forEach(entry => {
+                        previewHTML += `
+                            <div class="existing-mapping-item" style="border: 1px solid #dee2e6; background: #f8f9fa; padding: 12px; margin: 8px 0; border-radius: 4px;">
+                                <p><strong>Existing:</strong> ${entry.ke_id} → ${entry.wp_id} (${entry.wp_title})</p>
+                                <p><strong>Confidence:</strong> ${entry.confidence_level} | <strong>Connection:</strong> ${entry.connection_type}</p>
+                                <p><strong>Added by:</strong> ${entry.created_by || 'Unknown'}</p>
+                            </div>
+                        `;
+                    });
+                }
+            });
+        }
+        
+        previewHTML += `
+                <div class="confirmation-section" style="margin-top: 25px; padding: 20px; background: #fff3cd; border-radius: 6px;">
+                    <p class="confirmation-title" style="font-weight: bold; margin-bottom: 10px;">Ready to Submit ${checkResults.length} New Mappings?</p>
+                    <p class="confirmation-subtitle">These mappings will be added to the database and made available for other researchers.</p>
+                    <div style="text-align: center; margin-top: 15px;">
+                        <button id="confirm-multi-final-submit" style="background: #28a745; color: white; border: none; padding: 15px 30px; border-radius: 6px; margin-right: 10px; cursor: pointer; font-weight: bold;">
+                            Yes, Submit All ${checkResults.length} Mappings
+                        </button>
+                        <button id="cancel-multi-final-submit" style="background: #6c757d; color: white; border: none; padding: 15px 30px; border-radius: 6px; cursor: pointer;">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        $("#existing-entries").html(previewHTML);
+        
+        // Scroll to preview
+        $('html, body').animate({
+            scrollTop: $("#existing-entries").offset().top - 20
+        }, 500);
+        
+        // Handle confirmation buttons
+        $("#confirm-multi-final-submit").on('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.submitMultiplePathwayMappings(checkResults);
+        });
+
+        $("#cancel-multi-final-submit").on('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            $("#existing-entries").html("");
+        });
+    }
+
+    async submitMultiplePathwayMappings(checkResults) {
+        // Check authentication
+        if (!this.isLoggedIn) {
+            this.showMessage("Please log in with GitHub to submit mappings.", "error");
+            setTimeout(() => {
+                this.saveFormState();
+                window.location.href = '/auth/login';
+            }, 2000);
+            return;
+        }
+        
+        this.showMessage("Submitting your mappings...", "info");
+        
+        let successCount = 0;
+        let failureCount = 0;
+        const errors = [];
+        
+        for (const result of checkResults) {
+            try {
+                console.log(`Submitting mapping for ${result.pathway.title} with data:`, result.formData);
+                const response = await $.post("/submit", result.formData);
+                successCount++;
+                console.log(`Successfully submitted mapping for ${result.pathway.title}:`, response);
+            } catch (xhr) {
+                failureCount++;
+                console.error(`Failed to submit mapping for ${result.pathway.title}:`, xhr);
+                console.error('Response status:', xhr.status);
+                console.error('Response text:', xhr.responseText);
+                console.error('Form data that failed:', result.formData);
+                
+                let errorMsg = `${result.pathway.title}: `;
+                if (xhr.responseJSON?.error) {
+                    errorMsg += xhr.responseJSON.error;
+                } else if (xhr.status === 401 || xhr.status === 403) {
+                    errorMsg += 'Authentication required';
+                } else if (xhr.status === 400) {
+                    errorMsg += 'Invalid data';
+                } else {
+                    errorMsg += `Server error (${xhr.status})`;
+                }
+                errors.push(errorMsg);
+            }
+        }
+        
+        // Show results
+        if (successCount === checkResults.length) {
+            this.showMessage(`Successfully submitted all ${successCount} mappings!`, "success");
+            $("#existing-entries").html("");
+            this.resetForm();
+        } else if (successCount > 0) {
+            const errorDetails = errors.join('\n• ');
+            this.showMessage(`Submitted ${successCount} of ${checkResults.length} mappings successfully.\n\nFailed submissions:\n• ${errorDetails}\n\nPlease check the browser console for detailed error information.`, "warning");
+            console.error('Detailed submission errors:', errors);
+        } else {
+            const errorDetails = errors.join('\n• ');
+            this.showMessage(`All submissions failed:\n• ${errorDetails}\n\nPlease check the browser console for detailed error information.`, "error");
+            console.error('All submission errors:', errors);
+        }
     }
 
     showMultiPathwayConfirmation() {
@@ -1200,7 +1652,7 @@ class KEWPApp {
                 `;
             } else {
                 confirmationHTML += `
-                    <div style="border: 1px solid #e2e8f0; background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 4px;">
+                    <div class="suggestion-panel-container">
                         <h4 style="margin: 0 0 8px 0; color: #29235C;">${pathwayTitle} (${pathwayId})</h4>
                         <p style="margin: 5px 0;"><strong>Confidence:</strong> ${result.confidence}</p>
                         <p style="margin: 5px 0;"><strong>Connection Type:</strong> ${result.connection_type}</p>
@@ -1229,7 +1681,8 @@ class KEWPApp {
         // Add event handlers
         $('#confirm-multi-submit').on('click', () => {
             $('.confirmation-dialog').remove();
-            this.submitMultiplePathwayMappings();
+            // Note: This old popup workflow has been replaced with the new Step 4 → Step 5 workflow
+            this.showMessage("Please use the new Step 4 → Step 5 workflow instead.", "info");
         });
         
         $('#cancel-multi-submit').on('click', () => {
@@ -1237,79 +1690,9 @@ class KEWPApp {
         });
     }
 
-    submitMultiplePathwayMappings() {
-        const keId = $("#ke_id").val();
-        const keTitle = $("#ke_id option:selected").text();
-        const userInfo = $("body").data("user-info") || "Anonymous";
-        
-        const mappingsToSubmit = [];
-        
-        // Prepare individual mappings for each non-skipped pathway
-        $('.pathway-assessment').each((index, element) => {
-            const $assessment = $(element);
-            const pathwayId = $assessment.data('pathway-id');
-            const pathwayTitle = this.pathwayOptions.find(p => p.pathwayID === pathwayId)?.pathwayTitle || pathwayId;
-            const result = this.pathwayResults[pathwayId];
-            
-            if (result && !result.skipped) {
-                mappingsToSubmit.push({
-                    ke_id: keId,
-                    ke_title: keTitle,
-                    wp_id: pathwayId,
-                    wp_title: pathwayTitle,
-                    connection_type: result.connection_type,
-                    confidence_level: result.confidence,
-                    created_by: userInfo
-                });
-            }
-        });
-        
-        if (mappingsToSubmit.length === 0) {
-            this.showMessage("No valid mappings to submit. All pathways were marked as not relevant.", "warning");
-            return;
-        }
-        
-        // Submit each mapping individually
-        this.submitIndividualMappings(mappingsToSubmit);
-    }
+    // Old submitMultiplePathwayMappings function removed - replaced with new workflow
 
-    async submitIndividualMappings(mappings) {
-        this.showMessage(`Submitting ${mappings.length} pathway mappings...`, "info");
-        
-        let successCount = 0;
-        let failureCount = 0;
-        const errors = [];
-        
-        for (const mapping of mappings) {
-            try {
-                await new Promise((resolve, reject) => {
-                    $.post("/submit", mapping)
-                        .done((response) => {
-                            successCount++;
-                            resolve(response);
-                        })
-                        .fail((xhr) => {
-                            failureCount++;
-                            const errorMsg = xhr.responseJSON?.error || `Failed to submit mapping for ${mapping.wp_id}`;
-                            errors.push(`${mapping.wp_id}: ${errorMsg}`);
-                            reject(errorMsg);
-                        });
-                });
-            } catch (e) {
-                // Error already handled above
-            }
-        }
-        
-        // Show summary message
-        if (successCount > 0 && failureCount === 0) {
-            this.showMessage(`Successfully submitted ${successCount} pathway mapping(s)!`, "success");
-            this.resetForm();
-        } else if (successCount > 0 && failureCount > 0) {
-            this.showMessage(`Submitted ${successCount} mappings, ${failureCount} failed. Errors: ${errors.join('; ')}`, "warning");
-        } else {
-            this.showMessage(`All submissions failed. Errors: ${errors.join('; ')}`, "error");
-        }
-    }
+    // Old submitIndividualMappings function removed - replaced with new workflow
 
     resetGuide() {
         const sections = ["#step2", "#step3", "#step4", "#step5"];
@@ -1353,6 +1736,17 @@ class KEWPApp {
         $("#pathway-assessments").empty();
         $("#assessment-completion").hide();
         
+        // Reset Step 4 and Step 5
+        $("#step-3-result").hide();
+        $("#step-5-submit").hide();
+        $("#mapping-form button[type='submit']").prop('disabled', true).text('Complete Assessment First');
+        
+        // Clear existing entries
+        $("#existing-entries").html("");
+        
+        // Clear multi-pathway state
+        this.multiPathwayResults = null;
+        
         this.hideKEPreview();
         this.hidePathwayPreview();
         this.resetGuide();
@@ -1376,12 +1770,12 @@ class KEWPApp {
         // Create a comprehensive success message with the submitted data
         const successHtml = `
             <div class="success-message" style="display: block;">
-                <div style="text-align: center; margin-bottom: 20px;">
+                <div class="success-message-custom">
                     <span class="success-icon">✓</span>
                     <strong>Mapping Successfully Submitted!</strong>
                 </div>
                 
-                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                <div class="mapping-details-container">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div style="background-color: #e3f2fd; padding: 10px; border-radius: 4px;">
                             <strong>🧬 Key Event:</strong><br>
@@ -1448,7 +1842,7 @@ class KEWPApp {
             })
             .fail((xhr, status, error) => {
                 console.error('Failed to load pathway suggestions:', error);
-                this.showPathwaySuggestionsError('Failed to load pathway suggestions');
+                this.showPathwaySuggestionsError('Unable to load pathway suggestions. You can still browse pathways manually using the dropdown below.');
             });
     }
 
@@ -1516,7 +1910,7 @@ class KEWPApp {
                             <div style="flex: 1;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                     <strong style="color: #155724; font-size: 14px;">${suggestion.pathwayTitle}</strong>
-                                    <div style="text-align: center;">
+                                    <div class="center-text">
                                         ${confidenceBar}
                                         <div style="font-size: 10px; color: #666;">Confidence</div>
                                     </div>
@@ -1532,14 +1926,14 @@ class KEWPApp {
                                     Preview Pathway
                                 </button>
                             </div>
-                            <div style="width: 140px; height: 120px; border: 1px solid #ddd; border-radius: 6px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')">
+                            <div class="pathway-thumbnail" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')">
                                 <img src="${suggestion.pathwaySvgUrl || ''}" 
                                      style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;" 
                                      onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
                                      onmouseover="this.style.transform='scale(1.05)'"
                                      onmouseout="this.style.transform='scale(1)'"
                                      alt="Pathway thumbnail">
-                                <div style="display: none; font-size: 12px; color: #999; text-align: center; padding: 10px;">No image</div>
+                                <div style="display: none; font-size: 12px; padding: 10px;" class="text-muted center-text">No image</div>
                             </div>
                         </div>
                     </div>
@@ -1568,7 +1962,7 @@ class KEWPApp {
                             <div style="flex: 1;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                     <strong style="color: #0c5460; font-size: 14px;">${suggestion.pathwayTitle}</strong>
-                                    <div style="text-align: center;">
+                                    <div class="center-text">
                                         ${confidenceBar}
                                         <div style="font-size: 10px; color: #666;">Confidence</div>
                                     </div>
@@ -1581,14 +1975,14 @@ class KEWPApp {
                                     Preview Pathway
                                 </button>
                             </div>
-                            <div style="width: 140px; height: 120px; border: 1px solid #ddd; border-radius: 6px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')">
+                            <div class="pathway-thumbnail" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')">
                                 <img src="${suggestion.pathwaySvgUrl || ''}" 
                                      style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;" 
                                      onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
                                      onmouseover="this.style.transform='scale(1.05)'"
                                      onmouseout="this.style.transform='scale(1)'"
                                      alt="Pathway thumbnail">
-                                <div style="display: none; font-size: 12px; color: #999; text-align: center; padding: 10px;">No image</div>
+                                <div style="display: none; font-size: 12px; padding: 10px;" class="text-muted center-text">No image</div>
                             </div>
                         </div>
                     </div>
@@ -1618,20 +2012,19 @@ class KEWPApp {
         let details = "";
         
         if (data && data.genes_found === 0) {
-            details = "No associated genes were found in the AOP-Wiki RDF data.";
+            details = "No associated genes were found in the AOP-Wiki data. Try searching manually using the dropdown below.";
         } else if (data && data.genes_found > 0) {
-            details = `Found ${data.genes_found} associated gene${data.genes_found !== 1 ? 's' : ''} (${data.gene_list.join(', ')}) but no matching pathways.`;
+            details = `Found ${data.genes_found} associated gene${data.genes_found !== 1 ? 's' : ''} (${data.gene_list.join(', ')}) but no matching pathways were identified.`;
         }
 
         const noSuggestionsHtml = `
             <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
                 <h3 style="margin: 0 0 10px 0; color: #29235C;">Pathway Suggestions</h3>
                 <div style="color: #666; text-align: center; padding: 20px;">
-                    <div style="font-size: 32px; margin-bottom: 10px;">🔍</div>
-                    <div style="margin-bottom: 8px;">${message}</div>
-                    ${details ? `<div style="font-size: 12px; color: #888;">${details}</div>` : ''}
-                    <div style="margin-top: 15px; font-size: 12px;">
-                        💡 <em>Try using the search function below to find pathways manually</em>
+                    <div style="margin-bottom: 8px; font-weight: bold;">${message}</div>
+                    ${details ? `<div style="font-size: 12px; color: #888; margin-bottom: 15px;">${details}</div>` : ''}
+                    <div style="margin-top: 15px; font-size: 12px; color: #307BBF;">
+                        <em>Try using the search function below to find pathways manually</em>
                     </div>
                 </div>
             </div>
@@ -1739,7 +2132,48 @@ class KEWPApp {
             }
         });
         
-        // If no empty dropdown found, use the first one
+        // If no empty dropdown found and we only have 1 pathway group, add a second one automatically
+        if (!$targetDropdown && $pathwayGroups.length === 1) {
+            this.addPathwaySelection();
+            
+            // Wait for the second pathway group to be fully created and populated
+            setTimeout(() => {
+                // Specifically target the second (newly created) pathway group
+                const $allGroups = $(".pathway-selection-group");
+                if ($allGroups.length >= 2) {
+                    // Get the second pathway group (index 1)
+                    const $secondGroup = $allGroups.eq(1);
+                    const $secondDropdown = $secondGroup.find("select[name='wp_id']");
+                    
+                    // Select the pathway in the second dropdown
+                    const $option = $secondDropdown.find(`option[value="${pathwayId}"]`);
+                    if ($option.length > 0) {
+                        $secondDropdown.val(pathwayId).trigger('change');
+                        this.showMessage(`Selected suggested pathway: ${pathwayTitle}`, "success");
+                        
+                        // Ensure the assessment section is triggered
+                        setTimeout(() => {
+                            this.updateSelectedPathways();
+                            this.toggleAssessmentSection();
+                        }, 150);
+                    } else {
+                        console.warn('Pathway option not found in second dropdown:', pathwayId);
+                        this.showMessage(`Selected pathway is not available in the dropdown. Please try refreshing the page.`, "warning");
+                    }
+                } else {
+                    console.error('Second pathway group not found after creation');
+                }
+            }, 200); // Increased timeout to ensure proper creation and population
+            return; // Exit early since we're handling the selection in the setTimeout
+        }
+        
+        // If both dropdowns are filled and we have 2 groups, don't overwrite - show message instead
+        if (!$targetDropdown && $pathwayGroups.length === 2) {
+            this.showMessage(`Both pathway slots are filled. Please clear one first if you want to select a different pathway.`, "warning");
+            return;
+        }
+        
+        // If still no empty dropdown found, use the first one (replace existing selection)
         if (!$targetDropdown) {
             $targetDropdown = $pathwayGroups.first().find("select[name='wp_id']");
             targetGroupIndex = 0;
@@ -1751,18 +2185,18 @@ class KEWPApp {
         if ($option.length > 0) {
             // Select the pathway
             $targetDropdown.val(pathwayId).trigger('change');
-            // Suggested pathway selected
             
             // Show success message
             this.showMessage(`Selected suggested pathway: ${pathwayTitle}`, "success");
             
-            // Note: Removed auto-scroll since users may want to select additional pathways
-            // Update the pathway selection state
-            this.updateSelectedPathways();
-            this.toggleAssessmentSection();
+            // Ensure the assessment section is triggered with a slight delay
+            setTimeout(() => {
+                this.updateSelectedPathways();
+                this.toggleAssessmentSection();
+            }, 50);
         } else {
             console.error(`Pathway option not found in dropdown: ${pathwayId}`);
-            this.showMessage(`Pathway ${pathwayId} not found in dropdown. It may not be loaded yet.`, "warning");
+            this.showMessage(`Selected pathway is not available in the dropdown. Please try refreshing the page or selecting a different pathway.`, "warning");
         }
     }
 
@@ -1859,8 +2293,13 @@ class KEWPApp {
     performPathwaySearch(query) {
         const $searchResults = $("#search-results");
         
-        // Show loading
-        $searchResults.html('<div style="padding: 10px; color: #666;">Searching...</div>').show();
+        // Show enhanced loading state
+        $searchResults.html(`
+            <div class="search-loading">
+                <div style="margin-bottom: 10px;">Searching pathways...</div>
+                <div style="display: inline-block; width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top: 2px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            </div>
+        `).show();
         
         // Make search request
         $.getJSON(`/search_pathways?q=${encodeURIComponent(query)}&threshold=0.2&limit=10`)
@@ -1869,7 +2308,7 @@ class KEWPApp {
             })
             .fail((xhr, status, error) => {
                 console.error('Search failed:', error);
-                $searchResults.html('<div style="padding: 10px; color: #dc3545;">Search failed. Please try again.</div>');
+                $searchResults.html('<div style="padding: 10px; color: #dc3545;">Unable to search pathways. Please check your internet connection and try again.</div>');
             });
     }
 
@@ -1916,7 +2355,7 @@ class KEWPApp {
                             </button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="text-align: center;">
+                            <div class="center-text">
                                 <div style="background-color: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; color: #495057;">
                                     ${relevancePercentage}%
                                 </div>
@@ -2564,7 +3003,7 @@ function evaluateConfidence() {
     $("#auto-confidence").text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
     $("#auto-connection").text(s2.charAt(0).toUpperCase() + s2.slice(1));
     $("#confidence_level").val(confidence);
-    $("#connection_type").val(s2);
+    $("#connection_type").val(window.KEWPApp.mapConnectionTypeForServer(s2));
     $("#evaluateBtn").hide();
     
     // Show detailed result message
@@ -2573,6 +3012,16 @@ function evaluateConfidence() {
     $("#ca-result").text(detailMessage);
     
     app.showMessage("Confidence assessment completed successfully", "success");
+    
+    // Show Step 4 and enable Step 5 for single pathway workflow
+    $("#step-3-result").show();
+    $("#step-5-submit").show();
+    $("#mapping-form button[type='submit']").prop('disabled', false).text('Review & Submit Mapping');
+    
+    // Scroll to Step 4
+    $('html, body').animate({
+        scrollTop: $('#step-3-result').offset().top - 20
+    }, 500);
 }
 
 // Universal function to handle Ctrl+click for opening in new tabs

@@ -214,15 +214,15 @@ All workflows run automatically on push to main branch and can be triggered manu
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `FLASK_SECRET_KEY` | Flask session encryption key | - | ✅ |
-| `GITHUB_CLIENT_ID` | GitHub OAuth client ID | - | ✅ |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | - | ✅ |
-| `ADMIN_USERS` | Comma-separated admin usernames | - | ✅ |
-| `FLASK_ENV` | Environment mode | `development` | ❌ |
-| `FLASK_DEBUG` | Debug mode toggle | `true` | ❌ |
-| `PORT` | Server port | `5000` | ❌ |
-| `DATABASE_PATH` | SQLite database path | `ke_wp_mapping.db` | ❌ |
-| `RATELIMIT_STORAGE_URL` | Rate limiting backend | `memory://` | ❌ |
+| `FLASK_SECRET_KEY` | Flask session encryption key | - | Yes |
+| `GITHUB_CLIENT_ID` | GitHub OAuth client ID | - | Yes |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | - | Yes |
+| `ADMIN_USERS` | Comma-separated admin usernames | - | Yes |
+| `FLASK_ENV` | Environment mode | `development` | No |
+| `FLASK_DEBUG` | Debug mode toggle | `true` | No |
+| `PORT` | Server port | `5000` | No |
+| `DATABASE_PATH` | SQLite database path | `ke_wp_mapping.db` | No |
+| `RATELIMIT_STORAGE_URL` | Rate limiting backend | `memory://` | No |
 
 ### Configuration Classes
 - **DevelopmentConfig**: Local development settings
@@ -342,12 +342,12 @@ chmod +x start.sh
 ## Changelog
 
 ### Version 2.0.0 (Current)
-- ✅ **Blueprint Architecture**: Modular application design
-- ✅ **Dependency Injection**: Service container pattern
-- ✅ **Configuration Management**: Environment-aware settings
-- ✅ **Centralized Error Handling**: Consistent error responses
-- ✅ **Health Monitoring**: System status endpoints
-- ✅ **Enhanced Security**: CSRF protection, input validation
+- **Blueprint Architecture**: Modular application design
+- **Dependency Injection**: Service container pattern
+- **Configuration Management**: Environment-aware settings
+- **Centralized Error Handling**: Consistent error responses
+- **Health Monitoring**: System status endpoints
+- **Enhanced Security**: CSRF protection, input validation
 
 ### Version 1.0.0 (Legacy)
 - Basic Flask application (758 lines monolithic structure)

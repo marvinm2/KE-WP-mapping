@@ -231,6 +231,13 @@ def confidence_assessment():
     return render_template("confidence-assessment.html")
 
 
+@main_bp.route("/aop_network")
+@monitor_performance
+def aop_network():
+    """AOP Network Visualization page"""
+    return render_template("aop_network.html")
+
+
 # ========== Enhanced Export Routes ==========
 
 @main_bp.route("/export/<format_name>")

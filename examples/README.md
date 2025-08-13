@@ -2,7 +2,7 @@
 
 This directory contains comprehensive examples demonstrating how to access, analyze, and visualize the Key Event to WikiPathways Mapping Dataset using different programming languages and tools.
 
-## 📁 Files Overview
+## Files Overview
 
 | File | Description | Target Audience |
 |------|-------------|-----------------|
@@ -12,7 +12,7 @@ This directory contains comprehensive examples demonstrating how to access, anal
 | `index.html` | Interactive demo page showcasing JavaScript examples | General users, demos |
 | `README.md` | This documentation file | All users |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Python Examples
 
@@ -70,7 +70,7 @@ source("r_examples.R")
 
 Open `index.html` in a web browser to see a complete interactive demonstration of the dataset capabilities.
 
-## 📊 Dataset Access Methods
+## Dataset Access Methods
 
 ### 1. REST API
 ```
@@ -100,7 +100,7 @@ Export URL: https://ke-wp-mapping.org/export/{format}
 - SQLite database file: `ke_wp_mapping.db`
 - Tables: `mappings`, `proposals`, `dataset_versions`
 
-## 🔍 Common Use Cases
+## Common Use Cases
 
 ### Research Applications
 
@@ -199,7 +199,7 @@ async function updateDashboard() {
 setInterval(updateDashboard, 60000); // Update every minute
 ```
 
-## 🛠️ Advanced Usage
+## Advanced Usage
 
 ### Batch Processing
 ```python
@@ -268,7 +268,7 @@ class ResilientKEWPClient(KEWPDatasetClient):
         self.session.mount("https://", adapter)
 ```
 
-## 📈 Performance Tips
+## Performance Tips
 
 ### 1. Efficient Querying
 - Use pagination for large datasets
@@ -288,7 +288,7 @@ class ResilientKEWPClient(KEWPDatasetClient):
 - Implement local caching for repeated queries
 - Process data in batches to manage memory
 
-## 🔗 Integration Examples
+## Integration Examples
 
 ### With Popular Tools
 
@@ -391,7 +391,7 @@ shinyApp(ui = ui, server = server)
 
 ---
 
-## 📋 Requirements
+## Requirements
 
 ### Python
 ```
@@ -427,7 +427,7 @@ RColorBrewer
 
 These examples are provided under the same license as the main project. The dataset itself is available under CC BY 4.0.
 
-## 🤝 Contributing
+## Contributing
 
 Found a bug or have an improvement idea? Please contribute!
 
