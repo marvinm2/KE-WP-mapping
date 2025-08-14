@@ -7,12 +7,15 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     
-    <!-- Cytoscape.js -->
-    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
-    <script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"></script>
-    
-    <!-- jQuery -->
+    <!-- jQuery (must load first) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Cytoscape.js -->
+    <script src="https://unpkg.com/cytoscape@3.26.0/dist/cytoscape.min.js"></script>
+    
+    <!-- Dagre layout extension (matching your other service) -->
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
     
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -181,10 +184,9 @@
             
             <div class="layout-controls" id="layout-controls" style="display: none;">
                 <h4>Layout Options</h4>
-                <button onclick="applyLayout('cose-bilkent')">Hierarchical</button>
-                <button onclick="applyLayout('grid')">Grid</button>
-                <button onclick="applyLayout('circle')">Circle</button>
-                <button onclick="applyLayout('concentric')">Concentric</button>
+                <div id="layout-buttons">
+                    <!-- Buttons will be dynamically generated based on available layouts -->
+                </div>
                 <button onclick="resetZoom()">Reset Zoom</button>
             </div>
             
@@ -246,7 +248,38 @@
         let cy;
         let currentNetworkData = null;
         
-        $(document).ready(function() {
+        let extensionsLoaded = false;
+        let availableLayouts = ['dagre', 'grid', 'circle', 'concentric'];
+        
+        // Wait for all scripts to load before initializing
+        function waitForScripts() {
+            return new Promise((resolve) => {
+                if (typeof cytoscape !== 'undefined') {
+                    // Register dagre extension (matching your other service)
+                    if (typeof cytoscapeDagre !== 'undefined') {
+                        try {
+                            cytoscape.use(cytoscapeDagre);
+                            extensionsLoaded = true;
+                            console.log('Dagre extension loaded successfully');
+                        } catch (e) {
+                            console.warn('Failed to register dagre extension:', e);
+                            // Remove dagre from available layouts if it failed to load
+                            availableLayouts = availableLayouts.filter(layout => layout !== 'dagre');
+                        }
+                    } else {
+                        console.warn('Dagre extension not found, using fallback layouts');
+                        availableLayouts = availableLayouts.filter(layout => layout !== 'dagre');
+                    }
+                    resolve();
+                } else {
+                    console.error('Cytoscape not loaded');
+                    resolve();
+                }
+            });
+        }
+        
+        $(document).ready(async function() {
+            await waitForScripts();
             loadAOPOptions();
             initializeCytoscape();
         });
@@ -257,7 +290,21 @@
                     const select = $('#aop-select');
                     select.empty().append('<option value="">Select an Adverse Outcome Pathway...</option>');
                     
+                    // Remove duplicates based on AOPpage URL to avoid duplicate entries
+                    const uniqueAOPs = [];
+                    const seenPages = new Set();
+                    
                     data.forEach(function(aop) {
+                        if (!seenPages.has(aop.AOPpage)) {
+                            seenPages.add(aop.AOPpage);
+                            uniqueAOPs.push(aop);
+                        }
+                    });
+                    
+                    // Sort by AOP title for better user experience
+                    uniqueAOPs.sort((a, b) => a.AOPtitle.localeCompare(b.AOPtitle));
+                    
+                    uniqueAOPs.forEach(function(aop) {
                         const option = $('<option></option>')
                             .val(aop.AOPpage)
                             .text(aop.AOPtitle + ' (' + aop.AOPlabel + ')');
@@ -270,69 +317,82 @@
         }
         
         function initializeCytoscape() {
-            cy = cytoscape({
-                container: document.getElementById('cy'),
-                
-                style: [
-                    {
-                        selector: 'node',
-                        style: {
-                            'background-color': function(ele) {
-                                const keClass = ele.data('ke_class');
-                                switch(keClass) {
-                                    case 'mie': return '#22c55e'; // green
-                                    case 'ao': return '#ef4444'; // red
-                                    default: return '#eab308'; // yellow
-                                }
-                            },
-                            'label': 'data(label)',
-                            'width': 60,
-                            'height': 60,
-                            'text-valign': 'center',
-                            'text-halign': 'center',
-                            'color': '#fff',
-                            'text-outline-width': 2,
-                            'text-outline-color': '#000',
-                            'font-size': '12px',
-                            'text-wrap': 'wrap',
-                            'text-max-width': '80px',
-                            'border-width': 2,
-                            'border-color': '#333'
-                        }
-                    },
-                    {
-                        selector: 'edge',
-                        style: {
-                            'width': 3,
-                            'line-color': '#666',
-                            'target-arrow-color': '#666',
-                            'target-arrow-shape': 'triangle',
-                            'curve-style': 'bezier'
-                        }
-                    },
-                    {
-                        selector: 'node:selected',
-                        style: {
-                            'border-width': 4,
-                            'border-color': '#307BBF'
-                        }
-                    }
-                ],
-                
-                layout: {
-                    name: 'cose-bilkent',
-                    idealEdgeLength: 100,
-                    nodeOverlap: 20,
-                    refresh: 30,
-                    randomize: false
-                }
-            });
+            if (typeof cytoscape === 'undefined') {
+                showError('Cytoscape library failed to load. Please refresh the page.');
+                return;
+            }
             
-            // Node click handler
-            cy.on('tap', 'node', function(evt) {
-                const node = evt.target;
-                showNodeInfo(node.data());
-            });
+            try {
+                cy = cytoscape({
+                    container: document.getElementById('cy'),
+                    
+                    style: [
+                        {
+                            selector: 'node',
+                            style: {
+                                'label': 'data(label)',
+                                'color': '#000',
+                                'font-size': 12,
+                                'text-valign': 'center',
+                                'text-halign': 'center',
+                                'width': 45,
+                                'height': 45
+                            }
+                        },
+                        {
+                            selector: 'node[ke_type = "MIE"]',
+                            style: {
+                                'background-color': '#b3e6b3'
+                            }
+                        },
+                        {
+                            selector: 'node[ke_type = "AO"]',
+                            style: {
+                                'background-color': '#f4b3b3'
+                            }
+                        },
+                        {
+                            selector: 'node[ke_type = "intermediate"]',
+                            style: {
+                                'background-color': '#ffd9b3'
+                            }
+                        },
+                        {
+                            selector: 'edge',
+                            style: {
+                                'width': 2,
+                                'line-color': '#999',
+                                'target-arrow-color': '#999',
+                                'target-arrow-shape': 'triangle',
+                                'curve-style': 'bezier'
+                            }
+                        },
+                        {
+                            selector: 'node:selected',
+                            style: {
+                                'border-width': 4,
+                                'border-color': '#307BBF'
+                            }
+                        }
+                    ],
+                    
+                    layout: {
+                        name: 'dagre',  // Default to dagre layout matching your other service
+                        rankDir: 'TB'   // Top to bottom direction
+                    }
+                });
+                
+                // Node click handler
+                cy.on('tap', 'node', function(evt) {
+                    const node = evt.target;
+                    showNodeInfo(node.data());
+                });
+                
+                console.log('Cytoscape initialized successfully with layout:', availableLayouts[0] || 'grid');
+            } catch (e) {
+                console.error('Failed to initialize Cytoscape:', e);
+                showError('Failed to initialize network visualization. Please refresh the page.');
+            }
         }
         
         $('#aop-select').change(function() {
@@ -351,9 +411,11 @@
             
             $.get('/get_aop_network/' + encodeURIComponent(aopId))
                 .done(function(data) {
-                    currentNetworkData = data;
                     displayNetwork(data);
-                    updateStatistics(data);
+                    // Use the cleaned data from displayNetwork for statistics
+                    if (currentNetworkData) {
+                        updateStatistics(currentNetworkData);
+                    }
                     showControls(true);
                 })
                 .fail(function(xhr) {
@@ -365,55 +427,146 @@
                 });
         }
         
-        function displayNetwork(data) {
-            const elements = [];
+        function validateAndCleanNetworkData(data) {
+            if (!data || !data.nodes || !data.edges) {
+                return null;
+            }
             
-            // Add nodes
-            data.nodes.forEach(function(node) {
-                elements.push({
-                    data: {
-                        id: node.id,
-                        label: node.label || node.title,
-                        title: node.title,
-                        bio_level: node.bio_level,
-                        ke_type: node.ke_type,
-                        ke_class: node.ke_class
-                    }
-                });
+            // Create a set of valid node IDs for fast lookup
+            // Handle both old format (direct id) and new format (data.id)
+            const validNodeIds = new Set(data.nodes.map(node => 
+                node.data ? node.data.id : node.id
+            ));
+            
+            // Filter edges to only include those with valid source and target nodes
+            const validEdges = data.edges.filter(edge => {
+                // Handle both old format and new service format
+                const source = edge.data ? edge.data.source : edge.source;
+                const target = edge.data ? edge.data.target : edge.target;
+                
+                const hasValidSource = validNodeIds.has(source);
+                const hasValidTarget = validNodeIds.has(target);
+                
+                if (!hasValidSource || !hasValidTarget) {
+                    console.warn(`Filtering orphaned edge: ${source} -> ${target}`, {
+                        validSource: hasValidSource,
+                        validTarget: hasValidTarget
+                    });
+                    return false;
+                }
+                return true;
             });
             
-            // Add edges
-            data.edges.forEach(function(edge, index) {
-                elements.push({
-                    data: {
-                        id: 'edge_' + index,
-                        source: edge.source,
-                        target: edge.target,
-                        type: edge.type
-                    }
-                });
-            });
+            const filteredCount = data.edges.length - validEdges.length;
+            if (filteredCount > 0) {
+                console.log(`Filtered ${filteredCount} orphaned edges out of ${data.edges.length} total edges`);
+            }
             
-            cy.elements().remove();
-            cy.add(elements);
-            cy.layout({
-                name: 'cose-bilkent',
-                idealEdgeLength: 100,
-                nodeOverlap: 20,
-                refresh: 30,
-                randomize: false
-            }).run();
+            return {
+                ...data,
+                edges: validEdges,
+                edge_count: validEdges.length,
+                filtered_edges: filteredCount
+            };
         }
         
-        function applyLayout(layoutName) {
-            if (!cy.elements().length) return;
+        function displayNetwork(data) {
+            if (!cy || !data) {
+                console.error('Cannot display network: Cytoscape not initialized or no data');
+                showError('Network visualization not ready. Please refresh the page.');
+                return;
+            }
             
+            try {
+                // Validate and clean the network data
+                const cleanData = validateAndCleanNetworkData(data);
+                if (!cleanData) {
+                    showError('Invalid network data received.');
+                    return;
+                }
+                
+                const elements = [];
+                
+                // Add nodes - now using the proper service format
+                if (cleanData.nodes && Array.isArray(cleanData.nodes)) {
+                    cleanData.nodes.forEach(function(node) {
+                        // Handle both old format (direct properties) and new format (with data/classes)
+                        if (node.data) {
+                            // New service format
+                            elements.push({
+                                data: node.data,
+                                classes: node.classes || ''
+                            });
+                        } else {
+                            // Legacy format support
+                            elements.push({
+                                data: {
+                                    id: node.id,
+                                    label: node.label || node.title,
+                                    title: node.title,
+                                    bio_level: node.bio_level,
+                                    ke_type: node.ke_type,
+                                    ke_class: node.ke_class
+                                }
+                            });
+                        }
+                    });
+                }
+                
+                // Add edges (now validated)
+                if (cleanData.edges && Array.isArray(cleanData.edges)) {
+                    cleanData.edges.forEach(function(edge, index) {
+                        // Handle both old format and new service format
+                        if (edge.data) {
+                            // New service format
+                            elements.push(edge);
+                        } else {
+                            // Legacy format support
+                            elements.push({
+                                data: {
+                                    id: 'edge_' + index,
+                                    source: edge.source,
+                                    target: edge.target,
+                                    type: edge.type
+                                }
+                            });
+                        }
+                    });
+                }
+                
+                // Clear existing elements and add new ones
+                cy.elements().remove();
+                cy.add(elements);
+                
+                // Apply layout with fallback
+                const layoutName = availableLayouts[0] || 'grid';
+                const layoutOptions = getLayoutOptions(layoutName);
+                cy.layout(layoutOptions).run();
+                
+                // Update the current data reference with cleaned data
+                currentNetworkData = cleanData;
+                
+                console.log(`Network displayed successfully:`);
+                console.log(`- Nodes: ${cleanData.nodes?.length || 0}`);
+                console.log(`- Valid edges: ${cleanData.edges?.length || 0}`);
+                console.log(`- Filtered edges: ${cleanData.filtered_edges || 0}`);
+                console.log(`- Layout: ${layoutName}`);
+                
+                // Show user feedback if edges were filtered
+                if (cleanData.filtered_edges > 0) {
+                    showError(`Network loaded with ${cleanData.filtered_edges} incomplete connections filtered out.`, 4000);
+                }
+            } catch (e) {
+                console.error('Error displaying network:', e);
+                showError('Failed to display network data.');
+            }
+        }
+        
+        function getLayoutOptions(layoutName) {
             const layoutOptions = {
-                'cose-bilkent': {
-                    name: 'cose-bilkent',
-                    idealEdgeLength: 100,
-                    nodeOverlap: 20,
-                    refresh: 30
+                'dagre': {
+                    name: 'dagre',
+                    rankDir: 'TB'  // Top to bottom, matching your other service
                 },
                 'grid': {
                     name: 'grid',
@@ -428,15 +581,44 @@
                     concentric: function(node) {
                         const keClass = node.data('ke_class');
                         switch(keClass) {
-                            case 'mie': return 3;
-                            case 'ao': return 1;
+                            case 'MIE': return 3;
+                            case 'AO': return 1;
                             default: return 2;
                         }
                     }
+                },
+                'cose': {
+                    name: 'cose',
+                    animate: true
                 }
             };
             
-            cy.layout(layoutOptions[layoutName] || layoutOptions['cose-bilkent']).run();
+            return layoutOptions[layoutName] || layoutOptions['dagre'];
+        }
+        
+        function applyLayout(layoutName) {
+            if (!cy || !cy.elements().length) {
+                console.warn('Cannot apply layout: No network data loaded');
+                return;
+            }
+            
+            // Check if requested layout is available
+            if (layoutName === 'dagre' && !availableLayouts.includes('dagre')) {
+                console.warn('Dagre layout not available, falling back to grid');
+                layoutName = 'grid';
+                showError('Hierarchical layout not available. Using grid layout instead.', 3000);
+            }
+            
+            try {
+                const layoutOptions = getLayoutOptions(layoutName);
+                cy.layout(layoutOptions).run();
+                console.log('Applied layout:', layoutName);
+            } catch (e) {
+                console.error('Failed to apply layout:', e);
+                // Fallback to dagre or grid layout
+                const fallbackLayout = availableLayouts.includes('dagre') ? 'dagre' : 'grid';
+                cy.layout(getLayoutOptions(fallbackLayout)).run();
+            }
         }
         
         function resetZoom() {
@@ -444,13 +626,40 @@
         }
         
         function updateStatistics(data) {
-            const mieCount = data.nodes.filter(n => n.ke_class === 'mie').length;
-            const aoCount = data.nodes.filter(n => n.ke_class === 'ao').length;
+            // Use enhanced metadata from service if available
+            if (data.metadata) {
+                $('#node-count').text(data.node_count || 0);
+                $('#edge-count').text(data.edge_count || 0);
+                $('#mie-count').text(data.metadata.mie_count || 0);
+                $('#ao-count').text(data.metadata.ao_count || 0);
+            } else {
+                // Fallback to manual calculation for legacy format
+                const mieCount = data.nodes.filter(n => {
+                    const ke_class = n.data ? n.data.ke_class : n.ke_class;
+                    return ke_class === 'mie';
+                }).length;
+                const aoCount = data.nodes.filter(n => {
+                    const ke_class = n.data ? n.data.ke_class : n.ke_class;
+                    return ke_class === 'ao';
+                }).length;
+                
+                $('#node-count').text(data.nodes?.length || 0);
+                $('#edge-count').text(data.edges?.length || 0);
+                $('#mie-count').text(mieCount);
+                $('#ao-count').text(aoCount);
+            }
             
-            $('#node-count').text(data.node_count);
-            $('#edge-count').text(data.edge_count);
-            $('#mie-count').text(mieCount);
-            $('#ao-count').text(aoCount);
+            // Add filtered edge indicator if applicable
+            if (data.filtered_edges > 0) {
+                const edgeCountElement = $('#edge-count');
+                edgeCountElement.attr('title', `${data.filtered_edges} incomplete connections were filtered out`);
+                edgeCountElement.css('color', '#f59e0b'); // amber color to indicate filtering
+            } else {
+                // Reset styling if no filtering occurred
+                const edgeCountElement = $('#edge-count');
+                edgeCountElement.removeAttr('title');
+                edgeCountElement.css('color', '');
+            }
         }
         
         function showNodeInfo(nodeData) {
@@ -469,16 +678,43 @@
             }
         }
         
-        function showError(message) {
+        function showError(message, duration = 0) {
             $('#error-message').text(message).show();
+            if (duration > 0) {
+                setTimeout(() => {
+                    $('#error-message').hide();
+                }, duration);
+            }
         }
         
         function hideError() {
             $('#error-message').hide();
         }
         
+        function generateLayoutButtons() {
+            const layoutLabels = {
+                'dagre': 'Hierarchical',
+                'grid': 'Grid',
+                'circle': 'Circle',
+                'concentric': 'Concentric',
+                'cose': 'Force-directed'
+            };
+            
+            const buttonContainer = $('#layout-buttons');
+            buttonContainer.empty();
+            
+            availableLayouts.forEach(layoutName => {
+                const label = layoutLabels[layoutName] || layoutName;
+                const button = $('<button></button>')
+                    .text(label)
+                    .click(() => applyLayout(layoutName));
+                buttonContainer.append(button);
+            });
+        }
+        
         function showControls(show) {
             if (show) {
+                generateLayoutButtons();
                 $('#layout-controls').show();
                 $('#legend').show();
                 $('#stats').show();

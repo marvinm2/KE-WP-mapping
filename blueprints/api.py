@@ -11,6 +11,7 @@ from functools import wraps
 import requests
 from flask import Blueprint, jsonify, request, session
 
+from aop_network_service import build_cytoscape_aop_network
 from models import CacheModel, MappingModel, ProposalModel
 from monitoring import monitor_performance
 from rate_limiter import general_rate_limit, sparql_rate_limit, submission_rate_limit
@@ -784,48 +785,96 @@ def get_aop_options():
         return jsonify({"error": "Failed to fetch AOP options"}), 500
 
 
-@api_bp.route("/get_aop_network/<aop_id>", methods=["GET"])
+@api_bp.route("/get_aop_network/<path:aop_id>", methods=["GET"])
 @sparql_rate_limit
 def get_aop_network(aop_id):
     """Fetch network data for a specific AOP including KEs, relationships, and molecular details"""
     try:
+        # URL decode the AOP ID to handle full URLs
+        from urllib.parse import unquote
+        aop_id = unquote(aop_id)
+        
         # Validate AOP ID
         if not aop_id or len(aop_id.strip()) == 0:
             return jsonify({"error": "Invalid AOP ID"}), 400
 
-        sparql_query = f"""
-        PREFIX aopo: <http://aopkb.org/aop_ontology#>
-        PREFIX dc: <http://purl.org/dc/elements/1.1/>
-        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-        PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-        PREFIX nci: <http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#>
+        # Check for complete_network parameter
+        complete_network = request.args.get('complete_network', 'false').lower() == 'true'
+        
+        if complete_network:
+            # Include all connected KEs even from other AOPs (may create large networks)
+            sparql_query = f"""
+            PREFIX aopo: <http://aopkb.org/aop_ontology#>
+            PREFIX dc: <http://purl.org/dc/elements/1.1/>
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+            PREFIX nci: <http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#>
 
-        SELECT ?KEtitle ?KElabel ?KEpage ?biolevel ?KEtype ?upstreamKE ?downstreamKE
-        WHERE {{
-          ?AOP a aopo:AdverseOutcomePathway ; 
-               foaf:page <{aop_id}> ;
-               aopo:has_key_event ?KE .
-          
-          ?KE dc:title ?KEtitle ; 
-              rdfs:label ?KElabel; 
-              foaf:page ?KEpage .
+            SELECT ?KEtitle ?KElabel ?KEpage ?biolevel ?KEtype ?upstreamKE ?downstreamKE
+            WHERE {{
+              ?AOP a aopo:AdverseOutcomePathway ; 
+                   foaf:page <{aop_id}> ;
+                   aopo:has_key_event ?KE .
               
-          OPTIONAL {{ ?KE nci:C25664 ?biolevel }}
-          OPTIONAL {{ ?KE a ?KEtype }}
-          
-          OPTIONAL {{
-            ?KER a aopo:KeyEventRelationship ;
-                 aopo:has_upstream_key_event ?KE ;
-                 aopo:has_downstream_key_event ?downstreamKE .
-          }}
-          
-          OPTIONAL {{
-            ?KER2 a aopo:KeyEventRelationship ;
-                  aopo:has_downstream_key_event ?KE ;
-                  aopo:has_upstream_key_event ?upstreamKE .
-          }}
-        }}
-        """
+              ?KE dc:title ?KEtitle ; 
+                  rdfs:label ?KElabel; 
+                  foaf:page ?KEpage .
+                  
+              OPTIONAL {{ ?KE nci:C25664 ?biolevel }}
+              OPTIONAL {{ ?KE a ?KEtype }}
+              
+              OPTIONAL {{
+                ?KER a aopo:KeyEventRelationship ;
+                     aopo:has_upstream_key_event ?KE ;
+                     aopo:has_downstream_key_event ?downstreamKE .
+              }}
+              
+              OPTIONAL {{
+                ?KER2 a aopo:KeyEventRelationship ;
+                      aopo:has_downstream_key_event ?KE ;
+                      aopo:has_upstream_key_event ?upstreamKE .
+              }}
+            }}
+            """
+        else:
+            # Only include relationships between KEs that are part of the same AOP
+            sparql_query = f"""
+            PREFIX aopo: <http://aopkb.org/aop_ontology#>
+            PREFIX dc: <http://purl.org/dc/elements/1.1/>
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+            PREFIX nci: <http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#>
+
+            SELECT ?KEtitle ?KElabel ?KEpage ?biolevel ?KEtype ?upstreamKE ?downstreamKE
+            WHERE {{
+              ?AOP a aopo:AdverseOutcomePathway ; 
+                   foaf:page <{aop_id}> ;
+                   aopo:has_key_event ?KE .
+              
+              ?KE dc:title ?KEtitle ; 
+                  rdfs:label ?KElabel; 
+                  foaf:page ?KEpage .
+                  
+              OPTIONAL {{ ?KE nci:C25664 ?biolevel }}
+              OPTIONAL {{ ?KE a ?KEtype }}
+              
+              OPTIONAL {{
+                ?KER a aopo:KeyEventRelationship ;
+                     aopo:has_upstream_key_event ?KE ;
+                     aopo:has_downstream_key_event ?downstreamKE .
+                # Only include downstream KEs that are also part of the same AOP
+                ?AOP aopo:has_key_event ?downstreamKE .
+              }}
+              
+              OPTIONAL {{
+                ?KER2 a aopo:KeyEventRelationship ;
+                      aopo:has_downstream_key_event ?KE ;
+                      aopo:has_upstream_key_event ?upstreamKE .
+                # Only include upstream KEs that are also part of the same AOP  
+                ?AOP aopo:has_key_event ?upstreamKE .
+              }}
+            }}
+            """
         endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
 
         # Check cache first
@@ -852,74 +901,22 @@ def get_aop_network(aop_id):
                 logger.error("Invalid SPARQL response format for AOP network")
                 return jsonify({"error": "Invalid response from AOP network service"}), 500
 
-            # Process results into network structure
-            nodes = {}
-            edges = []
-            
-            for binding in data["results"]["bindings"]:
-                ke_page = binding.get("KEpage", {}).get("value", "")
-                ke_title = binding.get("KEtitle", {}).get("value", "")
-                ke_label = binding.get("KElabel", {}).get("value", "")
-                bio_level = binding.get("biolevel", {}).get("value", "")
-                ke_type = binding.get("KEtype", {}).get("value", "")
+            # Use the new service to build the network
+            try:
+                result = build_cytoscape_aop_network(
+                    aop_id=aop_id,
+                    sparql_results=data["results"]["bindings"],
+                    complete_network=complete_network
+                )
                 
-                # Determine KE classification for color coding
-                ke_class = "intermediate"  # default
-                if "MolecularInitiatingEvent" in ke_type:
-                    ke_class = "mie"
-                elif "AdverseOutcome" in ke_type:
-                    ke_class = "ao"
+                # Cache the response
+                cache_model.cache_response(endpoint, query_hash, json.dumps(result), 24)
+                logger.info(f"Successfully built and cached AOP network for {aop_id}: {result['node_count']} nodes, {result['edge_count']} edges")
+                return jsonify(result), 200
                 
-                # Add node if not already present
-                if ke_page not in nodes:
-                    nodes[ke_page] = {
-                        "id": ke_page,
-                        "title": ke_title,
-                        "label": ke_label,
-                        "bio_level": bio_level,
-                        "ke_type": ke_type,
-                        "ke_class": ke_class
-                    }
-                
-                # Add edges for relationships
-                upstream = binding.get("upstreamKE", {}).get("value", "")
-                downstream = binding.get("downstreamKE", {}).get("value", "")
-                
-                if upstream and upstream != ke_page:
-                    edges.append({
-                        "source": upstream,
-                        "target": ke_page,
-                        "type": "upstream_to_downstream"
-                    })
-                
-                if downstream and downstream != ke_page:
-                    edges.append({
-                        "source": ke_page,
-                        "target": downstream,
-                        "type": "upstream_to_downstream"
-                    })
-
-            # Remove duplicate edges
-            unique_edges = []
-            edge_set = set()
-            for edge in edges:
-                edge_key = (edge["source"], edge["target"])
-                if edge_key not in edge_set:
-                    edge_set.add(edge_key)
-                    unique_edges.append(edge)
-
-            result = {
-                "aop_id": aop_id,
-                "nodes": list(nodes.values()),
-                "edges": unique_edges,
-                "node_count": len(nodes),
-                "edge_count": len(unique_edges)
-            }
-
-            # Cache the response
-            cache_model.cache_response(endpoint, query_hash, json.dumps(result), 24)
-            logger.info(f"Fetched and cached AOP network for {aop_id}: {len(nodes)} nodes, {len(unique_edges)} edges")
-            return jsonify(result), 200
+            except Exception as e:
+                logger.error(f"Failed to build AOP network: {str(e)}")
+                return jsonify({"error": "Failed to process AOP network data"}), 500
         else:
             logger.error(
                 f"SPARQL AOP Network Query Failed: {response.status_code} - {response.text}"

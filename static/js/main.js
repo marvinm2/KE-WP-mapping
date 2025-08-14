@@ -150,17 +150,27 @@ class KEWPApp {
     handleFormSubmission(event) {
         event.preventDefault();
 
+        // Get pathway title from the actual visible dropdown, not the hidden input
+        const selectedPathwayOption = $("select[name='wp_id'] option:selected").first();
+        const wpTitle = selectedPathwayOption.data("title") || selectedPathwayOption.text() || $("#wp_id").val();
+        
         const formData = {
             ke_id: $("#ke_id").val(),
             ke_title: $("#ke_id option:selected").data("title"),
             wp_id: $("#wp_id").val(),
-            wp_title: $("#wp_id option:selected").data("title"),
-            connection_type: $("#connection_type").val(),
+            wp_title: wpTitle,
+            connection_type: this.mapConnectionTypeForServer($("#connection_type").val()),
             confidence_level: $("#confidence_level").val(),
             csrf_token: this.csrfToken
         };
 
         // Form data prepared for submission
+        console.log('Form submission debug:', {
+            formData: formData,
+            selectedPathwayOption: selectedPathwayOption.text(),
+            originalConnectionType: $("#connection_type").val(),
+            mappedConnectionType: formData.connection_type
+        });
 
         // Validate required fields
         if (!formData.ke_id || !formData.wp_id) {
@@ -566,6 +576,14 @@ class KEWPApp {
 
         // Save the value for this specific pathway
         this.pathwayAssessments[pathwayId][stepId] = selectedValue;
+        
+        // Debug logging
+        console.log('handleConfidenceAssessment debug:', {
+            stepId: stepId,
+            selectedValue: selectedValue,
+            pathwayId: pathwayId,
+            currentAnswers: this.pathwayAssessments[pathwayId]
+        });
 
         // Update UI
         $group.find(".btn-option").removeClass("selected");
@@ -585,6 +603,13 @@ class KEWPApp {
         const s3 = answers["step3"];
         const s4 = answers["step4"];
         const s5 = answers["step5"];
+
+        // Debug logging
+        console.log('handlePathwayStepProgression debug:', {
+            pathwayId: pathwayId,
+            answers: answers,
+            s1, s2, s3, s4, s5
+        });
 
         // Find steps within this pathway assessment
         const $steps = $pathwayAssessment.find(".assessment-step");
@@ -619,6 +644,12 @@ class KEWPApp {
 
     evaluatePathwayConfidence($pathwayAssessment, pathwayId) {
         const answers = this.pathwayAssessments[pathwayId];
+        
+        console.log('evaluatePathwayConfidence called:', {
+            pathwayId: pathwayId,
+            answers: answers,
+            $pathwayAssessment: $pathwayAssessment
+        });
         
         // Use existing confidence evaluation logic
         let baseScore = 0;
@@ -676,6 +707,14 @@ class KEWPApp {
             score: baseScore,
             answers: answers
         };
+        
+        console.log('evaluatePathwayConfidence completed:', {
+            pathwayId: pathwayId,
+            confidence: confidence,
+            connectionType: connectionType,
+            baseScore: baseScore,
+            resultShown: $result.is(':visible')
+        });
     }
 
     markPathwayAsSkipped($pathwayAssessment, pathwayId) {
@@ -1291,10 +1330,37 @@ class KEWPApp {
             }
         });
 
+        console.log('populateStep4Results debug:', {
+            selectedPathways: selectedPathways,
+            pathwayResults: this.pathwayResults,
+            pathwayAssessments: this.pathwayAssessments
+        });
+
         if (selectedPathways.length <= 1) {
-            // Single pathway - show existing single pathway Step 4 content
+            // Single pathway - populate existing single pathway Step 4 content
             $('#single-pathway-results').show();
             $('#multi-pathway-results').hide();
+            
+            // Get the single pathway result
+            const pathway = selectedPathways[0];
+            const result = this.pathwayResults[pathway.id];
+            
+            console.log('Single pathway result:', {pathway, result});
+            
+            if (result) {
+                // Update the single pathway results display
+                $('#auto-confidence').text(result.confidence.charAt(0).toUpperCase() + result.confidence.slice(1));
+                $('#auto-connection').text(result.connection_type.charAt(0).toUpperCase() + result.connection_type.slice(1));
+                
+                // Also update the hidden form fields for submission
+                $('#confidence_level').val(result.confidence);
+                $('#connection_type').val(result.connection_type);
+                
+                console.log('Updated single pathway display:', {
+                    confidence: $('#auto-confidence').text(),
+                    connection: $('#auto-connection').text()
+                });
+            }
             return;
         }
         
@@ -1365,8 +1431,16 @@ class KEWPApp {
     }
 
     showStep4() {
+        console.log('showStep4 called');
+        
         // Show Step 4 section
         $('#step-3-result').show();
+        
+        console.log('Step 4 elements visibility:', {
+            'step-3-result_visible': $('#step-3-result').is(':visible'),
+            'single-pathway-results_exists': $('#single-pathway-results').length,
+            'multi-pathway-results_exists': $('#multi-pathway-results').length
+        });
         
         // Scroll to Step 4
         $('html, body').animate({
@@ -2393,8 +2467,8 @@ class KEWPApp {
         $("#pathway-search").val('');
         $("#search-results").hide();
         
-        // Check if pathway exists in dropdown
-        const $dropdown = $("#wp_id");
+        // Find the first available pathway dropdown (select[name='wp_id'])
+        const $dropdown = $("select[name='wp_id']").first();
         const $option = $dropdown.find(`option[value="${pathwayId}"]`);
         
         if ($option.length > 0) {
