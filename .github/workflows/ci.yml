@@ -2,8 +2,8 @@ name: CI/CD Pipeline
 
 on:
   # Only manual dispatch and push to main (no PR triggers to avoid unwanted runs)
-  push:
-    branches: [ main ]
+  #push:
+  #  branches: [ main ]
   workflow_dispatch:
 
 jobs:
