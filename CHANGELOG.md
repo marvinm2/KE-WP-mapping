@@ -5,6 +5,33 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-08-14
+
+### AOP Network Visualization
+#### Added
+- **Interactive AOP Network Visualization**: New Cytoscape.js-based network visualization page
+- **AOP Network Service**: Dedicated service (`aop_network_service.py`) for building network structures
+- **SPARQL Network Endpoints**: New API endpoints for AOP network data:
+  - `/get_aop_network/<aop_id>` - Fetch complete AOP network data
+  - `/aop_network` - Interactive visualization interface
+- **Network Structure Analysis**: Intelligent MIE/AO classification based on network topology
+- **Biological Level Integration**: Color-coded nodes based on molecular, cellular, tissue, organ levels
+- **Dynamic Network Rendering**: Real-time network building with Cytoscape.js and Dagre layout
+
+#### Enhanced
+- **Blueprint Architecture Completion**: Fully implemented modular blueprint structure (Phase 3 completed)
+- **Multi-pathway Assessment Workflow**: Enhanced individual pathway validation with improved UX
+- **Form State Persistence**: Auto-save functionality prevents data loss during navigation
+- **UI/UX Improvements**: Removed auto-scroll, enhanced button functionality, cleaner JavaScript
+- **Menu Navigation**: Fixed explore page menu buttons with proper main.js integration
+
+#### Technical Improvements
+- **Structured Network Processing**: Clean separation of SPARQL processing and Cytoscape formatting
+- **Edge Validation**: Comprehensive validation and deduplication of network relationships
+- **Topology-based Classification**: Structure-aware identification of pathway initiation and outcome events
+- **Performance Optimizations**: Efficient network data processing and rendering
+- **Enhanced Error Handling**: Robust error management for network visualization
+
 ## [2.1.1] - 2025-01-11
 
 ### Confidence Assessment Workflow Revision
@@ -60,12 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Caching Integration**: Optimized SPARQL query caching for improved performance
 - **Comprehensive Error Handling**: Robust error management with detailed logging
 
-## [2.0.0] - 2025-08-07
+## [2.0.0] - 2025-08-07 (Blueprint Architecture Foundation)
 
 ### 🏗️ Major Architecture Refactoring
 
 #### Added
-- **Blueprint Architecture**: Modular application structure with separate blueprints for auth, API, admin, and main routes
+- **Blueprint Architecture Foundation**: Initial modular application structure with separate blueprints for auth, API, admin, and main routes
 - **Application Factory Pattern**: `create_app()` function for flexible application instantiation
 - **Dependency Injection Container**: `ServiceContainer` class for managing application services
 - **Configuration Management**: Environment-aware configuration classes (Development, Production, Testing)

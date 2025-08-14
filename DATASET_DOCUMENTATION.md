@@ -430,8 +430,8 @@ When using this dataset, please cite:
 
 ---
 
-**Last Updated**: January 2025  
-**Dataset Version**: 1.0.0  
-**Documentation Version**: 1.0.0
+**Last Updated**: August 2025  
+**Dataset Version**: 2.2.0  
+**Documentation Version**: 2.2.0
 
 For questions, issues, or contributions, please visit our GitHub repository or contact the development team through the platform interface.

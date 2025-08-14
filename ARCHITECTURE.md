@@ -18,7 +18,7 @@ This document provides a comprehensive overview of the application's architectur
 
 ## Overview
 
-The KE-WP Mapping Application follows modern Flask best practices with a **modular blueprint architecture**. The application was refactored from a monolithic 758-line structure to a clean, maintainable system with clear separation of concerns.
+The KE-WP Mapping Application follows modern Flask best practices with a **fully implemented modular blueprint architecture**. The application was successfully refactored from a monolithic 758-line structure to a clean, maintainable system with clear separation of concerns and advanced visualization capabilities.
 
 ### Key Architectural Principles
 - **Single Responsibility**: Each module has a clear, focused purpose
@@ -102,10 +102,10 @@ def submit():
 ```
 blueprints/
 ├── __init__.py          # Blueprint exports
-├── auth.py              # Authentication & OAuth
-├── api.py               # Data API endpoints
-├── admin.py             # Admin functionality
-└── main.py              # Core application routes
+├── auth.py              # Authentication & OAuth (completed)
+├── api.py               # Data API endpoints & AOP network (completed)
+├── admin.py             # Admin functionality (completed)
+└── main.py              # Core application routes (completed)
 ```
 
 ### Blueprint Responsibilities
@@ -126,6 +126,7 @@ def login():
 #### **API Blueprint** (`api.py`)
 - Data validation and submission
 - SPARQL endpoint integration
+- AOP network visualization endpoints
 - Rate limiting and caching
 - Proposal management
 
@@ -135,6 +136,11 @@ def login():
 @login_required
 def submit():
     # Validation, processing, database operations
+
+@api_bp.route('/get_aop_network/<path:aop_id>', methods=['GET'])
+@sparql_rate_limit
+def get_aop_network(aop_id):
+    # AOP network data processing and visualization
 ```
 
 #### **Admin Blueprint** (`admin.py`)
@@ -154,6 +160,7 @@ def admin_proposals():
 #### **Main Blueprint** (`main.py`)
 - Core application pages
 - Dataset exploration
+- AOP network visualization interface
 - Public endpoints
 - Template rendering
 
@@ -162,9 +169,36 @@ def admin_proposals():
 @monitor_performance
 def index():
     return render_template('index.html')
+
+@main_bp.route('/aop_network')
+def aop_network():
+    return render_template('aop_network.html')
 ```
 
 ## Service Layer
+
+### AOP Network Visualization Service
+
+The application includes a dedicated service for AOP network visualization with clean architecture principles:
+
+```python
+# aop_network_service.py
+def build_cytoscape_aop_network(aop_id, sparql_results, complete_network=False):
+    """
+    Main service function to build complete AOP network for Cytoscape.js visualization.
+    
+    - Processes raw SPARQL data into structured node/edge format
+    - Applies topology-based MIE/AO classification 
+    - Validates edge relationships and removes duplicates
+    - Generates Cytoscape.js compatible network structure
+    """
+```
+
+**Key Features:**
+- **Structure-aware Classification**: Identifies MIE (no incoming edges) and AO (no outgoing edges) automatically
+- **Biological Level Integration**: Color-coded nodes based on molecular, cellular, tissue, organ levels
+- **Edge Validation**: Comprehensive validation and deduplication of network relationships
+- **Performance Optimized**: Efficient processing of large SPARQL datasets
 
 ### ServiceContainer Design
 ```python

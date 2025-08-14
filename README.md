@@ -12,6 +12,11 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
 ### Core Functionality
 - **KE-WP Mapping**: Create relationships between Key Events and WikiPathways with connection types and confidence levels
 - **Multiple Pathway Selection**: Map multiple WikiPathways to a single Key Event with individual confidence assessments
+- **AOP Network Visualization**: Interactive Cytoscape.js-based network visualization with:
+  - Real-time AOP pathway network rendering with biological level color-coding
+  - Topology-based MIE/AO classification and intelligent edge validation
+  - Dynamic network exploration with zoom, pan, and node interaction
+  - Structure-aware pathway analysis and relationship mapping
 - **Intelligent Pathway Suggestions**: Advanced algorithm suggesting relevant pathways based on Key Events using:
   - Multi-algorithm text similarity with biological term weighting
   - Gene-based pathway matching with overlap analysis
@@ -144,13 +149,15 @@ All workflows run automatically on push to main branch and can be triggered manu
 ├── error_handlers.py         # Centralized error handling
 ├── blueprints/               # Modular route organization
 │   ├── auth.py              # Authentication & OAuth
-│   ├── api.py               # Data API endpoints
+│   ├── api.py               # Data API endpoints & AOP network
 │   ├── admin.py             # Admin dashboard
 │   └── main.py              # Core application routes
 ├── models.py                 # Data models & database layer
 ├── schemas.py                # Input validation schemas
 ├── monitoring.py             # Performance & health monitoring
-└── rate_limiter.py           # API rate limiting
+├── rate_limiter.py           # API rate limiting
+├── aop_network_service.py    # AOP network visualization service
+└── pathway_suggestions.py    # Intelligent pathway suggestions
 ```
 
 ### Key Components
@@ -168,6 +175,7 @@ All workflows run automatically on push to main branch and can be triggered manu
 |----------|--------|-------------|----------------|
 | `/` | GET | Main application page | Optional |
 | `/explore` | GET | Dataset exploration interface | Optional |
+| `/aop_network` | GET | Interactive AOP network visualization | Optional |
 | `/login` | GET | GitHub OAuth login | None |
 | `/logout` | GET | User logout | Required |
 
@@ -179,6 +187,7 @@ All workflows run automatically on push to main branch and can be triggered manu
 | `/submit` | POST | Create new mapping | Submission |
 | `/get_ke_options` | GET | Fetch Key Events from SPARQL | SPARQL |
 | `/get_pathway_options` | GET | Fetch pathways from SPARQL | SPARQL |
+| `/get_aop_network/<aop_id>` | GET | Fetch AOP network visualization data | SPARQL |
 | `/submit_proposal` | POST | Submit change proposal | Submission |
 
 ### Admin Endpoints
@@ -341,7 +350,14 @@ chmod +x start.sh
 
 ## Changelog
 
-### Version 2.0.0 (Current)
+### Version 2.2.0 (Current)
+- **AOP Network Visualization**: Interactive Cytoscape.js network visualization
+- **Enhanced Multi-pathway Interface**: Individual pathway assessments
+- **Completed Blueprint Architecture**: Fully modular application design
+- **Form State Persistence**: Auto-save functionality
+- **Improved UI/UX**: Enhanced navigation and cleaner interface
+
+### Version 2.0.0 (Blueprint Foundation)
 - **Blueprint Architecture**: Modular application design
 - **Dependency Injection**: Service container pattern
 - **Configuration Management**: Environment-aware settings
