@@ -236,6 +236,24 @@ class MappingModel:
         finally:
             conn.close()
 
+    def get_mappings_by_ke(self, ke_id: str) -> List[Dict]:
+        """Get all mappings for a specific Key Event"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type, 
+                       confidence_level, created_by, created_at, updated_at
+                FROM mappings 
+                WHERE ke_id = ?
+                ORDER BY created_at DESC
+                """,
+                (ke_id,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
     def check_mapping_exists(self, ke_id: str, wp_id: str) -> Dict:
         """Check if KE-WP pair exists"""
         conn = self.db.get_connection()

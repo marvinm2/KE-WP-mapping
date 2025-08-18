@@ -801,6 +801,9 @@ def get_aop_network(aop_id):
         # Check for complete_network parameter
         complete_network = request.args.get('complete_network', 'false').lower() == 'true'
         
+        # Check for include_genes parameter
+        include_genes = request.args.get('include_genes', 'false').lower() == 'true'
+        
         if complete_network:
             # Include all connected KEs even from other AOPs (may create large networks)
             sparql_query = f"""
@@ -908,6 +911,30 @@ def get_aop_network(aop_id):
                     sparql_results=data["results"]["bindings"],
                     complete_network=complete_network
                 )
+                
+                # Add gene integration if requested
+                if include_genes:
+                    from aop_network_service import (
+                        get_genes_from_mapped_pathways, 
+                        build_gene_enhanced_network,
+                        build_ke_pathway_mappings
+                    )
+                    
+                    # Get KE IDs from the network
+                    ke_ids = [node["data"]["id"] for node in result["nodes"]]
+                    
+                    # Get genes from mapped pathways
+                    gene_data = get_genes_from_mapped_pathways(ke_ids, mapping_model)
+                    
+                    if gene_data:
+                        # Build KE-pathway mappings for connections
+                        ke_pathway_mappings = build_ke_pathway_mappings(ke_ids, mapping_model)
+                        
+                        # Enhance network with genes
+                        result = build_gene_enhanced_network(result, gene_data, ke_pathway_mappings)
+                        logger.info(f"Enhanced network with {result.get('gene_count', 0)} genes")
+                    else:
+                        logger.info("No genes found for KE-pathway mappings")
                 
                 # Cache the response
                 cache_model.cache_response(endpoint, query_hash, json.dumps(result), 24)

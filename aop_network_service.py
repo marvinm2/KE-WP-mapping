@@ -3,6 +3,7 @@ Network visualization service for AOP pathways.
 
 This service provides functionality to build Cytoscape.js network structures
 from AOP-Wiki SPARQL data, following clean service architecture patterns.
+Includes gene integration from WikiPathways via KE-WP mappings.
 """
 import logging
 from typing import Dict, Set, List, Any, Optional, Tuple
@@ -376,3 +377,230 @@ def validate_network_integrity(network_data: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Network validation: filtered {filtered_count} invalid edges")
     
     return network_data
+
+
+def get_genes_from_mapped_pathways(ke_ids: List[str], mapping_model) -> Dict[str, List[Dict[str, str]]]:
+    """
+    Get genes from pathways that are mapped to the given Key Events.
+    
+    Args:
+        ke_ids: List of Key Event IDs in the AOP network
+        mapping_model: Database model to query KE-WP mappings
+    
+    Returns:
+        Dict mapping pathway_id -> [{"id": gene_id, "label": gene_label}]
+    """
+    logger.info(f"Getting genes from pathways mapped to {len(ke_ids)} Key Events")
+    
+    try:
+        # 1. Get pathways mapped to these KEs
+        # Convert AOP event URLs to simple KE IDs for database lookup
+        mapped_pathways = []
+        for ke_id in ke_ids:
+            # Convert URLs like "https://identifiers.org/aop.events/112" to "KE 112"
+            simple_ke_id = ke_id
+            if 'aop.events/' in ke_id:
+                ke_number = ke_id.split('aop.events/')[-1]
+                simple_ke_id = f"KE {ke_number}"
+            
+            ke_mappings = mapping_model.get_mappings_by_ke(simple_ke_id)
+            for mapping in ke_mappings:
+                if mapping.get('wp_id') not in [p['wp_id'] for p in mapped_pathways]:
+                    mapped_pathways.append({
+                        'wp_id': mapping.get('wp_id'),
+                        'wp_title': mapping.get('wp_title', ''),
+                        'ke_id': ke_id,  # Keep original KE ID for network connections
+                        'simple_ke_id': simple_ke_id
+                    })
+        
+        if not mapped_pathways:
+            logger.info("No mapped pathways found for KEs")
+            return {}
+        
+        logger.info(f"Found {len(mapped_pathways)} mapped pathways")
+        
+        # 2. Convert WP IDs to full URIs for SPARQL
+        pathway_uris = []
+        wp_id_to_info = {}
+        
+        for pathway in mapped_pathways:
+            wp_id = pathway['wp_id']
+            # Handle different WP ID formats
+            if wp_id.startswith('WP'):
+                uri = f"http://identifiers.org/wikipathways/{wp_id}"
+            else:
+                uri = f"http://identifiers.org/wikipathways/WP{wp_id}"
+            
+            pathway_uris.append(f"<{uri}>")
+            wp_id_to_info[wp_id] = pathway
+        
+        # 3. Query WikiPathways SPARQL for genes
+        sparql_query = f"""
+        SELECT DISTINCT ?gene ?geneLabel ?pathway
+        WHERE {{
+          VALUES ?pathway {{ {" ".join(pathway_uris)} }}
+          ?gene dcterms:isPartOf ?pathway .
+          ?pathway a wp:Pathway .
+          ?gene rdfs:label ?geneLabel .
+          FILTER(CONTAINS(STR(?gene), "GeneProduct"))
+        }}
+        """
+        
+        # 4. Execute SPARQL query
+        sparql_endpoint = "https://sparql.wikipathways.org/sparql"
+        headers = {
+            'Accept': 'application/sparql-results+json',
+            'User-Agent': 'KE-WP-Mapping-Tool/2.2.0'
+        }
+        
+        response = requests.post(
+            sparql_endpoint,
+            data={'query': sparql_query},
+            headers=headers,
+            timeout=30
+        )
+        
+        if response.status_code != 200:
+            logger.error(f"SPARQL query failed: {response.status_code}")
+            return {}
+        
+        results = response.json()
+        
+        # 5. Process results
+        pathway_genes = {}
+        
+        for binding in results.get('results', {}).get('bindings', []):
+            pathway_uri = binding.get('pathway', {}).get('value', '')
+            gene_uri = binding.get('gene', {}).get('value', '')
+            gene_label = binding.get('geneLabel', {}).get('value', '')
+            
+            # Extract WP ID from pathway URI
+            wp_id = None
+            if 'wikipathways' in pathway_uri:
+                wp_id = pathway_uri.split('/')[-1]
+            
+            if wp_id and gene_uri and gene_label:
+                if wp_id not in pathway_genes:
+                    pathway_genes[wp_id] = []
+                
+                # Extract gene ID from URI (use last part)
+                gene_id = gene_uri.split('/')[-1] if '/' in gene_uri else gene_uri
+                
+                pathway_genes[wp_id].append({
+                    'id': gene_id,
+                    'label': gene_label,
+                    'uri': gene_uri
+                })
+        
+        total_genes = sum(len(genes) for genes in pathway_genes.values())
+        logger.info(f"Retrieved {total_genes} genes from {len(pathway_genes)} pathways")
+        
+        return pathway_genes
+        
+    except Exception as e:
+        logger.error(f"Failed to get genes from mapped pathways: {str(e)}")
+        return {}
+
+
+def build_gene_enhanced_network(base_network: Dict[str, Any], gene_data: Dict[str, List[Dict[str, str]]], 
+                               ke_pathway_mappings: Dict[str, List[str]]) -> Dict[str, Any]:
+    """
+    Add gene nodes and edges to existing AOP network.
+    
+    Args:
+        base_network: Existing KE network from build_cytoscape_aop_network()
+        gene_data: Gene data from get_genes_from_mapped_pathways()
+        ke_pathway_mappings: Dict mapping KE_ID -> [pathway_ids] for connections
+    
+    Returns:
+        Enhanced network with gene nodes (ellipses) and KE-gene connections
+    """
+    logger.info("Building gene-enhanced network")
+    
+    enhanced_nodes = base_network["nodes"].copy()
+    enhanced_edges = base_network["edges"].copy()
+    
+    gene_count = 0
+    
+    # Add gene nodes and connections
+    for pathway_id, genes in gene_data.items():
+        for gene in genes:
+            gene_node_id = f"gene_{gene['id']}"
+            
+            # Create gene node (ellipse shape)
+            gene_node = {
+                "data": {
+                    "id": gene_node_id,
+                    "label": gene['label'],
+                    "type": "gene",
+                    "pathway": pathway_id,
+                    "uri": gene.get('uri', '')
+                },
+                "classes": "gene-node"
+            }
+            enhanced_nodes.append(gene_node)
+            gene_count += 1
+            
+            # Connect gene to KEs that are mapped to this pathway
+            for ke_id, mapped_pathways in ke_pathway_mappings.items():
+                if pathway_id in mapped_pathways:
+                    # Create KE-gene connection via pathway
+                    edge_id = f"edge_ke_gene_{ke_id}_{gene['id']}"
+                    edge = {
+                        "data": {
+                            "id": edge_id,
+                            "source": ke_id,
+                            "target": gene_node_id,
+                            "type": "ke_gene_pathway",
+                            "pathway": pathway_id
+                        },
+                        "classes": "ke-gene-edge"
+                    }
+                    enhanced_edges.append(edge)
+    
+    # Update network metadata
+    enhanced_network = {
+        "nodes": enhanced_nodes,
+        "edges": enhanced_edges,
+        "node_count": len(enhanced_nodes),
+        "edge_count": len(enhanced_edges),
+        "gene_count": gene_count,
+        "includes_genes": True
+    }
+    
+    # Preserve original metadata
+    for key in base_network:
+        if key not in ["nodes", "edges", "node_count", "edge_count"]:
+            enhanced_network[key] = base_network[key]
+    
+    logger.info(f"Enhanced network: {len(enhanced_nodes)} nodes ({gene_count} genes), {len(enhanced_edges)} edges")
+    
+    return enhanced_network
+
+
+def build_ke_pathway_mappings(ke_ids: List[str], mapping_model) -> Dict[str, List[str]]:
+    """
+    Build mapping of KE IDs to their associated pathway IDs.
+    
+    Args:
+        ke_ids: List of Key Event IDs (may be AOP event URLs)
+        mapping_model: Database model to query mappings
+    
+    Returns:
+        Dict mapping KE_ID -> [pathway_ids]
+    """
+    ke_pathway_map = {}
+    
+    for ke_id in ke_ids:
+        # Convert AOP event URLs to simple KE IDs for database lookup
+        simple_ke_id = ke_id
+        if 'aop.events/' in ke_id:
+            ke_number = ke_id.split('aop.events/')[-1]
+            simple_ke_id = f"KE {ke_number}"
+        
+        mappings = mapping_model.get_mappings_by_ke(simple_ke_id)
+        pathway_ids = [mapping.get('wp_id') for mapping in mappings if mapping.get('wp_id')]
+        if pathway_ids:
+            ke_pathway_map[ke_id] = pathway_ids  # Use original KE ID as key
+    
+    return ke_pathway_map

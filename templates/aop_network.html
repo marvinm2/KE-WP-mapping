@@ -116,24 +116,80 @@
             margin: 20px 0;
         }
         
-        .layout-controls {
+        .control-section {
             margin-bottom: 20px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 5px;
+            border-left: 4px solid #307BBF;
         }
         
-        .layout-controls button {
+        .control-section h4 {
+            margin: 0 0 10px 0;
+            color: #307BBF;
+            font-size: 14px;
+        }
+        
+        .control-section button {
             background: #307BBF;
             color: white;
             border: none;
             padding: 8px 15px;
             border-radius: 4px;
             cursor: pointer;
-            margin-right: 10px;
-            margin-bottom: 5px;
+            font-size: 12px;
+            position: relative;
+        }
+        
+        .control-section button:hover {
+            background: #2563eb;
+        }
+        
+        .control-section button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+        
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-content {
+            position: absolute;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1000;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .dropdown-content a {
+            color: #374151;
+            padding: 8px 12px;
+            text-decoration: none;
+            display: block;
             font-size: 12px;
         }
         
-        .layout-controls button:hover {
-            background: #2563eb;
+        .dropdown-content a:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .status-text {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
         }
         
         .node-info {
@@ -182,16 +238,43 @@
             
             <div class="error" id="error-message"></div>
             
-            <div class="layout-controls" id="layout-controls" style="display: none;">
-                <h4>Layout Options</h4>
-                <div id="layout-buttons">
-                    <!-- Buttons will be dynamically generated based on available layouts -->
+            <div class="control-section" id="gene-controls" style="display: none;">
+                <h4>Gene Integration</h4>
+                <label>
+                    <input type="checkbox" id="include-genes-toggle"> 
+                    Include Genes (Molecular Networks)
+                </label>
+                <div id="gene-info" style="margin-top: 5px; font-size: 12px; color: #666;">
+                    <span id="gene-count-display" style="display: none;">Genes: <span id="gene-count">0</span></span>
                 </div>
-                <button onclick="resetZoom()">Reset Zoom</button>
+            </div>
+
+            <div class="control-section" id="layout-controls" style="display: none;">
+                <h4>Network Layout</h4>
+                <button id="optimize-layout-btn" onclick="optimizeLayout()">
+                    <span class="btn-text">Optimize Layout</span>
+                    <span class="spinner" style="display:none;">⟳</span>
+                </button>
+                <div id="layout-status" class="status-text" style="margin-top: 5px; font-size: 12px; color: #666;"></div>
+                <button onclick="resetZoom()" style="margin-top: 10px;">Reset Zoom</button>
+            </div>
+
+            <div class="control-section" id="export-controls" style="display: none;">
+                <h4>Export Network</h4>
+                <div class="dropdown">
+                    <button class="dropdown-btn" onclick="toggleExportDropdown()">Export Network ▼</button>
+                    <div class="dropdown-content" id="export-dropdown" style="display: none;">
+                        <a href="#" onclick="exportNetwork('png')">📷 Export as PNG</a>
+                        <a href="#" onclick="exportNetwork('svg')">🎨 Export as SVG</a>
+                        <a href="#" onclick="exportNetwork('json')">📄 Network Data (JSON)</a>
+                        <a href="#" onclick="exportNetwork('graphml')">🔗 GraphML Format</a>
+                    </div>
+                </div>
+                <div id="export-status" class="status-text" style="margin-top: 5px; font-size: 12px; color: #666;"></div>
             </div>
             
             <div class="legend" id="legend" style="display: none;">
-                <h4>Key Event Types</h4>
+                <h4>Network Elements</h4>
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: #22c55e;"></div>
                     <span>Molecular Initiating Event (MIE)</span>
@@ -203,6 +286,10 @@
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: #eab308;"></div>
                     <span>Intermediate Key Event</span>
+                </div>
+                <div class="legend-item" id="gene-legend-item" style="display: none;">
+                    <div style="width: 20px; height: 12px; background-color: #E5E7EB; border: 2px dashed #9CA3AF; margin-right: 10px; border-radius: 50%;"></div>
+                    <span>Gene (from mapped pathways)</span>
                 </div>
             </div>
             
@@ -358,6 +445,22 @@
                             }
                         },
                         {
+                            selector: '.gene-node',
+                            style: {
+                                'shape': 'ellipse',
+                                'width': 40,
+                                'height': 25,
+                                'background-color': '#E5E7EB',
+                                'border-width': 2,
+                                'border-style': 'dashed',
+                                'border-color': '#9CA3AF',
+                                'label': 'data(label)',
+                                'font-size': 10,
+                                'text-valign': 'center',
+                                'text-halign': 'center'
+                            }
+                        },
+                        {
                             selector: 'edge',
                             style: {
                                 'width': 2,
@@ -365,6 +468,15 @@
                                 'target-arrow-color': '#999',
                                 'target-arrow-shape': 'triangle',
                                 'curve-style': 'bezier'
+                            }
+                        },
+                        {
+                            selector: '.ke-gene-edge',
+                            style: {
+                                'line-style': 'dotted',
+                                'line-color': '#9CA3AF',
+                                'width': 1,
+                                'target-arrow-shape': 'none'
                             }
                         },
                         {
@@ -398,25 +510,44 @@
         $('#aop-select').change(function() {
             const aopId = $(this).val();
             if (aopId) {
-                loadAOPNetwork(aopId);
+                const includeGenes = $('#include-genes-toggle').is(':checked');
+                loadAOPNetwork(aopId, includeGenes);
             } else {
                 clearNetwork();
             }
         });
         
-        function loadAOPNetwork(aopId) {
+        function loadAOPNetwork(aopId, includeGenes = false) {
             showLoading(true);
             hideError();
             clearNetwork();
             
-            $.get('/get_aop_network/' + encodeURIComponent(aopId))
+            // Build URL with parameters
+            let url = '/get_aop_network/' + encodeURIComponent(aopId);
+            const params = [];
+            
+            if (includeGenes) {
+                params.push('include_genes=true');
+            }
+            
+            if (params.length > 0) {
+                url += '?' + params.join('&');
+            }
+            
+            $.get(url)
                 .done(function(data) {
                     displayNetwork(data);
                     // Use the cleaned data from displayNetwork for statistics
                     if (currentNetworkData) {
                         updateStatistics(currentNetworkData);
+                        updateGeneStats(currentNetworkData);
                     }
                     showControls(true);
+                    
+                    // Auto-optimize layout after network loads
+                    setTimeout(() => {
+                        optimizeLayout();
+                    }, 500);
                 })
                 .fail(function(xhr) {
                     const error = xhr.responseJSON ? xhr.responseJSON.error : 'Failed to load network data';
@@ -538,10 +669,7 @@
                 cy.elements().remove();
                 cy.add(elements);
                 
-                // Apply layout with fallback
-                const layoutName = availableLayouts[0] || 'grid';
-                const layoutOptions = getLayoutOptions(layoutName);
-                cy.layout(layoutOptions).run();
+                // Note: Layout optimization is now handled by auto-optimize in loadAOPNetwork
                 
                 // Update the current data reference with cleaned data
                 currentNetworkData = cleanData;
@@ -562,64 +690,7 @@
             }
         }
         
-        function getLayoutOptions(layoutName) {
-            const layoutOptions = {
-                'dagre': {
-                    name: 'dagre',
-                    rankDir: 'TB'  // Top to bottom, matching your other service
-                },
-                'grid': {
-                    name: 'grid',
-                    rows: Math.ceil(Math.sqrt(cy.nodes().length))
-                },
-                'circle': {
-                    name: 'circle',
-                    radius: 200
-                },
-                'concentric': {
-                    name: 'concentric',
-                    concentric: function(node) {
-                        const keClass = node.data('ke_class');
-                        switch(keClass) {
-                            case 'MIE': return 3;
-                            case 'AO': return 1;
-                            default: return 2;
-                        }
-                    }
-                },
-                'cose': {
-                    name: 'cose',
-                    animate: true
-                }
-            };
-            
-            return layoutOptions[layoutName] || layoutOptions['dagre'];
-        }
-        
-        function applyLayout(layoutName) {
-            if (!cy || !cy.elements().length) {
-                console.warn('Cannot apply layout: No network data loaded');
-                return;
-            }
-            
-            // Check if requested layout is available
-            if (layoutName === 'dagre' && !availableLayouts.includes('dagre')) {
-                console.warn('Dagre layout not available, falling back to grid');
-                layoutName = 'grid';
-                showError('Hierarchical layout not available. Using grid layout instead.', 3000);
-            }
-            
-            try {
-                const layoutOptions = getLayoutOptions(layoutName);
-                cy.layout(layoutOptions).run();
-                console.log('Applied layout:', layoutName);
-            } catch (e) {
-                console.error('Failed to apply layout:', e);
-                // Fallback to dagre or grid layout
-                const fallbackLayout = availableLayouts.includes('dagre') ? 'dagre' : 'grid';
-                cy.layout(getLayoutOptions(fallbackLayout)).run();
-            }
-        }
+        // Old layout functions removed - now using dynamic optimization system
         
         function resetZoom() {
             cy.fit();
@@ -691,35 +762,292 @@
             $('#error-message').hide();
         }
         
-        function generateLayoutButtons() {
-            const layoutLabels = {
-                'dagre': 'Hierarchical',
-                'grid': 'Grid',
-                'circle': 'Circle',
-                'concentric': 'Concentric',
-                'cose': 'Force-directed'
+        // Dynamic Layout Optimization Functions
+        function optimizeLayout() {
+            if (!cy || !cy.elements().length) {
+                console.warn('Cannot optimize layout: No network data loaded');
+                showLayoutStatus('No network data to optimize');
+                return;
+            }
+            
+            showLayoutProgress(true);
+            showLayoutStatus('Analyzing network structure...');
+            
+            setTimeout(() => {
+                const stats = analyzeNetworkStructure();
+                const optimalLayout = selectOptimalLayout(stats);
+                
+                showLayoutStatus(`Applying ${optimalLayout.name} layout...`);
+                
+                try {
+                    const layout = cy.layout(optimalLayout);
+                    layout.run();
+                    
+                    layout.one('layoutstop', () => {
+                        showLayoutProgress(false);
+                        showLayoutStatus(`Layout optimized (${optimalLayout.name})`);
+                        setTimeout(() => showLayoutStatus(''), 3000);
+                    });
+                } catch (e) {
+                    console.error('Layout optimization failed:', e);
+                    showLayoutProgress(false);
+                    showLayoutStatus('Optimization failed - using default layout');
+                    // Fallback
+                    cy.layout({name: 'cose', animate: true}).run();
+                }
+            }, 100);
+        }
+        
+        function analyzeNetworkStructure() {
+            const nodes = cy.nodes().length;
+            const edges = cy.edges().length;
+            const geneNodes = cy.nodes('.gene-node').length;
+            const keNodes = cy.nodes().not('.gene-node').length;
+            
+            return {
+                totalNodes: nodes,
+                keNodes: keNodes,
+                geneNodes: geneNodes,
+                edges: edges,
+                density: nodes > 1 ? edges / (nodes * (nodes - 1) / 2) : 0,
+                hasGenes: geneNodes > 0,
+                geneRatio: nodes > 0 ? geneNodes / nodes : 0,
+                complexity: nodes > 0 ? edges / nodes : 0
             };
+        }
+        
+        function selectOptimalLayout(stats) {
+            console.log('Network analysis:', stats);
             
-            const buttonContainer = $('#layout-buttons');
-            buttonContainer.empty();
+            // Small networks: hierarchical if available
+            if (stats.totalNodes <= 15 && availableLayouts.includes('dagre')) {
+                return {
+                    name: 'dagre',
+                    directed: true,
+                    animate: true,
+                    animationDuration: 800,
+                    rankDir: 'TB',
+                    spacingFactor: 1.2
+                };
+            }
             
-            availableLayouts.forEach(layoutName => {
-                const label = layoutLabels[layoutName] || layoutName;
-                const button = $('<button></button>')
-                    .text(label)
-                    .click(() => applyLayout(layoutName));
-                buttonContainer.append(button);
+            // Gene-heavy networks: clustered force-directed
+            if (stats.hasGenes && stats.geneRatio > 0.3) {
+                return {
+                    name: 'cose',
+                    animate: true,
+                    animationDuration: 1500,
+                    nodeRepulsion: 12000,
+                    idealEdgeLength: 60,
+                    nodeOverlap: 10,
+                    numIter: 1000
+                };
+            }
+            
+            // Large networks: optimized force-directed
+            if (stats.totalNodes > 30) {
+                return {
+                    name: 'cose',
+                    animate: true,
+                    animationDuration: 1200,
+                    nodeRepulsion: 8000,
+                    idealEdgeLength: 80,
+                    numIter: stats.totalNodes > 50 ? 1500 : 1000
+                };
+            }
+            
+            // Default: balanced cose layout
+            return {
+                name: 'cose',
+                animate: true,
+                animationDuration: 1000,
+                nodeRepulsion: 10000,
+                idealEdgeLength: 70
+            };
+        }
+        
+        function showLayoutProgress(show) {
+            const btn = $('#optimize-layout-btn');
+            const spinner = btn.find('.spinner');
+            const text = btn.find('.btn-text');
+            
+            if (show) {
+                btn.prop('disabled', true);
+                spinner.show();
+                text.text('Optimizing...');
+            } else {
+                btn.prop('disabled', false);
+                spinner.hide();
+                text.text('Optimize Layout');
+            }
+        }
+        
+        function showLayoutStatus(message) {
+            $('#layout-status').text(message);
+        }
+        
+        // Gene Integration Functions
+        function setupGeneControls() {
+            $('#include-genes-toggle').change(function() {
+                const includeGenes = $(this).is(':checked');
+                const aopId = $('#aop-select').val();
+                
+                if (aopId) {
+                    loadAOPNetwork(aopId, includeGenes);
+                }
             });
+        }
+        
+        function updateGeneStats(data) {
+            const geneCount = data.gene_count || 0;
+            if (geneCount > 0) {
+                $('#gene-count').text(geneCount);
+                $('#gene-count-display').show();
+                $('#gene-legend-item').show();
+            } else {
+                $('#gene-count-display').hide();
+                $('#gene-legend-item').hide();
+            }
+        }
+        
+        // Export Functions
+        function toggleExportDropdown() {
+            const dropdown = $('#export-dropdown');
+            dropdown.toggle();
+        }
+        
+        function exportNetwork(format) {
+            if (!cy || !cy.elements().length) {
+                showExportStatus('No network data to export');
+                return;
+            }
+            
+            const timestamp = new Date().toISOString().slice(0,10);
+            const aopId = $('#aop-select option:selected').text().replace(/[^a-zA-Z0-9]/g, '_');
+            const filename = `aop_network_${aopId}_${timestamp}`;
+            
+            showExportStatus(`Exporting as ${format.toUpperCase()}...`);
+            
+            try {
+                switch(format) {
+                    case 'png':
+                        const pngBlob = cy.png({
+                            scale: 2,
+                            full: true,
+                            bg: 'white'
+                        });
+                        downloadDataUrl(pngBlob, `${filename}.png`);
+                        break;
+                        
+                    case 'svg':
+                        const svgContent = cy.svg({scale: 2, full: true});
+                        downloadText(svgContent, `${filename}.svg`);
+                        break;
+                        
+                    case 'json':
+                        const networkData = {
+                            nodes: cy.nodes().map(n => ({
+                                data: n.data(),
+                                classes: n.classes()
+                            })),
+                            edges: cy.edges().map(e => ({
+                                data: e.data(),
+                                classes: e.classes()
+                            })),
+                            metadata: currentNetworkData ? currentNetworkData.metadata : {},
+                            exported_at: new Date().toISOString()
+                        };
+                        downloadJSON(networkData, `${filename}.json`);
+                        break;
+                        
+                    case 'graphml':
+                        const graphml = convertToGraphML(cy);
+                        downloadText(graphml, `${filename}.graphml`);
+                        break;
+                }
+                
+                setTimeout(() => {
+                    showExportStatus(`Exported as ${format.toUpperCase()}`);
+                    setTimeout(() => showExportStatus(''), 2000);
+                }, 500);
+                
+            } catch (e) {
+                console.error('Export failed:', e);
+                showExportStatus('Export failed');
+            }
+            
+            // Hide dropdown
+            $('#export-dropdown').hide();
+        }
+        
+        function downloadDataUrl(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = filename;
+            link.click();
+        }
+        
+        function downloadText(content, filename) {
+            const blob = new Blob([content], {type: 'text/plain'});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function downloadJSON(data, filename) {
+            const content = JSON.stringify(data, null, 2);
+            downloadText(content, filename);
+        }
+        
+        function convertToGraphML(cy) {
+            let graphml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+            graphml += '<graphml xmlns="http://graphml.graphdrawing.org/xmlns">\n';
+            graphml += '  <key id="label" for="node" attr.name="label" attr.type="string"/>\n';
+            graphml += '  <key id="type" for="node" attr.name="type" attr.type="string"/>\n';
+            graphml += '  <graph id="AOP_Network" edgedefault="directed">\n';
+            
+            // Add nodes
+            cy.nodes().forEach(node => {
+                const data = node.data();
+                graphml += `    <node id="${data.id}">\n`;
+                graphml += `      <data key="label">${data.label || data.id}</data>\n`;
+                graphml += `      <data key="type">${data.type || 'ke'}</data>\n`;
+                graphml += `    </node>\n`;
+            });
+            
+            // Add edges
+            cy.edges().forEach(edge => {
+                const data = edge.data();
+                graphml += `    <edge source="${data.source}" target="${data.target}"/>\n`;
+            });
+            
+            graphml += '  </graph>\n';
+            graphml += '</graphml>';
+            
+            return graphml;
+        }
+        
+        function showExportStatus(message) {
+            $('#export-status').text(message);
         }
         
         function showControls(show) {
             if (show) {
-                generateLayoutButtons();
                 $('#layout-controls').show();
+                $('#gene-controls').show();
+                $('#export-controls').show();
                 $('#legend').show();
                 $('#stats').show();
+                
+                // Setup gene controls if not already done
+                setupGeneControls();
             } else {
                 $('#layout-controls').hide();
+                $('#gene-controls').hide();
+                $('#export-controls').hide();
                 $('#legend').hide();
                 $('#stats').hide();
                 $('#node-info').hide();
