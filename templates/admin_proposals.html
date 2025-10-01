@@ -174,7 +174,7 @@
                                 <div class="proposal-detail">{{ proposal.admin_notes }}</div>
                             {% endif %}
                         </td>
-                        <td>{{ proposal.created_at.split('.')[0] if proposal.created_at else 'Unknown' }}</td>
+                        <td>{{ proposal.created_at_formatted if proposal.created_at_formatted else 'Unknown' }}</td>
                         <td>
                             <div class="proposal-actions">
                                 {% if proposal.status == 'pending' %}
@@ -295,7 +295,7 @@
                     <div><strong>Email:</strong> ${proposal.user_email}</div>
                     <div><strong>Affiliation:</strong> ${proposal.user_affiliation}</div>
                     <div><strong>GitHub:</strong> ${proposal.github_username}</div>
-                    <div><strong>Submitted:</strong> ${proposal.created_at}</div>
+                    <div><strong>Submitted:</strong> ${proposal.created_at_formatted || proposal.created_at}</div>
                 </div>
                 
                 <div style="margin-bottom: 15px;">

@@ -91,7 +91,7 @@ class KEWPApp {
     loadKEOptions() {
         $.getJSON("/get_ke_options")
             .done((data) => {
-                
+
                 // Sort data by KE Label numerically
                 data.sort((a, b) => {
                     const matchA = a.KElabel.match(/\d+/);
@@ -107,11 +107,19 @@ class KEWPApp {
                 dropdown.append('<option value="" disabled selected>Select a Key Event</option>');
                 data.forEach(option => {
                     dropdown.append(
-                        `<option value="${option.KElabel}" 
+                        `<option value="${option.KElabel}"
                          data-title="${option.KEtitle}"
                          data-description="${option.KEdescription || ''}"
                          data-biolevel="${option.biolevel || ''}">${option.KElabel} - ${option.KEtitle}</option>`
                     );
+                });
+
+                // Initialize Select2 for searchable dropdown
+                dropdown.select2({
+                    placeholder: 'Search for a Key Event...',
+                    allowClear: true,
+                    width: '100%',
+                    matcher: this.customMatcher
                 });
             })
             .fail((xhr, status, error) => {
@@ -119,6 +127,30 @@ class KEWPApp {
                 const errorMsg = xhr.responseJSON?.error || "Unable to load Key Events. Please check your internet connection and try refreshing the page.";
                 this.showMessage(errorMsg, "error");
             });
+    }
+
+    customMatcher(params, data) {
+        // If there are no search terms, return all data
+        if ($.trim(params.term) === '') {
+            return data;
+        }
+
+        // Do not display the item if there is no 'text' property
+        if (typeof data.text === 'undefined') {
+            return null;
+        }
+
+        // Search term matching - case insensitive, matches anywhere in text
+        const searchTerm = params.term.toLowerCase();
+        const text = data.text.toLowerCase();
+
+        // Match if search term is found in the text
+        if (text.indexOf(searchTerm) > -1) {
+            return data;
+        }
+
+        // Return null if term not found
+        return null;
     }
 
     loadPathwayOptions() {
@@ -598,77 +630,69 @@ class KEWPApp {
 
     handlePathwayStepProgression($pathwayAssessment, pathwayId) {
         const answers = this.pathwayAssessments[pathwayId];
-        const s1 = answers["step1"];
-        const s2 = answers["step2"];
-        const s3 = answers["step3"];
-        const s4 = answers["step4"];
-        const s5 = answers["step5"];
+        const s1 = answers["step1"];  // Relationship type
+        const s2 = answers["step2"];  // Evidence quality
+        const s3 = answers["step3"];  // Pathway specificity
+        const s4 = answers["step4"];  // Coverage comprehensiveness
 
         // Debug logging
         console.log('handlePathwayStepProgression debug:', {
             pathwayId: pathwayId,
             answers: answers,
-            s1, s2, s3, s4, s5
+            s1, s2, s3, s4
         });
 
         // Find steps within this pathway assessment
         const $steps = $pathwayAssessment.find(".assessment-step");
-        
-        // Reset visibility for new 5-step workflow
-        $steps.filter("[data-step='step2'], [data-step='step3'], [data-step='step4'], [data-step='step5']").hide();
 
-        if (s1 === "yes") {
+        // Reset visibility for new 4-step workflow
+        $steps.filter("[data-step='step2'], [data-step='step3'], [data-step='step4']").hide();
+
+        if (s1) {
             $steps.filter("[data-step='step2']").show();
-            
+
             if (s2) {
                 $steps.filter("[data-step='step3']").show();
-                
+
                 if (s3) {
                     $steps.filter("[data-step='step4']").show();
-                    
+
                     if (s4) {
-                        $steps.filter("[data-step='step5']").show();
-                        
-                        if (s5) {
-                            // Complete assessment for this pathway
-                            this.evaluatePathwayConfidence($pathwayAssessment, pathwayId);
-                        }
+                        // Complete assessment for this pathway
+                        this.evaluatePathwayConfidence($pathwayAssessment, pathwayId);
                     }
                 }
             }
-        } else if (s1 === "no") {
-            // Skip this pathway - mark as not relevant
-            this.markPathwayAsSkipped($pathwayAssessment, pathwayId);
         }
     }
 
     evaluatePathwayConfidence($pathwayAssessment, pathwayId) {
         const answers = this.pathwayAssessments[pathwayId];
-        
+
         console.log('evaluatePathwayConfidence called:', {
             pathwayId: pathwayId,
             answers: answers,
             $pathwayAssessment: $pathwayAssessment
         });
-        
+
         // Use existing confidence evaluation logic
         let baseScore = 0;
         let connectionType = "undefined";
 
-        // Evidence quality scoring
-        const evidenceScores = { "strong": 3, "moderate": 2, "computational": 1, "none": 0 };
-        baseScore += evidenceScores[answers["step3"]] || 0;
+        // Connection type from step 1 (now first question)
+        connectionType = answers["step1"] || "unclear";
 
-        // Pathway specificity scoring  
-        const specificityScores = { "direct": 2, "partial": 1, "weak": 0 };
-        baseScore += specificityScores[answers["step4"]] || 0;
+        // Evidence quality scoring (now step 2)
+        const evidenceScores = { "known": 3, "likely": 2, "possible": 1, "uncertain": 0 };
+        baseScore += evidenceScores[answers["step2"]] || 0;
 
-        // Coverage comprehensiveness scoring
-        const coverageScores = { "complete": 1.5, "partial": 1, "limited": 0.5 };
-        baseScore += coverageScores[answers["step5"]] || 0;
+        // Pathway specificity scoring (now step 3)
+        const specificityScores = { "specific": 2, "includes": 1, "loose": 0 };
+        baseScore += specificityScores[answers["step3"]] || 0;
 
-        // Connection type from step 2
-        connectionType = answers["step2"] || "unclear";
+        // Coverage comprehensiveness scoring (now step 4)
+        const coverageScores = { "complete": 1.5, "keysteps": 1, "minor": 0.5 };
+        baseScore += coverageScores[answers["step4"]] || 0;
 
         // Apply biological level bonus
         const isMolecularLevel = this.selectedBiolevel && 
@@ -717,41 +741,18 @@ class KEWPApp {
         });
     }
 
-    markPathwayAsSkipped($pathwayAssessment, pathwayId) {
-        const $result = $pathwayAssessment.find(".assessment-result");
-        $result.find(".confidence-result").text("Not relevant (skipped)");
-        $result.find(".connection-result").text("N/A");
-        $result.find(".score-details").text("Pathway marked as not biologically relevant");
-        $result.css("background", "#f8d7da").show();
-        
-        // Store skipped status
-        if (!this.pathwayResults) {
-            this.pathwayResults = {};
-        }
-        this.pathwayResults[pathwayId] = {
-            confidence: "not_relevant",
-            connection_type: "undefined",
-            score: 0,
-            skipped: true
-        };
-    }
-
     handleStepProgression() {
-        const s1 = this.stepAnswers["step1"];
-        const s2 = this.stepAnswers["step2"];
-        const s3 = this.stepAnswers["step3"];
-        const s4 = this.stepAnswers["step4"];
-        const s5 = this.stepAnswers["step5"];
+        const s1 = this.stepAnswers["step1"];  // Relationship type
+        const s2 = this.stepAnswers["step2"];  // Evidence quality
+        const s3 = this.stepAnswers["step3"];  // Pathway specificity
+        const s4 = this.stepAnswers["step4"];  // Coverage comprehensiveness
 
-        // Reset visibility for new 5-step workflow
-        $("#step2, #step3, #step4, #step5").hide();
+        // Reset visibility for new 4-step workflow
+        $("#step2, #step3, #step4").hide();
         $("#evaluateBtn").hide();
 
-        if (s1 === "yes") {
+        if (s1) {
             $("#step2").show();
-        } else if (s1 === "no") {
-            $("#ca-result").text("Assessment stopped: Pathway is not biologically relevant to the Key Event.");
-            return;
         }
 
         if (s2) {
@@ -762,12 +763,8 @@ class KEWPApp {
             $("#step4").show();
         }
 
-        if (s4) {
-            $("#step5").show();
-        }
-
         // Check if all required steps are completed
-        const ready = s1 && s2 && s3 && s4 && s5;
+        const ready = s1 && s2 && s3 && s4;
         if (ready) {
             $("#evaluateBtn").show();
         }
@@ -1233,16 +1230,13 @@ class KEWPApp {
                 
                 <div class="assessment-steps" data-assessment-id="${assessmentId}">
                     <div class="assessment-step" data-step="step1">
-                        <h4>1. Is this pathway biologically relevant to the Key Event?</h4>
+                        <h4>1. What is the relationship between the pathway and Key Event?
+                            <span class="tooltip" data-tooltip="• Causative: The pathway directly causes or leads to the Key Event
+• Responsive: The Key Event triggers or activates the pathway
+• Bidirectional: Both causative and responsive relationships exist
+• Unclear: The relationship exists but directionality is uncertain">❓</span>
+                        </h4>
                         <div class="btn-group" data-step="step1" data-assessment="${assessmentId}">
-                            <button class="btn-option" data-value="yes">Yes</button>
-                            <button class="btn-option" data-value="no">No (Skip)</button>
-                        </div>
-                    </div>
-
-                    <div class="assessment-step" data-step="step2" style="display: none;">
-                        <h4>2. What is the relationship between the pathway and Key Event?</h4>
-                        <div class="btn-group" data-step="step2" data-assessment="${assessmentId}">
                             <button class="btn-option" data-value="causative">Causative</button>
                             <button class="btn-option" data-value="responsive">Responsive</button>
                             <button class="btn-option" data-value="bidirectional">Bidirectional</button>
@@ -1250,31 +1244,53 @@ class KEWPApp {
                         </div>
                     </div>
 
+                    <div class="assessment-step" data-step="step2" style="display: none;">
+                        <h4>2. What is the basis for this mapping?
+                            <span class="tooltip" data-tooltip="Base your answer on your existing knowledge:
+• Known: You've seen this documented in literature or databases
+• Likely: Strong biological reasoning supports this connection
+• Possible: Plausible hypothesis that makes biological sense
+• Uncertain: Speculative or requires investigation
+
+You don't need to search papers - answer based on what you already know.">❓</span>
+                        </h4>
+                        <div class="btn-group" data-step="step2" data-assessment="${assessmentId}">
+                            <button class="btn-option" data-value="known">Known connection</button>
+                            <button class="btn-option" data-value="likely">Likely connection</button>
+                            <button class="btn-option" data-value="possible">Possible connection</button>
+                            <button class="btn-option" data-value="uncertain">Uncertain connection</button>
+                        </div>
+                    </div>
+
                     <div class="assessment-step" data-step="step3" style="display: none;">
-                        <h4>3. What evidence supports this mapping?</h4>
+                        <h4>3. How specific is the pathway to this Key Event?
+                            <span class="tooltip" data-tooltip="Consider pathway scope:
+• KE-specific: The pathway is specifically about this Key Event
+• Includes KE: The pathway covers this KE plus other related processes
+• Loosely related: The pathway is very broad or the connection is indirect
+
+This helps identify which pathways need to be more specific.">❓</span>
+                        </h4>
                         <div class="btn-group" data-step="step3" data-assessment="${assessmentId}">
-                            <button class="btn-option" data-value="strong">Strong experimental</button>
-                            <button class="btn-option" data-value="moderate">Moderate experimental</button>
-                            <button class="btn-option" data-value="computational">Computational/literature</button>
-                            <button class="btn-option" data-value="none">No direct evidence</button>
+                            <button class="btn-option" data-value="specific">KE-specific</button>
+                            <button class="btn-option" data-value="includes">Includes KE</button>
+                            <button class="btn-option" data-value="loose">Loosely related</button>
                         </div>
                     </div>
 
                     <div class="assessment-step" data-step="step4" style="display: none;">
-                        <h4>4. How closely does the pathway relate to this Key Event?</h4>
-                        <div class="btn-group" data-step="step4" data-assessment="${assessmentId}">
-                            <button class="btn-option" data-value="direct">Direct relationship</button>
-                            <button class="btn-option" data-value="partial">Partial relationship</button>
-                            <button class="btn-option" data-value="weak">Weak relationship</button>
-                        </div>
-                    </div>
+                        <h4>4. How much of the KE mechanism is captured by the pathway?
+                            <span class="tooltip" data-tooltip="Evaluate pathway completeness:
+• Complete: All major biological steps/aspects of the KE are in the pathway
+• Key steps: The pathway covers important parts but is missing some aspects
+• Minor aspects: Only a small portion of the KE mechanism is represented
 
-                    <div class="assessment-step" data-step="step5" style="display: none;">
-                        <h4>5. How comprehensive is the pathway coverage of the Key Event?</h4>
-                        <div class="btn-group" data-step="step5" data-assessment="${assessmentId}">
-                            <button class="btn-option" data-value="complete">Complete coverage</button>
-                            <button class="btn-option" data-value="partial">Partial coverage</button>
-                            <button class="btn-option" data-value="limited">Limited coverage</button>
+This helps identify gaps in existing pathways for future development.">❓</span>
+                        </h4>
+                        <div class="btn-group" data-step="step4" data-assessment="${assessmentId}">
+                            <button class="btn-option" data-value="complete">Complete mechanism</button>
+                            <button class="btn-option" data-value="keysteps">Key steps only</button>
+                            <button class="btn-option" data-value="minor">Minor aspects</button>
                         </div>
                     </div>
                 </div>
@@ -1841,59 +1857,54 @@ class KEWPApp {
     }
 
     showSuccessMessage(message, formData) {
-        // Create a comprehensive success message with the submitted data
-        const successHtml = `
-            <div class="success-message" style="display: block;">
-                <div class="success-message-custom">
-                    <span class="success-icon">✓</span>
-                    <strong>Mapping Successfully Submitted!</strong>
+        // Populate submission summary
+        const summaryHtml = `
+            <div style="margin-bottom: 15px;">
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: #29235C;">Key Event:</strong><br>
+                    <span style="font-family: monospace; font-size: 13px; color: #666;">${formData.ke_id}</span><br>
+                    <span style="font-size: 14px;">${formData.ke_title}</span>
                 </div>
-                
-                <div class="mapping-details-container">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div style="background-color: #e3f2fd; padding: 10px; border-radius: 4px;">
-                            <strong>🧬 Key Event:</strong><br>
-                            <span style="font-family: monospace;">${formData.ke_id}</span><br>
-                            <small style="color: #666;">${formData.ke_title}</small>
-                        </div>
-                        <div style="background-color: #e8f5e8; padding: 10px; border-radius: 4px;">
-                            <strong>Pathway:</strong><br>
-                            <span style="font-family: monospace;">${formData.wp_id}</span><br>
-                            <small style="color: #666;">${formData.wp_title}</small>
-                        </div>
-                    </div>
-                    
-                    <div style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #ddd;">
-                        <span style="background-color: #fff3cd; padding: 4px 8px; border-radius: 3px; margin: 0 5px;">
-                            <strong>Connection:</strong> ${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}
-                        </span>
-                        <span style="background-color: #d1ecf1; padding: 4px 8px; border-radius: 3px; margin: 0 5px;">
-                            <strong>Confidence:</strong> ${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}
-                        </span>
-                    </div>
-                    
-                    <p style="text-align: center; margin: 15px 0 5px 0; color: #28a745; font-weight: bold;">
-                        🎉 Your mapping is now part of the research database!
-                    </p>
-                    <p style="text-align: center; font-size: 14px; color: #666; margin: 5px 0;">
-                        View it in the <a href="/explore" target="_blank">dataset explorer</a> or submit another mapping below.
-                    </p>
+                <div style="text-align: center; margin: 10px 0; color: #307BBF; font-size: 20px;">↓</div>
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: #29235C;">WikiPathway:</strong><br>
+                    <span style="font-family: monospace; font-size: 13px; color: #666;">${formData.wp_id}</span><br>
+                    <span style="font-size: 14px;">${formData.wp_title}</span>
+                </div>
+            </div>
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-around; font-size: 14px;">
+                <div>
+                    <strong style="color: #29235C;">Connection:</strong><br>
+                    <span style="color: #666;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span>
+                </div>
+                <div>
+                    <strong style="color: #29235C;">Confidence:</strong><br>
+                    <span style="color: #666;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span>
                 </div>
             </div>
         `;
-        
-        // Show the success message in the existing entries area
-        $("#existing-entries").html(successHtml);
-        
-        // Also show a simple message in the message area
-        this.showMessage(message, "success");
-        
-        // Auto-hide the detailed success message after 10 seconds
+
+        $("#submissionSummary").html(summaryHtml);
+
+        // Display the modal
+        const modal = $("#thankYouModal");
+        modal.css("display", "flex");
+
+        // Close modal handlers
+        $("#closeThankYouModal").off("click").on("click", () => {
+            modal.hide();
+        });
+
+        // Close on background click
+        modal.off("click").on("click", (e) => {
+            if (e.target.id === "thankYouModal") {
+                modal.hide();
+            }
+        });
+
+        // Auto-close modal after 10 seconds
         setTimeout(() => {
-            $("#existing-entries").fadeOut(1000, () => {
-                $("#existing-entries").html("");
-                $("#existing-entries").show();
-            });
+            modal.fadeOut();
         }, 10000);
     }
 
@@ -2042,7 +2053,7 @@ class KEWPApp {
                                     </div>
                                 </div>
                                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
-                                    ID: ${suggestion.pathwayID} | Text similarity: ${similarity}%
+                                    Pathway ID: ${suggestion.pathwayID}
                                 </div>
                                 <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')" 
                                         style="font-size: 11px; padding: 4px 8px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 3px; color: #307BBF; cursor: pointer;">
@@ -2982,11 +2993,52 @@ class KEWPApp {
                 }
                 if (formState.pathwayAssessments) {
                     this.pathwayAssessments = formState.pathwayAssessments;
+
+                    // Restore visual state for each pathway assessment
+                    Object.keys(formState.pathwayAssessments).forEach(pathwayId => {
+                        const answers = formState.pathwayAssessments[pathwayId];
+                        const $pathwayAssessment = $(`.pathway-assessment[data-pathway-id="${pathwayId}"]`);
+
+                        if ($pathwayAssessment.length > 0) {
+                            // Restore button states for each step
+                            Object.keys(answers).forEach(stepId => {
+                                const value = answers[stepId];
+                                const $btn = $pathwayAssessment.find(`.btn-group[data-step="${stepId}"] .btn-option[data-value="${value}"]`);
+
+                                if ($btn.length > 0) {
+                                    // Add selected class
+                                    $btn.addClass("selected");
+
+                                    // Show subsequent steps
+                                    const stepNum = parseInt(stepId.replace('step', ''));
+                                    for (let i = 2; i <= 4; i++) {
+                                        if (i <= stepNum + 1) {
+                                            $pathwayAssessment.find(`.assessment-step[data-step="step${i}"]`).show();
+                                        }
+                                    }
+                                }
+                            });
+
+                            // If assessment is complete, evaluate and show results
+                            if (answers.step1 && answers.step2 && answers.step3 && answers.step4) {
+                                setTimeout(() => {
+                                    this.evaluatePathwayConfidence(pathwayId);
+                                }, 200);
+                            }
+                        }
+                    });
                 }
                 if (formState.selectedBiolevel) {
                     this.selectedBiolevel = formState.selectedBiolevel;
                 }
-                
+
+                // Show assessment sections if there are answers
+                if (formState.pathwayAssessments && Object.keys(formState.pathwayAssessments).length > 0) {
+                    $("#confidence-guide").show();
+                    $("#step-3-result").show();
+                    $("#step-5-submit").show();
+                }
+
                 // Form state restored successfully
                 this.showMessage("Previous selections restored after login", "success");
                 
@@ -3022,35 +3074,34 @@ class KEWPApp {
 // Global function for confidence evaluation
 function evaluateConfidence() {
     const app = window.KEWPApp;
-    const s1 = app.stepAnswers["step1"]; // Biological relevance (yes/no)
-    const s2 = app.stepAnswers["step2"]; // Relationship type (causative/responsive/bidirectional/unclear)
-    const s3 = app.stepAnswers["step3"]; // Evidence quality (strong/moderate/computational/none)
-    const s4 = app.stepAnswers["step4"]; // Pathway specificity (direct/partial/weak)
-    const s5 = app.stepAnswers["step5"]; // Coverage comprehensiveness (complete/partial/limited)
+    const s1 = app.stepAnswers["step1"]; // Relationship type (causative/responsive/bidirectional/unclear)
+    const s2 = app.stepAnswers["step2"]; // Evidence quality (strong/moderate/computational/none)
+    const s3 = app.stepAnswers["step3"]; // Pathway specificity (direct/partial/weak)
+    const s4 = app.stepAnswers["step4"]; // Coverage comprehensiveness (complete/partial/limited)
 
     // Calculate base score using new algorithm
     let baseScore = 0;
-    
+
     // Evidence quality scoring (0-3 points)
-    switch (s3) {
-        case 'strong': baseScore += 3; break;
-        case 'moderate': baseScore += 2; break;
-        case 'computational': baseScore += 1; break;
-        case 'none': baseScore += 0; break;
+    switch (s2) {
+        case 'known': baseScore += 3; break;
+        case 'likely': baseScore += 2; break;
+        case 'possible': baseScore += 1; break;
+        case 'uncertain': baseScore += 0; break;
     }
-    
+
     // Pathway specificity scoring (0-2 points)
-    switch (s4) {
-        case 'direct': baseScore += 2; break;
-        case 'partial': baseScore += 1; break;
-        case 'weak': baseScore += 0; break;
+    switch (s3) {
+        case 'specific': baseScore += 2; break;
+        case 'includes': baseScore += 1; break;
+        case 'loose': baseScore += 0; break;
     }
-    
+
     // Coverage comprehensiveness scoring (0-1.5 points)
-    switch (s5) {
+    switch (s4) {
         case 'complete': baseScore += 1.5; break;
-        case 'partial': baseScore += 1; break;
-        case 'limited': baseScore += 0.5; break;
+        case 'keysteps': baseScore += 1; break;
+        case 'minor': baseScore += 0.5; break;
     }
 
     // Add biological level modifier (+1 for molecular/cellular/tissue KEs)
@@ -3075,9 +3126,9 @@ function evaluateConfidence() {
 
     // Update UI with results
     $("#auto-confidence").text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
-    $("#auto-connection").text(s2.charAt(0).toUpperCase() + s2.slice(1));
+    $("#auto-connection").text(s1.charAt(0).toUpperCase() + s1.slice(1));
     $("#confidence_level").val(confidence);
-    $("#connection_type").val(window.KEWPApp.mapConnectionTypeForServer(s2));
+    $("#connection_type").val(window.KEWPApp.mapConnectionTypeForServer(s1));
     $("#evaluateBtn").hide();
     
     // Show detailed result message

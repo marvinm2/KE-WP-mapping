@@ -76,6 +76,7 @@ def download():
         import csv
         import io
         from datetime import datetime
+        from timezone_utils import format_export_timestamp
 
         # Get all mappings from database
         mappings = mapping_model.get_all_mappings()
@@ -105,7 +106,7 @@ def download():
             contributor_stats[contrib] = contributor_stats.get(contrib, 0) + 1
 
         # Add comprehensive metadata header
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        current_time = format_export_timestamp()
         output.write(f"# KE-WP Mapping Dataset Export\n")
         output.write(f"# Generated: {current_time}\n")
         output.write(f"# Total mappings: {len(mappings)}\n")
@@ -231,13 +232,6 @@ def confidence_assessment():
     return render_template("confidence-assessment.html")
 
 
-@main_bp.route("/aop_network")
-@monitor_performance
-def aop_network():
-    """AOP Network Visualization page"""
-    return render_template("aop_network.html")
-
-
 # ========== Enhanced Export Routes ==========
 
 @main_bp.route("/export/<format_name>")
@@ -302,7 +296,8 @@ def export_dataset(format_name):
         # Add custom headers
         response.headers["X-Dataset-Version"] = metadata_manager.metadata.get("version", "1.0.0") if metadata_manager else "1.0.0"
         response.headers["X-Export-Format"] = format_name
-        response.headers["X-Export-Timestamp"] = datetime.now().isoformat()
+        from timezone_utils import format_local_datetime
+        response.headers["X-Export-Timestamp"] = format_local_datetime()
         
         logger.info(f"Dataset exported in {format_name} format")
         return response

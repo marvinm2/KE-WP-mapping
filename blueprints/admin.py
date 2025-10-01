@@ -4,9 +4,12 @@ Handles administrative functions for proposal management
 """
 import logging
 import os
+from datetime import datetime
 from functools import wraps
 
 from flask import Blueprint, jsonify, render_template, request, session
+
+from timezone_utils import format_local_datetime, utc_to_local
 
 from models import MappingModel, ProposalModel
 from monitoring import monitor_performance
@@ -107,6 +110,32 @@ def admin_proposals():
 
         # Get all proposals
         proposals = proposal_model.get_all_proposals(status=status_filter)
+        
+        # Format timestamps for local timezone
+        for proposal in proposals:
+            if proposal.get('created_at'):
+                try:
+                    utc_dt = datetime.fromisoformat(proposal['created_at'].replace('Z', '+00:00'))
+                    local_dt = utc_to_local(utc_dt)
+                    proposal['created_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                except:
+                    proposal['created_at_formatted'] = proposal['created_at']
+            
+            if proposal.get('approved_at'):
+                try:
+                    utc_dt = datetime.fromisoformat(proposal['approved_at'].replace('Z', '+00:00'))
+                    local_dt = utc_to_local(utc_dt)
+                    proposal['approved_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                except:
+                    proposal['approved_at_formatted'] = proposal['approved_at']
+                    
+            if proposal.get('rejected_at'):
+                try:
+                    utc_dt = datetime.fromisoformat(proposal['rejected_at'].replace('Z', '+00:00'))
+                    local_dt = utc_to_local(utc_dt)
+                    proposal['rejected_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                except:
+                    proposal['rejected_at_formatted'] = proposal['rejected_at']
 
         # Add admin status to template context
         user_info = session.get("user", {})
@@ -145,6 +174,31 @@ def admin_proposal_detail(proposal_id: int):
         proposal = proposal_model.get_proposal_by_id(proposal_id)
         if not proposal:
             return jsonify({"error": "Proposal not found"}), 404
+
+        # Format timestamps for local timezone
+        if proposal.get('created_at'):
+            try:
+                utc_dt = datetime.fromisoformat(proposal['created_at'].replace('Z', '+00:00'))
+                local_dt = utc_to_local(utc_dt)
+                proposal['created_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            except:
+                proposal['created_at_formatted'] = proposal['created_at']
+        
+        if proposal.get('approved_at'):
+            try:
+                utc_dt = datetime.fromisoformat(proposal['approved_at'].replace('Z', '+00:00'))
+                local_dt = utc_to_local(utc_dt)
+                proposal['approved_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            except:
+                proposal['approved_at_formatted'] = proposal['approved_at']
+                
+        if proposal.get('rejected_at'):
+            try:
+                utc_dt = datetime.fromisoformat(proposal['rejected_at'].replace('Z', '+00:00'))
+                local_dt = utc_to_local(utc_dt)
+                proposal['rejected_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            except:
+                proposal['rejected_at_formatted'] = proposal['rejected_at']
 
         return jsonify(proposal)
 

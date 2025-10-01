@@ -11,6 +11,8 @@ from flask import Flask, jsonify, render_template, request
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 
+from timezone_utils import format_admin_timestamp
+
 # Import blueprints
 from blueprints import admin_bp, api_bp, auth_bp, main_bp
 from blueprints.admin import set_models as set_admin_models
@@ -121,7 +123,7 @@ def create_app(config_name: str = None):
             return jsonify(
                 {
                     "status": "healthy" if all(health_status.values()) else "degraded",
-                    "timestamp": int(time.time()),
+                    "timestamp": format_admin_timestamp(),
                     "version": "2.0.0",
                     "services": health_status,
                 }
@@ -132,7 +134,7 @@ def create_app(config_name: str = None):
                 jsonify(
                     {
                         "status": "unhealthy",
-                        "timestamp": int(time.time()),
+                        "timestamp": format_admin_timestamp(),
                         "error": str(e),
                     }
                 ),
