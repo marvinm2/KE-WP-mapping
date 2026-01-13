@@ -108,6 +108,22 @@ def create_app(config_name: str = None):
     set_admin_models(services.proposal_model, services.mapping_model)
     set_main_models(services.mapping_model)
 
+    # Context processor to make is_admin available to all templates
+    @app.context_processor
+    def inject_user_context():
+        """Inject user context including admin status to all templates"""
+        from flask import session
+
+        current_user = session.get("user", {}).get("username")
+        if current_user:
+            admin_users = os.getenv("ADMIN_USERS", "").split(",")
+            admin_users = [user.strip() for user in admin_users if user.strip()]
+            is_admin = current_user in admin_users
+        else:
+            is_admin = False
+
+        return dict(is_admin=is_admin)
+
     # Register blueprints
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)

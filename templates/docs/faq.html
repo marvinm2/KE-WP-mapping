@@ -1,0 +1,85 @@
+<h2>FAQ & Troubleshooting</h2>
+
+<h3>Frequently Asked Questions</h3>
+
+<h4>What is a Key Event?</h4>
+<p>A Key Event (KE) is a measurable biological change in an Adverse Outcome Pathway (AOP) that represents a critical step between a molecular initiating event and an adverse outcome. Key Events are documented in the AOP-Wiki database.</p>
+
+<h4>What is WikiPathways?</h4>
+<p>WikiPathways is a community-curated database of biological pathways. It contains pathway diagrams showing molecular interactions, gene networks, and biological processes across multiple species.</p>
+
+<h4>How do I choose the right confidence level?</h4>
+<p>Use the 4-question confidence assessment workflow. The system automatically calculates confidence based on:</p>
+<ul>
+    <li>Your knowledge of the connection (Evidence Basis)</li>
+    <li>How specific the pathway is to the Key Event (Pathway Specificity)</li>
+    <li>How completely the pathway captures the KE mechanism (KE Coverage)</li>
+    <li>The biological level of the Key Event (automatic weighting)</li>
+</ul>
+
+<h4>Why can't I submit mappings?</h4>
+<p>Mapping submission requires GitHub authentication. Click "Login with GitHub" in the top navigation, authorize the application, then you'll be able to submit new mappings and propose changes.</p>
+
+<h4>What does "Causative" vs "Responsive" mean?</h4>
+<ul>
+    <li><strong>Causative</strong>: The pathway causes or leads to the Key Event (Pathway → KE)</li>
+    <li><strong>Responsive</strong>: The Key Event triggers or activates the pathway (KE → Pathway)</li>
+    <li><strong>Bidirectional</strong>: Both directions apply</li>
+    <li><strong>Unclear</strong>: Relationship exists but direction uncertain</li>
+</ul>
+
+<h3>Troubleshooting</h3>
+
+<h4>Dropdown not loading / showing "Loading..."</h4>
+<p><strong>Cause:</strong> SPARQL endpoint timeout or network issues</p>
+<p><strong>Solution:</strong></p>
+<ul>
+    <li>Wait a few moments and refresh the page</li>
+    <li>Check your internet connection</li>
+    <li>AOP-Wiki or WikiPathways SPARQL endpoints may be temporarily unavailable</li>
+</ul>
+
+<h4>Pathway suggestions not appearing</h4>
+<p><strong>Cause:</strong> No strong matches found or missing gene data</p>
+<p><strong>Solution:</strong></p>
+<ul>
+    <li>Use the pathway search feature instead</li>
+    <li>Manually browse pathways from the dropdown</li>
+    <li>AI suggestions work best for molecular/cellular-level KEs with gene associations</li>
+</ul>
+
+<h4>SPARQL endpoint timeout errors</h4>
+<p><strong>Cause:</strong> External SPARQL services taking too long to respond</p>
+<p><strong>Solution:</strong></p>
+<ul>
+    <li>The application has built-in caching (24-hour expiry)</li>
+    <li>Retry the request - cached data will load faster</li>
+    <li>Report persistent issues on GitHub</li>
+</ul>
+
+<h4>GitHub login issues</h4>
+<p><strong>Common causes:</strong></p>
+<ul>
+    <li>OAuth app not properly configured (admin issue)</li>
+    <li>Callback URL mismatch in GitHub settings</li>
+    <li>Browser blocking third-party cookies</li>
+</ul>
+<p><strong>Solution:</strong> Contact the administrator or report the issue on GitHub</p>
+
+<h3>Known Limitations</h3>
+<div class="warning-box">
+    <p><strong>Pathway search limitations (GitHub issue #53):</strong></p>
+    <ul>
+        <li>Search currently works by pathway title/description only</li>
+        <li>Ontology-based search not yet supported</li>
+        <li>Gene-based pathway search coming in future update</li>
+    </ul>
+</div>
+
+<h3>Get Help</h3>
+<p>If you encounter issues not covered here:</p>
+<ul>
+    <li><strong>Report bugs:</strong> <a href="https://github.com/marvinm2/KE-WP-mapping/issues" target="_blank">GitHub Issues</a></li>
+    <li><strong>View source code:</strong> <a href="https://github.com/marvinm2/KE-WP-mapping" target="_blank">GitHub Repository</a></li>
+    <li><strong>Documentation:</strong> Check CLAUDE.md and README.md in the repository</li>
+</ul>

@@ -440,3 +440,37 @@ def datacite_metadata():
     except Exception as e:
         logger.error(f"Error generating DataCite metadata: {e}")
         return jsonify({"error": "Failed to generate DataCite metadata", "details": str(e)}), 500
+
+
+@main_bp.route("/documentation")
+@main_bp.route("/documentation/<section>")
+@monitor_performance
+def documentation(section='overview'):
+    """
+    Serve documentation pages with section navigation
+
+    Args:
+        section: Documentation section to display ('overview', 'user-guide', 'admin-guide', 'api', 'faq')
+
+    Returns:
+        Rendered documentation template
+    """
+    sections = {
+        'overview': 'Getting Started',
+        'user-guide': 'User Guide',
+        'admin-guide': 'Admin Guide',
+        'api': 'API Documentation',
+        'faq': 'FAQ & Troubleshooting'
+    }
+
+    # Validate section
+    if section not in sections:
+        logger.warning(f"Invalid documentation section requested: {section}")
+        section = 'overview'
+
+    logger.info(f"Documentation section requested: {section}")
+
+    return render_template('documentation.html',
+        current_section=section,
+        sections=sections
+    )

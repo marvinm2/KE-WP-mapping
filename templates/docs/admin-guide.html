@@ -1,0 +1,73 @@
+<h2>Admin Guide</h2>
+
+<p>This guide is for administrators managing the proposal system and database.</p>
+
+<h3>Admin Access</h3>
+<p>Admin privileges are controlled via the <code>ADMIN_USERS</code> environment variable:</p>
+<pre><code>ADMIN_USERS=username1,username2,username3</code></pre>
+
+<p>Once configured, admin users will see:</p>
+<ul>
+    <li>Admin tab in the top navigation</li>
+    <li>"(Admin)" badge next to their username</li>
+    <li>Access to proposal management dashboard</li>
+</ul>
+
+<h3>Proposal Management</h3>
+
+<h4>Viewing Proposals</h4>
+<p>Navigate to <strong>Admin → Manage Proposals</strong> to access the dashboard with:</p>
+<ul>
+    <li>Filterable table of all proposals</li>
+    <li>Status indicators (Pending / Approved / Rejected)</li>
+    <li>User contact information</li>
+    <li>Proposed changes detailed view</li>
+</ul>
+
+<h4>Reviewing Proposals</h4>
+<ol>
+    <li>Click <strong>View Details</strong> to see full proposal information</li>
+    <li>Review the proposed changes:
+        <ul>
+            <li>Delete mapping request</li>
+            <li>Confidence level change</li>
+            <li>Connection type modification</li>
+        </ul>
+    </li>
+    <li>Check user rationale and contact information</li>
+</ol>
+
+<h4>Approving Proposals</h4>
+<ol>
+    <li>Click <strong>Approve</strong> button</li>
+    <li>Changes are immediately applied to the mapping</li>
+    <li>Proposal status updated to "Approved"</li>
+    <li>Timestamp and admin username logged</li>
+</ol>
+
+<h4>Rejecting Proposals</h4>
+<ol>
+    <li>Click <strong>Reject</strong> button</li>
+    <li>Optionally add admin notes explaining the rejection</li>
+    <li>Proposal status updated to "Rejected"</li>
+    <li>Original mapping remains unchanged</li>
+</ol>
+
+<h3>Database Management</h3>
+<p>The application uses SQLite with automatic migrations. Database files:</p>
+<ul>
+    <li><code>database.db</code> - Main database with mappings and proposals</li>
+    <li><code>cache.db</code> - SPARQL response cache (24-hour expiry)</li>
+</ul>
+
+<div class="warning-box">
+    <strong>Important:</strong> All admin actions are logged with timestamps and usernames for accountability. Audit trails are maintained in the database.
+</div>
+
+<h3>User Management</h3>
+<p>Currently, user access is managed through:</p>
+<ul>
+    <li>GitHub OAuth for authentication</li>
+    <li>Environment variable for admin whitelist</li>
+    <li>No user registration - GitHub account required for submissions</li>
+</ul>

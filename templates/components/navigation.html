@@ -1,0 +1,37 @@
+<header style="background-color: #307BBF; padding: 0; margin: 0;">
+    <div style="max-width: 1400px; margin: 0 auto;">
+        <!-- Title Section -->
+        <div style="text-align: center; padding: 20px;">
+            <h1 style="margin: 0; color: white; font-size: 2em; font-weight: 300;">Map Key Events to WikiPathways</h1>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav style="display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap;">
+            <ul class="nav-tabs">
+                <li><a href="/" class="nav-link {{ 'active' if request.path == '/' else '' }}">Mapping</a></li>
+                <li><a href="/explore" class="nav-link {{ 'active' if request.path == '/explore' else '' }}">Explore</a></li>
+                <li><a href="/documentation" class="nav-link {{ 'active' if request.path.startswith('/documentation') else '' }}">Documentation</a></li>
+                {% if is_admin %}
+                <li><a href="/admin/proposals" class="nav-link {{ 'active' if request.path.startswith('/admin') else '' }}">Admin</a></li>
+                {% endif %}
+            </ul>
+
+            <!-- GitHub Login Section -->
+            <div style="padding: 15px 20px; margin-left: 20px;">
+                <div class="github-login">
+                    {% if session.get('user') %}
+                        <p style="margin: 0; color: white; font-weight: 500;">
+                            Welcome, {{ session['user']['username'] }}
+                            {% if is_admin %}
+                                <span style="color: #EB5B25; font-weight: bold;">(Admin)</span>
+                            {% endif %}
+                        </p>
+                        <a href="{{ url_for('auth.logout') }}" style="color: white; margin-left: 10px;">Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('auth.login') }}" style="color: white;">Login with GitHub</a>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+    </div>
+</header>

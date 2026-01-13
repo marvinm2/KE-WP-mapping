@@ -1,0 +1,80 @@
+<h2>API Documentation</h2>
+
+<p>The KE-WP Mapping Service provides several API endpoints for integration and data access.</p>
+
+<h3>Available Endpoints</h3>
+
+<h4>GET /get_ke_options</h4>
+<p>Fetch available Key Events from AOP-Wiki SPARQL endpoint.</p>
+<pre><code>curl https://your-domain.com/get_ke_options</code></pre>
+
+<p><strong>Response:</strong> JSON array of Key Event objects</p>
+<pre><code>[
+    {
+        "KEid": "55",
+        "KElabel": "Increase, CYP2E1",
+        "KEbiologicalLevel": "Molecular"
+    },
+    ...
+]</code></pre>
+
+<h4>GET /get_pathway_options</h4>
+<p>Fetch available WikiPathways from SPARQL endpoint.</p>
+<pre><code>curl https://your-domain.com/get_pathway_options</code></pre>
+
+<p><strong>Response:</strong> JSON array of pathway objects</p>
+
+<h4>GET /suggest_pathways/&lt;ke_id&gt;</h4>
+<p>Get AI-powered pathway suggestions for a specific Key Event.</p>
+<pre><code>curl https://your-domain.com/suggest_pathways/55</code></pre>
+
+<p><strong>Response:</strong> JSON object with ranked suggestions</p>
+
+<h4>GET /search_pathways</h4>
+<p>Search for pathways with fuzzy matching.</p>
+<pre><code>curl "https://your-domain.com/search_pathways?query=apoptosis&limit=10"</code></pre>
+
+<p><strong>Parameters:</strong></p>
+<ul>
+    <li><code>query</code> - Search term (required)</li>
+    <li><code>limit</code> - Max results (default: 10)</li>
+    <li><code>threshold</code> - Similarity threshold (default: 0.3)</li>
+</ul>
+
+<h4>GET /ke_genes/&lt;ke_id&gt;</h4>
+<p>Get gene associations for a specific Key Event.</p>
+<pre><code>curl https://your-domain.com/get_ke_genes/55</code></pre>
+
+<h4>POST /submit</h4>
+<p>Create a new KE-WP mapping (requires authentication).</p>
+<pre><code>curl -X POST https://your-domain.com/submit \
+  -H "Content-Type: application/json" \
+  -H "X-CSRFToken: YOUR_TOKEN" \
+  -d '{
+    "ke_id": "55",
+    "pathway_id": "WP4726",
+    "confidence": "High",
+    "connection_type": "Causative"
+  }'</code></pre>
+
+<h4>GET /download</h4>
+<p>Export mapping dataset in CSV format.</p>
+<pre><code>curl https://your-domain.com/download -o mappings.csv</code></pre>
+
+<h3>Authentication</h3>
+<p>Most endpoints are public (GET requests). Mutation endpoints (POST /submit, POST /submit_proposal) require:</p>
+<ul>
+    <li>GitHub OAuth authentication</li>
+    <li>CSRF token in request headers</li>
+</ul>
+
+<h3>Rate Limiting</h3>
+<p>API endpoints have rate limiting to prevent abuse:</p>
+<ul>
+    <li>General endpoints: 100 requests/minute per IP</li>
+    <li>SPARQL proxies: 30 requests/minute per IP</li>
+</ul>
+
+<div class="info-box">
+    <strong>Note:</strong> Full REST API with authentication and comprehensive documentation is planned (see GitHub issue #31).
+</div>

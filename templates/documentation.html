@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - KE-WP Mapping</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/docs.css') }}">
+</head>
+<body>
+<div class="page-container">
+    {% include 'components/navigation.html' %}
+
+    <div class="docs-container">
+        <aside class="docs-sidebar">
+            <h3>Documentation</h3>
+            <nav class="docs-nav">
+                <ul>
+                    <li><a href="/documentation/overview" class="{{ 'active' if current_section == 'overview' else '' }}">Getting Started</a></li>
+                    <li><a href="/documentation/user-guide" class="{{ 'active' if current_section == 'user-guide' else '' }}">User Guide</a></li>
+                    <li><a href="/documentation/admin-guide" class="{{ 'active' if current_section == 'admin-guide' else '' }}">Admin Guide</a></li>
+                    <li><a href="/documentation/api" class="{{ 'active' if current_section == 'api' else '' }}">API Documentation</a></li>
+                    <li><a href="/documentation/faq" class="{{ 'active' if current_section == 'faq' else '' }}">FAQ & Troubleshooting</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="docs-content">
+            {% if current_section == 'overview' %}
+                {% include 'docs/overview.html' %}
+            {% elif current_section == 'user-guide' %}
+                {% include 'docs/user-guide.html' %}
+            {% elif current_section == 'admin-guide' %}
+                {% include 'docs/admin-guide.html' %}
+            {% elif current_section == 'api' %}
+                {% include 'docs/api.html' %}
+            {% elif current_section == 'faq' %}
+                {% include 'docs/faq.html' %}
+            {% endif %}
+        </main>
+    </div>
+
+    <footer style="background-color: #307BBF; color: white; text-align: center; padding: 20px; margin-top: 40px;">
+        <p style="margin: 0;">KE-WP Mapping Service | Part of VHP4Safety</p>
+        <p style="margin: 5px 0 0 0; font-size: 14px;">
+            <a href="https://github.com/marvinm2/KE-WP-mapping" target="_blank" style="color: #93D5F6; text-decoration: none;">View on GitHub</a>
+        </p>
+    </footer>
+</div>
+</body>
+</html>

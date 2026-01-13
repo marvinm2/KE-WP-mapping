@@ -1,0 +1,80 @@
+<h2>User Guide</h2>
+
+<p>This guide walks you through the complete mapping workflow, from selecting Key Events to submitting high-quality mappings.</p>
+
+<h3>Creating a New Mapping</h3>
+
+<h4>Step 1: Select Key Event</h4>
+<p>Use the searchable dropdown to find a Key Event from AOP-Wiki. You can search by:</p>
+<ul>
+    <li>Key Event ID (e.g., "KE 55")</li>
+    <li>Key Event title or keywords</li>
+</ul>
+
+<h4>Step 2: Select WikiPathway(s)</h4>
+<p>Choose one or two related WikiPathways. The system provides:</p>
+<ul>
+    <li><strong>AI-Powered Suggestions</strong> - Ranked pathway recommendations based on text similarity and gene overlap</li>
+    <li><strong>Pathway Search</strong> - Search for pathways by name or keywords</li>
+    <li><strong>Manual Selection</strong> - Browse all available WikiPathways</li>
+</ul>
+
+<h4>Step 3: Confidence Assessment (4 Questions)</h4>
+<p>Answer four questions to evaluate mapping quality:</p>
+
+<table>
+    <tr>
+        <th>Question</th>
+        <th>Options</th>
+        <th>Purpose</th>
+    </tr>
+    <tr>
+        <td>1. Relationship Type</td>
+        <td>Causative / Responsive / Bidirectional / Unclear</td>
+        <td>Determines connection direction</td>
+    </tr>
+    <tr>
+        <td>2. Evidence Basis</td>
+        <td>Known / Likely / Possible / Uncertain</td>
+        <td>Your confidence level (0-3 points)</td>
+    </tr>
+    <tr>
+        <td>3. Pathway Specificity</td>
+        <td>KE-specific / Includes KE / Loosely related</td>
+        <td>Pathway scope evaluation (0-2 points)</td>
+    </tr>
+    <tr>
+        <td>4. KE Coverage</td>
+        <td>Complete / Key steps / Minor aspects</td>
+        <td>Pathway completeness (0-1.5 points)</td>
+    </tr>
+</table>
+
+<h4>Confidence Scoring</h4>
+<p>The system calculates confidence based on your answers:</p>
+<ul>
+    <li><strong>High Confidence</strong>: ≥5.0 points (strong evidence + good coverage)</li>
+    <li><strong>Medium Confidence</strong>: 2.5-4.9 points (moderate evidence or limitations)</li>
+    <li><strong>Low Confidence</strong>: <2.5 points (weak evidence or poor coverage)</li>
+</ul>
+
+<div class="info-box">
+    <strong>Biological Level Weighting:</strong> Molecular, cellular, and tissue-level KEs receive a +1 bonus point because they're closer to pathway mechanisms than organ/population-level KEs.
+</div>
+
+<h3>Exploring Existing Mappings</h3>
+<p>Navigate to <strong>Explore</strong> to view all mappings in an interactive table with:</p>
+<ul>
+    <li>Sorting and filtering capabilities</li>
+    <li>Export to CSV, Excel, PDF formats</li>
+    <li>Proposal system for suggesting changes</li>
+</ul>
+
+<h3>Proposing Changes</h3>
+<p>If you notice an issue with an existing mapping:</p>
+<ol>
+    <li>Login with GitHub</li>
+    <li>Click "Propose Change" on the mapping</li>
+    <li>Describe your proposed change</li>
+    <li>Submit for admin review</li>
+</ol>
