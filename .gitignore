@@ -18,6 +18,7 @@ flask_app*.log
 CLAUDE.md
 /.claude
 IMPROVEMENT_PLAN.md
+IMPLEMENTATION_STATUS.md
 .env.template
 DOCS_INDEX.md
 README_SETUP.md
