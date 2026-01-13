@@ -7,7 +7,49 @@ class KEWPApp {
         this.isLoggedIn = false;
         this.csrfToken = null;
         this.stepAnswers = {};
-        this.init();
+        this.scoringConfig = null;
+        this.configLoaded = false;
+
+        // Load scoring config first, then initialize
+        this.loadScoringConfig().then(() => {
+            this.init();
+        });
+    }
+
+    async loadScoringConfig() {
+        try {
+            const response = await fetch('/api/scoring-config');
+            if (response.ok) {
+                const data = await response.json();
+                this.scoringConfig = data.ke_pathway_assessment;
+                this.configLoaded = true;
+                console.log('Scoring configuration loaded:', data.metadata);
+            } else {
+                throw new Error('Failed to fetch config');
+            }
+        } catch (error) {
+            console.warn('Failed to load scoring config, using defaults:', error);
+            this.scoringConfig = this.getDefaultScoringConfig();
+            this.configLoaded = true;
+        }
+    }
+
+    getDefaultScoringConfig() {
+        // Return current hardcoded values as fallback
+        return {
+            evidence_quality: { known: 3, likely: 2, possible: 1, uncertain: 0 },
+            pathway_specificity: { specific: 2, includes: 1, loose: 0 },
+            ke_coverage: { complete: 1.5, keysteps: 1.0, minor: 0.5 },
+            biological_level: {
+                bonus: 1.0,
+                qualifying_levels: ['molecular', 'cellular', 'tissue']
+            },
+            confidence_thresholds: { high: 5.0, medium: 2.5 },
+            max_scores: {
+                with_bio_bonus: 7.5,
+                without_bio_bonus: 6.5
+            }
+        };
     }
 
     init() {
@@ -15,9 +57,9 @@ class KEWPApp {
         this.setupEventListeners();
         this.loadDropdownOptions();
         this.loadDataVersions();
-        
+
         // Initialize form validation
-        
+
         // Restore form state if returning from login
         this.restoreFormState();
     }
@@ -319,7 +361,7 @@ class KEWPApp {
                 
                 <div class="mapping-preview" style="display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px; margin: 20px 0; width: 100%;">
                     <div class="preview-section ke-section preview-section-ke">
-                        <h4 class="preview-header-ke">🧬 Key Event Information</h4>
+                        <h4 class="preview-header-ke">Key Event Information</h4>
                         <p><strong>KE ID:</strong> ${formData.ke_id}</p>
                         <p><strong>KE Title:</strong> ${formData.ke_title}</p>
                         <p><strong>Biological Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${biolevel || 'Not specified'}</span></p>
@@ -409,7 +451,7 @@ class KEWPApp {
                 
                 <div class="mapping-preview" style="display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px; margin: 20px 0; width: 100%;">
                     <div class="preview-section ke-section preview-section-ke">
-                        <h4 class="preview-header-ke">🧬 Key Event Information</h4>
+                        <h4 class="preview-header-ke">Key Event Information</h4>
                         <p><strong>KE ID:</strong> ${formData.ke_id}</p>
                         <p><strong>KE Title:</strong> ${formData.ke_title}</p>
                         <p><strong>Biological Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${biolevel || 'Not specified'}</span></p>
@@ -668,6 +710,7 @@ class KEWPApp {
 
     evaluatePathwayConfidence($pathwayAssessment, pathwayId) {
         const answers = this.pathwayAssessments[pathwayId];
+        const config = this.scoringConfig;
 
         console.log('evaluatePathwayConfidence called:', {
             pathwayId: pathwayId,
@@ -682,40 +725,40 @@ class KEWPApp {
         // Connection type from step 1 (now first question)
         connectionType = answers["step1"] || "unclear";
 
-        // Evidence quality scoring (now step 2)
-        const evidenceScores = { "known": 3, "likely": 2, "possible": 1, "uncertain": 0 };
-        baseScore += evidenceScores[answers["step2"]] || 0;
+        // Evidence quality scoring (now step 2) - use config
+        baseScore += config.evidence_quality[answers["step2"]] || 0;
 
-        // Pathway specificity scoring (now step 3)
-        const specificityScores = { "specific": 2, "includes": 1, "loose": 0 };
-        baseScore += specificityScores[answers["step3"]] || 0;
+        // Pathway specificity scoring (now step 3) - use config
+        baseScore += config.pathway_specificity[answers["step3"]] || 0;
 
-        // Coverage comprehensiveness scoring (now step 4)
-        const coverageScores = { "complete": 1.5, "keysteps": 1, "minor": 0.5 };
-        baseScore += coverageScores[answers["step4"]] || 0;
+        // Coverage comprehensiveness scoring (now step 4) - use config
+        baseScore += config.ke_coverage[answers["step4"]] || 0;
 
-        // Apply biological level bonus
-        const isMolecularLevel = this.selectedBiolevel && 
-            ['molecular', 'cellular', 'tissue'].includes(this.selectedBiolevel.toLowerCase());
-        
+        // Apply biological level bonus - use config
+        const bioLevel = this.selectedBiolevel ? this.selectedBiolevel.toLowerCase() : '';
+        const qualifyingLevels = config.biological_level.qualifying_levels;
+        const isMolecularLevel = qualifyingLevels.some(level => bioLevel.includes(level));
+
         if (isMolecularLevel) {
-            baseScore += 1; // Biological level bonus
+            baseScore += config.biological_level.bonus;
         }
 
-        // Determine confidence level
+        // Determine confidence level - use config thresholds
         let confidence;
-        if (baseScore >= 5.0) {
+        if (baseScore >= config.confidence_thresholds.high) {
             confidence = "high";
-        } else if (baseScore >= 2.5) {
-            confidence = "medium";  
+        } else if (baseScore >= config.confidence_thresholds.medium) {
+            confidence = "medium";
         } else {
             confidence = "low";
         }
 
-        // Update pathway assessment result
+        // Update pathway assessment result - use config max scores
         const $result = $pathwayAssessment.find(".assessment-result");
-        const maxScore = isMolecularLevel ? 7.5 : 6.5;
-        
+        const maxScore = isMolecularLevel ?
+            config.max_scores.with_bio_bonus :
+            config.max_scores.without_bio_bonus;
+
         $result.find(".confidence-result").text(`${confidence} confidence`);
         $result.find(".connection-result").text(connectionType);
         $result.find(".score-details").text(`Score: ${baseScore.toFixed(1)}/${maxScore}${isMolecularLevel ? ' with biological level bonus' : ''}`);
@@ -731,7 +774,7 @@ class KEWPApp {
             score: baseScore,
             answers: answers
         };
-        
+
         console.log('evaluatePathwayConfidence completed:', {
             pathwayId: pathwayId,
             confidence: confidence,
@@ -1964,14 +2007,14 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         let suggestionsHtml = `
             <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
-                <h3 style="margin: 0 0 15px 0; color: #29235C;">💡 Suggested Pathways for Selected KE</h3>
+                <h3 style="margin: 0 0 15px 0; color: #29235C;">Suggested Pathways for Selected KE</h3>
         `;
 
         // Show gene information if available
         if (data.genes_found > 0) {
             suggestionsHtml += `
                 <div style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 14px;">
-                    <strong>🧬 Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
+                    <strong>Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
                 </div>
             `;
         }
@@ -1980,16 +2023,20 @@ This helps identify gaps in existing pathways for future development.">❓</span
         if (data.gene_based_suggestions && data.gene_based_suggestions.length > 0) {
             suggestionsHtml += `
                 <div class="suggestion-section" style="margin-bottom: 15px;">
-                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">🎯 Gene-Based Matches (High Confidence)</h4>
+                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">Gene-Based Matches</h4>
                     <div class="suggestion-list">
             `;
             
             data.gene_based_suggestions.forEach(suggestion => {
-                const geneOverlap = `${suggestion.matching_gene_count}/${data.genes_found} genes`;
+                const geneOverlap = `${suggestion.matching_gene_count}/${data.genes_found} KE genes`;
+                const pathwaySize = suggestion.pathway_total_genes
+                    ? ` (${suggestion.matching_gene_count}/${suggestion.pathway_total_genes} pathway genes)`
+                    : '';
+                const displayText = geneOverlap + pathwaySize;
                 const confidenceBar = this.createConfidenceBar(suggestion.confidence_score);
-                
+
                 suggestionsHtml += `
-                    <div class="suggestion-item" style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border: 1px solid #d4edda; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;" 
+                    <div class="suggestion-item" style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border: 1px solid #d4edda; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;"
                          onclick="window.KEWPApp.selectSuggestedPathway('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}')">
                         <div style="display: flex; gap: 12px; align-items: flex-start;">
                             <div style="flex: 1;">
@@ -2001,7 +2048,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                                     </div>
                                 </div>
                                 <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
-                                    ID: ${suggestion.pathwayID} | Overlap: ${geneOverlap} (${Math.round(suggestion.gene_overlap_ratio * 100)}%)
+                                    ID: ${suggestion.pathwayID} | Overlap: ${displayText} (${Math.round(suggestion.gene_overlap_ratio * 100)}%)
                                 </div>
                                 <div style="font-size: 11px; color: #666; margin-bottom: 8px;">
                                     Matching genes: ${suggestion.matching_genes.join(', ')}
@@ -2691,7 +2738,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 
                 <div style="font-size: 11px; color: #666; margin-top: 12px; text-align: center;">
                     Source: WikiPathways.org<br>
-                    💡 Use zoom controls above or scroll wheel to zoom • Click and drag to pan
+                    Use zoom controls above or scroll wheel to zoom • Click and drag to pan
                 </div>
             `);
             
@@ -3074,55 +3121,41 @@ This helps identify gaps in existing pathways for future development.">❓</span
 // Global function for confidence evaluation
 function evaluateConfidence() {
     const app = window.KEWPApp;
+    const config = app.scoringConfig;
+
     const s1 = app.stepAnswers["step1"]; // Relationship type (causative/responsive/bidirectional/unclear)
     const s2 = app.stepAnswers["step2"]; // Evidence quality (strong/moderate/computational/none)
     const s3 = app.stepAnswers["step3"]; // Pathway specificity (direct/partial/weak)
     const s4 = app.stepAnswers["step4"]; // Coverage comprehensiveness (complete/partial/limited)
 
-    // Calculate base score using new algorithm
+    // Calculate base score using config
     let baseScore = 0;
 
-    // Evidence quality scoring (0-3 points)
-    switch (s2) {
-        case 'known': baseScore += 3; break;
-        case 'likely': baseScore += 2; break;
-        case 'possible': baseScore += 1; break;
-        case 'uncertain': baseScore += 0; break;
-    }
+    // Evidence quality scoring - use config
+    baseScore += config.evidence_quality[s2] || 0;
 
-    // Pathway specificity scoring (0-2 points)
-    switch (s3) {
-        case 'specific': baseScore += 2; break;
-        case 'includes': baseScore += 1; break;
-        case 'loose': baseScore += 0; break;
-    }
+    // Pathway specificity scoring - use config
+    baseScore += config.pathway_specificity[s3] || 0;
 
-    // Coverage comprehensiveness scoring (0-1.5 points)
-    switch (s4) {
-        case 'complete': baseScore += 1.5; break;
-        case 'keysteps': baseScore += 1; break;
-        case 'minor': baseScore += 0.5; break;
-    }
+    // Coverage comprehensiveness scoring - use config
+    baseScore += config.ke_coverage[s4] || 0;
 
-    // Add biological level modifier (+1 for molecular/cellular/tissue KEs)
+    // Add biological level modifier - use config
     const bioLevel = app.selectedBiolevel ? app.selectedBiolevel.toLowerCase() : '';
-    const isMolecularLevel = bioLevel.includes('molecular') || bioLevel.includes('cellular') || bioLevel.includes('tissue');
+    const qualifyingLevels = config.biological_level.qualifying_levels;
+    const isMolecularLevel = qualifyingLevels.some(level => bioLevel.includes(level));
+
     if (isMolecularLevel) {
-        baseScore += 1;
-        // Biological level bonus applied
+        baseScore += config.biological_level.bonus;
     }
 
-    // Determine confidence level based on total score
+    // Determine confidence level based on total score - use config thresholds
     let confidence = "low";
-    if (baseScore >= 5) {
+    if (baseScore >= config.confidence_thresholds.high) {
         confidence = "high";
-    } else if (baseScore >= 2.5) {
+    } else if (baseScore >= config.confidence_thresholds.medium) {
         confidence = "medium";
-    } else {
-        confidence = "low";
     }
-
-    // Confidence assessment completed
 
     // Update UI with results
     $("#auto-confidence").text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
@@ -3130,19 +3163,21 @@ function evaluateConfidence() {
     $("#confidence_level").val(confidence);
     $("#connection_type").val(window.KEWPApp.mapConnectionTypeForServer(s1));
     $("#evaluateBtn").hide();
-    
-    // Show detailed result message
-    const maxScore = isMolecularLevel ? 7.5 : 6.5;
+
+    // Show detailed result message - use config max scores
+    const maxScore = isMolecularLevel ?
+        config.max_scores.with_bio_bonus :
+        config.max_scores.without_bio_bonus;
     const detailMessage = `Assessment completed: ${confidence} confidence (score: ${baseScore}/${maxScore})${isMolecularLevel ? ' with biological level bonus' : ''}`;
     $("#ca-result").text(detailMessage);
-    
+
     app.showMessage("Confidence assessment completed successfully", "success");
-    
+
     // Show Step 4 and enable Step 5 for single pathway workflow
     $("#step-3-result").show();
     $("#step-5-submit").show();
     $("#mapping-form button[type='submit']").prop('disabled', false).text('Review & Submit Mapping');
-    
+
     // Scroll to Step 4
     $('html, body').animate({
         scrollTop: $('#step-3-result').offset().top - 20

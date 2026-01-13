@@ -10,6 +10,7 @@ from difflib import SequenceMatcher
 from typing import Dict, List, Optional, Tuple
 
 import requests
+from config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,9 @@ PATHWAY_SYNONYMS = {
 class PathwaySuggestionService:
     """Service for generating pathway suggestions based on Key Events"""
 
-    def __init__(self, cache_model=None):
+    def __init__(self, cache_model=None, config=None):
         self.cache_model = cache_model
+        self.config = config or ConfigLoader.get_default_config()
         self.aop_wiki_endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
         self.wikipathways_endpoint = "https://sparql.wikipathways.org/sparql"
 
@@ -211,8 +213,8 @@ class PathwaySuggestionService:
             return []
 
         try:
-            # Create VALUES clause for SPARQL query
-            gene_values = " ".join([f'"{gene}"' for gene in genes])
+            # Create VALUES clause for SPARQL query with URIs (WikiPathways uses identifiers.org URIs)
+            gene_values = " ".join([f'<https://identifiers.org/hgnc.symbol/{gene}>' for gene in genes])
 
             sparql_query = f"""
             PREFIX wp: <http://vocabularies.wikipathways.org/wp#>
@@ -258,9 +260,35 @@ class PathwaySuggestionService:
                 data = response.json()
                 pathway_results = self._process_gene_pathway_results(data, genes)
 
-                # Sort by gene overlap ratio and limit results
+                # Get total gene counts for all pathways
+                pathway_ids = [p["pathwayID"] for p in pathway_results]
+                pathway_gene_counts = self._get_pathway_gene_counts(pathway_ids)
+
+                # Add total gene counts and recalculate confidence scores
+                for pathway in pathway_results:
+                    pathway_id = pathway["pathwayID"]
+                    pathway_gene_count = pathway_gene_counts.get(pathway_id, 100)  # Default fallback
+                    pathway["pathway_total_genes"] = pathway_gene_count
+
+                    # Calculate pathway specificity
+                    pathway["pathway_specificity"] = round(
+                        pathway["matching_gene_count"] / pathway_gene_count if pathway_gene_count > 0 else 0.0,
+                        3
+                    )
+
+                    # Recalculate confidence with refined formula
+                    pathway["confidence_score"] = round(
+                        self._calculate_gene_confidence(
+                            matching_count=pathway["matching_gene_count"],
+                            ke_gene_count=len(genes),
+                            pathway_gene_count=pathway_gene_count
+                        ),
+                        3
+                    )
+
+                # Sort by confidence score and limit results
                 pathway_results.sort(
-                    key=lambda x: (x["gene_overlap_ratio"], x["matching_gene_count"]),
+                    key=lambda x: x["confidence_score"],
                     reverse=True,
                 )
 
@@ -287,6 +315,141 @@ class PathwaySuggestionService:
             logger.error(f"Error finding pathways by genes: {str(e)}")
             return []
 
+    def _get_pathway_gene_counts(self, pathway_ids: List[str]) -> Dict[str, int]:
+        """
+        Get total gene count for each pathway
+
+        Args:
+            pathway_ids: List of WikiPathways IDs
+
+        Returns:
+            Dict mapping pathway_id -> total_gene_count
+        """
+        if not pathway_ids:
+            return {}
+
+        try:
+            # Build VALUES clause for pathway IDs
+            pathway_values = " ".join([f'"{pid}"' for pid in pathway_ids])
+
+            sparql_query = f"""
+            PREFIX wp: <http://vocabularies.wikipathways.org/wp#>
+            PREFIX dcterms: <http://purl.org/dc/terms/>
+
+            SELECT ?pathwayID (COUNT(DISTINCT ?geneSymbol) as ?geneCount)
+            WHERE {{
+                ?pathway a wp:Pathway ;
+                         dcterms:identifier ?pathwayID ;
+                         wp:organismName "Homo sapiens" .
+                ?geneProduct dcterms:isPartOf ?pathway ;
+                             wp:bdbHgncSymbol ?geneSymbol .
+                VALUES ?pathwayID {{ {pathway_values} }}
+            }}
+            GROUP BY ?pathwayID
+            """
+
+            # Check cache first
+            query_hash = hashlib.md5(sparql_query.encode()).hexdigest()
+            if self.cache_model:
+                cached_response = self.cache_model.get_cached_response(
+                    self.wikipathways_endpoint, query_hash
+                )
+                if cached_response:
+                    logger.info("Serving pathway gene counts from cache")
+                    return json.loads(cached_response)
+
+            response = requests.post(
+                self.wikipathways_endpoint,
+                data={"query": sparql_query},
+                headers={
+                    "Accept": "application/sparql-results+json",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                timeout=30,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                gene_counts = {}
+
+                if "results" in data and "bindings" in data["results"]:
+                    for binding in data["results"]["bindings"]:
+                        pathway_id = binding.get("pathwayID", {}).get("value", "")
+                        gene_count = binding.get("geneCount", {}).get("value", "0")
+
+                        if pathway_id:
+                            gene_counts[pathway_id] = int(gene_count)
+
+                # Cache the results
+                if self.cache_model:
+                    self.cache_model.cache_response(
+                        self.wikipathways_endpoint,
+                        query_hash,
+                        json.dumps(gene_counts),
+                        24,
+                    )
+
+                logger.info(f"Retrieved gene counts for {len(gene_counts)} pathways")
+                return gene_counts
+            else:
+                logger.error(
+                    f"WikiPathways gene count query failed: {response.status_code} - {response.text}"
+                )
+                return {}
+
+        except Exception as e:
+            logger.error(f"Error getting pathway gene counts: {str(e)}")
+            return {}
+
+    def _calculate_gene_confidence(
+        self,
+        matching_count: int,
+        ke_gene_count: int,
+        pathway_gene_count: int
+    ) -> float:
+        """
+        Calculate gene-based confidence with specificity and gene count penalties
+
+        Args:
+            matching_count: Number of matching genes
+            ke_gene_count: Total KE genes
+            pathway_gene_count: Total pathway genes
+
+        Returns:
+            Confidence score (0.0-1.0)
+        """
+        if ke_gene_count == 0 or pathway_gene_count == 0:
+            return 0.0
+
+        config = self.config.pathway_suggestion.gene_scoring
+
+        # 1. Overlap ratio (from KE perspective)
+        overlap_ratio = matching_count / ke_gene_count
+
+        # 2. Pathway specificity (from pathway perspective)
+        specificity = matching_count / pathway_gene_count
+
+        # 3. Scale specificity for meaningful contribution
+        specificity_boost = min(1.0, specificity * config.specificity_scaling_factor)
+
+        # 4. Combine overlap and specificity
+        base_confidence = (
+            overlap_ratio * config.overlap_weight +
+            specificity_boost * config.specificity_weight +
+            config.base_boost
+        )
+
+        # 5. Apply KE gene count penalty
+        ke_gene_penalty = (
+            1.0 if ke_gene_count >= config.min_genes_for_high_confidence
+            else config.low_gene_penalty
+        )
+
+        # 6. Final confidence with cap
+        confidence = min(config.max_confidence, base_confidence * ke_gene_penalty)
+
+        return confidence
+
     def _process_gene_pathway_results(
         self, sparql_data: Dict, input_genes: List[str]
     ) -> List[Dict[str, any]]:
@@ -300,7 +463,10 @@ class PathwaySuggestionService:
             pathway_id = binding.get("pathwayID", {}).get("value", "")
             pathway_title = binding.get("title", {}).get("value", "")
             pathway_desc = binding.get("description", {}).get("value", "")
-            gene_symbol = binding.get("geneSymbol", {}).get("value", "")
+            gene_symbol_uri = binding.get("geneSymbol", {}).get("value", "")
+
+            # Extract gene symbol from URI (e.g., https://identifiers.org/hgnc.symbol/CYP2E1 -> CYP2E1)
+            gene_symbol = gene_symbol_uri.split('/')[-1] if gene_symbol_uri else ""
 
             if not pathway_id or not pathway_title:
                 continue
@@ -335,7 +501,9 @@ class PathwaySuggestionService:
                     "matching_gene_count": matching_count,
                     "gene_overlap_ratio": round(overlap_ratio, 3),
                     "suggestion_type": "gene_based",
-                    "confidence_score": round(min(0.95, overlap_ratio * 0.85 + 0.15), 3),  # Enhanced gene-based scoring
+                    "pathway_total_genes": 0,  # Placeholder, filled in _find_pathways_by_genes
+                    "pathway_specificity": 0.0,  # Placeholder, calculated after we have totals
+                    "confidence_score": 0.0,  # Placeholder, calculated in _find_pathways_by_genes with refined formula
                 }
             )
 
@@ -523,27 +691,31 @@ class PathwaySuggestionService:
             'kinase', 'phosphatase', 'transcription', 'metabolism', 'apoptosis', 'autophagy',
             'inflammation', 'immune', 'oxidative', 'mitochondrial', 'activation', 'inhibition'
         }
-        
+
         intersection = words1.intersection(words2)
         union = words1.union(words2)
-        
+
+        term_weight = self.config.pathway_suggestion.text_similarity.important_bio_terms_weight
+
         if union:
             # Standard Jaccard
             basic_jaccard = len(intersection) / len(union)
-            
+
             # Weighted version - give higher weight to important biological terms
             weighted_intersection = sum(
-                2.0 if word in important_bio_terms else 1.0 
+                term_weight if word in important_bio_terms else 1.0
                 for word in intersection
             )
             weighted_union = sum(
-                2.0 if word in important_bio_terms else 1.0 
+                term_weight if word in important_bio_terms else 1.0
                 for word in union
             )
             weighted_jaccard = weighted_intersection / weighted_union
-            
+
             # Combine both approaches for better discrimination
-            jaccard_similarity = (basic_jaccard * 0.4 + weighted_jaccard * 0.6)
+            basic_weight = self.config.pathway_suggestion.text_similarity.high_overlap_weights.get('jaccard', 0.4)
+            weighted_weight = self.config.pathway_suggestion.text_similarity.high_overlap_weights.get('sequence', 0.6)
+            jaccard_similarity = (basic_jaccard * (1 - weighted_weight) + weighted_jaccard * weighted_weight)
         else:
             jaccard_similarity = 0
 
@@ -558,25 +730,44 @@ class PathwaySuggestionService:
 
         # Enhanced combined scoring with more differentiation
         # Weight different methods based on their effectiveness
-        if jaccard_similarity > 0.7:  # Very high word overlap (raised threshold)
-            base_score = jaccard_similarity * 0.65 + seq_similarity * 0.25 + substring_score * 0.1
-        elif jaccard_similarity > 0.4:  # Medium word overlap  
-            base_score = jaccard_similarity * 0.5 + seq_similarity * 0.3 + substring_score * 0.2
-        elif substring_score > 0.6:  # Good substring match (raised threshold)
-            base_score = substring_score * 0.6 + jaccard_similarity * 0.25 + seq_similarity * 0.15
-        elif seq_similarity > 0.7:  # High character-level similarity
-            base_score = seq_similarity * 0.55 + jaccard_similarity * 0.3 + substring_score * 0.15
-        else:  # Lower quality matches get penalized more
-            base_score = seq_similarity * 0.35 + jaccard_similarity * 0.35 + substring_score * 0.3
-            # Apply penalty for weak matches to create more spread
-            base_score = base_score * 0.85
-        
+        cfg = self.config.pathway_suggestion.text_similarity
+
+        high_overlap = cfg.high_overlap_weights
+        if jaccard_similarity > high_overlap.get('threshold', 0.7):
+            base_score = (jaccard_similarity * high_overlap.get('jaccard', 0.65) +
+                         seq_similarity * high_overlap.get('sequence', 0.25) +
+                         substring_score * high_overlap.get('substring', 0.1))
+        else:
+            medium_overlap = cfg.medium_overlap_weights
+            if jaccard_similarity > medium_overlap.get('threshold', 0.4):
+                base_score = (jaccard_similarity * medium_overlap.get('jaccard', 0.5) +
+                             seq_similarity * medium_overlap.get('sequence', 0.3) +
+                             substring_score * medium_overlap.get('substring', 0.2))
+            else:
+                good_substring = cfg.good_substring_weights
+                if substring_score > good_substring.get('threshold', 0.6):
+                    base_score = (substring_score * good_substring.get('substring', 0.6) +
+                                 jaccard_similarity * good_substring.get('jaccard', 0.25) +
+                                 seq_similarity * good_substring.get('sequence', 0.15))
+                else:
+                    high_sequence = cfg.high_sequence_weights
+                    if seq_similarity > high_sequence.get('threshold', 0.7):
+                        base_score = (seq_similarity * high_sequence.get('sequence', 0.55) +
+                                     jaccard_similarity * high_sequence.get('jaccard', 0.3) +
+                                     substring_score * high_sequence.get('substring', 0.15))
+                    else:
+                        low_quality = cfg.low_quality_weights
+                        base_score = (seq_similarity * low_quality.get('sequence', 0.35) +
+                                     jaccard_similarity * low_quality.get('jaccard', 0.35) +
+                                     substring_score * low_quality.get('substring', 0.3))
+                        base_score = base_score * low_quality.get('penalty', 0.85)
+
         # Apply synonym and domain boosts more selectively with diminishing returns
-        total_boost = max(synonym_boost, domain_boost)  # Take the better boost
+        total_boost = max(synonym_boost, domain_boost)
         if total_boost > 0:
-            # Smaller boost for already high scores to avoid ceiling effects
-            boost_factor = 1.15 if base_score > 0.6 else 1.25
-            final_score = min(0.98, base_score * boost_factor + total_boost * 0.2)
+            threshold = cfg.boost_threshold
+            boost_factor = cfg.high_score_boost_factor if base_score > threshold else cfg.low_score_boost_factor
+            final_score = min(0.98, base_score * boost_factor + total_boost * cfg.boost_contribution)
         else:
             final_score = base_score
         
@@ -764,138 +955,149 @@ class PathwaySuggestionService:
         
         return boost
 
-    def _calculate_confidence_score(self, title_sim: float, desc_sim: float, combined_sim: float, 
+    def _calculate_confidence_score(self, title_sim: float, desc_sim: float, combined_sim: float,
                                    ke_title: str, pathway_title: str, bio_level: str = None) -> float:
         """Calculate a more sophisticated confidence score based on multiple factors"""
-        
+
+        cfg = self.config.pathway_suggestion.confidence_scoring
+
         # Enhanced base confidence with non-linear scaling for better differentiation
-        if combined_sim > 0.8:
-            base_confidence = 0.48 + (combined_sim - 0.8) * 0.6  # 0.48-0.6 range for top scores
-        elif combined_sim > 0.6:
-            base_confidence = 0.36 + (combined_sim - 0.6) * 0.6  # 0.36-0.48 range  
-        elif combined_sim > 0.4:
-            base_confidence = 0.24 + (combined_sim - 0.4) * 0.6  # 0.24-0.36 range
+        tier_high = cfg.tier_high
+        if combined_sim > tier_high['threshold']:
+            base_confidence = tier_high['base'] + (combined_sim - tier_high['threshold']) * tier_high['multiplier']
         else:
-            base_confidence = combined_sim * 0.6  # Linear for low scores
-        
+            tier_medium = cfg.tier_medium
+            if combined_sim > tier_medium['threshold']:
+                base_confidence = tier_medium['base'] + (combined_sim - tier_medium['threshold']) * tier_medium['multiplier']
+            else:
+                tier_low = cfg.tier_low
+                if combined_sim > tier_low['threshold']:
+                    base_confidence = tier_low['base'] + (combined_sim - tier_low['threshold']) * tier_low['multiplier']
+                else:
+                    tier_minimum = cfg.tier_minimum
+                    base_confidence = combined_sim * tier_minimum['multiplier']
+
         # Boost for high title similarity (title matches are more reliable)
-        if title_sim > 0.8:
-            base_confidence += 0.15
-        elif title_sim > 0.6:
-            base_confidence += 0.1
-        elif title_sim > 0.4:
-            base_confidence += 0.05
-        
+        title_boosts = cfg.title_boosts
+        if title_sim > title_boosts['very_high']['threshold']:
+            base_confidence += title_boosts['very_high']['boost']
+        elif title_sim > title_boosts['high']['threshold']:
+            base_confidence += title_boosts['high']['boost']
+        elif title_sim > title_boosts['medium']['threshold']:
+            base_confidence += title_boosts['medium']['boost']
+
         # Boost for consistent title and description similarity
-        both_scores_high = (title_sim > 0.5 and desc_sim > 0.5)
-        if abs(title_sim - desc_sim) < 0.1 and both_scores_high:
-            base_confidence += 0.1  # Consistent high scores across both
-        
+        consistency = cfg.consistency
+        both_scores_high = (title_sim > consistency['min_score'] and desc_sim > consistency['min_score'])
+        if abs(title_sim - desc_sim) < consistency['threshold'] and both_scores_high:
+            base_confidence += consistency['boost']
+
         # Penalty for very low title similarity even if description is good
-        if title_sim < 0.2 and desc_sim > 0.5:
-            base_confidence *= 0.8  # Reduce confidence when only description matches
-        
+        penalty = cfg.low_title_penalty
+        if title_sim < penalty['title_threshold'] and desc_sim > penalty['desc_threshold']:
+            base_confidence *= penalty['multiplier']
+
         # Biological level adjustments
-        if bio_level == "Molecular" and title_sim > 0.7:
-            base_confidence += 0.1  # Molecular level title matches are very reliable
+        bio_level_cfg = cfg.biological_level
+        if bio_level == "Molecular" and title_sim > bio_level_cfg['molecular_title_threshold']:
+            base_confidence += bio_level_cfg['molecular_boost']
         elif bio_level in ["Tissue", "Organ"] and desc_sim > title_sim:
-            base_confidence += 0.05  # Higher level matches often rely more on descriptions
-        
+            base_confidence += bio_level_cfg['higher_level_boost']
+
         # Length and specificity bonus (more granular)
         ke_words = len(ke_title.split())
         pathway_words = len(pathway_title.split())
-        
+
         # Reward descriptive titles with granular scoring
-        if ke_words >= 5 and pathway_words >= 5:  # Very descriptive
-            base_confidence += 0.08
-        elif ke_words >= 3 and pathway_words >= 3:  # Moderately descriptive  
-            base_confidence += 0.05
-        elif ke_words >= 2 and pathway_words >= 2:  # Minimally descriptive
-            base_confidence += 0.02
-            
+        length_bonuses = cfg.length_bonuses
+        if ke_words >= length_bonuses['very_descriptive']['word_threshold'] and pathway_words >= length_bonuses['very_descriptive']['word_threshold']:
+            base_confidence += length_bonuses['very_descriptive']['boost']
+        elif ke_words >= length_bonuses['moderately_descriptive']['word_threshold'] and pathway_words >= length_bonuses['moderately_descriptive']['word_threshold']:
+            base_confidence += length_bonuses['moderately_descriptive']['boost']
+        elif ke_words >= length_bonuses['minimally_descriptive']['word_threshold'] and pathway_words >= length_bonuses['minimally_descriptive']['word_threshold']:
+            base_confidence += length_bonuses['minimally_descriptive']['boost']
+
         # Penalize very short or very long mismatches
         length_diff = abs(ke_words - pathway_words)
-        if length_diff > 4:  # Very different lengths
-            base_confidence *= 0.95
-        elif length_diff > 2:  # Somewhat different lengths
-            base_confidence *= 0.98
-            
+        length_penalties = cfg.length_penalties
+        if length_diff > length_penalties['very_different']['diff_threshold']:
+            base_confidence *= length_penalties['very_different']['multiplier']
+        elif length_diff > length_penalties['somewhat_different']['diff_threshold']:
+            base_confidence *= length_penalties['somewhat_different']['multiplier']
+
         # Similarity score fine-tuning for more differentiation
-        if combined_sim > 0.9:  # Excellent match
-            base_confidence += 0.05
-        elif combined_sim > 0.8:  # Very good match
-            base_confidence += 0.03
-        elif combined_sim < 0.4:  # Poor match
-            base_confidence *= 0.9
-            
+        sim_adj = cfg.similarity_adjustments
+        if combined_sim > sim_adj['excellent']['threshold']:
+            base_confidence += sim_adj['excellent']['boost']
+        elif combined_sim > sim_adj['very_good']['threshold']:
+            base_confidence += sim_adj['very_good']['boost']
+        elif combined_sim < sim_adj['poor']['threshold']:
+            base_confidence *= sim_adj['poor']['multiplier']
+
         # Add small random component for ties (deterministic based on pathway ID hash)
-        import hashlib
         pathway_hash = int(hashlib.md5(pathway_title.encode()).hexdigest()[:8], 16)
-        random_component = (pathway_hash % 100) * 0.0001  # 0-0.01 range
+        random_component = (pathway_hash % 100) / 10000 * cfg.random_component_max
         base_confidence += random_component
-        
+
         # Ensure confidence stays within reasonable bounds with more precision
-        return min(0.98, max(0.08, base_confidence))
+        return min(cfg.max_confidence, max(cfg.min_confidence, base_confidence))
 
     def _apply_biological_level_adjustment(self, base_score: float, text1: str, text2: str, bio_level: str) -> float:
         """Apply biological level-specific adjustments to similarity score"""
         adjusted_score = base_score
-        
+
+        bio_mult = self.config.pathway_suggestion.biological_level_multipliers
+
         if bio_level == "Molecular":
             # Molecular level: boost exact pathway name matches
             if self._is_pathway_name_match(text1, text2):
-                adjusted_score *= 1.3
+                adjusted_score *= bio_mult.molecular['pathway_name_match']
             # Boost gene/protein pathway matches
             elif self._is_gene_protein_pathway_match(text1, text2):
-                adjusted_score *= 1.2
-                
+                adjusted_score *= bio_mult.molecular['gene_protein_match']
+
         elif bio_level == "Cellular":
             # Cellular level: boost process-related matches
             if self._is_cellular_process_match(text1, text2):
-                adjusted_score *= 1.2
+                adjusted_score *= bio_mult.cellular['cellular_process_match']
             # Standard boost for good pathway matches
-            elif base_score > 0.5:
-                adjusted_score *= 1.1
-                
+            elif base_score > bio_mult.cellular['good_pathway_threshold']:
+                adjusted_score *= bio_mult.cellular['good_pathway_match']
+
         elif bio_level in ["Tissue", "Organ"]:
             # Tissue/Organ level: boost system-level pathway matches
             if self._is_system_level_match(text1, text2):
-                adjusted_score *= 1.3
+                adjusted_score *= bio_mult.tissue_organ['system_level_match']
             # Boost disease-related pathway matches
             elif self._is_disease_pathway_match(text1, text2):
-                adjusted_score *= 1.2
-        
+                adjusted_score *= bio_mult.tissue_organ['disease_pathway_match']
+
         return adjusted_score
 
     def _get_dynamic_threshold(self, ke_title: str, bio_level: str = None) -> float:
         """Get dynamic similarity threshold based on KE characteristics"""
-        base_threshold = 0.25
-        
-        # Well-defined biological processes should have stricter thresholds
-        high_specificity_terms = {
-            'apoptosis', 'proliferation', 'differentiation', 'inflammation', 'oxidative', 
-            'dna damage', 'cell death', 'receptor', 'enzyme', 'kinase', 'phosphatase'
-        }
-        
-        # Broader/complex processes can use lower thresholds
-        broad_process_terms = {
-            'function', 'dysfunction', 'activity', 'regulation', 'response', 'stress',
-            'development', 'growth', 'metabolism', 'transport'
-        }
-        
+        cfg = self.config.pathway_suggestion.dynamic_thresholds
+        base_threshold = cfg.base_threshold
+
+        high_spec = cfg.high_specificity_terms
+        broad_proc = cfg.broad_process_terms
+
         ke_lower = ke_title.lower()
-        
-        if any(term in ke_lower for term in high_specificity_terms):
-            return base_threshold + 0.05  # Stricter for specific processes
-        elif any(term in ke_lower for term in broad_process_terms):
-            return base_threshold - 0.05  # More lenient for broad processes
-            
+
+        if any(term in ke_lower for term in high_spec['terms']):
+            return base_threshold + high_spec['adjustment']
+        elif any(term in ke_lower for term in broad_proc['terms']):
+            return base_threshold + broad_proc['adjustment']
+
         # Biological level adjustments
+        bio_level_adj = cfg.biological_level_adjustments
         if bio_level == "Molecular":
-            return base_threshold - 0.03  # More lenient for molecular level
+            return base_threshold + bio_level_adj.get('molecular', 0)
         elif bio_level in ["Tissue", "Organ"]:
-            return base_threshold - 0.08  # Much more lenient for higher levels
-            
+            tissue_adj = bio_level_adj.get('tissue', 0)
+            organ_adj = bio_level_adj.get('organ', 0)
+            return base_threshold + max(tissue_adj, organ_adj)
+
         return base_threshold
 
     def _is_pathway_name_match(self, text1: str, text2: str) -> bool:

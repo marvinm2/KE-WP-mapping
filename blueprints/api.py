@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import time
+from datetime import datetime
 from functools import wraps
 
 import requests
@@ -21,8 +22,14 @@ from schemas import (
     SecurityValidation,
     validate_request_data,
 )
+from config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
+
+# Module-level cache for scoring config
+_config_cache = None
+_config_cache_time = None
+_config_cache_ttl = 300  # 5 minutes
 
 api_bp = Blueprint("api", __name__)
 
@@ -707,3 +714,79 @@ def get_ke_genes(ke_id):
     except Exception as e:
         logger.error(f"Error getting genes for KE {ke_id}: {str(e)}")
         return jsonify({"error": "Failed to get KE genes"}), 500
+
+
+@api_bp.route("/api/scoring-config", methods=["GET"])
+@general_rate_limit
+def get_scoring_config():
+    """
+    Serve frontend scoring configuration
+
+    Returns:
+        JSON containing ke_pathway_assessment configuration section
+        Cached for 5 minutes to reduce file I/O
+    """
+    global _config_cache, _config_cache_time
+
+    try:
+        now = time.time()
+
+        # Check cache
+        if _config_cache and _config_cache_time:
+            if now - _config_cache_time < _config_cache_ttl:
+                logger.debug("Serving scoring config from cache")
+                return jsonify(_config_cache), 200
+
+        # Load fresh config
+        config = ConfigLoader.load_config()
+
+        # Extract frontend-relevant section
+        ke_assessment = config.ke_pathway_assessment
+
+        response = {
+            "version": config.metadata.get("version", "1.0.0"),
+            "ke_pathway_assessment": {
+                "evidence_quality": ke_assessment.evidence_quality,
+                "pathway_specificity": ke_assessment.pathway_specificity,
+                "ke_coverage": ke_assessment.ke_coverage,
+                "biological_level": ke_assessment.biological_level,
+                "confidence_thresholds": ke_assessment.confidence_thresholds,
+                "max_scores": ke_assessment.max_scores,
+                "connection_types": ke_assessment.connection_types,
+            },
+            "metadata": {
+                "loaded_at": datetime.utcnow().isoformat() + "Z",
+                "source": "scoring_config.yaml"
+            }
+        }
+
+        # Update cache
+        _config_cache = response
+        _config_cache_time = now
+
+        logger.info("Scoring configuration served to frontend")
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error(f"Error serving scoring config: {str(e)}")
+        # Return defaults on error (200 with defaults, not 500)
+        default_config = ConfigLoader.get_default_config()
+        ke_assessment = default_config.ke_pathway_assessment
+
+        return jsonify({
+            "version": "1.0.0-default",
+            "ke_pathway_assessment": {
+                "evidence_quality": ke_assessment.evidence_quality,
+                "pathway_specificity": ke_assessment.pathway_specificity,
+                "ke_coverage": ke_assessment.ke_coverage,
+                "biological_level": ke_assessment.biological_level,
+                "confidence_thresholds": ke_assessment.confidence_thresholds,
+                "max_scores": ke_assessment.max_scores,
+                "connection_types": ke_assessment.connection_types,
+            },
+            "metadata": {
+                "loaded_at": datetime.utcnow().isoformat() + "Z",
+                "source": "default",
+                "error": "Failed to load config file, using defaults"
+            }
+        }), 200

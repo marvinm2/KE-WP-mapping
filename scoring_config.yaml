@@ -1,0 +1,440 @@
+# ==============================================================================
+# KE-WP Mapping Scoring Configuration
+# ==============================================================================
+#
+# This file controls all scoring parameters for the KE-WP Mapping application.
+#
+# IMPORTANT NOTES:
+# - After changing this file, restart the Flask application:
+#   pkill -f "python.*app.py" && python app.py &
+# - The frontend will automatically fetch updated configuration via API
+# - Keep backups before making changes: cp scoring_config.yaml scoring_config.yaml.backup
+# - All confidence scores range from 0.0 to 1.0 unless otherwise noted
+#
+# Version: 1.0.0
+# Last Updated: 2026-01-12
+# ==============================================================================
+
+
+# ==============================================================================
+# PATHWAY SUGGESTION SCORING (Backend - pathway_suggestions.py)
+# ==============================================================================
+# These parameters control how pathways are automatically suggested based on
+# selected Key Events. The system uses both gene-based and text-based matching.
+
+pathway_suggestion:
+
+  # ----------------------------------------------------------------------------
+  # Gene-Based Scoring (Refined with Pathway Specificity)
+  # ----------------------------------------------------------------------------
+  # Formula combines overlap ratio and pathway specificity with KE gene count penalty:
+  #   overlap_ratio = matching_genes / ke_genes
+  #   specificity = matching_genes / pathway_genes
+  #   specificity_boost = min(1.0, specificity * specificity_scaling_factor)
+  #   base_confidence = (overlap_ratio * overlap_weight) +
+  #                     (specificity_boost * specificity_weight) + base_boost
+  #   ke_gene_penalty = 1.0 if ke_genes >= 3, else 0.8
+  #   confidence = min(max_confidence, base_confidence * ke_gene_penalty)
+  #
+  # EXAMPLES:
+  #   1 KE gene, 1/100 pathway genes → confidence ≈ 0.47
+  #   5 KE genes, 5/50 pathway genes → confidence ≈ 0.95
+  #   8 KE genes, 4/50 pathway genes → confidence ≈ 0.67
+
+  gene_scoring:
+    overlap_weight: 0.4            # Weight for overlap ratio (KE perspective)
+                                   # How many KE genes match?
+                                   # Range: 0.0-1.0, Default: 0.4
+
+    specificity_weight: 0.4        # Weight for pathway specificity
+                                   # How specific is pathway to these genes?
+                                   # Range: 0.0-1.0, Default: 0.4
+
+    specificity_scaling_factor: 10.0  # Scale specificity for meaningful contribution
+                                      # Makes 0.01 → 0.1, 0.10 → 1.0
+                                      # Higher = more emphasis on small pathways
+                                      # Range: 1.0-20.0, Default: 10.0
+
+    base_boost: 0.15               # Baseline confidence boost
+                                   # Ensures all matches start at this level
+                                   # Range: 0.0-0.3, Default: 0.15
+
+    min_genes_for_high_confidence: 3  # Need at least this many KE genes
+                                      # to avoid penalty
+                                      # Range: 2-5, Default: 3
+
+    low_gene_penalty: 0.8          # Penalty multiplier for KEs with 1-2 genes
+                                   # Insufficient evidence = reduced confidence
+                                   # Range: 0.5-1.0, Default: 0.8
+
+    max_confidence: 0.95           # Maximum confidence cap
+                                   # Prevents over-confidence
+                                   # Range: 0.8-1.0, Default: 0.95
+
+
+  # ----------------------------------------------------------------------------
+  # Text Similarity Scoring
+  # ----------------------------------------------------------------------------
+  # Controls how KE descriptions are matched against pathway titles/descriptions
+
+  text_similarity:
+
+    # Weight for biologically important terms in Jaccard similarity
+    # Terms like "pathway", "protein", "gene", "enzyme", "apoptosis" etc.
+    # get this weight vs. 1.0 for common words
+    important_bio_terms_weight: 2.0    # Default: 2.0
+
+    # Adaptive algorithm weighting based on overlap quality
+    # The system chooses weights based on which similarity metric is strongest
+
+    high_overlap_weights:              # When Jaccard similarity > 0.7
+      jaccard: 0.65                    # High word overlap = trust Jaccard most
+      sequence: 0.25
+      substring: 0.10
+      threshold: 0.7
+
+    medium_overlap_weights:            # When 0.4 < Jaccard <= 0.7
+      jaccard: 0.50                    # Moderate overlap = balanced weights
+      sequence: 0.30
+      substring: 0.20
+      threshold: 0.4
+
+    good_substring_weights:            # When substring score > 0.6
+      substring: 0.60                  # Strong phrase match = trust substring
+      jaccard: 0.25
+      sequence: 0.15
+      threshold: 0.6
+
+    high_sequence_weights:             # When sequence similarity > 0.7
+      sequence: 0.55                   # Character-level match = trust sequence
+      jaccard: 0.30
+      substring: 0.15
+      threshold: 0.7
+
+    low_quality_weights:               # Fallback for weak matches
+      sequence: 0.35                   # Equal weighting with penalty
+      jaccard: 0.35
+      substring: 0.30
+      penalty: 0.85                    # Reduce final score by this factor
+
+    # Boost factors for special matches
+    synonym_boost: 0.30                # Boost for pathway synonym matches
+                                       # (e.g., "Wnt signaling" = "Wnt pathway")
+    domain_boost: 0.25                 # Boost for domain-specific matches
+                                       # (e.g., immune, metabolic, renal terms)
+    boost_threshold: 0.6               # Score above which boosts are reduced
+    high_score_boost_factor: 1.15      # Multiplier for scores > threshold
+    low_score_boost_factor: 1.25       # Multiplier for scores <= threshold
+    boost_contribution: 0.2            # How much boost adds to final score
+
+
+  # ----------------------------------------------------------------------------
+  # Confidence Score Calculation
+  # ----------------------------------------------------------------------------
+  # Sophisticated non-linear algorithm that combines multiple factors to
+  # determine final confidence score for pathway suggestions
+
+  confidence_scoring:
+
+    # Non-linear scaling tiers - higher similarities get exponentially better scores
+    tier_high:
+      threshold: 0.8                   # For combined_similarity > 0.8
+      base: 0.48                       # Starting score at this tier
+      multiplier: 0.6                  # (combined_sim - 0.8) * 0.6 + base
+
+    tier_medium:
+      threshold: 0.6                   # For combined_similarity > 0.6
+      base: 0.36
+      multiplier: 0.6
+
+    tier_low:
+      threshold: 0.4                   # For combined_similarity > 0.4
+      base: 0.24
+      multiplier: 0.6
+
+    tier_minimum:
+      multiplier: 0.6                  # For combined_similarity < 0.4
+
+    # Title similarity boosts - titles are more important than descriptions
+    title_boosts:
+      very_high:
+        threshold: 0.8                 # Title similarity > 0.8
+        boost: 0.15                    # Add this to confidence
+      high:
+        threshold: 0.6                 # Title similarity > 0.6
+        boost: 0.10
+      medium:
+        threshold: 0.4                 # Title similarity > 0.4
+        boost: 0.05
+
+    # Consistency bonus - both title and description match well
+    consistency:
+      threshold: 0.1                   # Max difference between title and desc similarity
+      min_score: 0.5                   # Both must be above this
+      boost: 0.10                      # Bonus for consistent high scores
+
+    # Penalty for title/description mismatch
+    low_title_penalty:
+      title_threshold: 0.2             # Title similarity < this
+      desc_threshold: 0.5              # But description similarity > this
+      multiplier: 0.8                  # Reduce confidence by this factor
+
+    # Biological level adjustments
+    biological_level:
+      molecular_boost: 0.10            # Bonus for molecular-level KEs
+      molecular_title_threshold: 0.7   # With title similarity > this
+      higher_level_boost: 0.05         # Bonus for tissue/organ level KEs
+                                       # When description > title
+
+    # Length and descriptiveness bonuses
+    length_bonuses:
+      very_descriptive:
+        word_threshold: 5              # Both have >= 5 matching words
+        boost: 0.08
+      moderately_descriptive:
+        word_threshold: 3              # Both have >= 3 matching words
+        boost: 0.05
+      minimally_descriptive:
+        word_threshold: 2              # Both have >= 2 matching words
+        boost: 0.02
+
+    # Penalties for length differences
+    length_penalties:
+      very_different:
+        diff_threshold: 4              # |KE words - Pathway words| > 4
+        multiplier: 0.95
+      somewhat_different:
+        diff_threshold: 2              # |KE words - Pathway words| > 2
+        multiplier: 0.98
+
+    # Similarity score fine-tuning
+    similarity_adjustments:
+      excellent:
+        threshold: 0.9                 # Combined similarity > 0.9
+        boost: 0.05
+      very_good:
+        threshold: 0.8                 # Combined similarity > 0.8
+        boost: 0.03
+      poor:
+        threshold: 0.4                 # Combined similarity < 0.4
+        multiplier: 0.9                # Reduce score
+
+    # Deterministic tie-breaking using pathway title hash
+    random_component_max: 0.01         # Add 0-0.01 based on hash for consistency
+
+    # Final confidence bounds
+    min_confidence: 0.08               # Minimum possible confidence
+    max_confidence: 0.98               # Maximum possible confidence
+
+
+  # ----------------------------------------------------------------------------
+  # Dynamic Threshold Calculation
+  # ----------------------------------------------------------------------------
+  # Determines minimum similarity threshold for pathway suggestions
+  # Threshold varies based on term specificity and biological level
+
+  dynamic_thresholds:
+    base_threshold: 0.25               # Default minimum similarity
+
+    # High specificity terms require stricter matching
+    high_specificity_terms:
+      adjustment: 0.05                 # Add to threshold (more strict)
+      terms:
+        - apoptosis
+        - proliferation
+        - differentiation
+        - inflammation
+        - oxidative
+        - dna damage
+        - cell death
+        - receptor
+        - enzyme
+        - kinase
+        - phosphatase
+
+    # Broad process terms allow more lenient matching
+    broad_process_terms:
+      adjustment: -0.05                # Subtract from threshold (more lenient)
+      terms:
+        - function
+        - dysfunction
+        - activity
+        - regulation
+        - response
+        - stress
+        - development
+        - growth
+        - metabolism
+        - transport
+
+    # Adjust thresholds based on biological level of KE
+    biological_level_adjustments:
+      molecular: -0.03                 # More lenient for molecular level
+      cellular: 0.0                    # Baseline for cellular level
+      tissue: -0.08                    # Much more lenient for tissue level
+      organ: -0.08                     # Much more lenient for organ level
+
+
+  # ----------------------------------------------------------------------------
+  # Biological Level Scoring Multipliers
+  # ----------------------------------------------------------------------------
+  # Additional boosts applied based on biological level context
+
+  biological_level_multipliers:
+    molecular:
+      pathway_name_match: 1.3          # Multiplier if pathway name matches well
+      gene_protein_match: 1.2          # Multiplier for gene/protein level matches
+
+    cellular:
+      cellular_process_match: 1.2      # For cellular processes
+      good_pathway_match: 1.1          # General good match
+      good_pathway_threshold: 0.5      # Threshold for "good match"
+
+    tissue_organ:
+      system_level_match: 1.3          # For system/phenotypic matches
+      disease_pathway_match: 1.2       # For disease-related pathways
+
+
+  # ----------------------------------------------------------------------------
+  # Substring Scoring
+  # ----------------------------------------------------------------------------
+  # Parameters for substring matching algorithm
+
+  substring_scoring:
+    exact_match:
+      base_score: 0.6                  # Base score for exact substring match
+      length_bonus: 0.3                # Additional bonus based on length ratio
+
+    common_words:
+      long_word_length: 5              # Words longer than this get full weight
+      medium_word_length: 3            # Words longer than this need bio check
+      long_weight: 1.0                 # Weight for long words
+      bio_term_weight: 0.8             # Weight for biological terms
+      medium_weight: 0.6               # Weight for medium words
+
+    weighted_ratio:
+      multiplier: 0.7                  # Overall multiplier
+      power: 0.8                       # Non-linear scaling: ratio^0.8
+      max_score: 0.55                  # Maximum substring score
+
+
+# ==============================================================================
+# KE-PATHWAY ASSESSMENT SCORING (Frontend - main.js)
+# ==============================================================================
+# These parameters control the 4-question confidence assessment workflow
+# that users complete when creating new KE-WP mappings.
+
+ke_pathway_assessment:
+
+  # ----------------------------------------------------------------------------
+  # Question 2: Evidence Quality
+  # ----------------------------------------------------------------------------
+  # "What is the basis for this mapping?"
+  # Assesses user's confidence based on existing knowledge
+
+  evidence_quality:
+    known: 3                           # Known connection (published evidence)
+    likely: 2                          # Likely connection (strong inference)
+    possible: 1                        # Possible connection (hypothesis)
+    uncertain: 0                       # Uncertain connection
+
+
+  # ----------------------------------------------------------------------------
+  # Question 3: Pathway Specificity
+  # ----------------------------------------------------------------------------
+  # "How specific is the pathway to this Key Event?"
+  # Evaluates whether pathway scope matches KE level
+
+  pathway_specificity:
+    specific: 2                        # KE-specific pathway
+    includes: 1                        # Pathway includes KE among others
+    loose: 0                           # Loosely related to KE
+
+
+  # ----------------------------------------------------------------------------
+  # Question 4: KE Coverage
+  # ----------------------------------------------------------------------------
+  # "How much of the KE mechanism is captured by the pathway?"
+  # Assesses pathway completeness for this KE
+
+  ke_coverage:
+    complete: 1.5                      # Complete mechanism captured
+    keysteps: 1.0                      # Key steps only
+    minor: 0.5                         # Minor aspects only
+
+
+  # ----------------------------------------------------------------------------
+  # Biological Level Modifier
+  # ----------------------------------------------------------------------------
+  # Bonus points for molecular/cellular/tissue-level KEs
+  # Rationale: Molecular-level KEs are closer to pathway mechanisms
+  # than phenotypic (organ/individual/population) KEs
+
+  biological_level:
+    bonus: 1.0                         # Add this to base score
+    qualifying_levels:                 # Biological levels that get bonus
+      - molecular
+      - cellular
+      - tissue
+
+
+  # ----------------------------------------------------------------------------
+  # Confidence Level Thresholds
+  # ----------------------------------------------------------------------------
+  # Final score thresholds for determining confidence level
+
+  confidence_thresholds:
+    high: 5.0                          # Score >= 5.0 = High confidence
+    medium: 2.5                        # Score >= 2.5 = Medium confidence
+                                       # Score < 2.5 = Low confidence (implicit)
+
+
+  # ----------------------------------------------------------------------------
+  # Maximum Possible Scores
+  # ----------------------------------------------------------------------------
+  # For reference and UI display
+
+  max_scores:
+    with_bio_bonus: 7.5                # 3 + 2 + 1.5 + 1 = 7.5
+    without_bio_bonus: 6.5             # 3 + 2 + 1.5 = 6.5
+
+
+  # ----------------------------------------------------------------------------
+  # Connection Types (Question 1)
+  # ----------------------------------------------------------------------------
+  # These are not scored but determine connection_type field
+  # "What is the relationship between the pathway and Key Event?"
+
+  connection_types:
+    - causative                        # Pathway causes KE
+    - responsive                       # KE causes pathway activation
+    - bidirectional                    # Both directions
+    - unclear                          # Relationship unclear
+
+
+# ==============================================================================
+# METADATA
+# ==============================================================================
+
+metadata:
+  version: "1.0.0"
+  last_modified: "2026-01-12"
+  modified_by: "system"
+  description: |
+    Scoring configuration for KE-WP Mapping application.
+
+    This file controls all scoring parameters for:
+    1. Pathway Suggestion Confidence Scoring (Backend)
+    2. KE-Pathway Assessment Scoring (Frontend)
+
+    Changes take effect after Flask restart. Frontend configuration
+    is served via /api/scoring-config endpoint.
+
+  notes: |
+    - Pathway suggestion scoring: Automatic pathway recommendations
+    - KE-pathway assessment scoring: User-driven confidence evaluation
+    - All thresholds and weights can be adjusted without code changes
+    - Keep backups before making changes for easy rollback
+
+  changelog:
+    - "2026-01-12: Initial configuration file created"

@@ -10,6 +10,7 @@ from models import CacheModel, Database, MappingModel, ProposalModel
 from monitoring import MetricsCollector
 from pathway_suggestions import PathwaySuggestionService
 from rate_limiter import RateLimiter
+from config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class ServiceContainer:
         self._pathway_suggestion_service = None
         self._oauth = None
         self._github_client = None
+        self._scoring_config = None
 
         logger.info("Service container initialized")
 
@@ -85,11 +87,28 @@ class ServiceContainer:
         return self._rate_limiter
 
     @property
+    def scoring_config(self):
+        """Get or load scoring configuration"""
+        if self._scoring_config is None:
+            try:
+                self._scoring_config = ConfigLoader.load_config()
+                logger.info("Scoring configuration loaded successfully")
+            except Exception as e:
+                logger.error(f"Failed to load scoring config: {e}")
+                self._scoring_config = ConfigLoader.get_default_config()
+                logger.info("Using default scoring configuration")
+        return self._scoring_config
+
+    @property
     def pathway_suggestion_service(self) -> PathwaySuggestionService:
         """Get or create pathway suggestion service instance"""
         if self._pathway_suggestion_service is None:
-            self._pathway_suggestion_service = PathwaySuggestionService(self.cache_model)
-            logger.debug("PathwaySuggestionService instance created")
+            scoring_config = self.scoring_config
+            self._pathway_suggestion_service = PathwaySuggestionService(
+                self.cache_model,
+                config=scoring_config
+            )
+            logger.debug("PathwaySuggestionService instance created with config")
         return self._pathway_suggestion_service
 
     def init_oauth(self, app) -> OAuth:
