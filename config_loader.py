@@ -238,6 +238,26 @@ class SubstringScoring:
 
 
 @dataclass
+class EmbeddingBasedMatching:
+    """BioBERT embedding-based matching configuration"""
+    enabled: bool = False
+    model: str = "dmis-lab/biobert-base-cased-v1.2"
+    min_threshold: float = 0.3
+    use_gpu: bool = True
+    precomputed_embeddings: str = "pathway_embeddings.npy"
+    fallback_to_text: bool = True
+
+
+@dataclass
+class HybridWeights:
+    """Hybrid scoring weights for multi-signal combination"""
+    gene: float = 0.35
+    text: float = 0.35
+    embedding: float = 0.30
+    multi_evidence_bonus: float = 0.05
+
+
+@dataclass
 class PathwaySuggestionConfig:
     """Pathway suggestion scoring configuration"""
     gene_scoring: GeneScoring = field(default_factory=GeneScoring)
@@ -246,6 +266,8 @@ class PathwaySuggestionConfig:
     dynamic_thresholds: DynamicThresholds = field(default_factory=DynamicThresholds)
     biological_level_multipliers: BiologicalLevelMultipliers = field(default_factory=BiologicalLevelMultipliers)
     substring_scoring: SubstringScoring = field(default_factory=SubstringScoring)
+    embedding_based_matching: EmbeddingBasedMatching = field(default_factory=EmbeddingBasedMatching)
+    hybrid_weights: HybridWeights = field(default_factory=HybridWeights)
 
 
 @dataclass
@@ -402,6 +424,8 @@ class ConfigLoader:
             dynamic_thresholds = DynamicThresholds(**pathway_dict.get('dynamic_thresholds', {}))
             bio_level_mult = BiologicalLevelMultipliers(**pathway_dict.get('biological_level_multipliers', {}))
             substring_scoring = SubstringScoring(**pathway_dict.get('substring_scoring', {}))
+            embedding_matching = EmbeddingBasedMatching(**pathway_dict.get('embedding_based_matching', {}))
+            hybrid_weights = HybridWeights(**pathway_dict.get('hybrid_weights', {}))
 
             pathway_config = PathwaySuggestionConfig(
                 gene_scoring=gene_scoring,
@@ -409,7 +433,9 @@ class ConfigLoader:
                 confidence_scoring=confidence_scoring,
                 dynamic_thresholds=dynamic_thresholds,
                 biological_level_multipliers=bio_level_mult,
-                substring_scoring=substring_scoring
+                substring_scoring=substring_scoring,
+                embedding_based_matching=embedding_matching,
+                hybrid_weights=hybrid_weights
             )
 
             # Build KE-pathway assessment config

@@ -64,9 +64,10 @@ PATHWAY_SYNONYMS = {
 class PathwaySuggestionService:
     """Service for generating pathway suggestions based on Key Events"""
 
-    def __init__(self, cache_model=None, config=None):
+    def __init__(self, cache_model=None, config=None, embedding_service=None):
         self.cache_model = cache_model
         self.config = config or ConfigLoader.get_default_config()
+        self.embedding_service = embedding_service
         self.aop_wiki_endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
         self.wikipathways_endpoint = "https://sparql.wikipathways.org/sparql"
 
@@ -83,21 +84,34 @@ class PathwaySuggestionService:
             limit: Maximum number of suggestions to return
 
         Returns:
-            Dictionary containing gene-based and text-based suggestions
+            Dictionary containing gene-based, text-based, and embedding-based suggestions
         """
         try:
+            logger.info(f"Getting pathway suggestions for {ke_id}")
+
             # Get gene-based suggestions
             genes = self._get_genes_from_ke(ke_id)
             gene_suggestions = []
             if genes:
                 gene_suggestions = self._find_pathways_by_genes(genes, limit)
+                logger.info(f"Found {len(gene_suggestions)} gene-based suggestions")
 
             # Get text-based suggestions
             text_suggestions = self._fuzzy_search_pathways(ke_title, bio_level, limit)
+            logger.info(f"Found {len(text_suggestions)} text-based suggestions")
 
-            # Combine and rank all suggestions
-            combined_suggestions = self._combine_and_rank_suggestions(
-                gene_suggestions, text_suggestions, limit
+            # Get embedding-based suggestions (NEW)
+            embedding_suggestions = []
+            if self.embedding_service:
+                ke_description = ""  # Fetch from AOP-Wiki if available in future
+                embedding_suggestions = self._get_embedding_based_suggestions(
+                    ke_id, ke_title, ke_description, bio_level, limit
+                )
+                logger.info(f"Found {len(embedding_suggestions)} embedding-based suggestions")
+
+            # Combine all three with hybrid scoring
+            combined_suggestions = self._combine_multi_signal_suggestions(
+                gene_suggestions, text_suggestions, embedding_suggestions, limit
             )
 
             return {
@@ -107,6 +121,7 @@ class PathwaySuggestionService:
                 "gene_list": genes,
                 "gene_based_suggestions": gene_suggestions,
                 "text_based_suggestions": text_suggestions,
+                "embedding_based_suggestions": embedding_suggestions,
                 "combined_suggestions": combined_suggestions,
                 "total_suggestions": len(combined_suggestions),
             }
@@ -1207,13 +1222,227 @@ class PathwaySuggestionService:
         
         return cleaned_text if cleaned_text else text
 
+    def _get_embedding_based_suggestions(
+        self,
+        ke_id: str,
+        ke_title: str,
+        ke_description: str,
+        bio_level: str,
+        limit: int = 20
+    ) -> List[Dict]:
+        """
+        Get pathway suggestions using BioBERT semantic embeddings
+
+        Args:
+            ke_id: Key Event ID
+            ke_title: Key Event title
+            ke_description: Key Event description
+            bio_level: Biological level (Molecular, Cellular, etc.)
+            limit: Maximum suggestions to return
+
+        Returns:
+            List of pathway suggestions with embedding scores
+        """
+        if not self.embedding_service:
+            logger.warning("Embedding service not available")
+            return []
+
+        try:
+            logger.info(f"Computing embedding-based suggestions for {ke_id}")
+
+            # Get all pathways
+            all_pathways = self._get_all_pathways_for_search()
+
+            # Compute embedding similarities for all pathways
+            suggestions = []
+
+            for pathway in all_pathways:
+                similarity_scores = self.embedding_service.compute_ke_pathway_similarity(
+                    ke_title=ke_title,
+                    ke_description=ke_description or '',
+                    pathway_id=pathway['pathwayID'],
+                    pathway_title=pathway['pathwayTitle'],
+                    pathway_description=pathway.get('pathwayDescription', '')
+                )
+
+                # Use combined similarity as confidence
+                confidence = similarity_scores['combined_similarity']
+
+                # Apply minimum threshold (configurable)
+                embedding_config = getattr(
+                    self.config.pathway_suggestion,
+                    'embedding_based_matching',
+                    None
+                )
+                min_threshold = getattr(embedding_config, 'min_threshold', 0.3) if embedding_config else 0.3
+
+                if confidence >= min_threshold:
+                    suggestion = {
+                        'pathwayID': pathway['pathwayID'],
+                        'pathwayTitle': pathway['pathwayTitle'],
+                        'pathwayDescription': pathway.get('pathwayDescription', ''),
+                        'pathwayLink': pathway.get('pathwayLink', ''),
+                        'pathwaySvgUrl': pathway.get('pathwaySvgUrl', ''),
+                        'confidence_score': confidence,
+                        'embedding_similarity': similarity_scores['combined_similarity'],
+                        'title_similarity': similarity_scores['title_similarity'],
+                        'description_similarity': similarity_scores['description_similarity'],
+                        'suggestion_type': 'embedding_based'
+                    }
+                    suggestions.append(suggestion)
+
+            # Sort by confidence descending
+            suggestions.sort(key=lambda x: x['confidence_score'], reverse=True)
+
+            logger.info(f"Found {len(suggestions)} embedding-based suggestions")
+
+            return suggestions[:limit]
+
+        except Exception as e:
+            logger.error(f"Embedding-based suggestion failed: {e}")
+            return []
+
+    def _combine_multi_signal_suggestions(
+        self,
+        gene_suggestions: List[Dict],
+        text_suggestions: List[Dict],
+        embedding_suggestions: List[Dict],
+        limit: int
+    ) -> List[Dict]:
+        """
+        Combine three scoring signals with transparent hybrid scoring
+
+        Strategy:
+        - Index all pathways by ID
+        - Merge scores from all three sources
+        - Calculate hybrid final_score with configurable weights
+        - Sort by final_score
+        - Keep all individual scores visible
+
+        Returns:
+            List of suggestions with all scores visible
+        """
+        pathway_map = {}
+
+        # Get weights from config
+        hybrid_weights = getattr(
+            self.config.pathway_suggestion,
+            'hybrid_weights',
+            None
+        )
+
+        gene_weight = getattr(hybrid_weights, 'gene', 0.35) if hybrid_weights else 0.35
+        text_weight = getattr(hybrid_weights, 'text', 0.35) if hybrid_weights else 0.35
+        embedding_weight = getattr(hybrid_weights, 'embedding', 0.30) if hybrid_weights else 0.30
+
+        # Process gene-based suggestions
+        for suggestion in gene_suggestions:
+            pathway_id = suggestion['pathwayID']
+            pathway_map[pathway_id] = {
+                **suggestion,
+                'scores': {
+                    'gene_confidence': suggestion['confidence_score'],
+                    'text_confidence': 0.0,
+                    'embedding_similarity': 0.0,
+                    'final_score': 0.0
+                },
+                'match_types': ['gene']
+            }
+
+        # Add/merge text-based suggestions
+        for suggestion in text_suggestions:
+            pathway_id = suggestion['pathwayID']
+
+            if pathway_id in pathway_map:
+                # Merge with existing
+                pathway_map[pathway_id]['scores']['text_confidence'] = suggestion['confidence_score']
+                pathway_map[pathway_id]['title_similarity'] = suggestion.get('title_similarity', 0)
+                pathway_map[pathway_id]['combined_similarity'] = suggestion.get('combined_similarity', 0)
+                pathway_map[pathway_id]['match_types'].append('text')
+            else:
+                # New pathway
+                pathway_map[pathway_id] = {
+                    **suggestion,
+                    'scores': {
+                        'gene_confidence': 0.0,
+                        'text_confidence': suggestion['confidence_score'],
+                        'embedding_similarity': 0.0,
+                        'final_score': 0.0
+                    },
+                    'match_types': ['text']
+                }
+
+        # Add/merge embedding-based suggestions
+        for suggestion in embedding_suggestions:
+            pathway_id = suggestion['pathwayID']
+
+            if pathway_id in pathway_map:
+                # Merge with existing
+                pathway_map[pathway_id]['scores']['embedding_similarity'] = suggestion['confidence_score']
+                pathway_map[pathway_id]['embedding_details'] = {
+                    'title_similarity': suggestion.get('title_similarity', 0),
+                    'description_similarity': suggestion.get('description_similarity', 0),
+                    'combined': suggestion.get('embedding_similarity', 0)
+                }
+                pathway_map[pathway_id]['match_types'].append('embedding')
+            else:
+                # New pathway
+                pathway_map[pathway_id] = {
+                    **suggestion,
+                    'scores': {
+                        'gene_confidence': 0.0,
+                        'text_confidence': 0.0,
+                        'embedding_similarity': suggestion['confidence_score'],
+                        'final_score': 0.0
+                    },
+                    'match_types': ['embedding'],
+                    'embedding_details': {
+                        'title_similarity': suggestion.get('title_similarity', 0),
+                        'description_similarity': suggestion.get('description_similarity', 0),
+                        'combined': suggestion.get('embedding_similarity', 0)
+                    }
+                }
+
+        # Calculate hybrid final scores
+        for pathway_id, pathway in pathway_map.items():
+            scores = pathway['scores']
+
+            # Weighted combination
+            final_score = (
+                scores['gene_confidence'] * gene_weight +
+                scores['text_confidence'] * text_weight +
+                scores['embedding_similarity'] * embedding_weight
+            )
+
+            # Bonus for multiple evidence types
+            num_signals = len([s for s in [scores['gene_confidence'], scores['text_confidence'], scores['embedding_similarity']] if s > 0.0])
+            if num_signals >= 2:
+                final_score += 0.05  # Multi-evidence bonus
+
+            # Determine primary evidence source
+            max_score = max(scores['gene_confidence'], scores['text_confidence'], scores['embedding_similarity'])
+            if max_score == scores['gene_confidence']:
+                pathway['primary_evidence'] = 'gene_overlap'
+            elif max_score == scores['embedding_similarity']:
+                pathway['primary_evidence'] = 'semantic_similarity'
+            else:
+                pathway['primary_evidence'] = 'text_similarity'
+
+            scores['final_score'] = min(final_score, 0.98)
+
+        # Convert to list and sort by final score
+        combined = list(pathway_map.values())
+        combined.sort(key=lambda x: x['scores']['final_score'], reverse=True)
+
+        return combined[:limit]
+
     def _combine_and_rank_suggestions(
         self,
         gene_suggestions: List[Dict],
         text_suggestions: List[Dict],
         limit: int,
     ) -> List[Dict]:
-        """Combine gene-based and text-based suggestions with hybrid ranking"""
+        """Combine gene-based and text-based suggestions with hybrid ranking (Legacy method)"""
         all_suggestions = []
         seen_pathways = set()
 

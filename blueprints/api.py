@@ -556,17 +556,25 @@ def submit_proposal():
 @sparql_rate_limit
 def suggest_pathways(ke_id):
     """
-    Get pathway suggestions for a specific Key Event
-    
+    Get pathway suggestions for a specific Key Event using multiple scoring methods
+
     Args:
         ke_id: Key Event ID from URL parameter
-        
+
     Query Parameters:
         ke_title: Key Event title for text-based matching
+        bio_level: Biological level of the KE (Molecular, Cellular, etc.)
         limit: Maximum number of suggestions (default 10)
-        
+
     Returns:
-        JSON response with gene-based and text-based pathway suggestions
+        JSON response with:
+        - gene_based_suggestions: Pathways matched by gene overlap
+        - text_based_suggestions: Pathways matched by text similarity
+        - embedding_based_suggestions: Pathways matched by BioBERT semantic similarity (if enabled)
+        - combined_suggestions: Unified list with hybrid scores and transparency
+        - genes_found: Number of genes associated with the KE
+        - gene_list: List of HGNC gene symbols
+        - total_suggestions: Total number of combined suggestions
     """
     try:
         if not pathway_suggestion_service:

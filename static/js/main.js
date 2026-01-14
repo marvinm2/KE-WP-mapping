@@ -1999,7 +1999,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
     displayPathwaySuggestions(data) {
         // Remove existing suggestions
         $("#pathway-suggestions").remove();
-        
+
         if (!data || data.total_suggestions === 0) {
             this.showNoSuggestions(data);
             return;
@@ -2019,97 +2019,45 @@ This helps identify gaps in existing pathways for future development.">❓</span
             `;
         }
 
-        // Gene-based suggestions
-        if (data.gene_based_suggestions && data.gene_based_suggestions.length > 0) {
-            suggestionsHtml += `
-                <div class="suggestion-section" style="margin-bottom: 15px;">
-                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">Gene-Based Matches</h4>
-                    <div class="suggestion-list">
-            `;
-            
-            data.gene_based_suggestions.forEach(suggestion => {
-                const geneOverlap = `${suggestion.matching_gene_count}/${data.genes_found} KE genes`;
-                const pathwaySize = suggestion.pathway_total_genes
-                    ? ` (${suggestion.matching_gene_count}/${suggestion.pathway_total_genes} pathway genes)`
-                    : '';
-                const displayText = geneOverlap + pathwaySize;
-                const confidenceBar = this.createConfidenceBar(suggestion.confidence_score);
-
-                suggestionsHtml += `
-                    <div class="suggestion-item" style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border: 1px solid #d4edda; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;"
-                         onclick="window.KEWPApp.selectSuggestedPathway('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}')">
-                        <div style="display: flex; gap: 12px; align-items: flex-start;">
-                            <div style="flex: 1;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                    <strong style="color: #155724; font-size: 14px;">${suggestion.pathwayTitle}</strong>
-                                    <div class="center-text">
-                                        ${confidenceBar}
-                                        <div style="font-size: 10px; color: #666;">Confidence</div>
-                                    </div>
-                                </div>
-                                <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
-                                    ID: ${suggestion.pathwayID} | Overlap: ${displayText} (${Math.round(suggestion.gene_overlap_ratio * 100)}%)
-                                </div>
-                                <div style="font-size: 11px; color: #666; margin-bottom: 8px;">
-                                    Matching genes: ${suggestion.matching_genes.join(', ')}
-                                </div>
-                                <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')" 
-                                        style="font-size: 11px; padding: 4px 8px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 3px; color: #307BBF; cursor: pointer;">
-                                    Preview Pathway
-                                </button>
-                            </div>
-                            <div class="pathway-thumbnail" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')">
-                                <img src="${suggestion.pathwaySvgUrl || ''}" 
-                                     style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;" 
-                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
-                                     onmouseover="this.style.transform='scale(1.05)'"
-                                     onmouseout="this.style.transform='scale(1)'"
-                                     alt="Pathway thumbnail">
-                                <div style="display: none; font-size: 12px; padding: 10px;" class="text-muted center-text">No image</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            suggestionsHtml += '</div></div>';
-        }
-
-        // Text-based suggestions
-        if (data.text_based_suggestions && data.text_based_suggestions.length > 0) {
+        // Display combined suggestions with all three scoring signals
+        if (data.combined_suggestions && data.combined_suggestions.length > 0) {
             suggestionsHtml += `
                 <div class="suggestion-section">
-                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">Text-Based Matches</h4>
+                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">Pathway Suggestions (${data.combined_suggestions.length})</h4>
                     <div class="suggestion-list">
             `;
-            
-            data.text_based_suggestions.forEach(suggestion => {
-                const similarity = Math.round(suggestion.combined_similarity * 100);
-                const confidenceBar = this.createConfidenceBar(suggestion.confidence_score);
-                
+
+            data.combined_suggestions.forEach(suggestion => {
+                const matchTypeBadges = this.getMatchTypeBadges(suggestion.match_types || []);
+                const scoreDetails = this.getScoreDetails(suggestion.scores || {}, suggestion);
+                const borderColor = this.getBorderColorForMatch(suggestion.match_types || []);
+                const finalScoreBar = this.createFinalScoreBar(suggestion.scores?.final_score || 0);
+                const primaryEvidence = this.formatPrimaryEvidence(suggestion.primary_evidence);
+
                 suggestionsHtml += `
-                    <div class="suggestion-item" style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border: 1px solid #bee5eb; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;"
-                         onclick="window.KEWPApp.selectSuggestedPathway('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}')">
+                    <div class="suggestion-item" style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border-left: 4px solid ${borderColor}; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;"
+                         onclick="window.KEWPApp.selectSuggestedPathway('${suggestion.pathwayID}', '${this.escapeHtml(suggestion.pathwayTitle)}')">
                         <div style="display: flex; gap: 12px; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                    <strong style="color: #0c5460; font-size: 14px;">${suggestion.pathwayTitle}</strong>
-                                    <div class="center-text">
-                                        ${confidenceBar}
-                                        <div style="font-size: 10px; color: #666;">Confidence</div>
+                                    <div>
+                                        <strong style="font-size: 14px;">${suggestion.pathwayTitle}</strong>
+                                        ${matchTypeBadges}
                                     </div>
+                                    ${finalScoreBar}
                                 </div>
                                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
-                                    Pathway ID: ${suggestion.pathwayID}
+                                    ID: ${suggestion.pathwayID} | Primary: ${primaryEvidence}
                                 </div>
-                                <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')" 
-                                        style="font-size: 11px; padding: 4px 8px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 3px; color: #307BBF; cursor: pointer;">
+                                ${scoreDetails}
+                                <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${this.escapeHtml(suggestion.pathwayTitle)}', '${suggestion.pathwaySvgUrl || ''}')"
+                                        style="font-size: 11px; padding: 4px 8px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 3px; color: #307BBF; cursor: pointer; margin-top: 8px;">
                                     Preview Pathway
                                 </button>
                             </div>
-                            <div class="pathway-thumbnail" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${suggestion.pathwayTitle.replace(/'/g, "\\'")}', '${suggestion.pathwaySvgUrl || ''}')">
-                                <img src="${suggestion.pathwaySvgUrl || ''}" 
-                                     style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;" 
+                            <div class="pathway-thumbnail" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${this.escapeHtml(suggestion.pathwayTitle)}', '${suggestion.pathwaySvgUrl || ''}')">
+                                <img src="${suggestion.pathwaySvgUrl || ''}"
+                                     style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;"
                                      onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
                                      onmouseover="this.style.transform='scale(1.05)'"
                                      onmouseout="this.style.transform='scale(1)'"
@@ -2120,7 +2068,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                     </div>
                 `;
             });
-            
+
             suggestionsHtml += '</div></div>';
         }
 
@@ -2200,52 +2148,170 @@ This helps identify gaps in existing pathways for future development.">❓</span
         let color = '#dc3545'; // red for low
         let bgColor = '#ffe6e6'; // light red background
         let textColor = '#dc3545';
-        
+
         if (percentage >= 70) {
             color = '#28a745'; // green for high
             bgColor = '#e6ffe6'; // light green background
             textColor = '#28a745';
         } else if (percentage >= 40) {
-            color = '#ffc107'; // yellow for medium  
+            color = '#ffc107'; // yellow for medium
             bgColor = '#fffde6'; // light yellow background
             textColor = '#856404';
         }
-        
+
         return `
             <div style="
-                width: 80px; 
-                background-color: ${bgColor}; 
-                border: 1px solid ${color}; 
-                border-radius: 8px; 
-                padding: 8px; 
-                text-align: center; 
+                width: 80px;
+                background-color: ${bgColor};
+                border: 1px solid ${color};
+                border-radius: 8px;
+                padding: 8px;
+                text-align: center;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             ">
                 <div style="
-                    width: 100%; 
-                    height: 12px; 
-                    background-color: #f0f0f0; 
-                    border-radius: 6px; 
-                    overflow: hidden; 
+                    width: 100%;
+                    height: 12px;
+                    background-color: #f0f0f0;
+                    border-radius: 6px;
+                    overflow: hidden;
                     margin-bottom: 4px;
                     border: 1px solid #ddd;
                 ">
                     <div style="
-                        width: ${percentage}%; 
-                        height: 100%; 
-                        background: linear-gradient(135deg, ${color}, ${color}dd); 
+                        width: ${percentage}%;
+                        height: 100%;
+                        background: linear-gradient(135deg, ${color}, ${color}dd);
                         transition: width 0.4s ease;
                         border-radius: 6px;
                     "></div>
                 </div>
                 <div style="
-                    font-size: 14px; 
-                    font-weight: bold; 
+                    font-size: 14px;
+                    font-weight: bold;
                     color: ${textColor};
                     text-shadow: 0 1px 2px rgba(255,255,255,0.8);
                 ">${percentage}%</div>
             </div>
         `;
+    }
+
+    getMatchTypeBadges(matchTypes) {
+        const badges = [];
+
+        if (matchTypes.includes('gene')) {
+            badges.push('<span style="background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px;">📊 Gene</span>');
+        }
+
+        if (matchTypes.includes('text')) {
+            badges.push('<span style="background: #d1ecf1; color: #0c5460; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px;">📝 Text</span>');
+        }
+
+        if (matchTypes.includes('embedding')) {
+            badges.push('<span style="background: #f3e5f5; color: #6a1b9a; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px;">🧠 Semantic</span>');
+        }
+
+        return badges.join(' ');
+    }
+
+    getScoreDetails(scores, suggestion) {
+        let details = [];
+
+        // Gene-based details
+        if (scores.gene_confidence && scores.gene_confidence > 0) {
+            const geneInfo = suggestion.matching_gene_count
+                ? `${suggestion.matching_gene_count}/${suggestion.matching_genes?.length || 0} KE genes`
+                : 'Gene match';
+            const pathwayInfo = suggestion.pathway_total_genes
+                ? ` (${suggestion.matching_gene_count}/${suggestion.pathway_total_genes} pathway genes)`
+                : '';
+
+            details.push(`
+                <div style="font-size: 11px; color: #155724; margin-bottom: 4px; padding: 4px; background: #d4edda; border-radius: 3px;">
+                    📊 <strong>Gene Score: ${Math.round(scores.gene_confidence * 100)}%</strong> - ${geneInfo}${pathwayInfo}
+                    ${suggestion.matching_genes ? `<br><span style="font-size: 10px;">Matching genes: ${suggestion.matching_genes.join(', ')}</span>` : ''}
+                </div>
+            `);
+        }
+
+        // Text-based details
+        if (scores.text_confidence && scores.text_confidence > 0) {
+            const titleSim = suggestion.title_similarity
+                ? ` (title: ${Math.round(suggestion.title_similarity * 100)}%)`
+                : '';
+
+            details.push(`
+                <div style="font-size: 11px; color: #0c5460; margin-bottom: 4px; padding: 4px; background: #d1ecf1; border-radius: 3px;">
+                    📝 <strong>Text Score: ${Math.round(scores.text_confidence * 100)}%</strong>${titleSim}
+                    <br><span style="font-size: 10px;">Multi-algorithm text similarity</span>
+                </div>
+            `);
+        }
+
+        // Embedding-based details
+        if (scores.embedding_similarity && scores.embedding_similarity > 0) {
+            const embDetails = suggestion.embedding_details || {};
+            const titleSim = embDetails.title_similarity
+                ? ` (title: ${Math.round(embDetails.title_similarity * 100)}%)`
+                : '';
+
+            details.push(`
+                <div style="font-size: 11px; color: #6a1b9a; margin-bottom: 4px; padding: 4px; background: #f3e5f5; border-radius: 3px;">
+                    🧠 <strong>Semantic Score: ${Math.round(scores.embedding_similarity * 100)}%</strong>${titleSim}
+                    <br><span style="font-size: 10px;">BioBERT semantic similarity</span>
+                </div>
+            `);
+        }
+
+        return details.join('');
+    }
+
+    getBorderColorForMatch(matchTypes) {
+        if (matchTypes.length >= 3) {
+            return '#9A1C57';  // Purple - all three types
+        } else if (matchTypes.includes('gene') && matchTypes.includes('embedding')) {
+            return '#6a1b9a';  // Purple variant - gene + semantic
+        } else if (matchTypes.includes('gene')) {
+            return '#28a745';  // Green - gene-based
+        } else if (matchTypes.includes('embedding')) {
+            return '#9c27b0';  // Purple - semantic
+        } else {
+            return '#17a2b8';  // Teal - text-based
+        }
+    }
+
+    createFinalScoreBar(finalScore) {
+        const percentage = Math.round(finalScore * 100);
+        const color = this.getConfidenceColor(finalScore);
+
+        return `
+            <div style="text-align: center; min-width: 80px;">
+                <div style="background: #e0e0e0; border-radius: 4px; overflow: hidden; height: 8px; width: 100%;">
+                    <div style="background: ${color}; height: 100%; width: ${percentage}%;"></div>
+                </div>
+                <div style="font-size: 11px; color: #666; margin-top: 2px;"><strong>${percentage}%</strong></div>
+            </div>
+        `;
+    }
+
+    formatPrimaryEvidence(primary) {
+        const labels = {
+            'gene_overlap': 'Gene Overlap',
+            'semantic_similarity': 'Semantic Match',
+            'text_similarity': 'Text Match'
+        };
+        return labels[primary] || primary || 'Unknown';
+    }
+
+    getConfidenceColor(score) {
+        if (score >= 0.8) return '#28a745';      // Green - high
+        if (score >= 0.5) return '#ffc107';      // Yellow - medium
+        return '#dc3545';                        // Red - low
+    }
+
+    escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
     selectSuggestedPathway(pathwayId, pathwayTitle) {

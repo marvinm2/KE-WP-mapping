@@ -11,6 +11,7 @@ from monitoring import MetricsCollector
 from pathway_suggestions import PathwaySuggestionService
 from rate_limiter import RateLimiter
 from config_loader import ConfigLoader
+from embedding_service import BiologicalEmbeddingService
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class ServiceContainer:
         self._oauth = None
         self._github_client = None
         self._scoring_config = None
+        self._embedding_service = None
 
         logger.info("Service container initialized")
 
@@ -106,10 +108,53 @@ class ServiceContainer:
             scoring_config = self.scoring_config
             self._pathway_suggestion_service = PathwaySuggestionService(
                 self.cache_model,
-                config=scoring_config
+                config=scoring_config,
+                embedding_service=self.embedding_service
             )
             logger.debug("PathwaySuggestionService instance created with config")
         return self._pathway_suggestion_service
+
+    @property
+    def embedding_service(self) -> BiologicalEmbeddingService:
+        """Get or create embedding service instance"""
+        if self._embedding_service is None:
+            try:
+                # Check if embeddings are enabled
+                embedding_config = getattr(
+                    self.scoring_config.pathway_suggestion,
+                    'embedding_based_matching',
+                    None
+                )
+
+                enabled = getattr(embedding_config, 'enabled', False) if embedding_config else False
+
+                if enabled:
+                    model_name = getattr(
+                        embedding_config,
+                        'model',
+                        'dmis-lab/biobert-base-cased-v1.2'
+                    )
+                    precomputed_path = getattr(
+                        embedding_config,
+                        'precomputed_embeddings',
+                        'pathway_embeddings.npy'
+                    )
+
+                    self._embedding_service = BiologicalEmbeddingService(
+                        model_name=model_name,
+                        use_gpu=True,
+                        precomputed_embeddings_path=precomputed_path
+                    )
+                    logger.info("Embedding service initialized")
+                else:
+                    logger.info("Embedding service disabled by config")
+                    self._embedding_service = None
+
+            except Exception as e:
+                logger.error(f"Failed to initialize embedding service: {e}")
+                self._embedding_service = None
+
+        return self._embedding_service
 
     def init_oauth(self, app) -> OAuth:
         """Initialize OAuth with the Flask app"""

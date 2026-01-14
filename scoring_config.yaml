@@ -318,6 +318,32 @@ pathway_suggestion:
       max_score: 0.55                  # Maximum substring score
 
 
+  # ----------------------------------------------------------------------------
+  # Embedding-Based Matching (BioBERT Semantic Similarity)
+  # ----------------------------------------------------------------------------
+  embedding_based_matching:
+    enabled: true                               # Feature flag
+    model: "dmis-lab/biobert-base-cased-v1.2"  # HuggingFace model ID
+    min_threshold: 0.3                          # Minimum similarity to include
+    use_gpu: true                               # Use GPU if available
+    precomputed_embeddings: "pathway_embeddings.npy"  # Pre-computed pathway vectors
+
+    # Fallback behavior
+    fallback_to_text: true                      # Use text-based if embeddings fail
+
+
+  # ----------------------------------------------------------------------------
+  # Hybrid Scoring Weights (Multi-Signal Combination)
+  # ----------------------------------------------------------------------------
+  hybrid_weights:
+    gene: 0.35          # Gene-based scoring weight
+    text: 0.35          # Text-based scoring weight
+    embedding: 0.30     # Embedding-based scoring weight
+
+    # Bonus for multiple evidence types
+    multi_evidence_bonus: 0.05
+
+
 # ==============================================================================
 # KE-PATHWAY ASSESSMENT SCORING (Frontend - main.js)
 # ==============================================================================
