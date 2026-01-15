@@ -42,7 +42,8 @@ class BiologicalEmbeddingService:
         self,
         model_name: str = "dmis-lab/biobert-base-cased-v1.2",
         use_gpu: bool = True,
-        precomputed_embeddings_path: Optional[str] = None
+        precomputed_embeddings_path: Optional[str] = None,
+        precomputed_ke_embeddings_path: Optional[str] = None
     ):
         """
         Initialize BioBERT model
@@ -51,6 +52,7 @@ class BiologicalEmbeddingService:
             model_name: HuggingFace model identifier
             use_gpu: Use GPU if available
             precomputed_embeddings_path: Path to .npy file with pathway embeddings
+            precomputed_ke_embeddings_path: Path to .npy file with KE embeddings
         """
         if not EMBEDDINGS_AVAILABLE:
             raise RuntimeError(
@@ -71,6 +73,16 @@ class BiologicalEmbeddingService:
             if precomputed_embeddings_path and os.path.exists(precomputed_embeddings_path):
                 self._load_precomputed_embeddings(precomputed_embeddings_path)
 
+            # Load pre-computed KE embeddings if available
+            self.ke_embeddings = {}
+            if precomputed_ke_embeddings_path and os.path.exists(precomputed_ke_embeddings_path):
+                self._load_precomputed_ke_embeddings(precomputed_ke_embeddings_path)
+
+            # Load pre-computed pathway TITLE embeddings if available
+            self.pathway_title_embeddings = {}
+            if os.path.exists('pathway_title_embeddings.npy'):
+                self._load_precomputed_pathway_title_embeddings('pathway_title_embeddings.npy')
+
             logger.info(f"BioBERT service initialized successfully")
 
         except Exception as e:
@@ -86,6 +98,26 @@ class BiologicalEmbeddingService:
         except Exception as e:
             logger.warning(f"Could not load pre-computed embeddings: {e}")
             self.pathway_embeddings = {}
+
+    def _load_precomputed_ke_embeddings(self, path: str):
+        """Load pre-computed KE embeddings from disk"""
+        try:
+            import numpy as np
+            self.ke_embeddings = np.load(path, allow_pickle=True).item()
+            logger.info(f"Loaded {len(self.ke_embeddings)} pre-computed KE embeddings")
+        except Exception as e:
+            logger.warning(f"Could not load pre-computed KE embeddings: {e}")
+            self.ke_embeddings = {}
+
+    def _load_precomputed_pathway_title_embeddings(self, path: str):
+        """Load pre-computed pathway title embeddings from disk"""
+        try:
+            import numpy as np
+            self.pathway_title_embeddings = np.load(path, allow_pickle=True).item()
+            logger.info(f"Loaded {len(self.pathway_title_embeddings)} pre-computed pathway title embeddings")
+        except Exception as e:
+            logger.warning(f"Could not load pre-computed pathway title embeddings: {e}")
+            self.pathway_title_embeddings = {}
 
     @lru_cache(maxsize=1000)
     def encode(self, text: str) -> 'np.ndarray':
@@ -123,20 +155,45 @@ class BiologicalEmbeddingService:
         # Otherwise, compute and cache
         return self.encode(pathway_text)
 
-    def compute_similarity(self, text1: str, text2: str) -> float:
+    def get_ke_embedding(self, ke_id: str, ke_text: str) -> 'np.ndarray':
+        """
+        Get embedding for Key Event (uses pre-computed if available)
+
+        Args:
+            ke_id: Key Event ID (e.g., "KE 55", "KE 1508")
+            ke_text: Combined title + description
+
+        Returns:
+            Embedding vector
+        """
+        # Check pre-computed first
+        if ke_id in self.ke_embeddings:
+            return self.ke_embeddings[ke_id]
+
+        # Otherwise, compute and cache via encode()
+        return self.encode(ke_text)
+
+    def compute_similarity(self, text1: str, text2: str, pathway_id: str = None) -> float:
         """
         Compute cosine similarity between two texts
 
         Args:
             text1: First text (e.g., KE title)
             text2: Second text (e.g., pathway title)
+            pathway_id: Optional pathway ID for pre-computed lookup
 
         Returns:
             Similarity score 0.0-1.0 (normalized from -1 to 1)
         """
         try:
+            # Encode first text (KE title)
             emb1 = self.encode(text1)
-            emb2 = self.encode(text2)
+
+            # For pathway titles, use pre-computed if available
+            if pathway_id and pathway_id in self.pathway_title_embeddings:
+                emb2 = self.pathway_title_embeddings[pathway_id]
+            else:
+                emb2 = self.encode(text2)
 
             # Cosine similarity
             similarity = np.dot(emb1, emb2) / (
@@ -178,8 +235,8 @@ class BiologicalEmbeddingService:
             }
         """
         try:
-            # Title-to-title similarity
-            title_sim = self.compute_similarity(ke_title, pathway_title)
+            # Title-to-title similarity (NOW USES PRE-COMPUTED)
+            title_sim = self.compute_similarity(ke_title, pathway_title, pathway_id=pathway_id)
 
             # Full text similarity (title + description)
             ke_text = f"{ke_title}. {ke_description}" if ke_description else ke_title
