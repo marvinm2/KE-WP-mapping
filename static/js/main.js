@@ -10,6 +10,10 @@ class KEWPApp {
         this.scoringConfig = null;
         this.configLoaded = false;
 
+        // Method filter state
+        this.currentMethodFilter = 'all';
+        this.currentKEContext = null;
+
         // Load scoring config first, then initialize
         this.loadScoringConfig().then(() => {
             this.init();
@@ -829,10 +833,12 @@ class KEWPApp {
         
         // Store biological level for later use in assessment
         this.selectedBiolevel = biolevel;
-        
+
         // Load pathway suggestions if KE is selected
         if (keId && title) {
-            this.loadPathwaySuggestions(keId, title);
+            // Reset method filter to 'all' when switching KEs
+            this.currentMethodFilter = 'all';
+            this.loadPathwaySuggestions(keId, title, 'all');
         } else {
             this.hidePathwaySuggestions();
         }
@@ -1951,22 +1957,34 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }, 10000);
     }
 
-    loadPathwaySuggestions(keId, keTitle) {
+    loadPathwaySuggestions(keId, keTitle, methodFilter = null) {
         // Loading pathway suggestions
-        
+
+        // Use provided method filter or current state
+        const filter = methodFilter !== null ? methodFilter : this.currentMethodFilter;
+
+        // Store KE context for re-filtering
+        this.currentKEContext = {
+            keId: keId,
+            keTitle: keTitle,
+            bioLevel: this.selectedBiolevel || ''
+        };
+        this.currentMethodFilter = filter;
+
         // Show loading indicator
         this.showPathwaySuggestionsLoading();
-        
+
         // Encode parameters for URL
         const encodedKeId = encodeURIComponent(keId);
         const encodedKeTitle = encodeURIComponent(keTitle);
         const encodedBioLevel = encodeURIComponent(this.selectedBiolevel || '');
-        
-        // Make AJAX request for suggestions with biological level context
-        $.getJSON(`/suggest_pathways/${encodedKeId}?ke_title=${encodedKeTitle}&bio_level=${encodedBioLevel}&limit=8`)
+        const encodedMethodFilter = encodeURIComponent(filter);
+
+        // Make AJAX request for suggestions with biological level context and method filter
+        $.getJSON(`/suggest_pathways/${encodedKeId}?ke_title=${encodedKeTitle}&bio_level=${encodedBioLevel}&limit=8&method_filter=${encodedMethodFilter}`)
             .done((data) => {
                 // Pathway suggestions loaded successfully
-                this.displayPathwaySuggestions(data);
+                this.displayPathwaySuggestions(data, filter);
             })
             .fail((xhr, status, error) => {
                 console.error('Failed to load pathway suggestions:', error);
@@ -1996,18 +2014,49 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
     }
 
-    displayPathwaySuggestions(data) {
+    displayPathwaySuggestions(data, filter = 'all') {
         // Remove existing suggestions
         $("#pathway-suggestions").remove();
 
-        if (!data || data.total_suggestions === 0) {
-            this.showNoSuggestions(data);
+        // Handle different response structures
+        const suggestions = filter === 'all'
+            ? (data.combined_suggestions || [])
+            : (data.suggestions || []);
+        const totalCount = data.total_count || data.total_suggestions || 0;
+        const filteredCount = data.filtered_count || suggestions.length;
+
+        if (!data || suggestions.length === 0) {
+            this.showNoSuggestions(data, filter);
             return;
         }
 
         let suggestionsHtml = `
             <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
                 <h3 style="margin: 0 0 15px 0; color: #29235C;">Suggested Pathways for Selected KE</h3>
+
+                <!-- Method Filter Toggle -->
+                <div id="methodFilterContainer" style="margin: 0 0 15px 0; padding: 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <label style="font-weight: bold; margin-right: 10px; color: #29235C; display: block; margin-bottom: 8px;">View Results By:</label>
+                    <div class="btn-group" role="group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="method-filter-btn active" data-method="all"
+                                style="padding: 8px 16px; border: 2px solid #307BBF; background: #307BBF; color: white; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                            All Methods (Combined)
+                        </button>
+                        <button type="button" class="method-filter-btn" data-method="gene"
+                                style="padding: 8px 16px; border: 2px solid #307BBF; background: white; color: #307BBF; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                            Gene-based Only
+                        </button>
+                        <button type="button" class="method-filter-btn" data-method="text"
+                                style="padding: 8px 16px; border: 2px solid #307BBF; background: white; color: #307BBF; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                            Text-based Only
+                        </button>
+                        <button type="button" class="method-filter-btn" data-method="semantic"
+                                style="padding: 8px 16px; border: 2px solid #307BBF; background: white; color: #307BBF; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                            Semantic-based Only
+                        </button>
+                    </div>
+                    <div id="filterInfo" style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;"></div>
+                </div>
         `;
 
         // Show gene information if available
@@ -2019,19 +2068,19 @@ This helps identify gaps in existing pathways for future development.">❓</span
             `;
         }
 
-        // Display combined suggestions with all three scoring signals
-        if (data.combined_suggestions && data.combined_suggestions.length > 0) {
+        // Display suggestions with all three scoring signals
+        if (suggestions && suggestions.length > 0) {
             suggestionsHtml += `
                 <div class="suggestion-section">
-                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">Pathway Suggestions (${data.combined_suggestions.length})</h4>
+                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">Pathway Suggestions (${suggestions.length})</h4>
                     <div class="suggestion-list">
             `;
 
-            data.combined_suggestions.forEach(suggestion => {
+            suggestions.forEach(suggestion => {
                 const matchTypeBadges = this.getMatchTypeBadges(suggestion.match_types || []);
                 const scoreDetails = this.getScoreDetails(suggestion.scores || {}, suggestion);
                 const borderColor = this.getBorderColorForMatch(suggestion.match_types || []);
-                const finalScoreBar = this.createFinalScoreBar(suggestion.scores?.final_score || 0);
+                const finalScoreBar = this.createFinalScoreBar(suggestion);
                 const primaryEvidence = this.formatPrimaryEvidence(suggestion.primary_evidence);
 
                 suggestionsHtml += `
@@ -2085,22 +2134,102 @@ This helps identify gaps in existing pathways for future development.">❓</span
         } else {
             $("#ke_id").parent().after(suggestionsHtml);
         }
+
+        // Set up method filter buttons
+        this.setupMethodFilterButtons(filter, totalCount, filteredCount);
     }
 
-    showNoSuggestions(data) {
+    setupMethodFilterButtons(currentFilter, totalCount, filteredCount) {
+        // Update active button state
+        $('.method-filter-btn').removeClass('active');
+        $(`.method-filter-btn[data-method="${currentFilter}"]`).addClass('active');
+
+        // Update filter info text
+        let filterInfoText = '';
+        if (currentFilter === 'all') {
+            filterInfoText = `Showing all ${filteredCount} suggestions (combined ranking)`;
+        } else {
+            const methodName = currentFilter.charAt(0).toUpperCase() + currentFilter.slice(1);
+            filterInfoText = `Showing ${filteredCount} ${currentFilter}-based suggestions (${totalCount} total)`;
+        }
+        $('#filterInfo').text(filterInfoText);
+
+        // Add click event listeners
+        $('.method-filter-btn').off('click').on('click', (e) => {
+            const method = $(e.currentTarget).data('method');
+
+            // Update button states
+            $('.method-filter-btn').removeClass('active');
+            $(e.currentTarget).addClass('active');
+
+            // Re-fetch suggestions with new filter
+            if (this.currentKEContext) {
+                this.loadPathwaySuggestions(
+                    this.currentKEContext.keId,
+                    this.currentKEContext.keTitle,
+                    method
+                );
+            }
+        });
+    }
+
+    showNoSuggestions(data, filter = 'all') {
         let message = "No pathway suggestions found for this Key Event.";
         let details = "";
-        
-        if (data && data.genes_found === 0) {
+
+        if (filter !== 'all') {
+            // Filtered view with no results
+            const methodName = filter.charAt(0).toUpperCase() + filter.slice(1);
+            message = `No ${filter}-based suggestions found.`;
+            details = `Try a different method filter or use "All Methods (Combined)" to see other results.`;
+        } else if (data && data.genes_found === 0) {
             details = "No associated genes were found in the AOP-Wiki data. Try searching manually using the dropdown below.";
         } else if (data && data.genes_found > 0) {
             details = `Found ${data.genes_found} associated gene${data.genes_found !== 1 ? 's' : ''} (${data.gene_list.join(', ')}) but no matching pathways were identified.`;
         }
 
-        const noSuggestionsHtml = `
+        let noSuggestionsHtml = `
             <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
-                <h3 style="margin: 0 0 10px 0; color: #29235C;">Pathway Suggestions</h3>
-                <div style="color: #666; text-align: center; padding: 20px;">
+                <h3 style="margin: 0 0 15px 0; color: #29235C;">Suggested Pathways for Selected KE</h3>
+
+                <!-- Method Filter Toggle -->
+                <div id="methodFilterContainer" style="margin: 0 0 15px 0; padding: 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <label style="font-weight: bold; margin-right: 10px; color: #29235C; display: block; margin-bottom: 8px;">View Results By:</label>
+                    <div class="btn-group" role="group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="method-filter-btn ${filter === 'all' ? 'active' : ''}" data-method="all"
+                                style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'all' ? '#307BBF' : 'white'}; color: ${filter === 'all' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                            All Methods (Combined)
+                        </button>
+                        <button type="button" class="method-filter-btn ${filter === 'gene' ? 'active' : ''}" data-method="gene"
+                                style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'gene' ? '#307BBF' : 'white'}; color: ${filter === 'gene' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                            Gene-based Only
+                        </button>
+                        <button type="button" class="method-filter-btn ${filter === 'text' ? 'active' : ''}" data-method="text"
+                                style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'text' ? '#307BBF' : 'white'}; color: ${filter === 'text' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                            Text-based Only
+                        </button>
+                        <button type="button" class="method-filter-btn ${filter === 'semantic' ? 'active' : ''}" data-method="semantic"
+                                style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'semantic' ? '#307BBF' : 'white'}; color: ${filter === 'semantic' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                            Semantic-based Only
+                        </button>
+                    </div>
+                    <div id="filterInfo" style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;">
+                        ${filter === 'all' ? 'Showing all results (combined ranking)' : `Showing ${filter}-based suggestions`}
+                    </div>
+                </div>
+        `;
+
+        // Show gene information if available
+        if (data && data.genes_found > 0) {
+            noSuggestionsHtml += `
+                <div style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 14px;">
+                    <strong>Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
+                </div>
+            `;
+        }
+
+        noSuggestionsHtml += `
+                <div style="color: #666; text-align: center; padding: 20px; background: #fff; border-radius: 4px; border: 1px solid #e2e8f0;">
                     <div style="margin-bottom: 8px; font-weight: bold;">${message}</div>
                     ${details ? `<div style="font-size: 12px; color: #888; margin-bottom: 15px;">${details}</div>` : ''}
                     <div style="margin-top: 15px; font-size: 12px; color: #307BBF;">
@@ -2116,6 +2245,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
         } else {
             $("#ke_id").parent().after(noSuggestionsHtml);
         }
+
+        // Set up filter button click handlers
+        this.setupMethodFilterButtons(filter, 0, 0);
     }
 
     showPathwaySuggestionsError(errorMessage) {
@@ -2215,6 +2347,30 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     getScoreDetails(scores, suggestion) {
+        // Check if this is a combined suggestion or individual method
+        if (suggestion.scores) {
+            // Combined view - show all scores
+            return this.getCombinedScoreDetails(suggestion);
+        }
+
+        // Individual method views - show method-specific scores
+        const type = suggestion.suggestion_type;
+
+        if (type === 'gene_based') {
+            return this.getGeneScoreDetails(suggestion);
+        } else if (type === 'text_based') {
+            return this.getTextScoreDetails(suggestion);
+        } else if (type === 'embedding_based') {
+            return this.getEmbeddingScoreDetails(suggestion);
+        }
+
+        return '';
+    }
+
+    getCombinedScoreDetails(suggestion) {
+        // Existing complex score display for combined view
+        const scores = suggestion.scores || {};
+        const embDetails = suggestion.embedding_details || {};
         let details = [];
 
         // Gene-based details
@@ -2250,20 +2406,71 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         // Embedding-based details
         if (scores.embedding_similarity && scores.embedding_similarity > 0) {
-            const embDetails = suggestion.embedding_details || {};
-            const titleSim = embDetails.title_similarity
-                ? ` (title: ${Math.round(embDetails.title_similarity * 100)}%)`
-                : '';
+            // Extract all three scores
+            const titleSim = embDetails.title_similarity || scores.embedding_similarity;
+            const descSim = embDetails.description_similarity || scores.embedding_similarity;
+            const combinedSim = embDetails.combined || scores.embedding_similarity;
+
+            // Format percentages
+            const titlePct = Math.round(titleSim * 100);
+            const descPct = Math.round(descSim * 100);
+            const combinedPct = Math.round(combinedSim * 100);
+
+            // Build breakdown line
+            const breakdown = `Title: ${titlePct}% | Description: ${descPct}% | Combined: ${combinedPct}%`;
 
             details.push(`
                 <div style="font-size: 11px; color: #6a1b9a; margin-bottom: 4px; padding: 4px; background: #f3e5f5; border-radius: 3px;">
-                    🧠 <strong>Semantic Score: ${Math.round(scores.embedding_similarity * 100)}%</strong>${titleSim}
-                    <br><span style="font-size: 10px;">BioBERT semantic similarity</span>
+                    🧠 <strong>Semantic Score: ${combinedPct}%</strong>
+                    <br><span style="font-size: 10px; color: #555;">${breakdown}</span>
+                    <br><span style="font-size: 9px; color: #777; font-style: italic;">BioBERT semantic similarity (directionality-neutral)</span>
                 </div>
             `);
         }
 
         return details.join('');
+    }
+
+    getGeneScoreDetails(suggestion) {
+        const geneCount = suggestion.matching_gene_count || 0;
+        const overlapRatio = suggestion.gene_overlap_ratio || 0;
+        const genes = suggestion.matching_genes || [];
+
+        return `
+            <div style="font-size: 11px; color: #155724; margin-top: 8px; padding: 6px; background: #d4edda; border-radius: 3px;">
+                <div><strong>Gene Overlap:</strong> ${Math.round(overlapRatio * 100)}%</div>
+                <div style="margin-top: 4px;"><strong>Matching Genes:</strong> ${genes.length > 0 ? genes.join(', ') : 'None'} (${geneCount} genes)</div>
+            </div>
+        `;
+    }
+
+    getTextScoreDetails(suggestion) {
+        const titleSim = suggestion.title_similarity || 0;
+        const descSim = suggestion.description_similarity || 0;
+        const combinedSim = suggestion.combined_similarity || 0;
+
+        return `
+            <div style="font-size: 11px; color: #0c5460; margin-top: 8px; padding: 6px; background: #d1ecf1; border-radius: 3px;">
+                <div><strong>Title Similarity:</strong> ${Math.round(titleSim * 100)}%</div>
+                <div style="margin-top: 2px;"><strong>Description Similarity:</strong> ${Math.round(descSim * 100)}%</div>
+                <div style="margin-top: 2px;"><strong>Combined Text Score:</strong> ${Math.round(combinedSim * 100)}%</div>
+            </div>
+        `;
+    }
+
+    getEmbeddingScoreDetails(suggestion) {
+        const titleSim = suggestion.title_similarity || 0;
+        const descSim = suggestion.description_similarity || 0;
+        const embeddingSim = suggestion.embedding_similarity || 0;
+
+        return `
+            <div style="font-size: 11px; color: #6a1b9a; margin-top: 8px; padding: 6px; background: #f3e5f5; border-radius: 3px;">
+                <div><strong>Semantic Similarity:</strong> ${Math.round(embeddingSim * 100)}%</div>
+                <div style="margin-left: 10px; margin-top: 2px;">Title: ${Math.round(titleSim * 100)}%</div>
+                <div style="margin-left: 10px;">Description: ${Math.round(descSim * 100)}%</div>
+                <div style="font-size: 9px; color: #777; font-style: italic; margin-top: 4px;">BioBERT semantic similarity</div>
+            </div>
+        `;
     }
 
     getBorderColorForMatch(matchTypes) {
@@ -2280,16 +2487,45 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
     }
 
-    createFinalScoreBar(finalScore) {
-        const percentage = Math.round(finalScore * 100);
-        const color = this.getConfidenceColor(finalScore);
+    createFinalScoreBar(suggestion) {
+        // Determine which score to display based on suggestion type
+        let score = 0;
+        let label = 'Score';
+
+        if (suggestion.scores && suggestion.scores.final_score !== undefined) {
+            // Combined view - use final combined score
+            score = suggestion.scores.final_score;
+            label = 'Combined';
+        } else if (suggestion.suggestion_type === 'gene_based') {
+            // Gene-based view - use gene overlap ratio
+            score = suggestion.gene_overlap_ratio || 0;
+            label = 'Gene Overlap';
+        } else if (suggestion.suggestion_type === 'text_based') {
+            // Text-based view - use combined text similarity
+            score = suggestion.combined_similarity || 0;
+            label = 'Text Match';
+        } else if (suggestion.suggestion_type === 'embedding_based') {
+            // Embedding-based view - use semantic similarity
+            score = suggestion.embedding_similarity || 0;
+            label = 'Semantic';
+        } else {
+            // Fallback to confidence_score if available
+            score = suggestion.confidence_score || 0;
+            label = 'Confidence';
+        }
+
+        const percentage = Math.round(score * 100);
+        const color = this.getConfidenceColor(score);
 
         return `
-            <div style="text-align: center; min-width: 80px;">
-                <div style="background: #e0e0e0; border-radius: 4px; overflow: hidden; height: 8px; width: 100%;">
-                    <div style="background: ${color}; height: 100%; width: ${percentage}%;"></div>
+            <div style="text-align: right;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 2px;">${label}</div>
+                <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
+                    <div style="width: 60px; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                        <div style="width: ${percentage}%; height: 100%; background: ${color}; transition: width 0.3s;"></div>
+                    </div>
+                    <span style="font-weight: bold; color: ${color}; font-size: 13px;">${percentage}%</span>
                 </div>
-                <div style="font-size: 11px; color: #666; margin-top: 2px;"><strong>${percentage}%</strong></div>
             </div>
         `;
     }

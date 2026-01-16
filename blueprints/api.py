@@ -565,59 +565,99 @@ def suggest_pathways(ke_id):
         ke_title: Key Event title for text-based matching
         bio_level: Biological level of the KE (Molecular, Cellular, etc.)
         limit: Maximum number of suggestions (default 10)
+        method_filter: Optional filter - 'all', 'gene', 'text', 'semantic' (default: 'all')
 
     Returns:
         JSON response with:
-        - gene_based_suggestions: Pathways matched by gene overlap
-        - text_based_suggestions: Pathways matched by text similarity
-        - embedding_based_suggestions: Pathways matched by BioBERT semantic similarity (if enabled)
-        - combined_suggestions: Unified list with hybrid scores and transparency
+        - suggestions: Filtered and ranked pathway suggestions
+        - method_filter: Current filter applied
+        - total_count: Total number of suggestions before filtering
+        - filtered_count: Number of suggestions after filtering
+        - gene_based_suggestions: Pathways matched by gene overlap (if method_filter='all')
+        - text_based_suggestions: Pathways matched by text similarity (if method_filter='all')
+        - embedding_based_suggestions: Pathways matched by BioBERT semantic similarity (if method_filter='all')
+        - combined_suggestions: Unified list with hybrid scores (if method_filter='all')
         - genes_found: Number of genes associated with the KE
         - gene_list: List of HGNC gene symbols
-        - total_suggestions: Total number of combined suggestions
     """
     try:
         if not pathway_suggestion_service:
             logger.error("Pathway suggestion service not available")
             return jsonify({"error": "Suggestion service unavailable"}), 503
-            
+
         # Get parameters
         ke_title = request.args.get('ke_title', '')
         bio_level = request.args.get('bio_level', '')
         limit = request.args.get('limit', 10, type=int)
-        
+        method_filter = request.args.get('method_filter', 'all')
+
+        # Validate method filter
+        valid_methods = ['all', 'gene', 'text', 'semantic']
+        if method_filter not in valid_methods:
+            method_filter = 'all'
+
         # Validate limit
         if limit > 50:
             limit = 50
         elif limit < 1:
             limit = 10
-            
+
         # Validate KE ID format
         if not ke_id or len(ke_id.strip()) == 0:
             return jsonify({"error": "Invalid Key Event ID"}), 400
-            
-        logger.info(f"Getting pathway suggestions for KE: {ke_id} (bio_level: {bio_level})")
-        
-        # Get suggestions from service with biological level context
-        suggestions = pathway_suggestion_service.get_pathway_suggestions(
+
+        logger.info(f"Getting pathway suggestions for KE: {ke_id} (bio_level: {bio_level}, method_filter: {method_filter})")
+
+        # Get all suggestions from service with biological level context
+        all_suggestions = pathway_suggestion_service.get_pathway_suggestions(
             ke_id, ke_title, bio_level, limit
         )
-        
-        if "error" in suggestions:
-            logger.error(f"Suggestion service error: {suggestions['error']}")
-            return jsonify(suggestions), 500
-            
+
+        if "error" in all_suggestions:
+            logger.error(f"Suggestion service error: {all_suggestions['error']}")
+            return jsonify(all_suggestions), 500
+
+        # Get total count from combined suggestions
+        combined = all_suggestions.get('combined_suggestions', [])
+        total_count = len(combined)
+
+        # Apply method filter using the pre-computed method-specific arrays
+        if method_filter == 'all':
+            # Return all suggestions with standard structure
+            suggestions = combined
+            response = all_suggestions
+        else:
+            # Use the dedicated method-specific suggestion arrays
+            if method_filter == 'gene':
+                suggestions = all_suggestions.get('gene_based_suggestions', [])
+            elif method_filter == 'text':
+                suggestions = all_suggestions.get('text_based_suggestions', [])
+            elif method_filter == 'semantic':
+                suggestions = all_suggestions.get('embedding_based_suggestions', [])
+            else:
+                suggestions = []
+
+            response = {
+                'suggestions': suggestions,
+                'method_filter': method_filter,
+                'total_count': total_count,
+                'filtered_count': len(suggestions),
+                'genes_found': all_suggestions.get('genes_found', 0),
+                'gene_list': all_suggestions.get('gene_list', [])
+            }
+
         # Add metadata
-        suggestions["request_info"] = {
+        response["request_info"] = {
             "ke_id": ke_id,
             "ke_title": ke_title,
             "limit": limit,
+            "method_filter": method_filter,
             "timestamp": int(time.time())
         }
-        
-        logger.info(f"Returned {suggestions.get('total_suggestions', 0)} suggestions for KE {ke_id}")
-        return jsonify(suggestions), 200
-        
+
+        logger.info(f"Returned {len(suggestions)} suggestions for KE {ke_id} (filter: {method_filter})")
+        return jsonify(response), 200
+
     except Exception as e:
         logger.error(f"Error getting pathway suggestions for {ke_id}: {str(e)}")
         return jsonify({"error": "Failed to get pathway suggestions"}), 500

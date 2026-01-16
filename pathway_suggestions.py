@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 import requests
 from config_loader import ConfigLoader
+from text_utils import remove_directionality_terms
 
 logger = logging.getLogger(__name__)
 
@@ -519,6 +520,8 @@ class PathwaySuggestionService:
                     "pathway_total_genes": 0,  # Placeholder, filled in _find_pathways_by_genes
                     "pathway_specificity": 0.0,  # Placeholder, calculated after we have totals
                     "confidence_score": 0.0,  # Placeholder, calculated in _find_pathways_by_genes with refined formula
+                    "match_types": ["gene"],  # For UI badge display
+                    "primary_evidence": "gene_overlap"  # For UI primary evidence label
                 }
             )
 
@@ -547,7 +550,7 @@ class PathwaySuggestionService:
             # Calculate text similarity for each pathway
             scored_pathways = []
             # Remove directionality terms from KE title for better matching
-            ke_title_no_direction = self._remove_directionality_terms(ke_title)
+            ke_title_no_direction = remove_directionality_terms(ke_title)
             ke_title_clean = self._clean_text(ke_title_no_direction)
 
             for pathway in pathways:
@@ -582,6 +585,8 @@ class PathwaySuggestionService:
                             "suggestion_type": "text_based",
                             "confidence_score": round(confidence_score, 3),
                             "pathwaySvgUrl": f"https://www.wikipathways.org/wikipathways-assets/pathways/{pathway['pathwayID']}/{pathway['pathwayID']}.svg",
+                            "match_types": ["text"],  # For UI badge display
+                            "primary_evidence": "text_similarity"  # For UI primary evidence label
                         }
                     )
 
@@ -1169,58 +1174,6 @@ class PathwaySuggestionService:
         cleaned = re.sub(r"\s+", " ", cleaned)
         return cleaned.strip().lower()
 
-    def _remove_directionality_terms(self, text: str) -> str:
-        """Remove directionality terms from KE titles for better text matching"""
-        if not text:
-            return ""
-            
-        # Define directionality terms to remove (case-insensitive)
-        directionality_terms = [
-            # Directional modifiers
-            r'\b(increased?|increasing|increase|elevation|elevated|up-?regulated?|upregulation)\b',
-            r'\b(decreased?|decreasing|decrease|reduction|reduced|down-?regulated?|downregulation)\b',
-            r'\b(altered?|alteration|changes?|changed|changing|modified?|modification)\b',
-            
-            # Action types
-            r'\b(activation|activated?|activating|stimulation|stimulated?|stimulating)\b',
-            r'\b(inhibition|inhibited?|inhibiting|suppression|suppressed?|suppressing)\b',
-            r'\b(antagonism|antagonized?|antagonizing|agonism|agonized?)\b',
-            r'\b(induction|induced?|inducing|enhancement|enhanced?|enhancing)\b',
-            r'\b(disruption|disrupted?|disrupting|impairment|impaired?|impairing)\b',
-            
-            # Process descriptors
-            r'\b(formation|formed?|forming|generation|generated?|generating)\b',
-            r'\b(accumulation|accumulated?|accumulating|depletion|depleted?|depleting)\b',
-            r'\b(release|released?|releasing|secretion|secreted?|secreting)\b',
-            r'\b(binding|bound|binds?|interaction|interacting|interacted?)\b',
-            
-            # General qualifiers
-            r'\b(abnormal|aberrant|excessive|deficient|insufficient|over|under)\b',
-            r'\b(loss|gain|lack|absence|presence)\b',
-        ]
-        
-        # Apply all regex patterns to remove directionality terms
-        cleaned_text = text
-        for pattern in directionality_terms:
-            cleaned_text = re.sub(pattern, ' ', cleaned_text, flags=re.IGNORECASE)
-        
-        # Clean up extra spaces and normalize
-        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
-        
-        # If we removed too much (less than 30% of original), return a more conservative cleaning
-        if len(cleaned_text) < len(text) * 0.3:
-            # More conservative approach - only remove very common directional terms
-            conservative_terms = [
-                r'\b(increased?|decreased?|elevated?|reduced?)\b',
-                r'\b(up-?regulated?|down-?regulated?)\b',
-                r'\b(activation|inhibition|stimulation|suppression)\b'
-            ]
-            cleaned_text = text
-            for pattern in conservative_terms:
-                cleaned_text = re.sub(pattern, ' ', cleaned_text, flags=re.IGNORECASE)
-            cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
-        
-        return cleaned_text if cleaned_text else text
 
     def _get_embedding_based_suggestions(
         self,
@@ -1233,15 +1186,18 @@ class PathwaySuggestionService:
         """
         Get pathway suggestions using BioBERT semantic embeddings
 
+        Now computes separate title and description similarities using the
+        embedding service's compute_ke_pathway_similarity() method.
+
         Args:
             ke_id: Key Event ID
-            ke_title: Key Event title
+            ke_title: Key Event title (will be cleaned of directionality terms)
             ke_description: Key Event description
             bio_level: Biological level (Molecular, Cellular, etc.)
             limit: Maximum suggestions to return
 
         Returns:
-            List of pathway suggestions with embedding scores
+            List of pathway suggestions with separate embedding scores
         """
         if not self.embedding_service:
             logger.warning("Embedding service not available")
@@ -1250,44 +1206,47 @@ class PathwaySuggestionService:
         try:
             logger.info(f"Computing embedding-based suggestions for {ke_id}")
 
+            # IMPORTANT: Strip directionality terms from title before computing embeddings
+            ke_title_clean = remove_directionality_terms(ke_title)
+            logger.debug(f"Cleaned KE title: '{ke_title}' -> '{ke_title_clean}'")
+
             # Get all pathways
             all_pathways = self._get_all_pathways_for_search()
 
-            # Compute embedding similarities for all pathways
+            # Use batch processing for efficiency (computes all embeddings in vectorized manner)
+            batch_results = self.embedding_service.compute_ke_pathways_batch_similarity(
+                ke_id=ke_id,
+                ke_title=ke_title_clean,  # Use cleaned title
+                ke_description=ke_description,
+                pathways=all_pathways
+            )
+
+            # Apply minimum threshold and format suggestions
+            embedding_config = getattr(
+                self.config.pathway_suggestion,
+                'embedding_based_matching',
+                None
+            )
+            min_threshold = getattr(embedding_config, 'min_threshold', 0.3) if embedding_config else 0.3
+
             suggestions = []
-
-            for pathway in all_pathways:
-                similarity_scores = self.embedding_service.compute_ke_pathway_similarity(
-                    ke_title=ke_title,
-                    ke_description=ke_description or '',
-                    pathway_id=pathway['pathwayID'],
-                    pathway_title=pathway['pathwayTitle'],
-                    pathway_description=pathway.get('pathwayDescription', '')
-                )
-
-                # Use combined similarity as confidence
-                confidence = similarity_scores['combined_similarity']
-
-                # Apply minimum threshold (configurable)
-                embedding_config = getattr(
-                    self.config.pathway_suggestion,
-                    'embedding_based_matching',
-                    None
-                )
-                min_threshold = getattr(embedding_config, 'min_threshold', 0.3) if embedding_config else 0.3
+            for result in batch_results:
+                confidence = result['combined_similarity']
 
                 if confidence >= min_threshold:
                     suggestion = {
-                        'pathwayID': pathway['pathwayID'],
-                        'pathwayTitle': pathway['pathwayTitle'],
-                        'pathwayDescription': pathway.get('pathwayDescription', ''),
-                        'pathwayLink': pathway.get('pathwayLink', ''),
-                        'pathwaySvgUrl': pathway.get('pathwaySvgUrl', ''),
+                        'pathwayID': result['pathwayID'],
+                        'pathwayTitle': result['pathwayTitle'],
+                        'pathwayDescription': result.get('pathwayDescription', ''),
+                        'pathwayLink': result.get('pathwayLink', ''),
+                        'pathwaySvgUrl': result.get('pathwaySvgUrl', ''),
                         'confidence_score': confidence,
-                        'embedding_similarity': similarity_scores['combined_similarity'],
-                        'title_similarity': similarity_scores['title_similarity'],
-                        'description_similarity': similarity_scores['description_similarity'],
-                        'suggestion_type': 'embedding_based'
+                        'embedding_similarity': result['combined_similarity'],
+                        'title_similarity': result['title_similarity'],
+                        'description_similarity': result['description_similarity'],
+                        'suggestion_type': 'embedding_based',
+                        'match_types': ['embedding'],  # For UI badge display
+                        'primary_evidence': 'semantic_similarity'  # For UI primary evidence label
                     }
                     suggestions.append(suggestion)
 
@@ -1483,7 +1442,7 @@ class PathwaySuggestionService:
         try:
             pathways = self._get_all_pathways_for_search()
             # Remove directionality terms from query for better matching
-            query_no_direction = self._remove_directionality_terms(query)
+            query_no_direction = remove_directionality_terms(query)
             query_clean = self._clean_text(query_no_direction)
 
             if not query_clean:

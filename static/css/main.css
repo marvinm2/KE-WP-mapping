@@ -931,6 +931,20 @@ footer p {
     animation: fadeIn 0.3s ease-out;
 }
 
+/* Method Filter Buttons */
+.method-filter-btn:hover {
+    background: var(--color-secondary-light-blue) !important;
+    color: var(--color-primary-dark) !important;
+    border-color: var(--color-secondary-light-blue) !important;
+}
+
+.method-filter-btn.active {
+    background: var(--color-primary-blue) !important;
+    color: white !important;
+    border-color: var(--color-primary-blue) !important;
+    font-weight: bold !important;
+}
+
 /* Focus states for accessibility */
 button:focus,
 select:focus,

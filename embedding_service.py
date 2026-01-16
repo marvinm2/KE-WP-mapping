@@ -306,3 +306,92 @@ class BiologicalEmbeddingService:
         except Exception as e:
             logger.error(f"Batch similarity failed: {e}")
             return [0.0] * len(candidates)
+
+    def compute_ke_pathways_batch_similarity(
+        self,
+        ke_id: str,
+        ke_title: str,
+        ke_description: str,
+        pathways: List[Dict]
+    ) -> List[Dict]:
+        """
+        Compute similarity between KE and multiple pathways efficiently using pre-computed embeddings
+
+        Args:
+            ke_id: Key Event ID (e.g., "KE 55")
+            ke_title: Key Event title
+            ke_description: Key Event description
+            pathways: List of pathway dicts with pathwayID, pathwayTitle, pathwayDescription
+
+        Returns:
+            List of dicts with pathway info and similarity scores
+        """
+        try:
+            # Encode KE texts ONCE (use cached if available)
+            ke_title_emb = self.encode(ke_title)
+            ke_text = f"{ke_title}. {ke_description}" if ke_description else ke_title
+            ke_full_emb = self.get_ke_embedding(ke_id, ke_text)
+
+            results = []
+
+            # Pre-load all pathway embeddings (from pre-computed cache)
+            pathway_title_embeddings = []
+            pathway_full_embeddings = []
+
+            for pathway in pathways:
+                pathway_id = pathway['pathwayID']
+                pathway_title = pathway['pathwayTitle']
+                pathway_desc = pathway.get('pathwayDescription', '')
+                pathway_text = f"{pathway_title}. {pathway_desc}" if pathway_desc else pathway_title
+
+                # Use pre-computed pathway title embeddings
+                if pathway_id in self.pathway_title_embeddings:
+                    pathway_title_embeddings.append(self.pathway_title_embeddings[pathway_id])
+                else:
+                    pathway_title_embeddings.append(self.encode(pathway_title))
+
+                # Use pre-computed full pathway embeddings
+                if pathway_id in self.pathway_embeddings:
+                    pathway_full_embeddings.append(self.pathway_embeddings[pathway_id])
+                else:
+                    pathway_full_embeddings.append(self.encode(pathway_text))
+
+            # Convert to numpy arrays
+            pathway_title_embeddings = np.array(pathway_title_embeddings)
+            pathway_full_embeddings = np.array(pathway_full_embeddings)
+
+            # Vectorized title similarity computation
+            title_similarities = np.dot(pathway_title_embeddings, ke_title_emb) / (
+                np.linalg.norm(pathway_title_embeddings, axis=1) * np.linalg.norm(ke_title_emb) + 1e-8
+            )
+            title_similarities = (title_similarities + 1.0) / 2.0
+            title_similarities = np.clip(title_similarities, 0.0, 1.0)
+
+            # Vectorized full-text similarity computation
+            desc_similarities = np.dot(pathway_full_embeddings, ke_full_emb) / (
+                np.linalg.norm(pathway_full_embeddings, axis=1) * np.linalg.norm(ke_full_emb) + 1e-8
+            )
+            desc_similarities = (desc_similarities + 1.0) / 2.0
+            desc_similarities = np.clip(desc_similarities, 0.0, 1.0)
+
+            # Combine scores (60% title, 40% description)
+            combined_similarities = (title_similarities * 0.6) + (desc_similarities * 0.4)
+
+            # Build results
+            for i, pathway in enumerate(pathways):
+                results.append({
+                    'pathwayID': pathway['pathwayID'],
+                    'pathwayTitle': pathway['pathwayTitle'],
+                    'pathwayDescription': pathway.get('pathwayDescription', ''),
+                    'pathwayLink': pathway.get('pathwayLink', ''),
+                    'pathwaySvgUrl': pathway.get('pathwaySvgUrl', ''),
+                    'title_similarity': float(title_similarities[i]),
+                    'description_similarity': float(desc_similarities[i]),
+                    'combined_similarity': float(combined_similarities[i])
+                })
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Batch KE-pathway similarity failed: {e}")
+            return []

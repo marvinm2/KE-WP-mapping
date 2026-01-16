@@ -245,6 +245,7 @@ class EmbeddingBasedMatching:
     min_threshold: float = 0.3
     use_gpu: bool = True
     precomputed_embeddings: str = "pathway_embeddings.npy"
+    precomputed_ke_embeddings: str = "ke_embeddings.npy"
     fallback_to_text: bool = True
 
 

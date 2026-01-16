@@ -139,11 +139,17 @@ class ServiceContainer:
                         'precomputed_embeddings',
                         'pathway_embeddings.npy'
                     )
+                    precomputed_ke_path = getattr(
+                        embedding_config,
+                        'precomputed_ke_embeddings',
+                        'ke_embeddings.npy'
+                    )
 
                     self._embedding_service = BiologicalEmbeddingService(
                         model_name=model_name,
                         use_gpu=True,
-                        precomputed_embeddings_path=precomputed_path
+                        precomputed_embeddings_path=precomputed_path,
+                        precomputed_ke_embeddings_path=precomputed_ke_path
                     )
                     logger.info("Embedding service initialized")
                 else:
