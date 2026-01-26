@@ -1393,6 +1393,11 @@ class PathwaySuggestionService:
         combined = list(pathway_map.values())
         combined.sort(key=lambda x: x['scores']['final_score'], reverse=True)
 
+        # Apply final threshold filter to remove noise
+        # Use base_threshold from config (default 0.30)
+        final_threshold = self.config.pathway_suggestion.dynamic_thresholds.base_threshold
+        combined = [s for s in combined if s['scores']['final_score'] >= final_threshold]
+
         return combined[:limit]
 
     def _combine_and_rank_suggestions(

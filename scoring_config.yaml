@@ -226,6 +226,16 @@ pathway_suggestion:
     min_confidence: 0.08               # Minimum possible confidence
     max_confidence: 0.98               # Maximum possible confidence
 
+    # Quality tier thresholds for UI badges
+    # Based on test results across 7 diverse KEs:
+    # - 3-method matches: 0.69-0.90 range (highly suitable)
+    # - 2-method matches: 0.33-0.61 range (likely suitable)
+    # - Single-method: 0.25-0.33 range (needs review)
+    quality_tiers:
+      excellent_threshold: 0.70        # Score >= 0.70 = "Excellent Match"
+      good_threshold: 0.50             # Score >= 0.50 = "Good Match"
+      moderate_threshold: 0.30         # Score >= 0.30 = "Possible Match"
+
 
   # ----------------------------------------------------------------------------
   # Dynamic Threshold Calculation
@@ -234,7 +244,7 @@ pathway_suggestion:
   # Threshold varies based on term specificity and biological level
 
   dynamic_thresholds:
-    base_threshold: 0.25               # Default minimum similarity
+    base_threshold: 0.30               # Default minimum similarity (raised from 0.25 to filter noise)
 
     # High specificity terms require stricter matching
     high_specificity_terms:
@@ -324,13 +334,72 @@ pathway_suggestion:
   embedding_based_matching:
     enabled: true                               # Feature flag
     model: "dmis-lab/biobert-base-cased-v1.2"  # HuggingFace model ID
-    min_threshold: 0.3                          # Minimum similarity to include
+    min_threshold: 0.4                          # Minimum similarity to include
     use_gpu: true                               # Use GPU if available
     precomputed_embeddings: "pathway_embeddings.npy"  # Pre-computed pathway vectors
     precomputed_ke_embeddings: "ke_embeddings.npy"    # Pre-computed KE vectors
 
     # Fallback behavior
     fallback_to_text: true                      # Use text-based if embeddings fail
+
+    # ----------------------------------------------------------------------------
+    # Title vs Description Weighting
+    # ----------------------------------------------------------------------------
+    # Title similarity is more specific than description similarity.
+    # Higher title_weight = more emphasis on matching pathway NAMES specifically.
+    #
+    # Recommended values:
+    #   - 0.85 (default): Strong title focus, some description context
+    #   - 1.0: Title-only mode (ignore descriptions entirely)
+    #   - 0.6: Balanced (original setting, less specific)
+    #
+    title_weight: 0.85                          # Weight for title similarity (0.0-1.0)
+                                                # Description weight = 1.0 - title_weight
+
+    # ----------------------------------------------------------------------------
+    # Entity-Focused Mode (More Specific Matching)
+    # ----------------------------------------------------------------------------
+    # Instead of embedding full text, extract and embed only biological entities.
+    # This makes matching more specific (CYP2E1 matches CYP pathways, not TCA cycle).
+    #
+    entity_extraction:
+      enabled: true                             # Extract entities before embedding
+      min_entity_length: 3                      # Minimum characters for an entity
+      include_numbers: true                     # Include alphanumeric terms (CYP2E1, IL6)
+      biological_terms_only: false              # If true, filter to known bio terms only
+
+    # ----------------------------------------------------------------------------
+    # Score Transformation (Addresses inflated BioBERT scores)
+    # ----------------------------------------------------------------------------
+    # Raw BioBERT cosine similarities tend to cluster at 0.85-0.95 for all
+    # biomedical text because biological texts rarely have negative similarity.
+    # This transformation spreads scores for better differentiation.
+    #
+    # Methods available:
+    #   - "power": transformed = base_score ^ exponent (compresses high end)
+    #   - "linear": transformed = base_score * scale_factor (simple scaling)
+    #   - "none": no transformation (raw normalized scores)
+    #
+    # Power transformation effects (with exponent 2.5):
+    #   Raw 0.95 → 0.61 | Raw 0.90 → 0.45 | Raw 0.85 → 0.34 | Raw 0.75 → 0.18
+    #
+    # More aggressive exponents spread scores better but push good matches lower.
+    # Combined with skip_precomputed_for_titles, enables entity-based matching.
+    #
+    # Use pre-computed title embeddings (now with entity extraction built-in)
+    # Set to true only if you need fresh computation (slower, for debugging)
+    skip_precomputed_for_titles: false  # Use pre-computed embeddings with entity extraction
+
+    score_transformation:
+      method: "power"                   # Options: power, linear, none
+      power_exponent: 4.0               # For power method: score^exponent
+                                        # Higher = more aggressive compression
+                                        # Range: 1.0-5.0, Default: 4.0 (very aggressive)
+      scale_factor: 0.75                # For linear method: score × factor
+                                        # Range: 0.5-1.0, Default: 0.75
+      output_min: 0.0                   # Floor for transformed scores
+      output_max: 0.95                  # Ceiling high - let exponent create variance
+                                        # Avoid capping to see true score spread
 
 
   # ----------------------------------------------------------------------------
@@ -444,8 +513,8 @@ ke_pathway_assessment:
 # ==============================================================================
 
 metadata:
-  version: "1.0.0"
-  last_modified: "2026-01-12"
+  version: "1.2.0"
+  last_modified: "2026-01-23"
   modified_by: "system"
   description: |
     Scoring configuration for KE-WP Mapping application.
@@ -453,6 +522,7 @@ metadata:
     This file controls all scoring parameters for:
     1. Pathway Suggestion Confidence Scoring (Backend)
     2. KE-Pathway Assessment Scoring (Frontend)
+    3. BioBERT Semantic Similarity with Score Transformation
 
     Changes take effect after Flask restart. Frontend configuration
     is served via /api/scoring-config endpoint.
@@ -460,8 +530,13 @@ metadata:
   notes: |
     - Pathway suggestion scoring: Automatic pathway recommendations
     - KE-pathway assessment scoring: User-driven confidence evaluation
+    - BioBERT transformation: Spreads inflated semantic scores
     - All thresholds and weights can be adjusted without code changes
     - Keep backups before making changes for easy rollback
 
   changelog:
+    - "2026-01-23: Raised base_threshold from 0.25 to 0.30 to filter noise"
+    - "2026-01-23: Added quality_tiers for UI badges (excellent/good/moderate)"
+    - "2026-01-23: Added BioBERT score transformation (power method)"
+    - "2026-01-23: Added comprehensive scoring documentation"
     - "2026-01-12: Initial configuration file created"

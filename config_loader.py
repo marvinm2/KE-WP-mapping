@@ -167,11 +167,18 @@ class ConfidenceScoring:
     min_confidence: float = 0.08
     max_confidence: float = 0.98
 
+    # Quality tier thresholds for UI badges
+    quality_tiers: Dict[str, float] = field(default_factory=lambda: {
+        'excellent_threshold': 0.70,
+        'good_threshold': 0.50,
+        'moderate_threshold': 0.30
+    })
+
 
 @dataclass
 class DynamicThresholds:
     """Dynamic threshold calculation parameters"""
-    base_threshold: float = 0.25
+    base_threshold: float = 0.30
 
     high_specificity_terms: Dict[str, Any] = field(default_factory=lambda: {
         'adjustment': 0.05,
@@ -238,15 +245,38 @@ class SubstringScoring:
 
 
 @dataclass
+class ScoreTransformation:
+    """BioBERT score transformation configuration"""
+    method: str = "power"           # Options: power, linear, none
+    power_exponent: float = 2.5     # For power method: score^exponent
+    scale_factor: float = 0.75      # For linear method: score × factor
+    output_min: float = 0.0         # Floor for transformed scores
+    output_max: float = 0.70        # Ceiling for transformed scores
+
+
+@dataclass
+class EntityExtraction:
+    """Entity extraction configuration for more specific matching"""
+    enabled: bool = True            # Extract entities before embedding
+    min_entity_length: int = 3      # Minimum characters for an entity
+    include_numbers: bool = True    # Include alphanumeric terms (CYP2E1, IL6)
+    biological_terms_only: bool = False  # Filter to known bio terms only
+
+
+@dataclass
 class EmbeddingBasedMatching:
     """BioBERT embedding-based matching configuration"""
     enabled: bool = False
     model: str = "dmis-lab/biobert-base-cased-v1.2"
-    min_threshold: float = 0.3
+    min_threshold: float = 0.4      # Minimum similarity to include
     use_gpu: bool = True
     precomputed_embeddings: str = "pathway_embeddings.npy"
     precomputed_ke_embeddings: str = "ke_embeddings.npy"
     fallback_to_text: bool = True
+    title_weight: float = 0.85      # Weight for title similarity (description = 1 - this)
+    skip_precomputed_for_titles: bool = True  # Skip pre-computed for entity extraction
+    entity_extraction: EntityExtraction = field(default_factory=EntityExtraction)
+    score_transformation: ScoreTransformation = field(default_factory=ScoreTransformation)
 
 
 @dataclass
@@ -425,7 +455,24 @@ class ConfigLoader:
             dynamic_thresholds = DynamicThresholds(**pathway_dict.get('dynamic_thresholds', {}))
             bio_level_mult = BiologicalLevelMultipliers(**pathway_dict.get('biological_level_multipliers', {}))
             substring_scoring = SubstringScoring(**pathway_dict.get('substring_scoring', {}))
-            embedding_matching = EmbeddingBasedMatching(**pathway_dict.get('embedding_based_matching', {}))
+
+            # Handle nested configs in embedding_based_matching
+            embedding_dict = pathway_dict.get('embedding_based_matching', {}).copy()
+
+            # Extract and build nested score_transformation
+            score_transform_dict = embedding_dict.pop('score_transformation', {})
+            score_transformation = ScoreTransformation(**score_transform_dict)
+
+            # Extract and build nested entity_extraction
+            entity_extract_dict = embedding_dict.pop('entity_extraction', {})
+            entity_extraction = EntityExtraction(**entity_extract_dict)
+
+            embedding_matching = EmbeddingBasedMatching(
+                **embedding_dict,
+                score_transformation=score_transformation,
+                entity_extraction=entity_extraction
+            )
+
             hybrid_weights = HybridWeights(**pathway_dict.get('hybrid_weights', {}))
 
             pathway_config = PathwaySuggestionConfig(

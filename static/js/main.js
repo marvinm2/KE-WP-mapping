@@ -2516,6 +2516,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         const percentage = Math.round(score * 100);
         const color = this.getConfidenceColor(score);
+        const qualityBadge = this.getQualityBadge(score);
 
         return `
             <div style="text-align: right;">
@@ -2526,6 +2527,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                     </div>
                     <span style="font-weight: bold; color: ${color}; font-size: 13px;">${percentage}%</span>
                 </div>
+                ${qualityBadge ? `<div style="margin-top: 4px;">${qualityBadge}</div>` : ''}
             </div>
         `;
     }
@@ -2543,6 +2545,32 @@ This helps identify gaps in existing pathways for future development.">❓</span
         if (score >= 0.8) return '#28a745';      // Green - high
         if (score >= 0.5) return '#ffc107';      // Yellow - medium
         return '#dc3545';                        // Red - low
+    }
+
+    /**
+     * Get quality tier badge based on score thresholds
+     * Thresholds from scoring_config.yaml quality_tiers:
+     *   excellent: 0.70+, good: 0.50+, moderate: 0.30+
+     * @param {number} score - The suggestion score (0-1)
+     * @returns {string} HTML badge element
+     */
+    getQualityBadge(score) {
+        // Get thresholds from config or use defaults
+        const config = this.scoringConfig?.pathway_suggestion?.quality_tiers || {};
+        const excellentThreshold = config.excellent_threshold || 0.70;
+        const goodThreshold = config.good_threshold || 0.50;
+        const moderateThreshold = config.moderate_threshold || 0.30;
+
+        if (score >= excellentThreshold) {
+            return '<span class="quality-badge excellent">Excellent Match</span>';
+        }
+        if (score >= goodThreshold) {
+            return '<span class="quality-badge good">Good Match</span>';
+        }
+        if (score >= moderateThreshold) {
+            return '<span class="quality-badge moderate">Possible Match</span>';
+        }
+        return '';
     }
 
     escapeHtml(text) {

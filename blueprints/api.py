@@ -791,6 +791,9 @@ def get_scoring_config():
         # Extract frontend-relevant section
         ke_assessment = config.ke_pathway_assessment
 
+        # Get quality tiers for UI badges
+        quality_tiers = config.pathway_suggestion.confidence_scoring.quality_tiers
+
         response = {
             "version": config.metadata.get("version", "1.0.0"),
             "ke_pathway_assessment": {
@@ -801,6 +804,9 @@ def get_scoring_config():
                 "confidence_thresholds": ke_assessment.confidence_thresholds,
                 "max_scores": ke_assessment.max_scores,
                 "connection_types": ke_assessment.connection_types,
+            },
+            "pathway_suggestion": {
+                "quality_tiers": quality_tiers
             },
             "metadata": {
                 "loaded_at": datetime.utcnow().isoformat() + "Z",
@@ -821,6 +827,8 @@ def get_scoring_config():
         default_config = ConfigLoader.get_default_config()
         ke_assessment = default_config.ke_pathway_assessment
 
+        quality_tiers = default_config.pathway_suggestion.confidence_scoring.quality_tiers
+
         return jsonify({
             "version": "1.0.0-default",
             "ke_pathway_assessment": {
@@ -831,6 +839,9 @@ def get_scoring_config():
                 "confidence_thresholds": ke_assessment.confidence_thresholds,
                 "max_scores": ke_assessment.max_scores,
                 "connection_types": ke_assessment.connection_types,
+            },
+            "pathway_suggestion": {
+                "quality_tiers": quality_tiers
             },
             "metadata": {
                 "loaded_at": datetime.utcnow().isoformat() + "Z",
