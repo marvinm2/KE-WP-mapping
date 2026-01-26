@@ -33,9 +33,9 @@
 <h4>How are pathway suggestions generated?</h4>
 <p>The system uses a three-signal hybrid approach:</p>
 <ul>
-    <li><strong>Gene-Based (35%)</strong>: Finds pathways containing genes associated with the KE</li>
-    <li><strong>Text-Based (35%)</strong>: Matches KE title terminology with pathway names</li>
-    <li><strong>Semantic/BioBERT (30%)</strong>: Neural network-based biological meaning similarity</li>
+    <li><strong>Gene-Based (35%)</strong>: Finds pathways containing genes associated with the KE - provides unique biological validation</li>
+    <li><strong>Text-Based (25%)</strong>: Matches KE title terminology with pathway names</li>
+    <li><strong>Semantic/BioBERT (40%)</strong>: Neural network-based biological meaning similarity - highest weight due to best coverage and accuracy</li>
 </ul>
 <p>See the <a href="/documentation/scoring-guide">Scoring Systems Guide</a> for detailed documentation.</p>
 

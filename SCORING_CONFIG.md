@@ -2,8 +2,8 @@
 
 This document provides comprehensive documentation for all scoring parameters in `scoring_config.yaml`.
 
-**Last Updated**: 2026-01-13
-**Configuration Version**: 1.0.0
+**Last Updated**: 2026-01-26
+**Configuration Version**: 1.2.0
 
 ---
 
@@ -12,9 +12,10 @@ This document provides comprehensive documentation for all scoring parameters in
 1. [Overview](#overview)
 2. [Pathway Suggestion Scoring](#pathway-suggestion-scoring)
 3. [KE-Pathway Assessment Scoring](#ke-pathway-assessment-scoring)
-4. [Parameter Interactions](#parameter-interactions)
-5. [Use Cases and Examples](#use-cases-and-examples)
-6. [Troubleshooting](#troubleshooting)
+4. [Hybrid Scoring Weights](#hybrid-scoring-weights)
+5. [Parameter Interactions](#parameter-interactions)
+6. [Use Cases and Examples](#use-cases-and-examples)
+7. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -49,7 +50,8 @@ gene_scoring:
 ```
 
 **Refined Formula**:
-```
+
+```text
 1. overlap_ratio = matching_genes / ke_genes
 2. specificity = matching_genes / pathway_total_genes
 3. specificity_boost = min(1.0, specificity × specificity_scaling_factor)
@@ -62,15 +64,16 @@ gene_scoring:
 **Examples**:
 
 | KE Genes | Matching | Pathway Genes | Overlap | Specificity | Confidence | Note |
-|----------|----------|---------------|---------|-------------|------------|------|
-| 1 | 1 | 100 | 100% | 1% | **0.472** | Low confidence: 1 gene + large pathway |
-| 5 | 5 | 50 | 100% | 10% | **0.95** | High confidence: good match + specificity |
-| 8 | 4 | 50 | 50% | 8% | **0.67** | Medium: partial overlap |
-| 11 | 7 | 87 | 64% | 8% | **0.726** | Good: high overlap, some specificity |
-| 2 | 1 | 20 | 50% | 5% | **0.328** | Low: only 2 KE genes (penalty) |
+| -------- | -------- | ------------- | ------- | ----------- | ---------- | ---- |
+| 1        | 1        | 100           | 100%    | 1%          | **0.472**  | Low confidence: 1 gene + large pathway   |
+| 5        | 5        | 50            | 100%    | 10%         | **0.95**   | High confidence: good match + specificity |
+| 8        | 4        | 50            | 50%     | 8%          | **0.67**   | Medium: partial overlap                   |
+| 11       | 7        | 87            | 64%     | 8%          | **0.726**  | Good: high overlap, some specificity      |
+| 2        | 1        | 20            | 50%     | 5%          | **0.328**  | Low: only 2 KE genes (penalty)            |
 
 **Calculation Breakdown (1 KE gene, 1/100 pathway genes)**:
-```
+
+```text
 overlap_ratio = 1/1 = 1.0
 specificity = 1/100 = 0.01
 specificity_boost = min(1.0, 0.01 × 10) = 0.1
@@ -80,6 +83,7 @@ confidence = 0.59 × 0.8 = 0.472
 ```
 
 **Tuning Guidelines**:
+
 - **Increase `overlap_weight`** (0.4 → 0.5): Emphasize KE gene coverage more
 - **Increase `specificity_weight`** (0.4 → 0.5): Penalize large pathways more strongly
 - **Increase `specificity_scaling_factor`** (10.0 → 15.0): Amplify pathway size penalty
@@ -88,6 +92,7 @@ confidence = 0.59 × 0.8 = 0.472
 - **Increase `low_gene_penalty`** (0.8 → 0.9): Reduce penalty for 1-2 gene KEs
 
 **Key Improvements**:
+
 - **Pathway Size Matters**: 1-gene match in 500-gene pathway → ~0.45 confidence (was 0.95)
 - **Small Pathway Bonus**: Matching genes in smaller pathways → higher confidence
 - **Gene Count Penalty**: 1-2 gene KEs are penalized (insufficient evidence)
@@ -122,12 +127,14 @@ text_similarity:
 ```
 
 **Important Biological Terms** (weighted 2× by default):
+
 - pathway, protein, gene, receptor, enzyme, metabolism
 - signaling, regulation, transcription, expression
 - cell, cellular, tissue, organ, biological
 
 **Combined Similarity Formula**:
-```
+
+```text
 title_sim = weighted_average(jaccard, sequence, substring) for title
 desc_sim = weighted_average(jaccard, sequence, substring) for description
 combined = (title_sim × 0.7) + (desc_sim × 0.3)
@@ -160,6 +167,7 @@ confidence_scoring:
 ```
 
 **Examples**:
+
 - Similarity 0.90 (high): `0.48 + (0.90 - 0.8) × 0.6` = **0.54**
 - Similarity 0.70 (medium): `0.30 + (0.70 - 0.6) × 0.6` = **0.36**
 - Similarity 0.50 (low): `0.18 + (0.50 - 0.4) × 0.6` = **0.24**
@@ -216,6 +224,7 @@ dynamic_thresholds:
 ```
 
 **Effect**: Determines how many suggestions appear:
+
 - **Lower threshold** (0.20): More suggestions, including borderline matches
 - **Higher threshold** (0.30): Fewer, higher-confidence suggestions only
 
@@ -306,7 +315,8 @@ confidence_thresholds:
 **Maximum Score**: 6.5 points (3 + 2 + 1.5 + 1.0 bonus)
 
 **Scoring Formula**:
-```
+
+```text
 base_score = evidence_quality + pathway_specificity + ke_coverage
 final_score = base_score + (biological_level_bonus if applicable)
 
@@ -316,28 +326,106 @@ else: confidence = "low"
 ```
 
 **Examples**:
+
 - Known + Specific + Complete + Molecular: `3 + 2 + 1.5 + 1 = 7.5` → **High** (capped at 6.5)
 - Likely + Includes + Key steps + No bonus: `2 + 1 + 1.0 = 4.0` → **Medium**
 - Possible + Loose + Minor + No bonus: `1 + 0 + 0.5 = 1.5` → **Low**
 
 ---
 
+## Hybrid Scoring Weights
+
+The pathway suggestion engine combines three independent matching methods using configurable weights.
+
+**Parameters** (`pathway_suggestion.hybrid_weights`):
+
+```yaml
+hybrid_weights:
+  gene: 0.35          # Gene-based scoring weight
+  text: 0.25          # Text-based scoring weight
+  embedding: 0.40     # Semantic/BioBERT scoring weight
+  multi_evidence_bonus: 0.05  # Bonus when multiple methods agree
+```
+
+### Current Weights and Rationale
+
+| Method             | Weight | Rationale                                                        |
+| ------------------ | ------ | ---------------------------------------------------------------- |
+| **Gene-Based**     | 35%    | Provides unique biological validation signal from gene associations |
+| **Text-Based**     | 25%    | Reduced weight due to 67% coverage and lower average accuracy    |
+| **Semantic/BioBERT** | 40%  | Highest weight - 100% coverage with average score of 0.864       |
+
+**Why These Weights?**
+
+Extended testing across 15 diverse Key Events revealed significant differences in method performance:
+
+1. **Semantic Matching (40%)**
+   - 100% coverage: Always produces relevant suggestions
+   - Average score: 0.864 - consistently high accuracy
+   - Captures biological meaning beyond exact terminology
+
+2. **Gene-Based Matching (35%)**
+   - Provides unique biological signal not available from text methods
+   - High confidence when genes match (biological validation)
+   - Coverage varies by KE (depends on gene associations in AOP-Wiki)
+
+3. **Text-Based Matching (25%)**
+   - 67% coverage: Misses pathways with different terminology
+   - Average score: 0.548 - lower accuracy than semantic
+   - Valuable for exact terminology matches but less robust
+
+**Multi-Evidence Bonus**: When a pathway is suggested by multiple methods, it receives a +5% confidence bonus, reinforcing findings through independent validation.
+
+### Tuning Hybrid Weights
+
+**Emphasize Biological Validation:**
+
+```yaml
+hybrid_weights:
+  gene: 0.45
+  text: 0.20
+  embedding: 0.35
+```
+
+**Emphasize Semantic Understanding:**
+
+```yaml
+hybrid_weights:
+  gene: 0.30
+  text: 0.20
+  embedding: 0.50
+```
+
+**Equal Weighting (Exploratory):**
+
+```yaml
+hybrid_weights:
+  gene: 0.33
+  text: 0.33
+  embedding: 0.34
+```
+
+---
+
 ## Parameter Interactions
 
-### Gene vs Text Scoring Balance
+### Gene vs Text vs Semantic Balance
 
-When both gene-based and text-based suggestions exist for the same pathway:
-- **Gene-based takes priority** in the combined results
-- Gene confidence is typically higher (0.15-0.95 range)
-- Text confidence is typically lower (0.08-0.60 range)
+When multiple matching methods produce suggestions for the same pathway:
+
+- **Semantic-based provides broadest coverage** (100% of KEs get suggestions)
+- **Gene-based provides biological validation** (high confidence when available)
+- **Text-based provides terminology matching** (exact matches score well)
 
 **Balancing Strategy**:
-- To emphasize genes: Increase `gene_scoring.multiplier` and `gene_scoring.base_boost`
-- To balance with text: Increase `text_similarity.important_bio_terms_weight`
+
+- To emphasize biological validation: Increase `hybrid_weights.gene`
+- To emphasize semantic understanding: Increase `hybrid_weights.embedding`
+- To emphasize exact terminology: Increase `hybrid_weights.text`
 
 ### Threshold vs Confidence Relationship
 
-```
+```text
 dynamic_threshold ← controls → number of suggestions
 confidence_scoring ← controls → suggestion quality/ranking
 ```
@@ -350,11 +438,13 @@ confidence_scoring ← controls → suggestion quality/ranking
 ### Assessment Score Distribution
 
 The 4-question assessment produces scores roughly distributed as:
+
 - **High (≥5.0)**: ~20-30% of mappings (strong evidence + good specificity)
 - **Medium (2.5-5.0)**: ~50-60% of mappings (moderate quality)
 - **Low (<2.5)**: ~10-20% of mappings (weak or uncertain)
 
 **Adjusting Distribution**:
+
 - More High ratings: Lower `high` threshold (5.0 → 4.5)
 - Fewer Low ratings: Lower `medium` threshold (2.5 → 2.0)
 - Stricter overall: Increase both thresholds
@@ -368,6 +458,7 @@ The 4-question assessment produces scores roughly distributed as:
 **Goal**: Show more suggestions to demonstrate system capabilities.
 
 **Changes**:
+
 ```yaml
 pathway_suggestion:
   gene_scoring:
@@ -387,6 +478,7 @@ pathway_suggestion:
 **Goal**: Only show high-confidence, well-validated suggestions.
 
 **Changes**:
+
 ```yaml
 pathway_suggestion:
   gene_scoring:
@@ -406,6 +498,7 @@ pathway_suggestion:
 **Goal**: Prioritize gene overlap heavily over text matching.
 
 **Changes**:
+
 ```yaml
 pathway_suggestion:
   gene_scoring:
@@ -424,6 +517,7 @@ pathway_suggestion:
 **Goal**: More mappings qualify as "high confidence".
 
 **Changes**:
+
 ```yaml
 ke_pathway_assessment:
   confidence_thresholds:
@@ -441,6 +535,7 @@ ke_pathway_assessment:
 **Goal**: High bar for accepting mappings, identify weak ones.
 
 **Changes**:
+
 ```yaml
 ke_pathway_assessment:
   evidence_quality:
@@ -461,11 +556,13 @@ ke_pathway_assessment:
 ### No Suggestions Appearing
 
 **Possible Causes**:
+
 1. **Threshold too high**: Check `dynamic_thresholds.base_threshold`
 2. **No genes found**: KE may lack gene associations in AOP-Wiki
 3. **Text similarity too low**: KE title doesn't match pathway terminology
 
 **Solutions**:
+
 ```yaml
 # Lower threshold temporarily
 dynamic_thresholds:
@@ -478,10 +575,12 @@ dynamic_thresholds:
 ### Too Many Suggestions
 
 **Possible Causes**:
+
 1. **Threshold too low**: Many borderline matches appearing
 2. **Base boost too high**: Even poor matches get inflated scores
 
 **Solutions**:
+
 ```yaml
 # Raise threshold
 dynamic_thresholds:
@@ -495,11 +594,13 @@ gene_scoring:
 ### Gene-Based Scores Too Low
 
 **Check**:
+
 1. Is `gene_scoring.multiplier` too low?
 2. Is `gene_scoring.base_boost` too low?
 3. Are genes being found? (Check browser console/logs)
 
 **Solutions**:
+
 ```yaml
 gene_scoring:
   multiplier: 0.90        # Up from 0.85
@@ -509,11 +610,13 @@ gene_scoring:
 ### Assessment Always Shows "Low" Confidence
 
 **Check**:
+
 1. Are thresholds too high?
 2. Is biological level bonus applying?
 3. Are users selecting "uncertain" / "loose" / "minor" frequently?
 
 **Solutions**:
+
 ```yaml
 confidence_thresholds:
   high: 4.5              # Down from 5.0
@@ -526,13 +629,15 @@ biological_level:
 ### Config Changes Not Reflected
 
 **Checklist**:
-1. ✅ Saved `scoring_config.yaml`?
-2. ✅ Valid YAML syntax? Test with: `python -c "import yaml; yaml.safe_load(open('scoring_config.yaml'))"`
-3. ✅ Restarted Flask? `pkill -f "python.*app.py" && python app.py &`
-4. ✅ Cleared browser cache? (Ctrl+Shift+R)
-5. ✅ Check browser console for "Scoring config loaded" message
+
+1. Saved `scoring_config.yaml`?
+2. Valid YAML syntax? Test with: `python -c "import yaml; yaml.safe_load(open('scoring_config.yaml'))"`
+3. Restarted Flask? `pkill -f "python.*app.py" && python app.py &`
+4. Cleared browser cache? (Ctrl+Shift+R)
+5. Check browser console for "Scoring config loaded" message
 
 **Validation**:
+
 ```bash
 # Test YAML syntax
 python -c "import yaml; print(yaml.safe_load(open('scoring_config.yaml')))"
@@ -566,6 +671,7 @@ text_similarity:
 ### Combining Multiple KEs
 
 For analyzing pathways relevant to multiple KEs:
+
 1. Lower `base_threshold` to see broader suggestions
 2. Increase `gene_scoring.multiplier` to reward multi-KE gene overlaps
 3. Test with pathway search rather than single KE suggestions
@@ -573,11 +679,13 @@ For analyzing pathways relevant to multiple KEs:
 ### Performance Considerations
 
 **Caching**:
+
 - SPARQL queries cached for 24 hours
 - Frontend config cached for 5 minutes
 - Changing config requires Flask restart
 
 **Impact of Parameter Changes**:
+
 - Threshold changes: Immediate effect on suggestion count
 - Confidence formula changes: Affects ranking/display
 - No performance penalty from config complexity
@@ -589,6 +697,7 @@ For analyzing pathways relevant to multiple KEs:
 ### Problem: Inflated Semantic Similarity Scores
 
 Raw BioBERT cosine similarities tend to cluster at 0.85-0.95 for all biomedical text because:
+
 - Biological texts share common vocabulary (gene, protein, pathway, etc.)
 - Pre-trained on PubMed means all biomedical texts have baseline similarity
 - Cosine similarity rarely goes negative for biomedical domain
@@ -613,29 +722,32 @@ score_transformation:
 ### Transformation Methods
 
 **Power Method** (`method: "power"`):
+
 - Formula: `transformed = base_score ^ power_exponent`
 - Effect: Compresses high scores, spreads distribution
 - Recommended for BioBERT similarity
 
 **Linear Method** (`method: "linear"`):
+
 - Formula: `transformed = base_score × scale_factor`
 - Effect: Simple scaling down of all scores
 - Use for quick adjustments
 
 **None** (`method: "none"`):
+
 - No transformation, uses raw normalized scores
 - Use for debugging or comparison
 
 ### Score Transformation Effects
 
-| Raw Cosine | Normalized (0-1) | Power 1.5 | Power 2.0 |
-|------------|------------------|-----------|-----------|
-| 0.90 | 0.95 | **0.82** | 0.70 |
-| 0.80 | 0.90 | **0.72** | 0.56 |
-| 0.70 | 0.85 | **0.62** | 0.46 |
-| 0.60 | 0.80 | **0.52** | 0.36 |
-| 0.50 | 0.75 | **0.43** | 0.25 |
-| 0.30 | 0.65 | **0.33** | 0.17 |
+| Raw Cosine | Normalized (0-1) | Power 1.5  | Power 2.0  |
+| ---------- | ---------------- | ---------- | ---------- |
+| 0.90       | 0.95             | **0.82**   | 0.70       |
+| 0.80       | 0.90             | **0.72**   | 0.56       |
+| 0.70       | 0.85             | **0.62**   | 0.46       |
+| 0.60       | 0.80             | **0.52**   | 0.36       |
+| 0.50       | 0.75             | **0.43**   | 0.25       |
+| 0.30       | 0.65             | **0.33**   | 0.17       |
 
 ### Tuning the Exponent
 
@@ -645,7 +757,8 @@ score_transformation:
 
 ### Examples
 
-**Scenario: Scores Too High**
+#### Scenario: Scores Too High
+
 ```yaml
 # Problem: Even poor matches score 0.8+
 # Solution: Increase exponent
@@ -655,7 +768,8 @@ score_transformation:
   output_max: 0.80         # Lower ceiling
 ```
 
-**Scenario: Scores Too Low**
+#### Scenario: Scores Too Low
+
 ```yaml
 # Problem: Good matches only scoring 0.4-0.5
 # Solution: Decrease exponent or use linear
@@ -665,7 +779,8 @@ score_transformation:
   output_max: 0.90         # Higher ceiling
 ```
 
-**Scenario: Compare Before/After**
+#### Scenario: Compare Before/After
+
 ```yaml
 # Turn off transformation to see raw scores
 score_transformation:
@@ -682,6 +797,13 @@ See the actual `scoring_config.yaml` file for the complete configuration with in
 
 ## Version History
 
+- **v1.2.0** (2026-01-26): Updated hybrid scoring weights - Changed weights based on extended testing across 15 KEs:
+  - Gene: 35% (unchanged - unique biological signal)
+  - Text: 35% → 25% (reduced - 67% coverage, avg score 0.548)
+  - Semantic: 30% → 40% (increased - 100% coverage, avg score 0.864)
+  - Added comprehensive hybrid weights documentation section
+  - Added rationale for weight choices based on empirical testing
+
 - **v1.1.0** (2026-01-23): BioBERT score transformation
   - Power transformation to address inflated semantic similarity scores
   - Configurable exponent, scale factor, and output bounds
@@ -697,6 +819,7 @@ See the actual `scoring_config.yaml` file for the complete configuration with in
 ## Support
 
 For issues or questions:
+
 1. Check Flask logs: `tail -f /tmp/flask_test.log`
 2. Validate YAML: `python -c "import yaml; yaml.safe_load(open('scoring_config.yaml'))"`
 3. Review CLAUDE.md "Scoring Configuration System" section
@@ -704,6 +827,6 @@ For issues or questions:
 
 ---
 
-**Last Updated**: 2026-01-13
-**Configuration Version**: 1.0.0
+**Last Updated**: 2026-01-26
+**Configuration Version**: 1.2.0
 **Application Version**: v2.3.0
