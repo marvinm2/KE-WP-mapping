@@ -584,6 +584,96 @@ For analyzing pathways relevant to multiple KEs:
 
 ---
 
+## BioBERT Score Transformation
+
+### Problem: Inflated Semantic Similarity Scores
+
+Raw BioBERT cosine similarities tend to cluster at 0.85-0.95 for all biomedical text because:
+- Biological texts share common vocabulary (gene, protein, pathway, etc.)
+- Pre-trained on PubMed means all biomedical texts have baseline similarity
+- Cosine similarity rarely goes negative for biomedical domain
+
+This makes it hard to differentiate between excellent matches and marginal ones.
+
+### Solution: Power Transformation
+
+The score transformation applies `score^exponent` to spread scores across a wider range.
+
+**Parameters** (`pathway_suggestion.embedding_based_matching.score_transformation`):
+
+```yaml
+score_transformation:
+  method: "power"           # Options: power, linear, none
+  power_exponent: 1.5       # score^1.5 compresses high end
+  scale_factor: 0.75        # For linear method only
+  output_min: 0.0           # Floor
+  output_max: 0.85          # Ceiling
+```
+
+### Transformation Methods
+
+**Power Method** (`method: "power"`):
+- Formula: `transformed = base_score ^ power_exponent`
+- Effect: Compresses high scores, spreads distribution
+- Recommended for BioBERT similarity
+
+**Linear Method** (`method: "linear"`):
+- Formula: `transformed = base_score × scale_factor`
+- Effect: Simple scaling down of all scores
+- Use for quick adjustments
+
+**None** (`method: "none"`):
+- No transformation, uses raw normalized scores
+- Use for debugging or comparison
+
+### Score Transformation Effects
+
+| Raw Cosine | Normalized (0-1) | Power 1.5 | Power 2.0 |
+|------------|------------------|-----------|-----------|
+| 0.90 | 0.95 | **0.82** | 0.70 |
+| 0.80 | 0.90 | **0.72** | 0.56 |
+| 0.70 | 0.85 | **0.62** | 0.46 |
+| 0.60 | 0.80 | **0.52** | 0.36 |
+| 0.50 | 0.75 | **0.43** | 0.25 |
+| 0.30 | 0.65 | **0.33** | 0.17 |
+
+### Tuning the Exponent
+
+- **Lower exponent (1.2-1.4)**: Less aggressive compression, scores stay higher
+- **Default exponent (1.5)**: Good balance for typical biomedical queries
+- **Higher exponent (1.8-2.0)**: More aggressive, only very good matches score high
+
+### Examples
+
+**Scenario: Scores Too High**
+```yaml
+# Problem: Even poor matches score 0.8+
+# Solution: Increase exponent
+score_transformation:
+  method: "power"
+  power_exponent: 2.0      # More aggressive
+  output_max: 0.80         # Lower ceiling
+```
+
+**Scenario: Scores Too Low**
+```yaml
+# Problem: Good matches only scoring 0.4-0.5
+# Solution: Decrease exponent or use linear
+score_transformation:
+  method: "power"
+  power_exponent: 1.2      # Less aggressive
+  output_max: 0.90         # Higher ceiling
+```
+
+**Scenario: Compare Before/After**
+```yaml
+# Turn off transformation to see raw scores
+score_transformation:
+  method: "none"
+```
+
+---
+
 ## Configuration File Template
 
 See the actual `scoring_config.yaml` file for the complete configuration with inline comments and default values.
@@ -591,6 +681,11 @@ See the actual `scoring_config.yaml` file for the complete configuration with in
 ---
 
 ## Version History
+
+- **v1.1.0** (2026-01-23): BioBERT score transformation
+  - Power transformation to address inflated semantic similarity scores
+  - Configurable exponent, scale factor, and output bounds
+  - Comprehensive scoring documentation added
 
 - **v1.0.0** (2026-01-13): Initial configurable scoring system
   - 65+ parameters externalized

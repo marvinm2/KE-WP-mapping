@@ -1,0 +1,766 @@
+<h2>Scoring Systems Guide</h2>
+
+<p>This guide explains how the KE-WP Mapping application calculates pathway suggestions and confidence scores. The system uses a sophisticated multi-signal hybrid approach to identify and rank relevant pathways.</p>
+
+<!-- Table of Contents -->
+<nav class="toc">
+    <h3>Contents</h3>
+    <ol>
+        <li><a href="#hybrid-approach">Three-Signal Hybrid Approach</a></li>
+        <li><a href="#gene-matching">Gene-Based Matching</a></li>
+        <li><a href="#text-matching">Text-Based Matching</a></li>
+        <li><a href="#semantic-matching">Semantic/BioBERT Matching</a></li>
+        <li><a href="#confidence-assessment">Confidence Assessment Workflow</a></li>
+        <li><a href="#tuning">Tuning Parameters</a></li>
+    </ol>
+</nav>
+
+<!-- Section A: Three-Signal Hybrid Approach -->
+<section id="hybrid-approach">
+    <h3>Three-Signal Hybrid Approach</h3>
+
+    <p>The pathway suggestion engine combines three independent matching methods to provide robust, biologically meaningful recommendations:</p>
+
+    <div class="diagram-container">
+        <pre class="flow-diagram">
+         ┌─────────────────────┐
+         │   Key Event Input   │
+         │  (Title + Genes)    │
+         └──────────┬──────────┘
+    ┌───────────────┼───────────────┐
+    │               │               │
+    ▼               ▼               ▼
+┌────────┐   ┌────────┐   ┌────────────┐
+│Gene 35%│   │Text 35%│   │Semantic 30%│
+│Overlap │   │Similarity│  │BioBERT     │
+└───┬────┘   └───┬────┘   └─────┬──────┘
+    │            │              │
+    │            │              │
+    └────────────┼──────────────┘
+                 ▼
+         ┌─────────────────────┐
+         │   Hybrid Combiner   │
+         │ + multi-evidence    │
+         │     bonus (+5%)     │
+         └──────────┬──────────┘
+                    ▼
+         ┌─────────────────────┐
+         │  Ranked Suggestions │
+         │  with Confidence    │
+         └─────────────────────┘
+        </pre>
+    </div>
+
+    <h4>Signal Weights</h4>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Weight</th>
+                <th>Strength</th>
+                <th>Best For</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Gene-Based</strong></td>
+                <td>35%</td>
+                <td>Biological validation</td>
+                <td>KEs with gene associations</td>
+            </tr>
+            <tr>
+                <td><strong>Text-Based</strong></td>
+                <td>35%</td>
+                <td>Terminology matching</td>
+                <td>Well-named pathways/KEs</td>
+            </tr>
+            <tr>
+                <td><strong>Semantic/BioBERT</strong></td>
+                <td>30%</td>
+                <td>Conceptual similarity</td>
+                <td>Related but differently named items</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="info-box">
+        <strong>Multi-Evidence Bonus:</strong> When a pathway is suggested by multiple methods, it receives a +5% confidence bonus, reinforcing the finding through independent validation.
+    </div>
+</section>
+
+<!-- Section B: Gene-Based Matching -->
+<section id="gene-matching">
+    <h3>Gene-Based Matching (35% Weight)</h3>
+
+    <p>Gene-based matching queries genes associated with a Key Event from AOP-Wiki, then finds WikiPathways containing those genes.</p>
+
+    <h4>How It Works</h4>
+    <ol>
+        <li><strong>Gene Retrieval:</strong> SPARQL query to AOP-Wiki fetches genes linked to the selected KE</li>
+        <li><strong>Pathway Search:</strong> WikiPathways SPARQL finds pathways containing those genes</li>
+        <li><strong>Confidence Calculation:</strong> Combines overlap ratio and pathway specificity</li>
+    </ol>
+
+    <h4>Confidence Formula</h4>
+    <div class="formula-box">
+        <code>
+overlap_ratio = matching_genes / KE_total_genes
+specificity = matching_genes / pathway_total_genes
+confidence = (overlap × 0.4) + (specificity × 0.4) + base_boost
+        </code>
+    </div>
+
+    <h4>Scoring Examples</h4>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>KE Genes</th>
+                <th>Matching</th>
+                <th>Pathway Size</th>
+                <th>Confidence</th>
+                <th>Interpretation</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>5</td>
+                <td>5/5</td>
+                <td>50 genes</td>
+                <td><span class="confidence-high">0.95</span></td>
+                <td>Perfect overlap in focused pathway</td>
+            </tr>
+            <tr>
+                <td>8</td>
+                <td>4/8</td>
+                <td>50 genes</td>
+                <td><span class="confidence-medium">0.67</span></td>
+                <td>Partial overlap</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1/1</td>
+                <td>100 genes</td>
+                <td><span class="confidence-low">0.47</span></td>
+                <td>Single gene in large pathway</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="warning-box">
+        <strong>KE Gene Count Penalty:</strong> KEs with only 1-2 gene associations receive a 20% penalty (×0.8) because single-gene evidence is insufficient for high confidence.
+    </div>
+</section>
+
+<!-- Section C: Text-Based Matching -->
+<section id="text-matching">
+    <h3>Text-Based Matching (35% Weight)</h3>
+
+    <p>Text-based matching analyzes terminology overlap between Key Event titles and pathway names/descriptions.</p>
+
+    <h4>Algorithms Used</h4>
+    <ul>
+        <li><strong>Weighted Jaccard Similarity:</strong> Word overlap with 2× weight for biological terms</li>
+        <li><strong>Sequence Matching:</strong> Character-level similarity using difflib</li>
+        <li><strong>Substring Analysis:</strong> Detects embedded phrases and partial matches</li>
+    </ul>
+
+    <h4>Biological Term Weighting</h4>
+    <p>Domain-specific terms receive double weight (2×) in calculations:</p>
+    <div class="term-list">
+        <span class="term">pathway</span>
+        <span class="term">protein</span>
+        <span class="term">gene</span>
+        <span class="term">receptor</span>
+        <span class="term">enzyme</span>
+        <span class="term">signaling</span>
+        <span class="term">apoptosis</span>
+        <span class="term">metabolism</span>
+        <span class="term">transcription</span>
+        <span class="term">regulation</span>
+    </div>
+
+    <h4>Adaptive Weighting</h4>
+    <p>The system dynamically adjusts algorithm weights based on match quality:</p>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Match Quality</th>
+                <th>Jaccard</th>
+                <th>Sequence</th>
+                <th>Substring</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>High word overlap (&gt;70%)</td>
+                <td>65%</td>
+                <td>25%</td>
+                <td>10%</td>
+            </tr>
+            <tr>
+                <td>Good phrase match</td>
+                <td>25%</td>
+                <td>15%</td>
+                <td>60%</td>
+            </tr>
+            <tr>
+                <td>Character similarity</td>
+                <td>30%</td>
+                <td>55%</td>
+                <td>15%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>Synonym Dictionary</h4>
+    <p>The system recognizes 50+ biological synonyms:</p>
+    <ul>
+        <li>"Wnt signaling" = "Wnt pathway"</li>
+        <li>"NF-kB" = "NF-kappaB" = "nuclear factor kappa B"</li>
+        <li>"ROS" = "reactive oxygen species" = "oxidative stress"</li>
+    </ul>
+</section>
+
+<!-- Section D: Semantic/BioBERT Matching -->
+<section id="semantic-matching">
+    <h3>Semantic/BioBERT Matching (30% Weight)</h3>
+
+    <p>BioBERT provides neural network-based semantic understanding, capturing biological meaning beyond simple word matching.</p>
+
+    <h4>What is BioBERT?</h4>
+    <p>BioBERT is a pre-trained language model specifically designed for biomedical text. It was trained on:</p>
+    <ul>
+        <li>PubMed abstracts (4.5 billion words)</li>
+        <li>PMC full-text articles (13.5 billion words)</li>
+    </ul>
+
+    <h4>How Embeddings Work</h4>
+    <div class="diagram-container">
+        <pre class="flow-diagram">
+   "Increase, CYP2E1 expression"
+              │
+              ▼
+    ┌─────────────────┐
+    │    BioBERT      │
+    │  Neural Network │
+    └────────┬────────┘
+             │
+             ▼
+    ┌─────────────────┐
+    │  768-dimensional │
+    │  embedding vector│
+    │  [0.23, -0.15,  │
+    │   0.87, ...]    │
+    └─────────────────┘
+        </pre>
+    </div>
+
+    <h4>Pre-Computed Embeddings</h4>
+    <p>For performance, embeddings are pre-computed and cached:</p>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Count</th>
+                <th>File</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Key Event embeddings</td>
+                <td>1,561</td>
+                <td><code>ke_embeddings.npy</code></td>
+            </tr>
+            <tr>
+                <td>Pathway title embeddings</td>
+                <td>1,012</td>
+                <td><code>pathway_title_embeddings.npy</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>Similarity Calculation</h4>
+    <div class="formula-box">
+        <code>
+cosine_similarity = dot(KE_embedding, pathway_embedding) /
+                   (norm(KE) × norm(pathway))
+
+normalized_score = (cosine_similarity + 1) / 2
+transformed_score = normalized_score ^ power_exponent
+        </code>
+    </div>
+
+    <h4>Score Transformation</h4>
+    <p>Raw BioBERT scores tend to cluster in the 0.8-0.95 range because biomedical texts rarely have negative similarity. A power transformation spreads scores for better differentiation:</p>
+
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Raw Cosine</th>
+                <th>Normalized</th>
+                <th>After Transform (^1.5)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>0.90</td>
+                <td>0.95</td>
+                <td><span class="confidence-high">0.82</span></td>
+            </tr>
+            <tr>
+                <td>0.80</td>
+                <td>0.90</td>
+                <td><span class="confidence-medium">0.72</span></td>
+            </tr>
+            <tr>
+                <td>0.70</td>
+                <td>0.85</td>
+                <td><span class="confidence-medium">0.62</span></td>
+            </tr>
+            <tr>
+                <td>0.50</td>
+                <td>0.75</td>
+                <td><span class="confidence-low">0.43</span></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="info-box">
+        <strong>Directionality Removal:</strong> Before computing embeddings, directional terms (increase, decrease, activation, inhibition) are removed from KE titles. This means "Increase CYP2E1" and "Decrease CYP2E1" will suggest the same pathways.
+    </div>
+</section>
+
+<!-- Section E: Confidence Assessment Workflow -->
+<section id="confidence-assessment">
+    <h3>Confidence Assessment Workflow</h3>
+
+    <p>When you create a new KE-WP mapping, a 4-question workflow calculates your confidence level:</p>
+
+    <h4>Question 1: Relationship Type</h4>
+    <p><em>"What is the relationship between the pathway and Key Event?"</em></p>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Causative</strong></td>
+                <td>Pathway activity leads to the Key Event (Pathway → KE)</td>
+            </tr>
+            <tr>
+                <td><strong>Responsive</strong></td>
+                <td>Key Event triggers pathway activation (KE → Pathway)</td>
+            </tr>
+            <tr>
+                <td><strong>Bidirectional</strong></td>
+                <td>Both directions apply</td>
+            </tr>
+            <tr>
+                <td><strong>Unclear</strong></td>
+                <td>Relationship exists but direction uncertain</td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="note">This question determines the connection_type field but does not affect the confidence score.</p>
+
+    <h4>Question 2: Evidence Basis (0-3 points)</h4>
+    <p><em>"What is the basis for this mapping?"</em></p>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Points</th>
+                <th>When to Select</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Known connection</strong></td>
+                <td>3</td>
+                <td>Published evidence directly supports this mapping</td>
+            </tr>
+            <tr>
+                <td><strong>Likely connection</strong></td>
+                <td>2</td>
+                <td>Strong inference from your domain knowledge</td>
+            </tr>
+            <tr>
+                <td><strong>Possible connection</strong></td>
+                <td>1</td>
+                <td>Plausible hypothesis but uncertain</td>
+            </tr>
+            <tr>
+                <td><strong>Uncertain connection</strong></td>
+                <td>0</td>
+                <td>No clear basis for the connection</td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="note">Answer based on what you already know. No research is required.</p>
+
+    <h4>Question 3: Pathway Specificity (0-2 points)</h4>
+    <p><em>"How specific is the pathway to this Key Event?"</em></p>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Points</th>
+                <th>Example</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>KE-specific</strong></td>
+                <td>2</td>
+                <td>"CYP2E1 metabolism" pathway for KE about CYP2E1</td>
+            </tr>
+            <tr>
+                <td><strong>Includes KE</strong></td>
+                <td>1</td>
+                <td>"Xenobiotic metabolism" pathway that includes CYP2E1</td>
+            </tr>
+            <tr>
+                <td><strong>Loosely related</strong></td>
+                <td>0</td>
+                <td>Very broad pathway tangentially related</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>Question 4: KE Coverage (0-1.5 points)</h4>
+    <p><em>"How much of the KE mechanism is captured by the pathway?"</em></p>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Points</th>
+                <th>Meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Complete mechanism</strong></td>
+                <td>1.5</td>
+                <td>Pathway fully represents the KE</td>
+            </tr>
+            <tr>
+                <td><strong>Key steps only</strong></td>
+                <td>1.0</td>
+                <td>Major elements captured, some missing</td>
+            </tr>
+            <tr>
+                <td><strong>Minor aspects</strong></td>
+                <td>0.5</td>
+                <td>Only peripheral aspects represented</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>Biological Level Bonus (+1 point)</h4>
+    <p>KEs at molecular, cellular, or tissue levels receive a +1 bonus because they are closer to pathway mechanisms:</p>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Biological Level</th>
+                <th>Bonus</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Molecular, Cellular, Tissue</td>
+                <td><span class="confidence-high">+1.0</span></td>
+            </tr>
+            <tr>
+                <td>Organ, Individual, Population</td>
+                <td>+0.0</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>Final Score Calculation</h4>
+    <div class="formula-box">
+        <code>
+Final Score = Evidence (0-3) + Specificity (0-2) + Coverage (0-1.5) + Bio Bonus (0-1)
+Maximum Score = 7.5 points
+        </code>
+    </div>
+
+    <h4>Confidence Level Thresholds</h4>
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Score Range</th>
+                <th>Confidence Level</th>
+                <th>Interpretation</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>≥ 5.0</td>
+                <td><span class="confidence-high">High</span></td>
+                <td>Strong evidence, good specificity and coverage</td>
+            </tr>
+            <tr>
+                <td>2.5 - 4.9</td>
+                <td><span class="confidence-medium">Medium</span></td>
+                <td>Moderate evidence with some limitations</td>
+            </tr>
+            <tr>
+                <td>&lt; 2.5</td>
+                <td><span class="confidence-low">Low</span></td>
+                <td>Weak evidence or poor pathway fit</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>Example Calculations</h4>
+    <div class="example-box">
+        <p><strong>High Confidence Example:</strong></p>
+        <ul>
+            <li>Known connection: 3 points</li>
+            <li>KE-specific pathway: 2 points</li>
+            <li>Complete mechanism: 1.5 points</li>
+            <li>Molecular level: +1 bonus</li>
+            <li><strong>Total: 7.5 → High confidence</strong></li>
+        </ul>
+    </div>
+
+    <div class="example-box">
+        <p><strong>Medium Confidence Example:</strong></p>
+        <ul>
+            <li>Likely connection: 2 points</li>
+            <li>Includes KE: 1 point</li>
+            <li>Key steps only: 1 point</li>
+            <li>Organ level: no bonus</li>
+            <li><strong>Total: 4.0 → Medium confidence</strong></li>
+        </ul>
+    </div>
+</section>
+
+<!-- Section F: Tuning Parameters -->
+<section id="tuning">
+    <h3>Tuning Parameters</h3>
+
+    <p>All scoring parameters are configurable via <code>scoring_config.yaml</code>. Changes require a Flask restart to take effect.</p>
+
+    <h4>Configuration File Location</h4>
+    <pre><code>/home/marvin/Documents/Services/Ke-gene-mapping/KE-WP-mapping/scoring_config.yaml</code></pre>
+
+    <h4>Common Tuning Scenarios</h4>
+
+    <table class="scoring-table">
+        <thead>
+            <tr>
+                <th>Goal</th>
+                <th>Parameter</th>
+                <th>Change</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>More suggestions</td>
+                <td><code>dynamic_thresholds.base_threshold</code></td>
+                <td>Lower (0.25 → 0.18)</td>
+            </tr>
+            <tr>
+                <td>Higher gene confidence</td>
+                <td><code>gene_scoring.base_boost</code></td>
+                <td>Raise (0.15 → 0.20)</td>
+            </tr>
+            <tr>
+                <td>Spread BioBERT scores</td>
+                <td><code>embedding_based_matching.score_transformation.power_exponent</code></td>
+                <td>Raise (1.5 → 2.0)</td>
+            </tr>
+            <tr>
+                <td>Lenient assessment</td>
+                <td><code>ke_pathway_assessment.confidence_thresholds.high</code></td>
+                <td>Lower (5.0 → 4.5)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>Applying Changes</h4>
+    <div class="code-box">
+        <pre><code># 1. Edit configuration
+nano scoring_config.yaml
+
+# 2. Validate YAML syntax
+python -c "import yaml; yaml.safe_load(open('scoring_config.yaml'))"
+
+# 3. Restart Flask
+pkill -f "python.*app.py" && python app.py &
+
+# 4. Clear browser cache
+# Press Ctrl+Shift+R in browser</code></pre>
+    </div>
+
+    <p>For detailed parameter documentation, see the <a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/SCORING_CONFIG.md" target="_blank">SCORING_CONFIG.md</a> reference guide.</p>
+</section>
+
+<!-- Styles for this page -->
+<style>
+    .toc {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px 25px;
+        margin-bottom: 30px;
+    }
+    .toc h3 {
+        margin-top: 0;
+        color: #307BBF;
+    }
+    .toc ol {
+        margin-bottom: 0;
+    }
+    .toc li {
+        margin: 8px 0;
+    }
+
+    .diagram-container {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        overflow-x: auto;
+    }
+    .flow-diagram {
+        font-family: monospace;
+        font-size: 13px;
+        line-height: 1.3;
+        margin: 0;
+        white-space: pre;
+        color: #29235C;
+    }
+
+    .scoring-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+    }
+    .scoring-table th, .scoring-table td {
+        border: 1px solid #dee2e6;
+        padding: 10px 12px;
+        text-align: left;
+    }
+    .scoring-table th {
+        background: #307BBF;
+        color: white;
+    }
+    .scoring-table tr:nth-child(even) {
+        background: #f8f9fa;
+    }
+
+    .confidence-high {
+        background: #28a745;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+    .confidence-medium {
+        background: #ffc107;
+        color: #212529;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+    .confidence-low {
+        background: #dc3545;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+
+    .formula-box {
+        background: #29235C;
+        color: #93D5F6;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin: 15px 0;
+        overflow-x: auto;
+    }
+    .formula-box code {
+        font-family: monospace;
+        font-size: 14px;
+        white-space: pre;
+    }
+
+    .info-box {
+        background: #e7f3ff;
+        border-left: 4px solid #307BBF;
+        padding: 15px 20px;
+        margin: 20px 0;
+        border-radius: 0 8px 8px 0;
+    }
+
+    .warning-box {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px 20px;
+        margin: 20px 0;
+        border-radius: 0 8px 8px 0;
+    }
+
+    .example-box {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px 20px;
+        margin: 15px 0;
+    }
+    .example-box ul {
+        margin-bottom: 0;
+    }
+
+    .code-box {
+        background: #212529;
+        color: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin: 15px 0;
+        overflow-x: auto;
+    }
+    .code-box code {
+        color: #f8f9fa;
+        font-family: monospace;
+        font-size: 13px;
+    }
+
+    .term-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 15px 0;
+    }
+    .term {
+        background: #93D5F6;
+        color: #29235C;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    section {
+        margin-bottom: 40px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    section:last-child {
+        border-bottom: none;
+    }
+
+    p.note {
+        font-size: 13px;
+        color: #6c757d;
+        font-style: italic;
+        margin-top: 5px;
+    }
+</style>

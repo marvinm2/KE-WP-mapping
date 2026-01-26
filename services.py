@@ -145,11 +145,49 @@ class ServiceContainer:
                         'ke_embeddings.npy'
                     )
 
+                    # Extract score transformation config
+                    score_transform = getattr(
+                        embedding_config,
+                        'score_transformation',
+                        None
+                    )
+                    score_transform_config = None
+                    if score_transform:
+                        score_transform_config = {
+                            'method': getattr(score_transform, 'method', 'power'),
+                            'power_exponent': getattr(score_transform, 'power_exponent', 2.5),
+                            'scale_factor': getattr(score_transform, 'scale_factor', 0.75),
+                            'output_min': getattr(score_transform, 'output_min', 0.0),
+                            'output_max': getattr(score_transform, 'output_max', 0.70),
+                            # Read from embedding_config, not score_transform
+                            'skip_precomputed_for_titles': getattr(embedding_config, 'skip_precomputed_for_titles', True)
+                        }
+                        logger.info(f"Score transformation config: {score_transform_config}")
+
+                    # Extract title weight (higher = more emphasis on title matching)
+                    title_weight = getattr(embedding_config, 'title_weight', 0.85)
+                    logger.info(f"Title weight: {title_weight}")
+
+                    # Extract entity extraction config
+                    entity_extract = getattr(embedding_config, 'entity_extraction', None)
+                    entity_extract_config = None
+                    if entity_extract:
+                        entity_extract_config = {
+                            'enabled': getattr(entity_extract, 'enabled', True),
+                            'min_entity_length': getattr(entity_extract, 'min_entity_length', 3),
+                            'include_numbers': getattr(entity_extract, 'include_numbers', True),
+                            'biological_terms_only': getattr(entity_extract, 'biological_terms_only', False)
+                        }
+                        logger.info(f"Entity extraction: {entity_extract_config}")
+
                     self._embedding_service = BiologicalEmbeddingService(
                         model_name=model_name,
                         use_gpu=True,
                         precomputed_embeddings_path=precomputed_path,
-                        precomputed_ke_embeddings_path=precomputed_ke_path
+                        precomputed_ke_embeddings_path=precomputed_ke_path,
+                        score_transform_config=score_transform_config,
+                        title_weight=title_weight,
+                        entity_extract_config=entity_extract_config
                     )
                     logger.info("Embedding service initialized")
                 else:

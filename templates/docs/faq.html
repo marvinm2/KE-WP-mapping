@@ -28,6 +28,52 @@
     <li><strong>Unclear</strong>: Relationship exists but direction uncertain</li>
 </ul>
 
+<h3>Scoring & Pathway Suggestions</h3>
+
+<h4>How are pathway suggestions generated?</h4>
+<p>The system uses a three-signal hybrid approach:</p>
+<ul>
+    <li><strong>Gene-Based (35%)</strong>: Finds pathways containing genes associated with the KE</li>
+    <li><strong>Text-Based (35%)</strong>: Matches KE title terminology with pathway names</li>
+    <li><strong>Semantic/BioBERT (30%)</strong>: Neural network-based biological meaning similarity</li>
+</ul>
+<p>See the <a href="/documentation/scoring-guide">Scoring Systems Guide</a> for detailed documentation.</p>
+
+<h4>Why do some KEs get better suggestions than others?</h4>
+<p>Suggestion quality depends on:</p>
+<ul>
+    <li><strong>Gene associations:</strong> KEs with many gene links get better gene-based matches</li>
+    <li><strong>Biological level:</strong> Molecular/cellular KEs match pathways more directly than phenotypic KEs</li>
+    <li><strong>Title specificity:</strong> Well-named KEs with biological terms match better</li>
+</ul>
+
+<h4>What does the confidence percentage mean?</h4>
+<p>Confidence scores (0-100%) indicate how strongly the system believes a pathway is relevant:</p>
+<ul>
+    <li><strong>&gt;75%</strong>: Strong match across multiple methods</li>
+    <li><strong>50-75%</strong>: Good match with some uncertainty</li>
+    <li><strong>25-50%</strong>: Moderate relevance, worth reviewing</li>
+    <li><strong>&lt;25%</strong>: Weak match, likely tangential</li>
+</ul>
+
+<h4>Why do BioBERT semantic scores seem lower now?</h4>
+<p>Semantic scores use a power transformation (score^1.5) to spread values more evenly. Raw BioBERT scores tend to cluster at 0.85-0.95 for all biomedical text. The transformation makes differences between good and marginal matches more visible:</p>
+<ul>
+    <li>0.95 raw → 0.82 transformed (excellent match)</li>
+    <li>0.85 raw → 0.62 transformed (good match)</li>
+    <li>0.75 raw → 0.43 transformed (moderate match)</li>
+</ul>
+
+<h4>How is the confidence assessment calculated?</h4>
+<p>Your answers to the 4-question workflow are scored:</p>
+<ul>
+    <li>Evidence Basis: 0-3 points</li>
+    <li>Pathway Specificity: 0-2 points</li>
+    <li>KE Coverage: 0-1.5 points</li>
+    <li>Biological Level Bonus: +1 for molecular/cellular/tissue KEs</li>
+</ul>
+<p>Total ≥5.0 = High confidence, ≥2.5 = Medium, &lt;2.5 = Low. See the <a href="/documentation/scoring-guide#confidence-assessment">Confidence Assessment section</a> for details.</p>
+
 <h3>Troubleshooting</h3>
 
 <h4>Dropdown not loading / showing "Loading..."</h4>

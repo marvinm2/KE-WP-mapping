@@ -458,6 +458,7 @@ def documentation(section='overview'):
     sections = {
         'overview': 'Getting Started',
         'user-guide': 'User Guide',
+        'scoring-guide': 'Scoring Systems',
         'admin-guide': 'Admin Guide',
         'api': 'API Documentation',
         'faq': 'FAQ & Troubleshooting'

@@ -1,8 +1,8 @@
 """
-Pre-compute BioBERT embeddings for pathway titles (title-only)
+Pre-compute BioBERT embeddings for pathway titles (title-only) WITH entity extraction
 
-This script generates a separate embedding file for pathway TITLES only,
-to accelerate the compute_ke_pathway_similarity() title-to-title comparison.
+This script generates embeddings for pathway TITLES with entity extraction applied,
+removing directionality terms and focusing on biological entities for more specific matching.
 
 Usage:
     python scripts/precompute_pathway_title_embeddings.py
@@ -13,6 +13,7 @@ Output:
 
 import sys
 import os
+import re
 sys.path.insert(0, os.path.abspath('.'))
 
 from embedding_service import BiologicalEmbeddingService
@@ -20,9 +21,47 @@ import numpy as np
 import logging
 import requests
 from tqdm import tqdm
+from text_utils import remove_directionality_terms
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def extract_entities(text: str) -> str:
+    """
+    Extract biological entities from text for more specific embedding.
+
+    Removes stopwords, directionality terms, and keeps only significant tokens.
+    """
+    # First remove directionality terms
+    text = remove_directionality_terms(text)
+
+    min_length = 3
+
+    # Tokenize: split on non-alphanumeric, keeping alphanumeric tokens
+    tokens = re.findall(r'[A-Za-z0-9]+', text)
+
+    entities = []
+    stopwords = {'the', 'and', 'for', 'with', 'from', 'into', 'that', 'this', 'are', 'was', 'were', 'via'}
+    directionality = {'increase', 'decrease', 'activation', 'inhibition', 'induction', 'reduction',
+                      'elevated', 'reduced', 'upregulation', 'downregulation'}
+
+    for token in tokens:
+        if len(token) < min_length:
+            continue
+
+        token_lower = token.lower()
+
+        # Skip stopwords and directionality terms
+        if token_lower in stopwords or token_lower in directionality:
+            continue
+
+        entities.append(token)
+
+    if not entities:
+        return text  # Fallback to original if no entities extracted
+
+    return ' '.join(entities)
 
 # WikiPathways SPARQL endpoint
 WIKIPATHWAYS_SPARQL_ENDPOINT = "https://sparql.wikipathways.org/sparql"
@@ -101,20 +140,25 @@ def precompute_pathway_title_embeddings(output_path='pathway_title_embeddings.np
 
     logger.info(f"After removing duplicates: {len(unique_pathways)} unique pathways")
 
-    # Compute title embeddings
+    # Compute title embeddings WITH entity extraction
     embeddings = {}
-    logger.info("Computing title embeddings...")
+    logger.info("Computing title embeddings with entity extraction...")
 
     for pathway in tqdm(unique_pathways, desc="Encoding pathway titles"):
         pathway_id = pathway['pathwayID']
         pathway_title = pathway['pathwayTitle']
 
-        # Log first 3 samples for verification
-        if len(embeddings) < 3:
-            logger.info(f"Sample pathway {pathway_id}: '{pathway_title}'")
+        # Apply entity extraction for more specific embeddings
+        extracted_title = extract_entities(pathway_title)
 
-        # Encode title only
-        emb = embedding_service.encode(pathway_title)
+        # Log first 5 samples for verification
+        if len(embeddings) < 5:
+            logger.info(f"Sample pathway {pathway_id}:")
+            logger.info(f"  Original: '{pathway_title}'")
+            logger.info(f"  Extracted: '{extracted_title}'")
+
+        # Encode extracted entities (not raw title)
+        emb = embedding_service.encode(extracted_title)
         embeddings[pathway_id] = emb
 
     # Save to disk

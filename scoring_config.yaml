@@ -406,9 +406,9 @@ pathway_suggestion:
   # Hybrid Scoring Weights (Multi-Signal Combination)
   # ----------------------------------------------------------------------------
   hybrid_weights:
-    gene: 0.35          # Gene-based scoring weight
-    text: 0.35          # Text-based scoring weight
-    embedding: 0.30     # Embedding-based scoring weight
+    gene: 0.35          # Gene-based scoring weight (unique biological signal)
+    text: 0.25          # Text-based scoring weight (reduced - 67% coverage, lower accuracy)
+    embedding: 0.40     # Embedding-based scoring weight (increased - 100% coverage, best accuracy)
 
     # Bonus for multiple evidence types
     multi_evidence_bonus: 0.05

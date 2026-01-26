@@ -18,6 +18,7 @@
                 <ul>
                     <li><a href="/documentation/overview" class="{{ 'active' if current_section == 'overview' else '' }}">Getting Started</a></li>
                     <li><a href="/documentation/user-guide" class="{{ 'active' if current_section == 'user-guide' else '' }}">User Guide</a></li>
+                    <li><a href="/documentation/scoring-guide" class="{{ 'active' if current_section == 'scoring-guide' else '' }}">Scoring Systems</a></li>
                     <li><a href="/documentation/admin-guide" class="{{ 'active' if current_section == 'admin-guide' else '' }}">Admin Guide</a></li>
                     <li><a href="/documentation/api" class="{{ 'active' if current_section == 'api' else '' }}">API Documentation</a></li>
                     <li><a href="/documentation/faq" class="{{ 'active' if current_section == 'faq' else '' }}">FAQ & Troubleshooting</a></li>
@@ -30,6 +31,8 @@
                 {% include 'docs/overview.html' %}
             {% elif current_section == 'user-guide' %}
                 {% include 'docs/user-guide.html' %}
+            {% elif current_section == 'scoring-guide' %}
+                {% include 'docs/scoring-guide.html' %}
             {% elif current_section == 'admin-guide' %}
                 {% include 'docs/admin-guide.html' %}
             {% elif current_section == 'api' %}
