@@ -11,6 +11,8 @@ from typing import Dict, List, Optional, Tuple
 
 import requests
 from config_loader import ConfigLoader
+from ke_gene_service import get_genes_from_ke
+from scoring_utils import combine_scored_items
 from text_utils import remove_directionality_terms
 
 logger = logging.getLogger(__name__)
@@ -136,81 +138,8 @@ class PathwaySuggestionService:
             }
 
     def _get_genes_from_ke(self, ke_id: str) -> List[str]:
-        """
-        Extract HGNC gene symbols associated with a Key Event using corrected AOP-Wiki query
-
-        Args:
-            ke_id: Key Event ID
-
-        Returns:
-            List of HGNC gene symbols
-        """
-        try:
-            sparql_query = f"""
-            PREFIX aopo: <http://aopkb.org/aop_ontology#>
-            PREFIX edam: <http://edamontology.org/>
-            PREFIX dc: <http://purl.org/dc/elements/1.1/>
-            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-
-            SELECT DISTINCT ?keid ?ketitle ?hgnc
-            WHERE {{
-                ?ke a aopo:KeyEvent; 
-                    edam:data_1025 ?object; 
-                    dc:title ?ketitle; 
-                    rdfs:label ?keid.
-                ?object edam:data_2298 ?hgnc.
-                FILTER(?keid = "{ke_id}")
-            }}
-            """
-
-            # Check cache first
-            query_hash = hashlib.md5(sparql_query.encode()).hexdigest()
-            if self.cache_model:
-                cached_response = self.cache_model.get_cached_response(
-                    self.aop_wiki_endpoint, query_hash
-                )
-                if cached_response:
-                    logger.info(f"Serving KE genes from cache for {ke_id}")
-                    return json.loads(cached_response)
-
-            response = requests.post(
-                self.aop_wiki_endpoint,
-                data={"query": sparql_query},
-                headers={
-                    "Accept": "application/sparql-results+json",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                timeout=30,
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-                genes = []
-                
-                if "results" in data and "bindings" in data["results"]:
-                    for binding in data["results"]["bindings"]:
-                        if "hgnc" in binding:
-                            gene = binding["hgnc"]["value"]
-                            if gene and gene not in genes:
-                                genes.append(gene)
-
-                # Cache the results
-                if self.cache_model:
-                    self.cache_model.cache_response(
-                        self.aop_wiki_endpoint, query_hash, json.dumps(genes), 24
-                    )
-
-                logger.info(f"Found {len(genes)} genes for KE {ke_id}: {genes}")
-                return genes
-            else:
-                logger.error(
-                    f"AOP-Wiki gene query failed: {response.status_code} - {response.text}"
-                )
-                return []
-
-        except Exception as e:
-            logger.error(f"Error extracting genes from KE {ke_id}: {str(e)}")
-            return []
+        """Extract HGNC gene symbols associated with a Key Event"""
+        return get_genes_from_ke(ke_id, self.aop_wiki_endpoint, self.cache_model)
 
     def _find_pathways_by_genes(
         self, genes: List[str], limit: int = 20
@@ -1271,18 +1200,9 @@ class PathwaySuggestionService:
         """
         Combine three scoring signals with transparent hybrid scoring
 
-        Strategy:
-        - Index all pathways by ID
-        - Merge scores from all three sources
-        - Calculate hybrid final_score with configurable weights
-        - Sort by final_score
-        - Keep all individual scores visible
-
         Returns:
             List of suggestions with all scores visible
         """
-        pathway_map = {}
-
         # Get weights from config
         hybrid_weights = getattr(
             self.config.pathway_suggestion,
@@ -1294,109 +1214,61 @@ class PathwaySuggestionService:
         text_weight = getattr(hybrid_weights, 'text', 0.35) if hybrid_weights else 0.35
         embedding_weight = getattr(hybrid_weights, 'embedding', 0.30) if hybrid_weights else 0.30
 
-        # Process gene-based suggestions
-        for suggestion in gene_suggestions:
-            pathway_id = suggestion['pathwayID']
-            pathway_map[pathway_id] = {
-                **suggestion,
-                'scores': {
-                    'gene_confidence': suggestion['confidence_score'],
-                    'text_confidence': 0.0,
-                    'embedding_similarity': 0.0,
-                    'final_score': 0.0
-                },
-                'match_types': ['gene']
+        final_threshold = self.config.pathway_suggestion.dynamic_thresholds.base_threshold
+
+        combined = combine_scored_items(
+            scored_lists={
+                'gene': gene_suggestions,
+                'text': text_suggestions,
+                'embedding': embedding_suggestions,
+            },
+            id_field='pathwayID',
+            weights={'gene': gene_weight, 'text': text_weight, 'embedding': embedding_weight},
+            score_field_map={
+                'gene': 'confidence_score',
+                'text': 'confidence_score',
+                'embedding': 'confidence_score',
+            },
+            multi_evidence_bonus=0.05,
+            min_threshold=final_threshold,
+            max_score=0.98,
+        )
+
+        # WP-specific post-processing: build scores dict, primary_evidence, embedding_details
+        for pathway in combined:
+            sig = pathway.pop('signal_scores', {})
+            gene_score = sig.get('gene', 0.0)
+            text_score = sig.get('text', 0.0)
+            emb_score = sig.get('embedding', 0.0)
+
+            pathway['scores'] = {
+                'gene_confidence': gene_score,
+                'text_confidence': text_score,
+                'embedding_similarity': emb_score,
+                'final_score': pathway['hybrid_score'],
             }
 
-        # Add/merge text-based suggestions
-        for suggestion in text_suggestions:
-            pathway_id = suggestion['pathwayID']
-
-            if pathway_id in pathway_map:
-                # Merge with existing
-                pathway_map[pathway_id]['scores']['text_confidence'] = suggestion['confidence_score']
-                pathway_map[pathway_id]['title_similarity'] = suggestion.get('title_similarity', 0)
-                pathway_map[pathway_id]['combined_similarity'] = suggestion.get('combined_similarity', 0)
-                pathway_map[pathway_id]['match_types'].append('text')
-            else:
-                # New pathway
-                pathway_map[pathway_id] = {
-                    **suggestion,
-                    'scores': {
-                        'gene_confidence': 0.0,
-                        'text_confidence': suggestion['confidence_score'],
-                        'embedding_similarity': 0.0,
-                        'final_score': 0.0
-                    },
-                    'match_types': ['text']
-                }
-
-        # Add/merge embedding-based suggestions
-        for suggestion in embedding_suggestions:
-            pathway_id = suggestion['pathwayID']
-
-            if pathway_id in pathway_map:
-                # Merge with existing
-                pathway_map[pathway_id]['scores']['embedding_similarity'] = suggestion['confidence_score']
-                pathway_map[pathway_id]['embedding_details'] = {
-                    'title_similarity': suggestion.get('title_similarity', 0),
-                    'description_similarity': suggestion.get('description_similarity', 0),
-                    'combined': suggestion.get('embedding_similarity', 0)
-                }
-                pathway_map[pathway_id]['match_types'].append('embedding')
-            else:
-                # New pathway
-                pathway_map[pathway_id] = {
-                    **suggestion,
-                    'scores': {
-                        'gene_confidence': 0.0,
-                        'text_confidence': 0.0,
-                        'embedding_similarity': suggestion['confidence_score'],
-                        'final_score': 0.0
-                    },
-                    'match_types': ['embedding'],
-                    'embedding_details': {
-                        'title_similarity': suggestion.get('title_similarity', 0),
-                        'description_similarity': suggestion.get('description_similarity', 0),
-                        'combined': suggestion.get('embedding_similarity', 0)
-                    }
-                }
-
-        # Calculate hybrid final scores
-        for pathway_id, pathway in pathway_map.items():
-            scores = pathway['scores']
-
-            # Weighted combination
-            final_score = (
-                scores['gene_confidence'] * gene_weight +
-                scores['text_confidence'] * text_weight +
-                scores['embedding_similarity'] * embedding_weight
-            )
-
-            # Bonus for multiple evidence types
-            num_signals = len([s for s in [scores['gene_confidence'], scores['text_confidence'], scores['embedding_similarity']] if s > 0.0])
-            if num_signals >= 2:
-                final_score += 0.05  # Multi-evidence bonus
-
             # Determine primary evidence source
-            max_score = max(scores['gene_confidence'], scores['text_confidence'], scores['embedding_similarity'])
-            if max_score == scores['gene_confidence']:
+            max_signal = max(gene_score, text_score, emb_score)
+            if max_signal == gene_score and gene_score > 0:
                 pathway['primary_evidence'] = 'gene_overlap'
-            elif max_score == scores['embedding_similarity']:
+            elif max_signal == emb_score and emb_score > 0:
                 pathway['primary_evidence'] = 'semantic_similarity'
             else:
                 pathway['primary_evidence'] = 'text_similarity'
 
-            scores['final_score'] = min(final_score, 0.98)
+            # Add embedding_details from per-signal data (avoids field collision
+            # where text signal's title_similarity overwrites embedding's)
+            if 'embedding' in pathway.get('match_types', []):
+                emb_data = pathway.get('_signal_data', {}).get('embedding', {})
+                pathway['embedding_details'] = {
+                    'title_similarity': emb_data.get('title_similarity', 0),
+                    'description_similarity': emb_data.get('description_similarity', 0),
+                    'combined': emb_data.get('embedding_similarity', 0)
+                }
 
-        # Convert to list and sort by final score
-        combined = list(pathway_map.values())
-        combined.sort(key=lambda x: x['scores']['final_score'], reverse=True)
-
-        # Apply final threshold filter to remove noise
-        # Use base_threshold from config (default 0.30)
-        final_threshold = self.config.pathway_suggestion.dynamic_thresholds.base_threshold
-        combined = [s for s in combined if s['scores']['final_score'] >= final_threshold]
+            # Clean up internal per-signal data
+            pathway.pop('_signal_data', None)
 
         return combined[:limit]
 

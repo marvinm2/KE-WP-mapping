@@ -1,0 +1,322 @@
+"""
+GO Term Suggestion Service
+Provides intelligent GO Biological Process term suggestions for Key Events
+using pre-computed embeddings and gene annotation overlap.
+"""
+import json
+import logging
+import os
+from typing import Dict, List, Optional
+
+import numpy as np
+from config_loader import ConfigLoader
+from ke_gene_service import get_genes_from_ke
+from scoring_utils import combine_scored_items
+from text_utils import remove_directionality_terms
+
+logger = logging.getLogger(__name__)
+
+
+class GoSuggestionService:
+    """Service for generating GO BP term suggestions based on Key Events"""
+
+    def __init__(
+        self,
+        cache_model=None,
+        config=None,
+        embedding_service=None,
+        go_embeddings_path='go_bp_embeddings.npy',
+        go_metadata_path='go_bp_metadata.json',
+        go_annotations_path='go_bp_gene_annotations.json'
+    ):
+        self.cache_model = cache_model
+        self.config = config or ConfigLoader.get_default_config()
+        self.embedding_service = embedding_service
+        self.aop_wiki_endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
+
+        # Load pre-computed GO data
+        self.go_embeddings = {}
+        self.go_metadata = {}
+        self.go_gene_annotations = {}
+
+        self._load_go_embeddings(go_embeddings_path)
+        self._load_go_metadata(go_metadata_path)
+        self._load_go_annotations(go_annotations_path)
+
+    def _load_go_embeddings(self, path):
+        """Load pre-computed GO BP embeddings"""
+        if os.path.exists(path):
+            try:
+                self.go_embeddings = np.load(path, allow_pickle=True).item()
+                logger.info(f"Loaded {len(self.go_embeddings)} GO BP embeddings")
+            except Exception as e:
+                logger.warning(f"Could not load GO embeddings: {e}")
+        else:
+            logger.warning(f"GO embeddings file not found: {path}")
+
+    def _load_go_metadata(self, path):
+        """Load GO BP metadata (names, definitions, relationships)"""
+        if os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    self.go_metadata = json.load(f)
+                logger.info(f"Loaded metadata for {len(self.go_metadata)} GO BP terms")
+            except Exception as e:
+                logger.warning(f"Could not load GO metadata: {e}")
+        else:
+            logger.warning(f"GO metadata file not found: {path}")
+
+    def _load_go_annotations(self, path):
+        """Load GO BP gene annotations"""
+        if os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    self.go_gene_annotations = json.load(f)
+                logger.info(f"Loaded gene annotations for {len(self.go_gene_annotations)} GO BP terms")
+            except Exception as e:
+                logger.warning(f"Could not load GO annotations: {e}")
+        else:
+            logger.warning(f"GO annotations file not found: {path}")
+
+    def get_go_suggestions(
+        self,
+        ke_id: str,
+        ke_title: str,
+        limit: int = 20,
+        method_filter: str = 'all'
+    ) -> Dict:
+        """
+        Get GO BP term suggestions for a Key Event
+
+        Args:
+            ke_id: Key Event ID (e.g., "KE 55")
+            ke_title: Key Event title for text-based matching
+            limit: Maximum number of suggestions to return
+            method_filter: 'all', 'text', or 'gene'
+
+        Returns:
+            Dictionary containing suggestions with scores
+        """
+        try:
+            logger.info(f"Getting GO suggestions for {ke_id} (filter: {method_filter})")
+
+            # Get genes associated with this KE
+            genes = self._get_genes_from_ke(ke_id)
+
+            # Compute embedding-based scores
+            embedding_scores = []
+            if method_filter in ('all', 'text') and self.embedding_service and self.go_embeddings:
+                embedding_scores = self._compute_embedding_scores(ke_id, ke_title)
+
+            # Compute gene-based scores
+            gene_scores = []
+            if method_filter in ('all', 'gene') and genes and self.go_gene_annotations:
+                gene_scores = self._compute_gene_overlap_scores(genes)
+
+            # Combine scores
+            if method_filter == 'all':
+                combined = self._combine_go_scores(embedding_scores, gene_scores)
+            elif method_filter == 'text':
+                combined = embedding_scores
+            elif method_filter == 'gene':
+                combined = gene_scores
+            else:
+                combined = self._combine_go_scores(embedding_scores, gene_scores)
+
+            # Sort by score and limit
+            combined.sort(key=lambda x: x['hybrid_score'], reverse=True)
+            limited = combined[:limit]
+
+            return {
+                "ke_id": ke_id,
+                "ke_title": ke_title,
+                "genes_found": len(genes),
+                "gene_list": genes,
+                "suggestions": limited,
+                "total_suggestions": len(combined),
+                "method_filter": method_filter,
+                "embedding_count": len(embedding_scores),
+                "gene_count": len(gene_scores)
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting GO suggestions for {ke_id}: {str(e)}")
+            return {
+                "error": "Failed to generate GO suggestions",
+                "ke_id": ke_id,
+                "ke_title": ke_title,
+            }
+
+    def _get_genes_from_ke(self, ke_id: str) -> List[str]:
+        """Extract HGNC gene symbols associated with a Key Event"""
+        return get_genes_from_ke(ke_id, self.aop_wiki_endpoint, self.cache_model)
+
+    def _compute_embedding_scores(self, ke_id: str, ke_title: str) -> List[Dict]:
+        """
+        Compute embedding-based similarity between KE and all GO BP terms
+
+        Uses vectorized batch computation for efficiency.
+        """
+        if not self.embedding_service or not self.go_embeddings:
+            return []
+
+        try:
+            # Clean KE title
+            ke_title_clean = remove_directionality_terms(ke_title)
+
+            # Get KE embedding
+            ke_emb = self.embedding_service.get_ke_embedding(ke_id, ke_title_clean)
+
+            # Get GO config thresholds
+            go_config = getattr(self.config, 'go_suggestion', None)
+            min_threshold = getattr(go_config, 'embedding_min_threshold', 0.3) if go_config else 0.3
+
+            # Build arrays for batch computation
+            go_ids = list(self.go_embeddings.keys())
+            go_emb_array = np.array([self.go_embeddings[gid] for gid in go_ids])
+
+            # Vectorized cosine similarity
+            ke_norm = np.linalg.norm(ke_emb)
+            go_norms = np.linalg.norm(go_emb_array, axis=1)
+
+            raw_similarities = np.dot(go_emb_array, ke_emb) / (go_norms * ke_norm + 1e-8)
+
+            # Apply score transformation (same as pathway suggestions)
+            transformed = self.embedding_service._transform_similarity_batch(raw_similarities)
+
+            # Filter and build results
+            results = []
+            for i, go_id in enumerate(go_ids):
+                score = float(transformed[i])
+                if score < min_threshold:
+                    continue
+
+                metadata = self.go_metadata.get(go_id, {})
+                results.append({
+                    'go_id': go_id,
+                    'go_name': metadata.get('name', 'Unknown'),
+                    'go_definition': metadata.get('definition', ''),
+                    'text_similarity': score,
+                    'gene_overlap': 0.0,
+                    'matching_genes': [],
+                    'hybrid_score': score,
+                    'match_types': ['text'],
+                    'quickgo_link': f"https://www.ebi.ac.uk/QuickGO/term/{go_id}"
+                })
+
+            logger.info(f"Found {len(results)} embedding-based GO suggestions")
+            return results
+
+        except Exception as e:
+            logger.error(f"Embedding-based GO suggestion failed: {e}")
+            return []
+
+    def _compute_gene_overlap_scores(self, ke_genes: List[str]) -> List[Dict]:
+        """
+        Compute gene overlap between KE genes and GO term gene annotations
+
+        Uses Jaccard similarity for scoring.
+        """
+        if not ke_genes or not self.go_gene_annotations:
+            return []
+
+        try:
+            go_config = getattr(self.config, 'go_suggestion', None)
+            min_threshold = getattr(go_config, 'gene_min_threshold', 0.05) if go_config else 0.05
+
+            ke_gene_set = set(ke_genes)
+            results = []
+
+            for go_id, go_genes in self.go_gene_annotations.items():
+                go_gene_set = set(go_genes)
+
+                # Compute overlap
+                matching = ke_gene_set.intersection(go_gene_set)
+                if not matching:
+                    continue
+
+                # Jaccard similarity
+                union = ke_gene_set.union(go_gene_set)
+                jaccard = len(matching) / len(union) if union else 0.0
+
+                # Also compute overlap ratio from KE perspective
+                ke_overlap = len(matching) / len(ke_gene_set) if ke_gene_set else 0.0
+
+                # Combined gene score (weighted: KE overlap matters more)
+                gene_score = (ke_overlap * 0.7) + (jaccard * 0.3)
+
+                if gene_score < min_threshold:
+                    continue
+
+                metadata = self.go_metadata.get(go_id, {})
+                results.append({
+                    'go_id': go_id,
+                    'go_name': metadata.get('name', 'Unknown'),
+                    'go_definition': metadata.get('definition', ''),
+                    'text_similarity': 0.0,
+                    'gene_overlap': round(gene_score, 4),
+                    'matching_genes': sorted(list(matching)),
+                    'hybrid_score': gene_score,
+                    'match_types': ['gene'],
+                    'quickgo_link': f"https://www.ebi.ac.uk/QuickGO/term/{go_id}"
+                })
+
+            logger.info(f"Found {len(results)} gene-based GO suggestions")
+            return results
+
+        except Exception as e:
+            logger.error(f"Gene overlap GO suggestion failed: {e}")
+            return []
+
+    def _combine_go_scores(
+        self,
+        embedding_scores: List[Dict],
+        gene_scores: List[Dict]
+    ) -> List[Dict]:
+        """
+        Combine embedding and gene scores with hybrid weighting
+
+        Returns merged list with hybrid_score computed from both signals.
+        """
+        # Get weights from config
+        go_config = getattr(self.config, 'go_suggestion', None)
+        if go_config:
+            weights_cfg = getattr(go_config, 'hybrid_weights', {})
+            if isinstance(weights_cfg, dict):
+                emb_weight = weights_cfg.get('embedding', 0.55)
+                gene_weight = weights_cfg.get('gene', 0.45)
+                bonus = weights_cfg.get('multi_evidence_bonus', 0.05)
+            else:
+                emb_weight = 0.55
+                gene_weight = 0.45
+                bonus = 0.05
+        else:
+            emb_weight = 0.55
+            gene_weight = 0.45
+            bonus = 0.05
+
+        min_threshold = getattr(go_config, 'min_threshold', 0.15) if go_config else 0.15
+
+        results = combine_scored_items(
+            scored_lists={'text': embedding_scores, 'gene': gene_scores},
+            id_field='go_id',
+            weights={'text': emb_weight, 'gene': gene_weight},
+            score_field_map={'text': 'text_similarity', 'gene': 'gene_overlap'},
+            multi_evidence_bonus=bonus,
+            min_threshold=min_threshold,
+        )
+
+        # Restore per-signal scores and gene data from signal_scores / _signal_data
+        for item in results:
+            sig = item.pop('signal_scores', {})
+            sig_data = item.pop('_signal_data', {})
+            item['text_similarity'] = round(sig.get('text', 0.0), 4)
+            item['gene_overlap'] = round(sig.get('gene', 0.0), 4)
+
+            # With "first writer wins", if embedding was first the base item
+            # has matching_genes: []. Restore from gene signal's actual data.
+            gene_data = sig_data.get('gene', {})
+            if gene_data.get('matching_genes'):
+                item['matching_genes'] = gene_data['matching_genes']
+
+        return results
