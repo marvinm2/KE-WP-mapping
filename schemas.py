@@ -103,6 +103,63 @@ class ProposalSchema(Schema):
             raise ValidationError(f"Entry must be valid JSON: {str(e)}")
 
 
+class GoMappingSchema(Schema):
+    """Schema for KE-GO mapping submissions"""
+
+    ke_id = fields.Str(
+        required=True,
+        validate=[
+            validate.Length(min=3, max=50),
+            validate.Regexp(r"^KE\s+\d+$", error="KE ID must be in format 'KE number'"),
+        ],
+    )
+    ke_title = fields.Str(required=True, validate=validate.Length(min=1, max=500))
+    go_id = fields.Str(
+        required=True,
+        validate=[
+            validate.Length(min=10, max=20),
+            validate.Regexp(
+                r"^GO:\d{7}$", error="GO ID must be in format 'GO:0000000'"
+            ),
+        ],
+    )
+    go_name = fields.Str(required=True, validate=validate.Length(min=1, max=500))
+    connection_type = fields.Str(
+        required=True,
+        validate=validate.OneOf(
+            ["describes", "involves", "related", "context"],
+            error="Invalid connection type",
+        ),
+    )
+    confidence_level = fields.Str(
+        required=True,
+        validate=validate.OneOf(
+            ["low", "medium", "high"], error="Invalid confidence level"
+        ),
+    )
+
+
+class GoCheckEntrySchema(Schema):
+    """Schema for checking existing GO entries"""
+
+    ke_id = fields.Str(
+        required=True,
+        validate=[
+            validate.Length(min=3, max=50),
+            validate.Regexp(r"^KE\s+\d+$", error="KE ID must be in format 'KE number'"),
+        ],
+    )
+    go_id = fields.Str(
+        required=True,
+        validate=[
+            validate.Length(min=10, max=20),
+            validate.Regexp(
+                r"^GO:\d{7}$", error="GO ID must be in format 'GO:0000000'"
+            ),
+        ],
+    )
+
+
 class AdminNotesSchema(Schema):
     """Schema for admin notes in proposal management"""
 

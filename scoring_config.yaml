@@ -509,32 +509,150 @@ ke_pathway_assessment:
 
 
 # ==============================================================================
+# GO SUGGESTION SCORING (Backend - go_suggestions.py)
+# ==============================================================================
+# These parameters control how GO Biological Process terms are suggested
+# based on selected Key Events. Uses embedding and gene-based matching.
+
+go_suggestion:
+
+  # ----------------------------------------------------------------------------
+  # Hybrid Scoring Weights (Embedding + Gene signals)
+  # ----------------------------------------------------------------------------
+  hybrid_weights:
+    embedding: 0.55        # Embedding-based scoring weight (semantic similarity)
+    gene: 0.45             # Gene-based scoring weight (gene overlap)
+    multi_evidence_bonus: 0.05
+
+  # ----------------------------------------------------------------------------
+  # Minimum Thresholds
+  # ----------------------------------------------------------------------------
+  min_threshold: 0.15      # Minimum hybrid score to include in results
+  embedding_min_threshold: 0.3  # Minimum embedding similarity
+  gene_min_threshold: 0.05      # Minimum gene overlap score
+
+  # ----------------------------------------------------------------------------
+  # Gene Overlap Dampening
+  # ----------------------------------------------------------------------------
+  # Small GO terms (<N genes) get inflated overlap scores because
+  # ke_overlap can be 1.0 when the term is fully contained in the KE gene set.
+  # Apply a size dampening factor: score *= min(1.0, go_size / gene_min_term_size)
+  gene_min_term_size: 10        # GO terms below this size get dampened scores
+
+
+# ==============================================================================
+# KE-GO ASSESSMENT SCORING (Frontend - main.js)
+# ==============================================================================
+# These parameters control the confidence assessment workflow
+# that users complete when creating new KE-GO mappings.
+
+ke_go_assessment:
+
+  # ----------------------------------------------------------------------------
+  # Term Specificity
+  # ----------------------------------------------------------------------------
+  # "How specific is the GO term to this Key Event?"
+
+  term_specificity:
+    exact: 3                           # Exact match (GO term describes KE precisely)
+    parent_child: 2                    # Parent/child relationship
+    related: 1                         # Related but not direct
+    broad: 0                           # Broad/general term
+
+  # ----------------------------------------------------------------------------
+  # Evidence Support
+  # ----------------------------------------------------------------------------
+  # "What is the evidence basis for this mapping?"
+
+  evidence_support:
+    experimental: 3                    # Direct experimental evidence
+    curated: 2                         # Curated from literature
+    inferred: 1                        # Computationally inferred
+    assumed: 0                         # Assumed/no specific evidence
+
+  # ----------------------------------------------------------------------------
+  # Gene Overlap Assessment
+  # ----------------------------------------------------------------------------
+  # "How much gene overlap exists between KE and GO term?"
+
+  gene_overlap:
+    high_threshold: 0.5                # >50% overlap
+    high_score: 2
+    moderate_threshold: 0.2            # 20-50% overlap
+    moderate_score: 1
+    low_score: 0                       # <20% overlap
+
+  # ----------------------------------------------------------------------------
+  # Biological Level Modifier
+  # ----------------------------------------------------------------------------
+  # Bonus points for molecular/cellular level KEs
+
+  bio_level_bonus:
+    molecular_process: 1.0             # Molecular-level KE bonus
+    cellular_process: 1.0              # Cellular-level KE bonus
+    general_process: 0.5               # Tissue/organ level bonus
+
+  # ----------------------------------------------------------------------------
+  # Confidence Level Thresholds
+  # ----------------------------------------------------------------------------
+
+  confidence_thresholds:
+    high: 6                            # Score >= 6 = High confidence
+    medium: 3                          # Score >= 3 = Medium confidence
+                                       # Score < 3 = Low confidence
+
+  # ----------------------------------------------------------------------------
+  # Maximum Possible Scores
+  # ----------------------------------------------------------------------------
+
+  max_scores:
+    with_bio_bonus: 9.0                # 3 + 3 + 2 + 1.0 = 9.0
+    without_bio_bonus: 8.0             # 3 + 3 + 2 = 8.0
+
+  # ----------------------------------------------------------------------------
+  # Connection Types
+  # ----------------------------------------------------------------------------
+  # "What is the relationship between the GO term and Key Event?"
+
+  connection_types:
+    - describes                        # GO term describes KE mechanism
+    - involves                         # KE involves this biological process
+    - related                          # Related biological process
+    - context                          # Provides biological context
+
+
+# ==============================================================================
 # METADATA
 # ==============================================================================
 
 metadata:
-  version: "1.2.0"
-  last_modified: "2026-01-23"
+  version: "1.3.0"
+  last_modified: "2026-02-04"
   modified_by: "system"
   description: |
-    Scoring configuration for KE-WP Mapping application.
+    Scoring configuration for KE-WP and KE-GO Mapping application.
 
     This file controls all scoring parameters for:
     1. Pathway Suggestion Confidence Scoring (Backend)
     2. KE-Pathway Assessment Scoring (Frontend)
     3. BioBERT Semantic Similarity with Score Transformation
+    4. GO Term Suggestion Scoring (Backend)
+    5. KE-GO Assessment Scoring (Frontend)
 
     Changes take effect after Flask restart. Frontend configuration
-    is served via /api/scoring-config endpoint.
+    is served via /api/scoring-config and /api/go-scoring-config endpoints.
 
   notes: |
     - Pathway suggestion scoring: Automatic pathway recommendations
     - KE-pathway assessment scoring: User-driven confidence evaluation
     - BioBERT transformation: Spreads inflated semantic scores
+    - GO suggestion scoring: GO BP term recommendations
+    - KE-GO assessment scoring: User-driven GO confidence evaluation
     - All thresholds and weights can be adjusted without code changes
     - Keep backups before making changes for easy rollback
 
   changelog:
+    - "2026-02-04: Added GO suggestion and KE-GO assessment sections"
     - "2026-01-23: Raised base_threshold from 0.25 to 0.30 to filter noise"
     - "2026-01-23: Added quality_tiers for UI badges (excellent/good/moderate)"
     - "2026-01-23: Added BioBERT score transformation (power method)"

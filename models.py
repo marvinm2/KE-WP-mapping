@@ -96,9 +96,65 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_cache_expires ON sparql_cache(expires_at)"
             )
 
+            # Create KE-GO mappings table
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ke_go_mappings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ke_id TEXT NOT NULL,
+                    ke_title TEXT NOT NULL,
+                    go_id TEXT NOT NULL,
+                    go_name TEXT NOT NULL,
+                    connection_type TEXT NOT NULL DEFAULT 'related',
+                    confidence_level TEXT NOT NULL DEFAULT 'low',
+                    evidence_code TEXT,
+                    created_by TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(ke_id, go_id)
+                )
+            """
+            )
+
+            # Create KE-GO proposals table
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ke_go_proposals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    mapping_id INTEGER,
+                    user_name TEXT NOT NULL,
+                    user_email TEXT NOT NULL,
+                    user_affiliation TEXT NOT NULL,
+                    github_username TEXT,
+                    proposed_delete BOOLEAN DEFAULT FALSE,
+                    proposed_confidence TEXT,
+                    proposed_connection_type TEXT,
+                    status TEXT DEFAULT 'pending',
+                    admin_notes TEXT,
+                    approved_by TEXT,
+                    approved_at TIMESTAMP,
+                    rejected_by TEXT,
+                    rejected_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (mapping_id) REFERENCES ke_go_mappings(id)
+                )
+            """
+            )
+
+            # Create indexes for GO mappings
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_go_mappings_ke_id ON ke_go_mappings(ke_id)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_go_mappings_go_id ON ke_go_mappings(go_id)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_go_proposals_mapping_id ON ke_go_proposals(mapping_id)"
+            )
+
             # Migrate proposals table to add admin fields if needed
             self._migrate_proposals_admin_fields(conn)
-            
+
             # Migrate mappings table to add updated_by field if needed
             self._migrate_mappings_updated_by_field(conn)
 
@@ -570,6 +626,190 @@ class ProposalModel:
                 (ke_id, wp_id),
             )
 
+            row = cursor.fetchone()
+            return row["id"] if row else None
+        finally:
+            conn.close()
+
+
+class GoMappingModel:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def create_mapping(
+        self,
+        ke_id: str,
+        ke_title: str,
+        go_id: str,
+        go_name: str,
+        connection_type: str = "related",
+        confidence_level: str = "low",
+        evidence_code: str = None,
+        created_by: str = None,
+    ) -> Optional[int]:
+        """Create a new KE-GO mapping"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO ke_go_mappings (ke_id, ke_title, go_id, go_name, connection_type,
+                                           confidence_level, evidence_code, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    ke_id,
+                    ke_title,
+                    go_id,
+                    go_name,
+                    connection_type,
+                    confidence_level,
+                    evidence_code,
+                    created_by,
+                ),
+            )
+
+            conn.commit()
+            logger.info(f"Created GO mapping: KE={ke_id}, GO={go_id}, User={created_by}")
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            logger.warning(f"Duplicate GO mapping attempted: KE={ke_id}, GO={go_id}")
+            return None
+        except Exception as e:
+            logger.error(f"Error creating GO mapping: {e}")
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def get_all_mappings(self) -> List[Dict]:
+        """Get all KE-GO mappings"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
+                       confidence_level, evidence_code, created_by, created_at, updated_at
+                FROM ke_go_mappings
+                ORDER BY created_at DESC
+            """
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_mappings_by_ke(self, ke_id: str) -> List[Dict]:
+        """Get all GO mappings for a specific Key Event"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
+                       confidence_level, evidence_code, created_by, created_at, updated_at
+                FROM ke_go_mappings
+                WHERE ke_id = ?
+                ORDER BY created_at DESC
+                """,
+                (ke_id,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def check_mapping_exists(self, ke_id: str, go_id: str) -> Dict:
+        """Check if KE-GO pair exists"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM ke_go_mappings WHERE ke_id = ? AND go_id = ?",
+                (ke_id, go_id),
+            )
+            pair_match = cursor.fetchone()
+
+            if pair_match:
+                return {
+                    "pair_exists": True,
+                    "message": f"The KE-GO pair ({ke_id}, {go_id}) already exists.",
+                }
+
+            cursor = conn.execute(
+                "SELECT * FROM ke_go_mappings WHERE ke_id = ?",
+                (ke_id,),
+            )
+            ke_matches = [dict(row) for row in cursor.fetchall()]
+
+            if ke_matches:
+                return {
+                    "ke_exists": True,
+                    "message": f"The KE ID {ke_id} exists but not with GO ID {go_id}.",
+                    "ke_matches": ke_matches,
+                }
+
+            return {
+                "ke_exists": False,
+                "pair_exists": False,
+                "message": f"The KE ID {ke_id} and GO ID {go_id} are new entries.",
+            }
+        finally:
+            conn.close()
+
+
+class GoProposalModel:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def create_proposal(
+        self,
+        mapping_id: int,
+        user_name: str,
+        user_email: str,
+        user_affiliation: str,
+        github_username: str = None,
+        proposed_delete: bool = False,
+        proposed_confidence: str = None,
+        proposed_connection_type: str = None,
+    ) -> Optional[int]:
+        """Create a new GO mapping proposal"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO ke_go_proposals (mapping_id, user_name, user_email, user_affiliation,
+                                            github_username, proposed_delete, proposed_confidence,
+                                            proposed_connection_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    mapping_id,
+                    user_name,
+                    user_email,
+                    user_affiliation,
+                    github_username,
+                    proposed_delete,
+                    proposed_confidence,
+                    proposed_connection_type,
+                ),
+            )
+
+            conn.commit()
+            logger.info(
+                f"Created GO proposal for mapping {mapping_id} by {github_username}"
+            )
+            return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Error creating GO proposal: {e}")
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def find_mapping_by_details(self, ke_id: str, go_id: str) -> Optional[int]:
+        """Find GO mapping ID by KE and GO IDs"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT id FROM ke_go_mappings WHERE ke_id = ? AND go_id = ?",
+                (ke_id, go_id),
+            )
             row = cursor.fetchone()
             return row["id"] if row else None
         finally:

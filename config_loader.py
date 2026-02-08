@@ -302,6 +302,66 @@ class PathwaySuggestionConfig:
 
 
 @dataclass
+class GoSuggestionConfig:
+    """GO term suggestion scoring configuration"""
+    hybrid_weights: Dict[str, float] = field(default_factory=lambda: {
+        'embedding': 0.55,
+        'gene': 0.45,
+        'multi_evidence_bonus': 0.05
+    })
+    min_threshold: float = 0.15
+    embedding_min_threshold: float = 0.3
+    gene_min_threshold: float = 0.05
+    gene_min_term_size: int = 10
+
+
+@dataclass
+class KEGoAssessmentConfig:
+    """KE-GO assessment scoring configuration"""
+    term_specificity: Dict[str, int] = field(default_factory=lambda: {
+        'exact': 3,
+        'parent_child': 2,
+        'related': 1,
+        'broad': 0
+    })
+
+    evidence_support: Dict[str, int] = field(default_factory=lambda: {
+        'experimental': 3,
+        'curated': 2,
+        'inferred': 1,
+        'assumed': 0
+    })
+
+    gene_overlap: Dict[str, float] = field(default_factory=lambda: {
+        'high_threshold': 0.5,
+        'high_score': 2,
+        'moderate_threshold': 0.2,
+        'moderate_score': 1,
+        'low_score': 0
+    })
+
+    bio_level_bonus: Dict[str, float] = field(default_factory=lambda: {
+        'molecular_process': 1.0,
+        'cellular_process': 1.0,
+        'general_process': 0.5
+    })
+
+    confidence_thresholds: Dict[str, float] = field(default_factory=lambda: {
+        'high': 6,
+        'medium': 3
+    })
+
+    max_scores: Dict[str, float] = field(default_factory=lambda: {
+        'with_bio_bonus': 9.0,
+        'without_bio_bonus': 8.0
+    })
+
+    connection_types: List[str] = field(default_factory=lambda: [
+        'describes', 'involves', 'related', 'context'
+    ])
+
+
+@dataclass
 class KEPathwayAssessmentConfig:
     """KE-Pathway assessment scoring configuration"""
     evidence_quality: Dict[str, int] = field(default_factory=lambda: {
@@ -348,6 +408,8 @@ class ScoringConfig:
     """Complete scoring configuration"""
     pathway_suggestion: PathwaySuggestionConfig = field(default_factory=PathwaySuggestionConfig)
     ke_pathway_assessment: KEPathwayAssessmentConfig = field(default_factory=KEPathwayAssessmentConfig)
+    go_suggestion: GoSuggestionConfig = field(default_factory=GoSuggestionConfig)
+    ke_go_assessment: KEGoAssessmentConfig = field(default_factory=KEGoAssessmentConfig)
     metadata: Dict[str, str] = field(default_factory=lambda: {
         'version': '1.0.0',
         'last_modified': '2026-01-12',
@@ -446,6 +508,8 @@ class ConfigLoader:
             # Extract sections
             pathway_dict = config_dict.get('pathway_suggestion', {})
             ke_pathway_dict = config_dict.get('ke_pathway_assessment', {})
+            go_suggestion_dict = config_dict.get('go_suggestion', {})
+            ke_go_dict = config_dict.get('ke_go_assessment', {})
             metadata_dict = config_dict.get('metadata', {})
 
             # Build pathway suggestion config
@@ -489,9 +553,17 @@ class ConfigLoader:
             # Build KE-pathway assessment config
             ke_pathway_config = KEPathwayAssessmentConfig(**ke_pathway_dict)
 
+            # Build GO suggestion config
+            go_suggestion_config = GoSuggestionConfig(**go_suggestion_dict)
+
+            # Build KE-GO assessment config
+            ke_go_config = KEGoAssessmentConfig(**ke_go_dict)
+
             return ScoringConfig(
                 pathway_suggestion=pathway_config,
                 ke_pathway_assessment=ke_pathway_config,
+                go_suggestion=go_suggestion_config,
+                ke_go_assessment=ke_go_config,
                 metadata=metadata_dict
             )
 
