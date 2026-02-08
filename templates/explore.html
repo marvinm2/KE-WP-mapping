@@ -23,38 +23,83 @@
     data-user-info='{{ user_info|tojson|safe }}'>
 
 
-    {% include 'components/navigation.html' %}    
+    {% include 'components/navigation.html' %}
     <div class="container">
-        <table id="datasetTable" class="display" width="100%">
-            <thead>
-                <tr>
-                    <th>KE ID</th>
-                    <th>KE Title</th>
-                    <th>WP ID</th>
-                    <th>WP Title</th>
-                    <th>Connection Type</th>
-                    <th>Confidence Level</th>
-                    <th>Timestamp</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in dataset %}
-                <tr>
-                    <td>{{ row['ke_id'] or row['KE_ID'] }}</td>
-                    <td>{{ row['ke_title'] or row['KE_Title'] }}</td>
-                    <td>{{ row['wp_id'] or row['WP_ID'] }}</td>
-                    <td>{{ row['wp_title'] or row['WP_Title'] }}</td>
-                    <td>{{ row['connection_type'] or row['Connection_Type'] }}</td>
-                    <td>{{ row['confidence_level'] or row['Confidence_Level'] }}</td>
-                    <td>{{ (row['created_at'] or row['Timestamp'] or '').split('.')[0] }}</td>
-                    <td>
-                        <button class="propose-change" data-entry="{{ row }}">Propose Change</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- Tab Switcher -->
+        <div id="explore-tab-switcher" style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 3px solid #307BBF;">
+            <button type="button" class="explore-tab active" data-tab="wp"
+                    style="padding: 12px 24px; border: 1px solid #307BBF; border-bottom: none; background: #307BBF; color: white; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0; margin-right: 4px;">
+                KE-WP Mappings ({{ dataset|length }})
+            </button>
+            <button type="button" class="explore-tab" data-tab="go"
+                    style="padding: 12px 24px; border: 1px solid #ccc; border-bottom: none; background: #f0f0f0; color: #666; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0;">
+                KE-GO Mappings ({{ go_dataset|length }})
+            </button>
+        </div>
+
+        <!-- KE-WP Mappings Table -->
+        <div id="wp-explore-content">
+            <table id="datasetTable" class="display" width="100%">
+                <thead>
+                    <tr>
+                        <th>KE ID</th>
+                        <th>KE Title</th>
+                        <th>WP ID</th>
+                        <th>WP Title</th>
+                        <th>Connection Type</th>
+                        <th>Confidence Level</th>
+                        <th>Timestamp</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in dataset %}
+                    <tr>
+                        <td>{{ row['ke_id'] or row['KE_ID'] }}</td>
+                        <td>{{ row['ke_title'] or row['KE_Title'] }}</td>
+                        <td>{{ row['wp_id'] or row['WP_ID'] }}</td>
+                        <td>{{ row['wp_title'] or row['WP_Title'] }}</td>
+                        <td>{{ row['connection_type'] or row['Connection_Type'] }}</td>
+                        <td>{{ row['confidence_level'] or row['Confidence_Level'] }}</td>
+                        <td>{{ (row['created_at'] or row['Timestamp'] or '').split('.')[0] }}</td>
+                        <td>
+                            <button class="propose-change" data-entry="{{ row }}">Propose Change</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- KE-GO Mappings Table -->
+        <div id="go-explore-content" style="display: none;">
+            <table id="goDatasetTable" class="display" width="100%">
+                <thead>
+                    <tr>
+                        <th>KE ID</th>
+                        <th>KE Title</th>
+                        <th>GO ID</th>
+                        <th>GO Name</th>
+                        <th>Connection Type</th>
+                        <th>Confidence Level</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in go_dataset %}
+                    <tr>
+                        <td>{{ row['ke_id'] }}</td>
+                        <td>{{ row['ke_title'] }}</td>
+                        <td><a href="https://www.ebi.ac.uk/QuickGO/term/{{ row['go_id'] }}" target="_blank">{{ row['go_id'] }}</a></td>
+                        <td>{{ row['go_name'] }}</td>
+                        <td>{{ row['connection_type'] }}</td>
+                        <td>{{ row['confidence_level'] }}</td>
+                        <td>{{ (row['created_at'] or '').split('.')[0] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
     <!-- Proposal Modal -->
     <div id="proposalModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; border: 1px solid #ccc; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); width: 500px;">
@@ -120,7 +165,7 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
         $(document).ready(function () {
-            // Setup DataTable using shared configuration
+            // Setup KE-WP DataTable
             $('#datasetTable').DataTable(
                 DataTableConfig.merge('withFullExport', {
                     order: [[6, 'desc']],
@@ -135,6 +180,53 @@
                     ]
                 })
             );
+
+            // Setup KE-GO DataTable
+            var goTableInitialized = false;
+
+            // Tab switching for explore page
+            $('.explore-tab').on('click', function() {
+                var tab = $(this).data('tab');
+
+                // Update button styles
+                $('.explore-tab').each(function() {
+                    var isActive = $(this).data('tab') === tab;
+                    $(this).css({
+                        background: isActive ? '#307BBF' : '#f0f0f0',
+                        color: isActive ? 'white' : '#666',
+                        borderColor: isActive ? '#307BBF' : '#ccc'
+                    });
+                    if (isActive) $(this).addClass('active');
+                    else $(this).removeClass('active');
+                });
+
+                if (tab === 'wp') {
+                    $('#wp-explore-content').show();
+                    $('#go-explore-content').hide();
+                } else {
+                    $('#wp-explore-content').hide();
+                    $('#go-explore-content').show();
+
+                    // Initialize GO DataTable on first view (lazy init for proper sizing)
+                    if (!goTableInitialized) {
+                        $('#goDatasetTable').DataTable(
+                            DataTableConfig.merge('withFullExport', {
+                                order: [[6, 'desc']],
+                                columnDefs: [
+                                    { width: '10%', targets: 0, className: 'dt-center' },
+                                    { width: '20%', targets: 1, className: 'dt-center' },
+                                    { width: '10%', targets: 2, className: 'dt-center' },
+                                    { width: '25%', targets: 3, className: 'dt-center' },
+                                    { width: '12%', targets: 4, className: 'dt-center' },
+                                    { width: '12%', targets: 5, className: 'dt-center' },
+                                    { width: '11%', targets: 6, className: 'dt-center' }
+                                ]
+                            })
+                        );
+                        goTableInitialized = true;
+                    }
+                }
+            });
     
             // Handle Modal Actions
             $(".propose-change").click(function () {

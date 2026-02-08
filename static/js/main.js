@@ -14,8 +14,24 @@ class KEWPApp {
         this.currentMethodFilter = 'all';
         this.currentKEContext = null;
 
-        // Load scoring config first, then initialize
-        this.loadScoringConfig().then(() => {
+        // GO mapping state
+        this.activeTab = 'wp';
+        this.goScoringConfig = null;
+        this.goMethodFilter = 'all';
+        this.selectedGoTerm = null;
+        this.goAssessmentAnswers = {};
+        this.goMappingResult = null;
+
+        // GO suggestions pagination
+        this.goSuggestionsData = null;
+        this.goSuggestionsPage = 0;
+        this.goSuggestionsPerPage = 10;
+
+        // Load scoring configs, then initialize
+        Promise.all([
+            this.loadScoringConfig(),
+            this.loadGoScoringConfig()
+        ]).then(() => {
             this.init();
         });
     }
@@ -53,6 +69,42 @@ class KEWPApp {
                 with_bio_bonus: 7.5,
                 without_bio_bonus: 6.5
             }
+        };
+    }
+
+    async loadGoScoringConfig() {
+        try {
+            const response = await fetch('/api/go-scoring-config');
+            if (response.ok) {
+                const data = await response.json();
+                this.goScoringConfig = data.ke_go_assessment;
+                console.log('GO scoring configuration loaded:', data.metadata);
+            } else {
+                throw new Error('Failed to fetch GO config');
+            }
+        } catch (error) {
+            console.warn('Failed to load GO scoring config, using defaults:', error);
+            this.goScoringConfig = this.getDefaultGoScoringConfig();
+        }
+    }
+
+    getDefaultGoScoringConfig() {
+        return {
+            term_specificity: { exact: 3, parent_child: 2, related: 1, broad: 0 },
+            evidence_support: { experimental: 3, curated: 2, inferred: 1, assumed: 0 },
+            gene_overlap: {
+                high_threshold: 0.5, high_score: 2,
+                moderate_threshold: 0.2, moderate_score: 1,
+                low_score: 0
+            },
+            bio_level_bonus: {
+                molecular_process: 1.0,
+                cellular_process: 1.0,
+                general_process: 0.5
+            },
+            confidence_thresholds: { high: 6, medium: 3 },
+            max_scores: { with_bio_bonus: 9.0, without_bio_bonus: 8.0 },
+            connection_types: ['describes', 'involves', 'related', 'context']
         };
     }
 
@@ -99,8 +151,8 @@ class KEWPApp {
             this.handleFormSubmission(e);
         });
 
-        // Confidence assessment handlers
-        $(document).on("click", ".btn-group .btn-option", (e) => this.handleConfidenceAssessment(e));
+        // Confidence assessment handlers (WP only - exclude GO assessment buttons)
+        $(document).on("click", ".btn-group:not(.go-btn-group) .btn-option:not(.go-assess-btn)", (e) => this.handleConfidenceAssessment(e));
 
         // Dropdown change handlers
         $("#ke_id").on('change', () => this.toggleAssessmentSection());
@@ -127,46 +179,154 @@ class KEWPApp {
         $(document).on('click', 'a[href*="/login"]', (e) => {
             this.saveFormState();
         });
+
+        // Tab switching for WP / GO mapping
+        $(document).on('click', '.mapping-tab', (e) => {
+            this.handleTabSwitch($(e.currentTarget).data('tab'));
+        });
+
+        // GO mapping form submission
+        $("#go-mapping-form").on('submit', (e) => {
+            this.handleGoFormSubmission(e);
+        });
     }
 
     loadDropdownOptions() {
+        this.loadAOPOptions();
         this.loadKEOptions();
         this.loadPathwayOptions();
+    }
+
+    loadAOPOptions() {
+        $.getJSON("/get_aop_options")
+            .done((data) => {
+                const dropdown = $("#aop_filter");
+                dropdown.empty();
+                // Empty placeholder option required for Select2 allowClear to work
+                dropdown.append('<option></option>');
+
+                data.forEach(aop => {
+                    dropdown.append(
+                        `<option value="${aop.aopId}">${aop.aopId} - ${aop.aopTitle}</option>`
+                    );
+                });
+
+                // Initialize Select2 for searchable AOP dropdown
+                dropdown.select2({
+                    placeholder: 'All Key Events (click to filter by AOP)',
+                    allowClear: true,
+                    width: '100%',
+                    matcher: this.customMatcher
+                });
+
+                // Add change handler for AOP filter
+                dropdown.on('change', () => this.handleAOPFilterChange());
+
+                // Add clear button handler
+                $("#clear_aop_filter").on('click', () => this.clearAOPFilter());
+            })
+            .fail((xhr, status, error) => {
+                console.error("Failed to load AOP options:", error);
+                // Don't show error to user - AOP filter is optional
+            });
+    }
+
+    clearAOPFilter() {
+        // Reset the AOP dropdown to empty (show all KEs)
+        $("#aop_filter").val(null).trigger('change');
+    }
+
+    handleAOPFilterChange() {
+        const aopId = $("#aop_filter").val();
+
+        if (!aopId) {
+            // "All KEs" selected - restore full KE list
+            this.populateKEDropdown(this.allKEOptions);
+            // Hide the clear button
+            $("#clear_aop_filter").hide();
+            return;
+        }
+
+        // Show the clear button
+        $("#clear_aop_filter").show();
+
+        // Show loading state
+        const dropdown = $("#ke_id");
+        if (dropdown.hasClass("select2-hidden-accessible")) {
+            dropdown.select2('destroy');
+        }
+        dropdown.empty();
+        dropdown.append('<option value="" disabled selected>Loading KEs for selected AOP...</option>');
+
+        // Fetch KEs for specific AOP
+        $.getJSON(`/get_aop_kes/${encodeURIComponent(aopId)}`)
+            .done((data) => {
+                if (data.length === 0) {
+                    dropdown.empty();
+                    dropdown.append('<option value="" disabled selected>No Key Events found for this AOP</option>');
+                    dropdown.select2({
+                        placeholder: 'No Key Events found',
+                        allowClear: true,
+                        width: '100%'
+                    });
+                } else {
+                    this.populateKEDropdown(data);
+                }
+            })
+            .fail((xhr, status, error) => {
+                console.error("Failed to load KEs for AOP:", error);
+                // Fallback to full KE list
+                this.populateKEDropdown(this.allKEOptions);
+                this.showMessage("Failed to filter KEs by AOP. Showing all Key Events.", "error");
+            });
+    }
+
+    populateKEDropdown(data) {
+        // Sort data by KE Label numerically
+        data.sort((a, b) => {
+            const matchA = a.KElabel.match(/\d+/);
+            const matchB = b.KElabel.match(/\d+/);
+            const idA = matchA ? parseInt(matchA[0]) : 0;
+            const idB = matchB ? parseInt(matchB[0]) : 0;
+            return idA - idB;
+        });
+
+        // Populate KE ID dropdown
+        const dropdown = $("#ke_id");
+
+        // Destroy existing Select2 if initialized
+        if (dropdown.hasClass("select2-hidden-accessible")) {
+            dropdown.select2('destroy');
+        }
+
+        dropdown.empty();
+        dropdown.append('<option value="" disabled selected>Select a Key Event</option>');
+        data.forEach(option => {
+            dropdown.append(
+                `<option value="${option.KElabel}"
+                 data-title="${option.KEtitle}"
+                 data-description="${option.KEdescription || ''}"
+                 data-biolevel="${option.biolevel || ''}">${option.KElabel} - ${option.KEtitle}</option>`
+            );
+        });
+
+        // Initialize Select2 for searchable dropdown
+        dropdown.select2({
+            placeholder: 'Search for a Key Event...',
+            allowClear: true,
+            width: '100%',
+            matcher: this.customMatcher
+        });
     }
 
     loadKEOptions() {
         $.getJSON("/get_ke_options")
             .done((data) => {
+                // Store all KE options for later filtering restoration
+                this.allKEOptions = data;
 
-                // Sort data by KE Label numerically
-                data.sort((a, b) => {
-                    const matchA = a.KElabel.match(/\d+/);
-                    const matchB = b.KElabel.match(/\d+/);
-                    const idA = matchA ? parseInt(matchA[0]) : 0;
-                    const idB = matchB ? parseInt(matchB[0]) : 0;
-                    return idA - idB;
-                });
-
-                // Populate KE ID dropdown
-                const dropdown = $("#ke_id");
-                dropdown.empty();
-                dropdown.append('<option value="" disabled selected>Select a Key Event</option>');
-                data.forEach(option => {
-                    dropdown.append(
-                        `<option value="${option.KElabel}"
-                         data-title="${option.KEtitle}"
-                         data-description="${option.KEdescription || ''}"
-                         data-biolevel="${option.biolevel || ''}">${option.KElabel} - ${option.KEtitle}</option>`
-                    );
-                });
-
-                // Initialize Select2 for searchable dropdown
-                dropdown.select2({
-                    placeholder: 'Search for a Key Event...',
-                    allowClear: true,
-                    width: '100%',
-                    matcher: this.customMatcher
-                });
+                // Populate the dropdown
+                this.populateKEDropdown(data);
             })
             .fail((xhr, status, error) => {
                 console.error("Failed to load KE options:", error);
@@ -834,16 +994,19 @@ class KEWPApp {
         // Store biological level for later use in assessment
         this.selectedBiolevel = biolevel;
 
-        // Load pathway suggestions if KE is selected
+        // Load suggestions for the active tab
         if (keId && title) {
-            // Reset method filter to 'all' when switching KEs
-            this.currentMethodFilter = 'all';
-            this.loadPathwaySuggestions(keId, title, 'all');
+            if (this.activeTab === 'wp') {
+                this.currentMethodFilter = 'all';
+                this.loadPathwaySuggestions(keId, title, 'all');
+            } else if (this.activeTab === 'go') {
+                this.goMethodFilter = 'all';
+                this.loadGoSuggestions(keId, title, 'all');
+            }
         } else {
             this.hidePathwaySuggestions();
+            this.hideGoSuggestions();
         }
-        
-        // Key Event selected
     }
 
     showKEPreview(title, description) {
@@ -2084,8 +2247,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 const primaryEvidence = this.formatPrimaryEvidence(suggestion.primary_evidence);
 
                 suggestionsHtml += `
-                    <div class="suggestion-item" style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border-left: 4px solid ${borderColor}; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;"
-                         onclick="window.KEWPApp.selectSuggestedPathway('${suggestion.pathwayID}', '${this.escapeHtml(suggestion.pathwayTitle)}')">
+                    <div class="suggestion-item" data-pathway-id="${suggestion.pathwayID}" data-pathway-title="${this.escapeHtml(suggestion.pathwayTitle)}" data-pathway-svg="${suggestion.pathwaySvgUrl || ''}"
+                         style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border-left: 4px solid ${borderColor}; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
                         <div style="display: flex; gap: 12px; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -2096,15 +2259,15 @@ This helps identify gaps in existing pathways for future development.">❓</span
                                     ${finalScoreBar}
                                 </div>
                                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
-                                    ID: ${suggestion.pathwayID} | Primary: ${primaryEvidence}
+                                    ID: ${suggestion.pathwayID} | Primary: ${primaryEvidence} | <a href="https://www.wikipathways.org/pathways/${suggestion.pathwayID}" target="_blank" onclick="event.stopPropagation();" style="color: #307BBF;">View on WikiPathways</a>
                                 </div>
                                 ${scoreDetails}
-                                <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${this.escapeHtml(suggestion.pathwayTitle)}', '${suggestion.pathwaySvgUrl || ''}')"
+                                <button class="pathway-preview-btn"
                                         style="font-size: 11px; padding: 4px 8px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 3px; color: #307BBF; cursor: pointer; margin-top: 8px;">
                                     Preview Pathway
                                 </button>
                             </div>
-                            <div class="pathway-thumbnail" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${suggestion.pathwayID}', '${this.escapeHtml(suggestion.pathwayTitle)}', '${suggestion.pathwaySvgUrl || ''}')">
+                            <div class="pathway-thumbnail pathway-preview-btn">
                                 <img src="${suggestion.pathwaySvgUrl || ''}"
                                      style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;"
                                      onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
@@ -2137,6 +2300,19 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         // Set up method filter buttons
         this.setupMethodFilterButtons(filter, totalCount, filteredCount);
+
+        // Bind click handlers using data attributes instead of inline onclick
+        $('.suggestion-item').off('click').on('click', (e) => {
+            // Ignore clicks on preview buttons/thumbnails
+            if ($(e.target).closest('.pathway-preview-btn').length) return;
+            const $item = $(e.currentTarget);
+            this.selectSuggestedPathway($item.data('pathway-id'), $item.data('pathway-title'));
+        });
+        $('.pathway-preview-btn').off('click').on('click', (e) => {
+            e.stopPropagation();
+            const $item = $(e.target).closest('.suggestion-item');
+            this.showPathwayPreview($item.data('pathway-id'), $item.data('pathway-title'), $item.data('pathway-svg'));
+        });
     }
 
     setupMethodFilterButtons(currentFilter, totalCount, filteredCount) {
@@ -2575,7 +2751,12 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
     escapeHtml(text) {
         if (!text) return '';
-        return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     selectSuggestedPathway(pathwayId, pathwayTitle) {
@@ -3266,6 +3447,737 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 lastTouchDistance = currentDistance;
             }
         });
+    }
+
+    // =========================================================================
+    // KE-GO Mapping Tab Methods
+    // =========================================================================
+
+    handleTabSwitch(tab) {
+        if (tab === this.activeTab) return;
+
+        this.activeTab = tab;
+
+        // Update tab button styles
+        $('.mapping-tab').each(function() {
+            const isActive = $(this).data('tab') === tab;
+            $(this).css({
+                background: isActive ? '#307BBF' : '#f0f0f0',
+                color: isActive ? 'white' : '#666',
+                borderColor: isActive ? '#307BBF' : '#ccc'
+            });
+            if (isActive) {
+                $(this).addClass('active');
+            } else {
+                $(this).removeClass('active');
+            }
+        });
+
+        // Toggle tab content
+        const keId = $('#ke_id').val();
+        const keTitle = $('#ke_id option:selected').data('title');
+
+        if (tab === 'wp') {
+            $('#wp-tab-content').show();
+            $('#go-tab-content').hide();
+
+            // Reload WP suggestions (they were removed when switching to GO)
+            if (keId && keTitle) {
+                this.loadPathwaySuggestions(keId, keTitle, this.currentMethodFilter);
+            }
+        } else {
+            $('#wp-tab-content').hide();
+            $('#go-tab-content').show();
+
+            // Hide WP pathway suggestions (they sit outside tab content divs)
+            this.hidePathwaySuggestions();
+
+            // Load GO suggestions if a KE is already selected
+            if (keId && keTitle) {
+                this.loadGoSuggestions(keId, keTitle, this.goMethodFilter);
+            }
+        }
+    }
+
+    loadGoSuggestions(keId, keTitle, methodFilter = 'all') {
+        this.goMethodFilter = methodFilter;
+        const $container = $('#go-suggestions-container');
+
+        // Show loading state
+        $container.html(`
+            <div style="text-align: center; padding: 20px;">
+                <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <p style="margin-top: 10px; color: #666;">Loading GO Biological Process suggestions for this Key Event...</p>
+            </div>
+        `);
+
+        const encodedKeId = encodeURIComponent(keId);
+        const encodedKeTitle = encodeURIComponent(keTitle);
+
+        $.getJSON(`/suggest_go_terms/${encodedKeId}?ke_title=${encodedKeTitle}&limit=20&method_filter=${encodeURIComponent(methodFilter)}`)
+            .done((data) => {
+                this.displayGoSuggestions(data, methodFilter);
+            })
+            .fail((xhr, status, error) => {
+                console.error('Failed to load GO suggestions:', error);
+                $container.html(`
+                    <div style="color: #dc3545; padding: 15px; text-align: center;">
+                        <p style="font-weight: bold;">Unable to load GO term suggestions.</p>
+                        <p style="font-size: 13px; color: #666;">The GO suggestion service may not be available. Please try again later.</p>
+                    </div>
+                `);
+            });
+    }
+
+    displayGoSuggestions(data, filter = 'all') {
+        // Store full data for pagination
+        this.goSuggestionsData = data;
+        this.goSuggestionsFilter = filter;
+        this.goSuggestionsPage = 0;
+
+        this.renderGoSuggestionsPage();
+    }
+
+    renderGoSuggestionsPage() {
+        const $container = $('#go-suggestions-container');
+        const data = this.goSuggestionsData;
+        const filter = this.goSuggestionsFilter || 'all';
+        const suggestions = data.suggestions || [];
+
+        if (suggestions.length === 0) {
+            $container.html(`
+                <div style="padding: 20px; text-align: center;">
+                    ${this.buildGoMethodFilterHtml(filter)}
+                    ${data.genes_found > 0 ? `
+                        <div style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 14px;">
+                            <strong>Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
+                        </div>
+                    ` : ''}
+                    <div style="color: #666; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 20px;">
+                        <p style="font-weight: bold;">No GO term suggestions found for this Key Event.</p>
+                        <p style="font-size: 13px;">Try a different method filter or select a different Key Event.</p>
+                    </div>
+                </div>
+            `);
+            this.setupGoMethodFilterButtons(filter);
+            return;
+        }
+
+        // Pagination
+        const perPage = this.goSuggestionsPerPage;
+        const totalPages = Math.ceil(suggestions.length / perPage);
+        const page = Math.min(this.goSuggestionsPage, totalPages - 1);
+        const startIdx = page * perPage;
+        const endIdx = Math.min(startIdx + perPage, suggestions.length);
+        const pageSuggestions = suggestions.slice(startIdx, endIdx);
+
+        let html = `
+            <div style="margin-bottom: 15px;">
+                ${this.buildGoMethodFilterHtml(filter)}
+            </div>
+        `;
+
+        // Gene info
+        if (data.genes_found > 0) {
+            html += `
+                <div style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 14px;">
+                    <strong>Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
+                </div>
+            `;
+        }
+
+        html += `<div style="font-size: 13px; color: #666; margin-bottom: 10px;">Showing ${startIdx + 1}-${endIdx} of ${suggestions.length} suggestions</div>`;
+
+        // Suggestion list (current page only)
+        pageSuggestions.forEach((suggestion, index) => {
+            const matchBadges = this.getGoMatchBadges(suggestion.match_types || []);
+            const scorePercent = Math.round((suggestion.hybrid_score || 0) * 100);
+            const scoreColor = scorePercent >= 60 ? '#28a745' : scorePercent >= 30 ? '#ffc107' : '#dc3545';
+            const rawDefinition = suggestion.go_definition
+                ? (suggestion.go_definition.length > 200 ? suggestion.go_definition.substring(0, 200) + '...' : suggestion.go_definition)
+                : 'No definition available';
+            const definition = this.escapeHtml(rawDefinition);
+
+            html += `
+                <div class="go-suggestion-item" data-go-id="${suggestion.go_id}" data-go-name="${this.escapeHtml(suggestion.go_name)}"
+                     style="margin-bottom: 12px; padding: 14px; background: #ffffff; border: 1px solid #e0e0e0; border-left: 4px solid ${scoreColor}; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                <strong style="font-size: 14px; color: #29235C;">${this.escapeHtml(suggestion.go_name)}</strong>
+                                ${matchBadges}
+                            </div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 6px;">
+                                <a href="${suggestion.quickgo_link}" target="_blank" onclick="event.stopPropagation();" style="color: #307BBF;">${suggestion.go_id}</a>
+                            </div>
+                            <div style="font-size: 12px; color: #555; margin-bottom: 8px; line-height: 1.4;">
+                                ${definition}
+                            </div>
+            `;
+
+            // Score details - split name/definition similarity if available
+            if (suggestion.name_similarity > 0 || suggestion.definition_similarity > 0) {
+                if (suggestion.name_similarity > 0) {
+                    html += `
+                        <div style="font-size: 11px; color: #6a1b9a; padding: 3px 6px; background: #f3e5f5; border-radius: 3px; display: inline-block; margin-right: 6px;">
+                            Name: ${Math.round(suggestion.name_similarity * 100)}%
+                        </div>
+                    `;
+                }
+                if (suggestion.definition_similarity > 0) {
+                    html += `
+                        <div style="font-size: 11px; color: #7b1fa2; padding: 3px 6px; background: #ede7f6; border-radius: 3px; display: inline-block; margin-right: 6px;">
+                            Definition: ${Math.round(suggestion.definition_similarity * 100)}%
+                        </div>
+                    `;
+                }
+            } else if (suggestion.text_similarity > 0) {
+                html += `
+                    <div style="font-size: 11px; color: #6a1b9a; padding: 3px 6px; background: #f3e5f5; border-radius: 3px; display: inline-block; margin-right: 6px;">
+                        Semantic: ${Math.round(suggestion.text_similarity * 100)}%
+                    </div>
+                `;
+            }
+            if (suggestion.gene_overlap > 0) {
+                const matchCount = suggestion.matching_genes ? suggestion.matching_genes.length : 0;
+                const goGeneCount = suggestion.go_gene_count || 0;
+                const geneDetail = goGeneCount > 0 ? ` (${matchCount}/${goGeneCount} genes)` : '';
+                html += `
+                    <div style="font-size: 11px; color: #155724; padding: 3px 6px; background: #d4edda; border-radius: 3px; display: inline-block; margin-right: 6px;">
+                        Gene: ${Math.round(suggestion.gene_overlap * 100)}%${geneDetail}
+                    </div>
+                `;
+            }
+            if (suggestion.matching_genes && suggestion.matching_genes.length > 0) {
+                html += `
+                    <div style="font-size: 10px; color: #555; margin-top: 4px;">
+                        Matching genes: ${suggestion.matching_genes.join(', ')}
+                    </div>
+                `;
+            }
+
+            html += `
+                        </div>
+                        <div style="text-align: right; min-width: 80px;">
+                            <div style="font-size: 11px; color: #666; margin-bottom: 2px;">Score</div>
+                            <div style="display: flex; align-items: center; gap: 6px; justify-content: flex-end;">
+                                <div style="width: 50px; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                                    <div style="width: ${scorePercent}%; height: 100%; background: ${scoreColor}; transition: width 0.3s;"></div>
+                                </div>
+                                <span style="font-weight: bold; color: ${scoreColor}; font-size: 13px;">${scorePercent}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Pagination controls (only if more than one page)
+        if (totalPages > 1) {
+            html += `
+                <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 15px; padding-top: 10px; border-top: 1px solid #dee2e6;">
+                    <button class="go-page-prev" ${page === 0 ? 'disabled' : ''}
+                            style="padding: 6px 14px; border: 1px solid ${page === 0 ? '#ccc' : '#307BBF'}; background: ${page === 0 ? '#f0f0f0' : 'white'}; color: ${page === 0 ? '#999' : '#307BBF'}; border-radius: 4px; cursor: ${page === 0 ? 'default' : 'pointer'}; font-size: 13px;">
+                        Previous
+                    </button>
+                    <span style="font-size: 13px; color: #666;">Page ${page + 1} of ${totalPages}</span>
+                    <button class="go-page-next" ${page >= totalPages - 1 ? 'disabled' : ''}
+                            style="padding: 6px 14px; border: 1px solid ${page >= totalPages - 1 ? '#ccc' : '#307BBF'}; background: ${page >= totalPages - 1 ? '#f0f0f0' : 'white'}; color: ${page >= totalPages - 1 ? '#999' : '#307BBF'}; border-radius: 4px; cursor: ${page >= totalPages - 1 ? 'default' : 'pointer'}; font-size: 13px;">
+                        Next
+                    </button>
+                </div>
+            `;
+        }
+
+        html += `
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666; text-align: center;">
+                Click a GO term to select it for confidence assessment
+            </div>
+        `;
+
+        $container.html(html);
+        this.setupGoMethodFilterButtons(filter);
+        this.setupGoPaginationButtons();
+
+        // Bind click handlers using data attributes instead of inline onclick
+        $container.find('.go-suggestion-item').off('click').on('click', (e) => {
+            const $item = $(e.currentTarget);
+            this.selectGoTerm($item.data('go-id'), $item.data('go-name'));
+        });
+    }
+
+    setupGoPaginationButtons() {
+        $('.go-page-prev').off('click').on('click', () => {
+            if (this.goSuggestionsPage > 0) {
+                this.goSuggestionsPage--;
+                this.renderGoSuggestionsPage();
+                $('#go-suggestions-container')[0].scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+        $('.go-page-next').off('click').on('click', () => {
+            const totalPages = Math.ceil((this.goSuggestionsData?.suggestions?.length || 0) / this.goSuggestionsPerPage);
+            if (this.goSuggestionsPage < totalPages - 1) {
+                this.goSuggestionsPage++;
+                this.renderGoSuggestionsPage();
+                $('#go-suggestions-container')[0].scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    }
+
+    buildGoMethodFilterHtml(currentFilter) {
+        const filters = [
+            { value: 'all', label: 'All Methods' },
+            { value: 'text', label: 'Semantic Only' },
+            { value: 'gene', label: 'Gene-based Only' }
+        ];
+
+        let html = `
+            <div style="padding: 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 10px;">
+                <label style="font-weight: bold; margin-right: 10px; color: #29235C; display: block; margin-bottom: 8px;">Filter By Method:</label>
+                <div class="btn-group" role="group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+        `;
+
+        filters.forEach(f => {
+            const isActive = f.value === currentFilter;
+            html += `
+                <button type="button" class="go-method-filter-btn ${isActive ? 'active' : ''}" data-method="${f.value}"
+                        style="padding: 8px 16px; border: 2px solid #307BBF; background: ${isActive ? '#307BBF' : 'white'}; color: ${isActive ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s;">
+                    ${f.label}
+                </button>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+        return html;
+    }
+
+    setupGoMethodFilterButtons(currentFilter) {
+        $('.go-method-filter-btn').off('click').on('click', (e) => {
+            const method = $(e.currentTarget).data('method');
+            $('.go-method-filter-btn').removeClass('active');
+            $(e.currentTarget).addClass('active');
+
+            const keId = $('#ke_id').val();
+            const keTitle = $('#ke_id option:selected').data('title');
+            if (keId && keTitle) {
+                this.loadGoSuggestions(keId, keTitle, method);
+            }
+        });
+    }
+
+    getGoMatchBadges(matchTypes) {
+        const badges = [];
+        if (matchTypes.includes('text')) {
+            badges.push('<span style="background: #f3e5f5; color: #6a1b9a; padding: 2px 6px; border-radius: 3px; font-size: 10px;">Semantic</span>');
+        }
+        if (matchTypes.includes('gene')) {
+            badges.push('<span style="background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 3px; font-size: 10px;">Gene</span>');
+        }
+        return badges.join(' ');
+    }
+
+    selectGoTerm(goId, goName) {
+        this.selectedGoTerm = { goId, goName };
+
+        // Highlight selected item
+        $('.go-suggestion-item').css({ 'border-left-color': '', 'background': '#ffffff' });
+        $(`.go-suggestion-item[data-go-id="${goId}"]`).css({ 'border-left-color': '#307BBF', 'background': '#f0f7ff' });
+
+        // Show GO confidence assessment
+        this.showGoAssessmentForm(goId, goName);
+    }
+
+    showGoAssessmentForm(goId, goName) {
+        const $section = $('#go-confidence-guide');
+        const $form = $('#go-assessment-form');
+
+        // Reset GO assessment state
+        this.goAssessmentAnswers = {};
+
+        const config = this.goScoringConfig;
+        const connectionTypes = config.connection_types || ['describes', 'involves', 'related', 'context'];
+
+        let html = `
+            <div class="go-assessment" data-go-id="${goId}" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 15px 0; color: #29235C; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                    Assessment for: ${this.escapeHtml(goName)}
+                    <span style="font-size: 13px; color: #666; font-weight: normal;">(${goId})</span>
+                </h4>
+
+                <!-- Step 1: Connection Type -->
+                <div class="go-assessment-step" data-step="go-step1">
+                    <h4>1. What is the relationship between the GO term and Key Event?
+                        <span class="tooltip" data-tooltip="describes: GO term directly describes KE mechanism; involves: KE involves this process; related: Related biological process; context: Provides context">&#10067;</span>
+                    </h4>
+                    <div class="btn-group go-btn-group" data-step="go-step1">
+                        ${connectionTypes.map(ct => `
+                            <button type="button" class="btn-option go-assess-btn" data-value="${ct}">
+                                ${ct.charAt(0).toUpperCase() + ct.slice(1)}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Step 2: Term Specificity -->
+                <div class="go-assessment-step" data-step="go-step2" style="display: none;">
+                    <h4>2. How specific is the GO term to this Key Event?
+                        <span class="tooltip" data-tooltip="exact: GO term describes KE precisely; parent_child: Parent/child relationship; related: Related but not direct; broad: Very general term">&#10067;</span>
+                    </h4>
+                    <div class="btn-group go-btn-group" data-step="go-step2">
+                        <button type="button" class="btn-option go-assess-btn" data-value="exact">Exact Match</button>
+                        <button type="button" class="btn-option go-assess-btn" data-value="parent_child">Parent/Child</button>
+                        <button type="button" class="btn-option go-assess-btn" data-value="related">Related</button>
+                        <button type="button" class="btn-option go-assess-btn" data-value="broad">Broad Term</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Evidence Support -->
+                <div class="go-assessment-step" data-step="go-step3" style="display: none;">
+                    <h4>3. What is the evidence basis for this mapping?
+                        <span class="tooltip" data-tooltip="experimental: Direct experimental evidence; curated: Curated from literature; inferred: Computationally inferred; assumed: No specific evidence">&#10067;</span>
+                    </h4>
+                    <div class="btn-group go-btn-group" data-step="go-step3">
+                        <button type="button" class="btn-option go-assess-btn" data-value="experimental">Experimental</button>
+                        <button type="button" class="btn-option go-assess-btn" data-value="curated">Curated</button>
+                        <button type="button" class="btn-option go-assess-btn" data-value="inferred">Inferred</button>
+                        <button type="button" class="btn-option go-assess-btn" data-value="assumed">Assumed</button>
+                    </div>
+                </div>
+
+                <div class="go-assessment-result" style="display: none; margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 6px; border-left: 4px solid #307BBF;">
+                    <p style="margin: 5px 0;"><strong>Confidence Level:</strong> <span class="go-confidence-result">--</span></p>
+                    <p style="margin: 5px 0;"><strong>Connection Type:</strong> <span class="go-connection-result">--</span></p>
+                    <p style="margin: 5px 0; font-size: 12px; color: #666;" class="go-score-details">--</p>
+                </div>
+            </div>
+        `;
+
+        $form.html(html);
+        $section.show();
+
+        // Setup GO assessment button handlers
+        $(document).off('click', '.go-assess-btn').on('click', '.go-assess-btn', (e) => {
+            this.handleGoAssessmentClick(e);
+        });
+    }
+
+    handleGoAssessmentClick(event) {
+        const $btn = $(event.target);
+        const $group = $btn.closest('.go-btn-group');
+        const stepId = $group.data('step');
+        const selectedValue = $btn.data('value');
+
+        // Save answer
+        this.goAssessmentAnswers[stepId] = selectedValue;
+
+        // Update UI
+        $group.find('.btn-option').removeClass('selected');
+        $btn.addClass('selected');
+
+        // Step progression
+        this.handleGoStepProgression();
+    }
+
+    handleGoStepProgression() {
+        const answers = this.goAssessmentAnswers;
+        const s1 = answers['go-step1'];  // Connection type
+        const s2 = answers['go-step2'];  // Term specificity
+        const s3 = answers['go-step3'];  // Evidence support
+
+        // Show steps progressively
+        $('.go-assessment-step[data-step="go-step2"]').toggle(!!s1);
+        $('.go-assessment-step[data-step="go-step3"]').toggle(!!(s1 && s2));
+
+        // Evaluate when all steps completed
+        if (s1 && s2 && s3) {
+            this.evaluateGoConfidence();
+        }
+    }
+
+    evaluateGoConfidence() {
+        const answers = this.goAssessmentAnswers;
+        const config = this.goScoringConfig;
+
+        const connectionType = answers['go-step1'];
+        const termSpecificity = answers['go-step2'];
+        const evidenceSupport = answers['go-step3'];
+
+        let score = 0;
+
+        // Term specificity score
+        score += config.term_specificity[termSpecificity] || 0;
+
+        // Evidence support score
+        score += config.evidence_support[evidenceSupport] || 0;
+
+        // Gene overlap score (auto-determine from selected GO suggestion)
+        const goSuggestion = this.selectedGoTerm;
+        const $selectedItem = $(`.go-suggestion-item[data-go-id="${goSuggestion.goId}"]`);
+        // We don't have gene overlap in the UI directly, so use gene_overlap from suggestion data if available
+        // For now, use low_score as default since user doesn't assess gene overlap manually
+        score += config.gene_overlap.low_score || 0;
+
+        // Biological level bonus
+        const bioLevel = this.selectedBiolevel ? this.selectedBiolevel.toLowerCase() : '';
+        let bioBonus = 0;
+        if (bioLevel.includes('molecular')) {
+            bioBonus = config.bio_level_bonus.molecular_process || 1.0;
+        } else if (bioLevel.includes('cellular')) {
+            bioBonus = config.bio_level_bonus.cellular_process || 1.0;
+        } else if (bioLevel) {
+            bioBonus = config.bio_level_bonus.general_process || 0.5;
+        }
+        score += bioBonus;
+
+        // Determine confidence level
+        let confidence;
+        if (score >= config.confidence_thresholds.high) {
+            confidence = 'high';
+        } else if (score >= config.confidence_thresholds.medium) {
+            confidence = 'medium';
+        } else {
+            confidence = 'low';
+        }
+
+        const maxScore = bioBonus > 0
+            ? config.max_scores.with_bio_bonus
+            : config.max_scores.without_bio_bonus;
+
+        // Update assessment result
+        $('.go-confidence-result').text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
+        $('.go-connection-result').text(connectionType.charAt(0).toUpperCase() + connectionType.slice(1));
+        $('.go-score-details').text(`Score: ${score.toFixed(1)}/${maxScore}${bioBonus > 0 ? ' (with biological level bonus)' : ''}`);
+        $('.go-assessment-result').show();
+
+        // Update Step 4 results
+        $('#go-auto-confidence').text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
+        $('#go-auto-connection').text(connectionType.charAt(0).toUpperCase() + connectionType.slice(1));
+        $('#go-step-result').show();
+
+        // Enable submission
+        $('#go-step-submit').show();
+        $('#go-mapping-form button[type="submit"]').prop('disabled', false).text('Review & Submit GO Mapping');
+
+        // Store for submission
+        this.goMappingResult = {
+            confidence: confidence,
+            connection_type: connectionType,
+            score: score
+        };
+
+        // Scroll to results
+        $('html, body').animate({
+            scrollTop: $('#go-step-result').offset().top - 20
+        }, 500);
+    }
+
+    handleGoFormSubmission(event) {
+        event.preventDefault();
+
+        if (!this.selectedGoTerm || !this.goMappingResult) {
+            this.showGoMessage("Please select a GO term and complete the assessment.", "error");
+            return;
+        }
+
+        if (!this.isLoggedIn) {
+            this.showGoMessage("Please log in with GitHub to submit mappings.", "error");
+            setTimeout(() => {
+                this.saveFormState();
+                window.location.href = '/auth/login';
+            }, 2000);
+            return;
+        }
+
+        const formData = {
+            ke_id: $('#ke_id').val(),
+            ke_title: $('#ke_id option:selected').data('title'),
+            go_id: this.selectedGoTerm.goId,
+            go_name: this.selectedGoTerm.goName,
+            connection_type: this.goMappingResult.connection_type,
+            confidence_level: this.goMappingResult.confidence,
+            csrf_token: this.csrfToken
+        };
+
+        if (!formData.ke_id || !formData.go_id) {
+            this.showGoMessage("Please select a Key Event and a GO term.", "error");
+            return;
+        }
+
+        // Check for duplicates first
+        this.showGoMessage("Checking for duplicates...", "info");
+
+        $.post("/check_go_entry", { ke_id: formData.ke_id, go_id: formData.go_id, csrf_token: this.csrfToken })
+            .done((response) => {
+                if (response.pair_exists) {
+                    this.showGoMessage("This KE-GO mapping already exists in the dataset.", "error");
+                } else {
+                    this.showGoMappingPreview(formData);
+                }
+            })
+            .fail((xhr) => {
+                console.error('Error checking GO entry:', xhr);
+                // Proceed to preview anyway
+                this.showGoMappingPreview(formData);
+            });
+    }
+
+    showGoMappingPreview(formData) {
+        const $entries = $('#go-existing-entries');
+        const bioLevel = $('#ke_id option:selected').data('biolevel') || 'Not specified';
+
+        let userInfo = 'Anonymous';
+        if (this.isLoggedIn) {
+            const welcomeText = $('header nav p').text();
+            const usernameMatch = welcomeText.match(/Welcome,\s*([^(]+)/);
+            if (usernameMatch) userInfo = `GitHub: ${usernameMatch[1].trim()}`;
+        }
+
+        const previewHtml = `
+            <div class="existing-entries-container" style="margin-top: 15px;">
+                <h3>GO Mapping Preview & Confirmation</h3>
+                <div class="mapping-preview" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                    <div class="preview-section" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc;">
+                        <h4 style="color: #29235C; margin-top: 0;">Key Event</h4>
+                        <p><strong>ID:</strong> ${formData.ke_id}</p>
+                        <p><strong>Title:</strong> ${formData.ke_title}</p>
+                        <p><strong>Bio Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${bioLevel}</span></p>
+                    </div>
+                    <div class="preview-section" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc;">
+                        <h4 style="color: #29235C; margin-top: 0;">GO Term</h4>
+                        <p><strong>ID:</strong> <a href="https://www.ebi.ac.uk/QuickGO/term/${formData.go_id}" target="_blank">${formData.go_id}</a></p>
+                        <p><strong>Name:</strong> ${formData.go_name}</p>
+                    </div>
+                </div>
+                <div class="preview-section" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc; margin-bottom: 15px;">
+                    <h4 style="color: #29235C; margin-top: 0;">Mapping Details</h4>
+                    <p><strong>Connection:</strong> ${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</p>
+                    <p><strong>Confidence:</strong> ${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</p>
+                    <p><strong>Submitted by:</strong> ${userInfo}</p>
+                </div>
+                <div class="confirmation-section" style="text-align: center; padding: 15px; background: #fff3cd; border-radius: 6px;">
+                    <p style="font-weight: bold;">Submit this KE-GO mapping?</p>
+                    <button id="confirm-go-submit" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 10px;">
+                        Yes, Submit Mapping
+                    </button>
+                    <button id="cancel-go-submit" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer;">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+
+        $entries.html(previewHtml);
+
+        $('html, body').animate({
+            scrollTop: $entries.offset().top - 20
+        }, 500);
+
+        $('#confirm-go-submit').on('click', (e) => {
+            e.preventDefault();
+            this.submitGoMapping(formData);
+        });
+
+        $('#cancel-go-submit').on('click', (e) => {
+            e.preventDefault();
+            $entries.html('');
+        });
+    }
+
+    submitGoMapping(formData) {
+        this.showGoMessage("Submitting GO mapping...", "info");
+
+        $.post("/submit_go_mapping", formData)
+            .done((response) => {
+                this.showGoSuccessMessage(formData);
+                $('#go-existing-entries').html('');
+                this.resetGoForm();
+            })
+            .fail((xhr) => {
+                if (xhr.status === 401 || xhr.status === 403) {
+                    this.showGoMessage("Please log in to submit mappings.", "error");
+                    setTimeout(() => {
+                        this.saveFormState();
+                        window.location.href = '/auth/login';
+                    }, 2000);
+                } else {
+                    const errorMsg = xhr.responseJSON?.error || "Failed to submit GO mapping. Please try again.";
+                    this.showGoMessage(errorMsg, "error");
+                }
+            });
+    }
+
+    showGoSuccessMessage(formData) {
+        // Use the thank you modal
+        const summaryHtml = `
+            <div style="margin-bottom: 15px;">
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: #29235C;">Key Event:</strong><br>
+                    <span style="font-family: monospace; font-size: 13px; color: #666;">${formData.ke_id}</span><br>
+                    <span style="font-size: 14px;">${formData.ke_title}</span>
+                </div>
+                <div style="text-align: center; margin: 10px 0; color: #307BBF; font-size: 20px;">&#8595;</div>
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: #29235C;">GO Term:</strong><br>
+                    <span style="font-family: monospace; font-size: 13px; color: #666;">${formData.go_id}</span><br>
+                    <span style="font-size: 14px;">${formData.go_name}</span>
+                </div>
+            </div>
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-around; font-size: 14px;">
+                <div>
+                    <strong style="color: #29235C;">Connection:</strong><br>
+                    <span style="color: #666;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span>
+                </div>
+                <div>
+                    <strong style="color: #29235C;">Confidence:</strong><br>
+                    <span style="color: #666;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span>
+                </div>
+            </div>
+        `;
+
+        $("#submissionSummary").html(summaryHtml);
+        const modal = $("#thankYouModal");
+        modal.css("display", "flex");
+
+        $("#closeThankYouModal").off("click").on("click", () => modal.hide());
+        modal.off("click").on("click", (e) => {
+            if (e.target.id === "thankYouModal") modal.hide();
+        });
+        setTimeout(() => modal.fadeOut(), 10000);
+    }
+
+    resetGoForm() {
+        this.selectedGoTerm = null;
+        this.goAssessmentAnswers = {};
+        this.goMappingResult = null;
+
+        $('#go-confidence-guide').hide();
+        $('#go-assessment-form').html('');
+        $('#go-step-result').hide();
+        $('#go-step-submit').hide();
+        $('#go-mapping-form button[type="submit"]').prop('disabled', true).text('Complete GO Assessment First');
+        $('#go-existing-entries').html('');
+        $('#go-message').text('');
+
+        // Reset suggestion highlighting
+        $('.go-suggestion-item').css({ 'border-left-color': '', 'background': '#ffffff' });
+    }
+
+    hideGoSuggestions() {
+        $('#go-suggestions-container').html(`
+            <p style="color: #666; font-style: italic;">Select a Key Event above to see GO Biological Process term suggestions.</p>
+        `);
+        this.resetGoForm();
+    }
+
+    showGoMessage(message, type = "info") {
+        const color = type === "error" ? "red" : type === "success" ? "green" : "blue";
+        $("#go-message").text(message).css("color", color).show();
+        if (type === "success") {
+            setTimeout(() => { $("#go-message").fadeOut(); }, 5000);
+        }
     }
 
     saveFormState() {

@@ -21,9 +21,46 @@
 <div class="page-container">
     {% include 'components/navigation.html' %}
     <div class="container">
+        <!-- Tab Switcher -->
+        <div id="mapping-tab-switcher" style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 3px solid #307BBF;">
+            <button type="button" class="mapping-tab active" data-tab="wp"
+                    style="padding: 12px 24px; border: 1px solid #307BBF; border-bottom: none; background: #307BBF; color: white; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0; margin-right: 4px;">
+                KE-WP Mapping
+            </button>
+            <button type="button" class="mapping-tab" data-tab="go"
+                    style="padding: 12px 24px; border: 1px solid #ccc; border-bottom: none; background: #f0f0f0; color: #666; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0;">
+                KE-GO Mapping
+            </button>
+        </div>
+
         <section>
             <h2>Step 1: Select Key Event</h2>
+
+            <!-- AOP Filter (optional) -->
+            <div class="filter-container" style="margin-bottom: 15px;">
+                <label for="aop_filter" style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
+                    Filter by AOP (optional):
+                </label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="aop_filter" name="aop_filter" style="flex: 1;">
+                        <option value="">All Key Events</option>
+                    </select>
+                    <button type="button" id="clear_aop_filter"
+                            style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; display: none;"
+                            title="Clear AOP filter">
+                        Clear
+                    </button>
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    <em>Select an AOP to show only its Key Events, or leave empty to browse all KEs</em>
+                </div>
+            </div>
+
+            <!-- KE Dropdown -->
             <div class="dropdown-container">
+                <label for="ke_id" style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
+                    Select Key Event:
+                </label>
                 <select id="ke_id" name="ke_id" required>
                     <option value="" disabled selected>Select a Key Event</option>
                 </select>
@@ -31,6 +68,8 @@
             <p>For detailed Key Event information, visit the <a href="/ke-details" target="_blank">Key Event details page</a>.</p>
         </section>
 
+        <!-- WP Mapping Tab Content -->
+        <div id="wp-tab-content" class="tab-content">
         <section>
             <h2>Step 2: Select Pathway</h2>
             
@@ -135,6 +174,48 @@
 
         <div id="existing-entries"></div>
         <p id="message"></p>
+        </div><!-- end wp-tab-content -->
+
+        <!-- GO Mapping Tab Content -->
+        <div id="go-tab-content" class="tab-content" style="display: none;">
+        <section>
+            <h2>Step 2: Browse GO Term Suggestions</h2>
+            <div id="go-suggestions-container">
+                <p style="color: #666; font-style: italic;">Select a Key Event above to see GO Biological Process term suggestions.</p>
+            </div>
+        </section>
+
+        <section id="go-confidence-guide" style="display: none;">
+            <h2>Step 3: Assess Confidence</h2>
+            <p>Use the guided assessment to evaluate the GO term mapping.</p>
+            <div id="go-assessment-form">
+                <!-- GO assessment form will be populated by JavaScript -->
+            </div>
+        </section>
+
+        <section id="go-step-result" style="display: none;">
+            <h2>Step 4: Assessment Results</h2>
+            <p><strong>Recommended Confidence Level:</strong> <span id="go-auto-confidence">--</span></p>
+            <p><strong>Connection Type:</strong> <span id="go-auto-connection">--</span></p>
+        </section>
+
+        <section id="go-step-submit" style="display: none;">
+            <h2>Step 5: Submit Your GO Mapping</h2>
+            {% if session.get('user') %}
+                <form id="go-mapping-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" disabled>Complete GO Assessment First</button>
+                </form>
+            {% else %}
+                <p style="color: red; font-weight: bold;">Please log in with GitHub to submit your mapping.</p>
+                <button disabled>Submit KE-GO Mapping</button>
+            {% endif %}
+        </section>
+
+        <div id="go-existing-entries"></div>
+        <p id="go-message"></p>
+        </div><!-- end go-tab-content -->
+
     </div>
     <footer>
         <p>&copy; 2025 KE-WP Mapping Service</p>
