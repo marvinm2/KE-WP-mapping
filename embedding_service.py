@@ -38,19 +38,6 @@ DEFAULT_ENTITY_EXTRACT = {
     'biological_terms_only': False
 }
 
-# Known biological terms for entity filtering
-BIOLOGICAL_TERMS = {
-    'gene', 'protein', 'enzyme', 'receptor', 'kinase', 'phosphatase',
-    'pathway', 'signaling', 'transcription', 'expression', 'regulation',
-    'apoptosis', 'proliferation', 'differentiation', 'metabolism',
-    'oxidative', 'stress', 'inflammation', 'immune', 'cancer', 'tumor',
-    'cell', 'cellular', 'mitochondria', 'nucleus', 'membrane', 'cytoplasm',
-    'dna', 'rna', 'mrna', 'chromosome', 'histone', 'epigenetic',
-    'insulin', 'glucose', 'lipid', 'fatty', 'cholesterol', 'steroid',
-    'hormone', 'neurotransmitter', 'cytokine', 'chemokine', 'interleukin',
-    'activation', 'inhibition', 'binding', 'phosphorylation', 'methylation',
-}
-
 # Optional imports - only required when embeddings are enabled
 try:
     from sentence_transformers import SentenceTransformer
@@ -182,64 +169,20 @@ class BiologicalEmbeddingService:
         """
         Extract biological entities from text for more specific embedding.
 
-        Instead of embedding "Increase, CYP2E1 expression in hepatocytes",
-        this extracts "CYP2E1 expression hepatocytes" - the key biological terms.
-
-        Args:
-            text: Input text (KE title or pathway name)
-
-        Returns:
-            Space-separated string of extracted entities
+        Delegates to text_utils.extract_entities() with config-driven parameters.
         """
-        import re
+        from text_utils import extract_entities
 
         config = self.entity_extract_config
         if not config.get('enabled', False):
             return text
 
-        min_length = config.get('min_entity_length', 3)
-        include_numbers = config.get('include_numbers', True)
-        bio_only = config.get('biological_terms_only', False)
-
-        # Tokenize: split on non-alphanumeric, keeping alphanumeric tokens
-        if include_numbers:
-            tokens = re.findall(r'[A-Za-z0-9]+', text)
-        else:
-            tokens = re.findall(r'[A-Za-z]+', text)
-
-        entities = []
-        for token in tokens:
-            # Skip short tokens
-            if len(token) < min_length:
-                continue
-
-            token_lower = token.lower()
-
-            # Skip common stopwords
-            if token_lower in {'the', 'and', 'for', 'with', 'from', 'into', 'that', 'this', 'are', 'was', 'were'}:
-                continue
-
-            # Skip directionality terms (already handled elsewhere but be safe)
-            if token_lower in {'increase', 'decrease', 'activation', 'inhibition', 'induction', 'reduction'}:
-                continue
-
-            # If bio_only mode, check against known terms
-            if bio_only:
-                # Check if token or its lowercase is a known bio term
-                if token_lower in BIOLOGICAL_TERMS:
-                    entities.append(token)
-                # Also keep alphanumeric identifiers like CYP2E1, IL6, etc.
-                elif include_numbers and re.match(r'^[A-Z]+[0-9]+', token):
-                    entities.append(token)
-            else:
-                # Keep all significant tokens
-                entities.append(token)
-
-        if not entities:
-            # Fallback to original if no entities extracted
-            return text
-
-        return ' '.join(entities)
+        return extract_entities(
+            text,
+            min_length=config.get('min_entity_length', 3),
+            include_numbers=config.get('include_numbers', True),
+            bio_only=config.get('biological_terms_only', False),
+        )
 
     def _transform_similarity_score(self, raw_cosine: float) -> float:
         """

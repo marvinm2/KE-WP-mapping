@@ -81,3 +81,90 @@ def remove_directionality_terms(text: str) -> str:
         cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
 
     return cleaned_text if cleaned_text else text
+
+
+# Unified stopword set (union of all previous implementations)
+_ENTITY_STOPWORDS = {
+    'the', 'and', 'for', 'with', 'from', 'into', 'that', 'this',
+    'are', 'was', 'were', 'via', 'any', 'its', 'has', 'have',
+}
+
+# Directionality terms to skip during entity extraction
+_ENTITY_DIRECTIONALITY = {
+    'increase', 'decrease', 'activation', 'inhibition', 'induction', 'reduction',
+    'elevated', 'reduced', 'upregulation', 'downregulation',
+}
+
+# Known biological terms for bio_only filtering
+_BIOLOGICAL_TERMS = {
+    'gene', 'protein', 'enzyme', 'receptor', 'kinase', 'phosphatase',
+    'pathway', 'signaling', 'transcription', 'expression', 'regulation',
+    'apoptosis', 'proliferation', 'differentiation', 'metabolism',
+    'oxidative', 'stress', 'inflammation', 'immune', 'cancer', 'tumor',
+    'cell', 'cellular', 'mitochondria', 'nucleus', 'membrane', 'cytoplasm',
+    'dna', 'rna', 'mrna', 'chromosome', 'histone', 'epigenetic',
+    'insulin', 'glucose', 'lipid', 'fatty', 'cholesterol', 'steroid',
+    'hormone', 'neurotransmitter', 'cytokine', 'chemokine', 'interleukin',
+    'activation', 'inhibition', 'binding', 'phosphorylation', 'methylation',
+}
+
+
+def extract_entities(
+    text: str,
+    min_length: int = 3,
+    include_numbers: bool = True,
+    bio_only: bool = False,
+    extra_stopwords: set = None
+) -> str:
+    """
+    Extract biological entities from text for more specific embedding.
+
+    Removes stopwords and directionality terms, keeping only significant tokens.
+    Optionally filters to known biological terms only.
+
+    Args:
+        text: Input text (KE title, pathway name, GO term, etc.)
+        min_length: Minimum token length to keep
+        include_numbers: Whether to keep tokens containing digits
+        bio_only: If True, only keep known biological terms and gene-like identifiers
+        extra_stopwords: Additional stopwords to skip
+
+    Returns:
+        Space-separated string of extracted entities, or original text if no entities found
+    """
+    if not text:
+        return ""
+
+    # Build combined skip set
+    skip = _ENTITY_STOPWORDS | _ENTITY_DIRECTIONALITY
+    if extra_stopwords:
+        skip = skip | extra_stopwords
+
+    # Tokenize: split on non-alphanumeric, keeping alphanumeric tokens
+    if include_numbers:
+        tokens = re.findall(r'[A-Za-z0-9]+', text)
+    else:
+        tokens = re.findall(r'[A-Za-z]+', text)
+
+    entities = []
+    for token in tokens:
+        if len(token) < min_length:
+            continue
+
+        token_lower = token.lower()
+
+        if token_lower in skip:
+            continue
+
+        if bio_only:
+            if token_lower in _BIOLOGICAL_TERMS:
+                entities.append(token)
+            elif include_numbers and re.match(r'^[A-Z]+[0-9]+', token):
+                entities.append(token)
+        else:
+            entities.append(token)
+
+    if not entities:
+        return text
+
+    return ' '.join(entities)

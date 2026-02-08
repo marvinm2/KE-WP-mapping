@@ -26,6 +26,7 @@ class GoSuggestionService:
         config=None,
         embedding_service=None,
         go_embeddings_path='go_bp_embeddings.npy',
+        go_name_embeddings_path='go_bp_name_embeddings.npy',
         go_metadata_path='go_bp_metadata.json',
         go_annotations_path='go_bp_gene_annotations.json'
     ):
@@ -36,10 +37,12 @@ class GoSuggestionService:
 
         # Load pre-computed GO data
         self.go_embeddings = {}
+        self.go_name_embeddings = {}
         self.go_metadata = {}
         self.go_gene_annotations = {}
 
         self._load_go_embeddings(go_embeddings_path)
+        self._load_go_name_embeddings(go_name_embeddings_path)
         self._load_go_metadata(go_metadata_path)
         self._load_go_annotations(go_annotations_path)
 
@@ -53,6 +56,17 @@ class GoSuggestionService:
                 logger.warning(f"Could not load GO embeddings: {e}")
         else:
             logger.warning(f"GO embeddings file not found: {path}")
+
+    def _load_go_name_embeddings(self, path):
+        """Load pre-computed GO BP name-only embeddings"""
+        if os.path.exists(path):
+            try:
+                self.go_name_embeddings = np.load(path, allow_pickle=True).item()
+                logger.info(f"Loaded {len(self.go_name_embeddings)} GO BP name embeddings")
+            except Exception as e:
+                logger.warning(f"Could not load GO name embeddings: {e}")
+        else:
+            logger.warning(f"GO name embeddings file not found: {path}, will use combined only")
 
     def _load_go_metadata(self, path):
         """Load GO BP metadata (names, definitions, relationships)"""
@@ -153,9 +167,11 @@ class GoSuggestionService:
 
     def _compute_embedding_scores(self, ke_id: str, ke_title: str) -> List[Dict]:
         """
-        Compute embedding-based similarity between KE and all GO BP terms
+        Compute embedding-based similarity between KE and all GO BP terms.
 
-        Uses vectorized batch computation for efficiency.
+        Uses split name/definition embeddings weighted like pathway title/description
+        (default 85% name, 15% definition). Falls back to combined-only if name
+        embeddings are not available.
         """
         if not self.embedding_service or not self.go_embeddings:
             return []
@@ -171,28 +187,54 @@ class GoSuggestionService:
             go_config = getattr(self.config, 'go_suggestion', None)
             min_threshold = getattr(go_config, 'embedding_min_threshold', 0.3) if go_config else 0.3
 
-            # Build arrays for batch computation
-            go_ids = list(self.go_embeddings.keys())
-            go_emb_array = np.array([self.go_embeddings[gid] for gid in go_ids])
+            # Get name/definition weighting (reuse title_weight from embedding service)
+            name_weight = getattr(self.embedding_service, 'title_weight', 0.85)
+            def_weight = 1.0 - name_weight
 
-            # Vectorized cosine similarity
             ke_norm = np.linalg.norm(ke_emb)
-            go_norms = np.linalg.norm(go_emb_array, axis=1)
 
-            raw_similarities = np.dot(go_emb_array, ke_emb) / (go_norms * ke_norm + 1e-8)
+            # Use split name + definition embeddings if available
+            if self.go_name_embeddings:
+                # Use intersection of IDs present in both embedding sets
+                go_ids = [gid for gid in self.go_embeddings.keys()
+                          if gid in self.go_name_embeddings]
 
-            # Apply score transformation (same as pathway suggestions)
-            transformed = self.embedding_service._transform_similarity_batch(raw_similarities)
+                name_emb_array = np.array([self.go_name_embeddings[gid] for gid in go_ids])
+                def_emb_array = np.array([self.go_embeddings[gid] for gid in go_ids])
+
+                # Vectorized cosine similarities
+                raw_name_sim = np.dot(name_emb_array, ke_emb) / (
+                    np.linalg.norm(name_emb_array, axis=1) * ke_norm + 1e-8)
+                raw_def_sim = np.dot(def_emb_array, ke_emb) / (
+                    np.linalg.norm(def_emb_array, axis=1) * ke_norm + 1e-8)
+
+                # Transform both independently
+                transformed_name = self.embedding_service._transform_similarity_batch(raw_name_sim)
+                transformed_def = self.embedding_service._transform_similarity_batch(raw_def_sim)
+
+                # Weighted combination
+                combined = (transformed_name * name_weight) + (transformed_def * def_weight)
+
+                logger.info(f"Split embedding scoring: {name_weight:.0%} name + {def_weight:.0%} definition")
+            else:
+                # Fallback: combined-only embeddings
+                go_ids = list(self.go_embeddings.keys())
+                go_emb_array = np.array([self.go_embeddings[gid] for gid in go_ids])
+                go_norms = np.linalg.norm(go_emb_array, axis=1)
+                raw_similarities = np.dot(go_emb_array, ke_emb) / (go_norms * ke_norm + 1e-8)
+                combined = self.embedding_service._transform_similarity_batch(raw_similarities)
+                transformed_name = None
+                transformed_def = None
 
             # Filter and build results
             results = []
             for i, go_id in enumerate(go_ids):
-                score = float(transformed[i])
+                score = float(combined[i])
                 if score < min_threshold:
                     continue
 
                 metadata = self.go_metadata.get(go_id, {})
-                results.append({
+                result = {
                     'go_id': go_id,
                     'go_name': metadata.get('name', 'Unknown'),
                     'go_definition': metadata.get('definition', ''),
@@ -201,8 +243,16 @@ class GoSuggestionService:
                     'matching_genes': [],
                     'hybrid_score': score,
                     'match_types': ['text'],
-                    'quickgo_link': f"https://www.ebi.ac.uk/QuickGO/term/{go_id}"
-                })
+                    'quickgo_link': f"https://www.ebi.ac.uk/QuickGO/term/{go_id}",
+                    'go_gene_count': len(self.go_gene_annotations.get(go_id, []))
+                }
+
+                # Add split scores if available
+                if transformed_name is not None:
+                    result['name_similarity'] = round(float(transformed_name[i]), 4)
+                    result['definition_similarity'] = round(float(transformed_def[i]), 4)
+
+                results.append(result)
 
             logger.info(f"Found {len(results)} embedding-based GO suggestions")
             return results
@@ -213,9 +263,9 @@ class GoSuggestionService:
 
     def _compute_gene_overlap_scores(self, ke_genes: List[str]) -> List[Dict]:
         """
-        Compute gene overlap between KE genes and GO term gene annotations
+        Compute gene overlap between KE genes and GO term gene annotations.
 
-        Uses Jaccard similarity for scoring.
+        Uses weighted KE overlap + Jaccard similarity with dampening for small terms.
         """
         if not ke_genes or not self.go_gene_annotations:
             return []
@@ -223,6 +273,7 @@ class GoSuggestionService:
         try:
             go_config = getattr(self.config, 'go_suggestion', None)
             min_threshold = getattr(go_config, 'gene_min_threshold', 0.05) if go_config else 0.05
+            min_term_size = getattr(go_config, 'gene_min_term_size', 10) if go_config else 10
 
             ke_gene_set = set(ke_genes)
             results = []
@@ -239,11 +290,17 @@ class GoSuggestionService:
                 union = ke_gene_set.union(go_gene_set)
                 jaccard = len(matching) / len(union) if union else 0.0
 
-                # Also compute overlap ratio from KE perspective
+                # Overlap ratio from KE perspective
                 ke_overlap = len(matching) / len(ke_gene_set) if ke_gene_set else 0.0
 
                 # Combined gene score (weighted: KE overlap matters more)
                 gene_score = (ke_overlap * 0.7) + (jaccard * 0.3)
+
+                # Dampen small GO terms to avoid inflation
+                go_size = len(go_gene_set)
+                if go_size < min_term_size:
+                    size_factor = go_size / min_term_size
+                    gene_score *= size_factor
 
                 if gene_score < min_threshold:
                     continue
@@ -258,7 +315,8 @@ class GoSuggestionService:
                     'matching_genes': sorted(list(matching)),
                     'hybrid_score': gene_score,
                     'match_types': ['gene'],
-                    'quickgo_link': f"https://www.ebi.ac.uk/QuickGO/term/{go_id}"
+                    'quickgo_link': f"https://www.ebi.ac.uk/QuickGO/term/{go_id}",
+                    'go_gene_count': go_size
                 })
 
             logger.info(f"Found {len(results)} gene-based GO suggestions")
@@ -318,5 +376,15 @@ class GoSuggestionService:
             gene_data = sig_data.get('gene', {})
             if gene_data.get('matching_genes'):
                 item['matching_genes'] = gene_data['matching_genes']
+
+            # Restore go_gene_count from gene signal (most accurate)
+            if gene_data.get('go_gene_count'):
+                item['go_gene_count'] = gene_data['go_gene_count']
+
+            # Restore split embedding scores if available
+            emb_data = sig_data.get('text', {})
+            if emb_data.get('name_similarity') is not None:
+                item['name_similarity'] = emb_data['name_similarity']
+                item['definition_similarity'] = emb_data.get('definition_similarity', 0.0)
 
         return results
