@@ -11,57 +11,17 @@ Output:
     pathway_title_embeddings.npy - NumPy dictionary {pathway_id: title_embedding_vector}
 """
 
-import sys
-import os
-import re
-sys.path.insert(0, os.path.abspath('.'))
-
-from embedding_service import BiologicalEmbeddingService
-import numpy as np
 import logging
 import requests
-from tqdm import tqdm
-from text_utils import remove_directionality_terms
+
+from embedding_utils import setup_project_path, init_embedding_service, compute_embeddings_batch, save_embeddings
+
+setup_project_path()
+
+from text_utils import remove_directionality_terms, extract_entities
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def extract_entities(text: str) -> str:
-    """
-    Extract biological entities from text for more specific embedding.
-
-    Removes stopwords, directionality terms, and keeps only significant tokens.
-    """
-    # First remove directionality terms
-    text = remove_directionality_terms(text)
-
-    min_length = 3
-
-    # Tokenize: split on non-alphanumeric, keeping alphanumeric tokens
-    tokens = re.findall(r'[A-Za-z0-9]+', text)
-
-    entities = []
-    stopwords = {'the', 'and', 'for', 'with', 'from', 'into', 'that', 'this', 'are', 'was', 'were', 'via'}
-    directionality = {'increase', 'decrease', 'activation', 'inhibition', 'induction', 'reduction',
-                      'elevated', 'reduced', 'upregulation', 'downregulation'}
-
-    for token in tokens:
-        if len(token) < min_length:
-            continue
-
-        token_lower = token.lower()
-
-        # Skip stopwords and directionality terms
-        if token_lower in stopwords or token_lower in directionality:
-            continue
-
-        entities.append(token)
-
-    if not entities:
-        return text  # Fallback to original if no entities extracted
-
-    return ' '.join(entities)
 
 # WikiPathways SPARQL endpoint
 WIKIPATHWAYS_SPARQL_ENDPOINT = "https://sparql.wikipathways.org/sparql"
@@ -121,10 +81,7 @@ def precompute_pathway_title_embeddings(output_path='pathway_title_embeddings.np
     """
     Fetch all WikiPathways and pre-compute their title-only BioBERT embeddings
     """
-    logger.info("Initializing BioBERT service...")
-
-    # Initialize embedding service
-    embedding_service = BiologicalEmbeddingService()
+    embedding_service = init_embedding_service()
 
     # Fetch all pathways
     logger.info("Fetching all pathways from WikiPathways...")
@@ -140,37 +97,15 @@ def precompute_pathway_title_embeddings(output_path='pathway_title_embeddings.np
 
     logger.info(f"After removing duplicates: {len(unique_pathways)} unique pathways")
 
-    # Compute title embeddings WITH entity extraction
-    embeddings = {}
-    logger.info("Computing title embeddings with entity extraction...")
+    # Build {id: text} dict with directionality removal + entity extraction
+    items = {}
+    for pathway in unique_pathways:
+        items[pathway['pathwayID']] = extract_entities(
+            remove_directionality_terms(pathway['pathwayTitle'])
+        )
 
-    for pathway in tqdm(unique_pathways, desc="Encoding pathway titles"):
-        pathway_id = pathway['pathwayID']
-        pathway_title = pathway['pathwayTitle']
-
-        # Apply entity extraction for more specific embeddings
-        extracted_title = extract_entities(pathway_title)
-
-        # Log first 5 samples for verification
-        if len(embeddings) < 5:
-            logger.info(f"Sample pathway {pathway_id}:")
-            logger.info(f"  Original: '{pathway_title}'")
-            logger.info(f"  Extracted: '{extracted_title}'")
-
-        # Encode extracted entities (not raw title)
-        emb = embedding_service.encode(extracted_title)
-        embeddings[pathway_id] = emb
-
-    # Save to disk
-    logger.info(f"Saving to {output_path}...")
-    np.save(output_path, embeddings)
-
-    logger.info(f"✓ Pre-computed {len(embeddings)} pathway title embeddings")
-    logger.info(f"File size: {os.path.getsize(output_path) / 1024 / 1024:.2f} MB")
-
-    # Print sample for verification
-    sample_id = list(embeddings.keys())[0]
-    logger.info(f"Sample pathway: {sample_id}, embedding shape: {embeddings[sample_id].shape}")
+    embeddings = compute_embeddings_batch(embedding_service, items, label="pathway titles")
+    save_embeddings(embeddings, output_path)
 
 
 if __name__ == '__main__':

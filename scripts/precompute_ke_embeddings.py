@@ -8,17 +8,15 @@ Output:
     ke_embeddings.npy - NumPy dictionary {ke_id: embedding_vector}
 """
 
-import sys
-import os
-sys.path.insert(0, os.path.abspath('.'))
-
-from embedding_service import BiologicalEmbeddingService
-from text_utils import remove_directionality_terms
-import numpy as np
+import re
 import logging
 import requests
-import re
-from tqdm import tqdm
+
+from embedding_utils import setup_project_path, init_embedding_service, compute_embeddings_batch, save_embeddings
+
+setup_project_path()
+
+from text_utils import remove_directionality_terms
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -85,46 +83,21 @@ def precompute_all_ke_embeddings(output_path='ke_embeddings.npy'):
     """
     Fetch all Key Events and pre-compute their BioBERT embeddings
     """
-    logger.info("Initializing BioBERT service...")
-
-    # Initialize embedding service
-    embedding_service = BiologicalEmbeddingService()
+    embedding_service = init_embedding_service()
 
     # Fetch all Key Events
     logger.info("Fetching all Key Events from AOP-Wiki...")
     kes = fetch_all_kes()
 
-    # Compute embeddings
-    embeddings = {}
-    logger.info("Computing embeddings...")
-
-    for ke in tqdm(kes, desc="Encoding Key Events"):
-        ke_id = ke['ke_id']
-
-        # IMPORTANT: Strip directionality terms from title before encoding
+    # Build {id: text} dict with directionality removal
+    items = {}
+    for ke in kes:
         ke_title_clean = remove_directionality_terms(ke['ke_title'])
-
-        # Combine cleaned title + description (same as runtime logic)
         ke_text = f"{ke_title_clean}. {ke['ke_description']}" if ke['ke_description'] else ke_title_clean
+        items[ke['ke_id']] = ke_text
 
-        # Log first 3 samples for verification
-        if len(embeddings) < 3:
-            logger.info(f"Sample KE {ke_id}: '{ke['ke_title']}' -> '{ke_title_clean}'")
-
-        # Compute embedding
-        emb = embedding_service.encode(ke_text)
-        embeddings[ke_id] = emb
-
-    # Save to disk
-    logger.info(f"Saving to {output_path}...")
-    np.save(output_path, embeddings)
-
-    logger.info(f"✓ Pre-computed {len(embeddings)} KE embeddings")
-    logger.info(f"File size: {os.path.getsize(output_path) / 1024 / 1024:.2f} MB")
-
-    # Print sample for verification
-    sample_ke = list(embeddings.keys())[0]
-    logger.info(f"Sample KE: {sample_ke}, embedding shape: {embeddings[sample_ke].shape}")
+    embeddings = compute_embeddings_batch(embedding_service, items, label="Key Events")
+    save_embeddings(embeddings, output_path)
 
 
 if __name__ == '__main__':
