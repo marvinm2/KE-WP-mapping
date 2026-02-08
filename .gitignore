@@ -75,3 +75,7 @@ htmlcov/
 /proposals
 
 /venv
+
+# GO source data (large, re-downloadable)
+go.obo
+goa_human.gaf.gz
