@@ -103,10 +103,14 @@ def create_app(config_name: str = None):
     # Set up models for blueprints
     set_auth_models(services.github_client)
     set_api_models(
-        services.mapping_model, services.proposal_model, services.cache_model, services.pathway_suggestion_service
+        services.mapping_model, services.proposal_model, services.cache_model,
+        services.pathway_suggestion_service,
+        go_suggestion_svc=services.go_suggestion_service,
+        go_mapping=services.go_mapping_model,
+        go_proposal=services.go_proposal_model,
     )
     set_admin_models(services.proposal_model, services.mapping_model)
-    set_main_models(services.mapping_model)
+    set_main_models(services.mapping_model, go_mapping=services.go_mapping_model)
 
     # Context processor to make is_admin available to all templates
     @app.context_processor

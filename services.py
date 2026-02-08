@@ -6,9 +6,10 @@ import logging
 
 from authlib.integrations.flask_client import OAuth
 
-from models import CacheModel, Database, MappingModel, ProposalModel
+from models import CacheModel, Database, GoMappingModel, GoProposalModel, MappingModel, ProposalModel
 from monitoring import MetricsCollector
 from pathway_suggestions import PathwaySuggestionService
+from go_suggestions import GoSuggestionService
 from rate_limiter import RateLimiter
 from config_loader import ConfigLoader
 from embedding_service import BiologicalEmbeddingService
@@ -33,6 +34,9 @@ class ServiceContainer:
         self._metrics_collector = None
         self._rate_limiter = None
         self._pathway_suggestion_service = None
+        self._go_suggestion_service = None
+        self._go_mapping_model = None
+        self._go_proposal_model = None
         self._oauth = None
         self._github_client = None
         self._scoring_config = None
@@ -113,6 +117,39 @@ class ServiceContainer:
             )
             logger.debug("PathwaySuggestionService instance created with config")
         return self._pathway_suggestion_service
+
+    @property
+    def go_mapping_model(self) -> GoMappingModel:
+        """Get or create GO mapping model instance"""
+        if self._go_mapping_model is None:
+            self._go_mapping_model = GoMappingModel(self.database)
+            logger.debug("GoMappingModel instance created")
+        return self._go_mapping_model
+
+    @property
+    def go_proposal_model(self) -> GoProposalModel:
+        """Get or create GO proposal model instance"""
+        if self._go_proposal_model is None:
+            self._go_proposal_model = GoProposalModel(self.database)
+            logger.debug("GoProposalModel instance created")
+        return self._go_proposal_model
+
+    @property
+    def go_suggestion_service(self) -> GoSuggestionService:
+        """Get or create GO suggestion service instance"""
+        if self._go_suggestion_service is None:
+            try:
+                scoring_config = self.scoring_config
+                self._go_suggestion_service = GoSuggestionService(
+                    cache_model=self.cache_model,
+                    config=scoring_config,
+                    embedding_service=self.embedding_service,
+                )
+                logger.info("GoSuggestionService instance created")
+            except Exception as e:
+                logger.error(f"Failed to initialize GO suggestion service: {e}")
+                self._go_suggestion_service = None
+        return self._go_suggestion_service
 
     @property
     def embedding_service(self) -> BiologicalEmbeddingService:
@@ -247,6 +284,7 @@ class ServiceContainer:
                 "metrics_collector": self._metrics_collector is not None,
                 "rate_limiter": self._rate_limiter is not None,
                 "pathway_suggestion_service": self._pathway_suggestion_service is not None,
+                "go_suggestion_service": self._go_suggestion_service is not None,
             },
         }
 

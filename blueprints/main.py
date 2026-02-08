@@ -16,16 +16,18 @@ main_bp = Blueprint("main", __name__)
 
 # Global model instances (will be set by app initialization)
 mapping_model = None
+go_mapping_model = None
 export_manager = None
 metadata_manager = None
 
 
-def set_models(mapping, export_mgr=None, metadata_mgr=None):
+def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None):
     """Set the model instances"""
-    global mapping_model, export_manager, metadata_manager
+    global mapping_model, export_manager, metadata_manager, go_mapping_model
     mapping_model = mapping
     export_manager = export_mgr
     metadata_manager = metadata_mgr
+    go_mapping_model = go_mapping
 
 
 def is_admin(username: str = None) -> bool:
@@ -61,11 +63,17 @@ def explore():
     try:
         user_info = session.get("user", {})
         data = mapping_model.get_all_mappings()
-        return render_template("explore.html", dataset=data, user_info=user_info)
+        go_data = []
+        if go_mapping_model:
+            try:
+                go_data = go_mapping_model.get_all_mappings()
+            except Exception as e:
+                logger.warning(f"Failed to load GO mappings: {e}")
+        return render_template("explore.html", dataset=data, go_dataset=go_data, user_info=user_info)
     except Exception as e:
         logger.error(f"Error loading dataset: {str(e)}")
         return render_template(
-            "explore.html", dataset=[], user_info={}, error="Failed to load dataset"
+            "explore.html", dataset=[], go_dataset=[], user_info={}, error="Failed to load dataset"
         )
 
 

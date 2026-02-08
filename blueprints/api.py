@@ -17,6 +17,8 @@ from monitoring import monitor_performance
 from rate_limiter import general_rate_limit, sparql_rate_limit, submission_rate_limit
 from schemas import (
     CheckEntrySchema,
+    GoCheckEntrySchema,
+    GoMappingSchema,
     MappingSchema,
     ProposalSchema,
     SecurityValidation,
@@ -38,15 +40,23 @@ mapping_model = None
 proposal_model = None
 cache_model = None
 pathway_suggestion_service = None
+go_suggestion_service = None
+go_mapping_model = None
+go_proposal_model = None
 
 
-def set_models(mapping, proposal, cache, suggestion_service=None):
+def set_models(mapping, proposal, cache, suggestion_service=None,
+               go_suggestion_svc=None, go_mapping=None, go_proposal=None):
     """Set the model instances"""
     global mapping_model, proposal_model, cache_model, pathway_suggestion_service
+    global go_suggestion_service, go_mapping_model, go_proposal_model
     mapping_model = mapping
     proposal_model = proposal
     cache_model = cache
     pathway_suggestion_service = suggestion_service
+    go_suggestion_service = go_suggestion_svc
+    go_mapping_model = go_mapping
+    go_proposal_model = go_proposal
 
 
 def login_required(f):
@@ -847,5 +857,382 @@ def get_scoring_config():
                 "loaded_at": datetime.utcnow().isoformat() + "Z",
                 "source": "default",
                 "error": "Failed to load config file, using defaults"
+            }
+        }), 200
+
+
+@api_bp.route("/get_aop_options", methods=["GET"])
+@sparql_rate_limit
+def get_aop_options():
+    """Fetch AOP (Adverse Outcome Pathway) options from AOP-Wiki SPARQL endpoint"""
+    try:
+        sparql_query = """
+        PREFIX aopo: <http://aopkb.org/aop_ontology#>
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+        SELECT DISTINCT ?aop ?aopId ?aopTitle
+        WHERE {
+            ?aop a aopo:AdverseOutcomePathway ;
+                 rdfs:label ?aopId ;
+                 dc:title ?aopTitle .
+        }
+        ORDER BY ?aopId
+        """
+        endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
+
+        # Check cache first
+        query_hash = hashlib.md5(sparql_query.encode()).hexdigest()
+        cached_response = cache_model.get_cached_response(endpoint, query_hash)
+
+        if cached_response:
+            logger.info("Serving AOP options from cache")
+            return jsonify(json.loads(cached_response)), 200
+
+        response = requests.post(
+            endpoint,
+            data={"query": sparql_query},
+            headers={
+                "Accept": "application/sparql-results+json",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            timeout=30,
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            if "results" not in data or "bindings" not in data["results"]:
+                logger.error("Invalid SPARQL response format for AOP options")
+                return jsonify({"error": "Invalid response from AOP service"}), 500
+
+            results = [
+                {
+                    "aopId": binding.get("aopId", {}).get("value", ""),
+                    "aopTitle": binding.get("aopTitle", {}).get("value", ""),
+                }
+                for binding in data["results"]["bindings"]
+                if all(key in binding for key in ["aopId", "aopTitle"])
+            ]
+
+            # Sort results by AOP ID numerically
+            results.sort(key=lambda x: int(x["aopId"].replace("AOP ", "")) if x["aopId"].replace("AOP ", "").isdigit() else 0)
+
+            # Cache the response for 24 hours
+            cache_model.cache_response(endpoint, query_hash, json.dumps(results), 24)
+            logger.info(f"Fetched and cached {len(results)} AOP options")
+            return jsonify(results), 200
+        else:
+            logger.error(
+                f"SPARQL AOP Query Failed: {response.status_code} - {response.text}"
+            )
+            return jsonify({"error": "Failed to fetch AOP options"}), 500
+    except requests.exceptions.Timeout:
+        logger.error("SPARQL AOP request timeout")
+        return jsonify({"error": "Service timeout - please try again"}), 503
+    except Exception as e:
+        logger.error(f"Error fetching AOP options: {str(e)}")
+        return jsonify({"error": "Failed to fetch AOP options"}), 500
+
+
+@api_bp.route("/get_aop_kes/<aop_id>", methods=["GET"])
+@sparql_rate_limit
+def get_aop_kes(aop_id):
+    """Fetch Key Events for a specific AOP from AOP-Wiki SPARQL endpoint"""
+    try:
+        # Validate AOP ID format (should be like "AOP 1" or just a number)
+        if not aop_id:
+            return jsonify({"error": "AOP ID is required"}), 400
+
+        # Normalize AOP ID format
+        if aop_id.isdigit():
+            aop_label = f"AOP {aop_id}"
+        else:
+            aop_label = aop_id
+
+        sparql_query = f"""
+        PREFIX aopo: <http://aopkb.org/aop_ontology#>
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX nci: <http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#>
+        PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+        SELECT DISTINCT ?ke ?keId ?keTitle ?biolevel ?kePage
+        WHERE {{
+            ?aop a aopo:AdverseOutcomePathway ;
+                 rdfs:label "{aop_label}" ;
+                 aopo:has_key_event ?ke .
+            ?ke a aopo:KeyEvent ;
+                rdfs:label ?keId ;
+                dc:title ?keTitle ;
+                foaf:page ?kePage .
+            OPTIONAL {{ ?ke nci:C25664 ?biolevel }}
+        }}
+        ORDER BY ?keId
+        """
+        endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
+
+        # Check cache first (using AOP ID in the hash for uniqueness)
+        cache_key = f"aop_kes_{aop_label}"
+        query_hash = hashlib.md5(cache_key.encode()).hexdigest()
+        cached_response = cache_model.get_cached_response(endpoint, query_hash)
+
+        if cached_response:
+            logger.info(f"Serving KEs for {aop_label} from cache")
+            return jsonify(json.loads(cached_response)), 200
+
+        response = requests.post(
+            endpoint,
+            data={"query": sparql_query},
+            headers={
+                "Accept": "application/sparql-results+json",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            timeout=30,
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            if "results" not in data or "bindings" not in data["results"]:
+                logger.error(f"Invalid SPARQL response format for AOP {aop_label} KEs")
+                return jsonify({"error": "Invalid response from AOP service"}), 500
+
+            results = [
+                {
+                    "KElabel": binding.get("keId", {}).get("value", ""),
+                    "KEtitle": binding.get("keTitle", {}).get("value", ""),
+                    "biolevel": binding.get("biolevel", {}).get("value", ""),
+                    "KEpage": binding.get("kePage", {}).get("value", ""),
+                }
+                for binding in data["results"]["bindings"]
+                if all(key in binding for key in ["keId", "keTitle"])
+            ]
+
+            # Sort results by KE ID numerically
+            results.sort(key=lambda x: int(x["KElabel"].replace("KE ", "")) if x["KElabel"].replace("KE ", "").isdigit() else 0)
+
+            # Cache the response for 24 hours
+            cache_model.cache_response(endpoint, query_hash, json.dumps(results), 24)
+            logger.info(f"Fetched and cached {len(results)} KEs for {aop_label}")
+            return jsonify(results), 200
+        else:
+            logger.error(
+                f"SPARQL AOP KE Query Failed: {response.status_code} - {response.text}"
+            )
+            return jsonify({"error": "Failed to fetch KEs for AOP"}), 500
+    except requests.exceptions.Timeout:
+        logger.error("SPARQL AOP KE request timeout")
+        return jsonify({"error": "Service timeout - please try again"}), 503
+    except Exception as e:
+        logger.error(f"Error fetching KEs for AOP {aop_id}: {str(e)}")
+        return jsonify({"error": "Failed to fetch KEs for AOP"}), 500
+
+
+# ==============================================================================
+# KE-GO Mapping Endpoints
+# ==============================================================================
+
+
+@api_bp.route("/suggest_go_terms/<ke_id>", methods=["GET"])
+@sparql_rate_limit
+def suggest_go_terms(ke_id):
+    """
+    Get GO Biological Process term suggestions for a specific Key Event
+
+    Args:
+        ke_id: Key Event ID from URL parameter
+
+    Query Parameters:
+        ke_title: Key Event title for text-based matching
+        limit: Maximum number of suggestions (default 20)
+        method_filter: 'all', 'text', or 'gene' (default: 'all')
+
+    Returns:
+        JSON response with GO term suggestions and scores
+    """
+    try:
+        if not go_suggestion_service:
+            logger.error("GO suggestion service not available")
+            return jsonify({"error": "GO suggestion service unavailable"}), 503
+
+        ke_title = request.args.get('ke_title', '')
+        limit = request.args.get('limit', 20, type=int)
+        method_filter = request.args.get('method_filter', 'all')
+
+        # Validate method filter
+        if method_filter not in ('all', 'text', 'gene'):
+            method_filter = 'all'
+
+        # Validate limit
+        limit = max(1, min(50, limit))
+
+        if not ke_id or len(ke_id.strip()) == 0:
+            return jsonify({"error": "Invalid Key Event ID"}), 400
+
+        logger.info(f"Getting GO suggestions for KE: {ke_id} (method_filter: {method_filter})")
+
+        result = go_suggestion_service.get_go_suggestions(
+            ke_id, ke_title, limit, method_filter
+        )
+
+        if "error" in result:
+            return jsonify(result), 500
+
+        result["request_info"] = {
+            "ke_id": ke_id,
+            "ke_title": ke_title,
+            "limit": limit,
+            "method_filter": method_filter,
+            "timestamp": int(time.time())
+        }
+
+        logger.info(f"Returned {len(result.get('suggestions', []))} GO suggestions for KE {ke_id}")
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Error getting GO suggestions for {ke_id}: {str(e)}")
+        return jsonify({"error": "Failed to get GO suggestions"}), 500
+
+
+@api_bp.route("/submit_go_mapping", methods=["POST"])
+@submission_rate_limit
+@login_required
+def submit_go_mapping():
+    """Submit a new KE-GO mapping entry"""
+    try:
+        submit_data = {
+            "ke_id": request.form.get("ke_id"),
+            "ke_title": request.form.get("ke_title"),
+            "go_id": request.form.get("go_id"),
+            "go_name": request.form.get("go_name"),
+            "connection_type": request.form.get("connection_type"),
+            "confidence_level": request.form.get("confidence_level"),
+        }
+
+        is_valid, validated_data, errors = validate_request_data(
+            GoMappingSchema, submit_data
+        )
+
+        if not is_valid:
+            logger.warning(f"Invalid GO submit request: {errors}")
+            return jsonify({"error": "Invalid input data", "details": errors}), 400
+
+        ke_id = SecurityValidation.sanitize_string(validated_data["ke_id"])
+        ke_title = SecurityValidation.sanitize_string(validated_data["ke_title"])
+        go_id = SecurityValidation.sanitize_string(validated_data["go_id"])
+        go_name = SecurityValidation.sanitize_string(validated_data["go_name"])
+        connection_type = validated_data["connection_type"]
+        confidence_level = validated_data["confidence_level"]
+
+        created_by = session.get("user", {}).get("username", "anonymous")
+
+        if created_by != "anonymous" and not SecurityValidation.validate_username(created_by):
+            return jsonify({"error": "Authentication error"}), 401
+
+        if not go_mapping_model:
+            return jsonify({"error": "GO mapping service unavailable"}), 503
+
+        mapping_id = go_mapping_model.create_mapping(
+            ke_id=ke_id,
+            ke_title=ke_title,
+            go_id=go_id,
+            go_name=go_name,
+            connection_type=connection_type,
+            confidence_level=confidence_level,
+            created_by=created_by,
+        )
+
+        if mapping_id:
+            logger.info(f"New GO mapping created: {ke_id} -> {go_id} by {created_by}")
+            return jsonify({"message": "GO mapping added successfully."}), 200
+        else:
+            return jsonify({"error": "The KE-GO pair already exists in the dataset."}), 400
+
+    except Exception as e:
+        logger.error(f"Error adding GO mapping: {str(e)}")
+        return jsonify({"error": "Failed to add GO mapping"}), 500
+
+
+@api_bp.route("/check_go_entry", methods=["POST"])
+@general_rate_limit
+def check_go_entry():
+    """Check if the KE-GO pair already exists"""
+    try:
+        check_data = {
+            "ke_id": request.form.get("ke_id"),
+            "go_id": request.form.get("go_id"),
+        }
+
+        is_valid, validated_data, errors = validate_request_data(
+            GoCheckEntrySchema, check_data
+        )
+
+        if not is_valid:
+            return jsonify({"error": "Invalid input data", "details": errors}), 400
+
+        if not go_mapping_model:
+            return jsonify({"error": "GO mapping service unavailable"}), 503
+
+        result = go_mapping_model.check_mapping_exists(
+            validated_data["ke_id"], validated_data["go_id"]
+        )
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Error checking GO entry: {str(e)}")
+        return jsonify({"error": "Failed to check GO entry"}), 500
+
+
+@api_bp.route("/api/go-scoring-config", methods=["GET"])
+@general_rate_limit
+def get_go_scoring_config():
+    """
+    Serve GO assessment scoring configuration for frontend
+
+    Returns:
+        JSON containing ke_go_assessment configuration section
+    """
+    try:
+        config = ConfigLoader.load_config()
+
+        ke_go = config.ke_go_assessment
+
+        response = {
+            "version": config.metadata.get("version", "1.0.0"),
+            "ke_go_assessment": {
+                "term_specificity": ke_go.term_specificity,
+                "evidence_support": ke_go.evidence_support,
+                "gene_overlap": ke_go.gene_overlap,
+                "bio_level_bonus": ke_go.bio_level_bonus,
+                "confidence_thresholds": ke_go.confidence_thresholds,
+                "max_scores": ke_go.max_scores,
+                "connection_types": ke_go.connection_types,
+            },
+            "metadata": {
+                "loaded_at": datetime.utcnow().isoformat() + "Z",
+                "source": "scoring_config.yaml"
+            }
+        }
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error(f"Error serving GO scoring config: {str(e)}")
+        default_config = ConfigLoader.get_default_config()
+        ke_go = default_config.ke_go_assessment
+
+        return jsonify({
+            "version": "1.0.0-default",
+            "ke_go_assessment": {
+                "term_specificity": ke_go.term_specificity,
+                "evidence_support": ke_go.evidence_support,
+                "gene_overlap": ke_go.gene_overlap,
+                "bio_level_bonus": ke_go.bio_level_bonus,
+                "confidence_thresholds": ke_go.confidence_thresholds,
+                "max_scores": ke_go.max_scores,
+                "connection_types": ke_go.connection_types,
+            },
+            "metadata": {
+                "loaded_at": datetime.utcnow().isoformat() + "Z",
+                "source": "default"
             }
         }), 200
