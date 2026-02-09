@@ -6,7 +6,11 @@ from __future__ import annotations
 import io
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
+
+if TYPE_CHECKING:
+    import pandas as pd
+    import pyarrow as pa
 
 logger = logging.getLogger(__name__)
 

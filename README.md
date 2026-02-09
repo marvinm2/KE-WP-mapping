@@ -132,16 +132,33 @@ All workflows run automatically on push to main branch and can be triggered manu
 5. **Configure environment:**
    ```bash
    cp .env.example .env
-   # Edit .env with your GitHub OAuth credentials
    ```
 
-   Required `.env` configuration:
+   Open `.env` in a text editor and fill in each value:
+
+   | Variable | How to get it |
+   |----------|---------------|
+   | `FLASK_SECRET_KEY` | Run `python -c "import secrets; print(secrets.token_hex(32))"` and paste the output |
+   | `GITHUB_CLIENT_ID` | Copy the **Client ID** from the OAuth App you created in step 4 |
+   | `GITHUB_CLIENT_SECRET` | Click **Generate a new client secret** in the OAuth App and copy it |
+   | `ADMIN_USERS` | Your GitHub username (comma-separated for multiple admins, e.g. `alice,bob`) |
+
+   Example `.env` (do **not** use these values):
    ```env
-   FLASK_SECRET_KEY=your-unique-secret-key
-   GITHUB_CLIENT_ID=your-github-client-id
-   GITHUB_CLIENT_SECRET=your-github-client-secret
+   FLASK_SECRET_KEY=a3f1b9c7e8d24...   # generated hex string
+   GITHUB_CLIENT_ID=Iv1.abc123def456
+   GITHUB_CLIENT_SECRET=0123456789abcdef...
    ADMIN_USERS=your-github-username
    PORT=5000
+   ```
+
+   Optional variables (defaults are fine for local development):
+   ```env
+   FLASK_ENV=development          # or "production"
+   FLASK_DEBUG=true                # set to "false" in production
+   DATABASE_PATH=ke_wp_mapping.db  # path to SQLite database
+   HOST=127.0.0.1                  # bind address
+   RATELIMIT_STORAGE_URL=memory:// # rate-limit backend
    ```
 
 6. **Launch the application:**
