@@ -4,8 +4,9 @@ WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install \
-    torch==2.5.1+cpu --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir --prefix=/install -r requirements.txt
+    torch==2.5.1+cpu \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r requirements.txt
 
 # --- Runtime stage ---
 FROM python:3.12-slim-bookworm
