@@ -156,6 +156,25 @@ All workflows run automatically on push to main branch and can be triggered manu
    - Click "Login with GitHub"
    - Start mapping KE-WP relationships!
 
+### Run with Docker
+
+```bash
+docker pull ghcr.io/marvinm2/ke-wp-mapping:latest
+docker run -d -p 5000:5000 \
+  -e FLASK_SECRET_KEY=your-secret-key \
+  -e GITHUB_CLIENT_ID=your-client-id \
+  -e GITHUB_CLIENT_SECRET=your-client-secret \
+  -e ADMIN_USERS=your-github-username \
+  ghcr.io/marvinm2/ke-wp-mapping:latest
+```
+
+Or with Docker Compose (clone repo first):
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+docker-compose up -d
+```
+
 ## Architecture Overview
 
 ### Blueprint Structure

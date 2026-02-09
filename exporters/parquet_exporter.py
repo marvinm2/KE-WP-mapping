@@ -1,6 +1,8 @@
 """
 Parquet export functionality for big data analytics and research workflows
 """
+from __future__ import annotations
+
 import io
 import logging
 from datetime import datetime

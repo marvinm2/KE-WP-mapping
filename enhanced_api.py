@@ -482,6 +482,16 @@ def bulk_create_mappings():
     return jsonify(response), status_code
 
 
+def bulk_update_mappings():
+    """Bulk update mappings (not yet implemented)"""
+    return jsonify({"error": "Bulk update not yet implemented"}), 501
+
+
+def bulk_delete_mappings():
+    """Bulk delete mappings (not yet implemented)"""
+    return jsonify({"error": "Bulk delete not yet implemented"}), 501
+
+
 # ========== Statistics and Analytics ==========
 
 @enhanced_api_bp.route("/mappings/stats", methods=["GET"])

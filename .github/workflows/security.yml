@@ -12,7 +12,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
@@ -38,7 +38,7 @@ jobs:
         cyclonedx-py -i requirements.txt -o sbom.xml --format xml
 
     - name: Upload dependency reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: dependency-reports
@@ -54,7 +54,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
@@ -74,7 +74,7 @@ jobs:
         semgrep --config=auto . || true
 
     - name: Upload SAST reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: sast-reports
@@ -94,16 +94,16 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: python
         queries: security-extended,security-and-quality
 
     - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+      uses: github/codeql-action/autobuild@v3
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
       with:
         category: "/language:python"
 
@@ -124,7 +124,7 @@ jobs:
         echo "TruffleHog scan completed - check artifacts for detailed report"
 
     - name: Upload secret scan report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: secret-scan-report
@@ -162,7 +162,7 @@ jobs:
         output: 'trivy-fs-results.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: |
@@ -179,7 +179,7 @@ jobs:
         docker scout recommendations security-scan:latest || echo "Docker Scout recommendations completed"
 
     - name: Upload Docker Scout results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: docker-security-reports
@@ -261,7 +261,7 @@ jobs:
         fi
 
     - name: Upload compliance reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: compliance-reports
@@ -274,7 +274,7 @@ jobs:
     if: always()
     steps:
     - name: Download all security reports
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
 
     - name: Create security summary
       run: |
@@ -311,7 +311,7 @@ jobs:
         echo "Check the artifacts section for detailed security reports from all tools." >> security-summary.md
 
     - name: Upload security summary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: security-summary
         path: security-summary.md

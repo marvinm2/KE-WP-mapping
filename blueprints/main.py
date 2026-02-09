@@ -4,6 +4,7 @@ Handles core application routes and page rendering
 """
 import logging
 import os
+from datetime import datetime
 
 from flask import Blueprint, make_response, render_template, send_file, session, request, jsonify
 
