@@ -8,7 +8,7 @@ if [ ! -f .env ]; then
     echo "❌ Error: .env file not found!"
     echo ""
     echo "📋 Setup required:"
-    echo "1. Copy the template: cp .env.template .env"
+    echo "1. Copy the template: cp .env.example .env"
     echo "2. Edit .env with your GitHub OAuth credentials"
     echo "3. Get credentials from: https://github.com/settings/developers"
     echo ""

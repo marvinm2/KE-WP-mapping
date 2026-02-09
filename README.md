@@ -94,19 +94,34 @@ All workflows run automatically on push to main branch and can be triggered manu
 ## Quick Start
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.10 or 3.11
 - Git
 - GitHub account (for OAuth)
+
+> **Note:** The initial clone is ~170 MB due to pre-computed embedding files.
 
 ### Installation & Setup
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/marvinm2/KE-WP-mapping.git
    cd KE-WP-mapping
    ```
 
-2. **Set up GitHub OAuth App:**
+2. **Create a virtual environment:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate   # Linux / macOS
+   # venv\Scripts\activate    # Windows
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+   This installs PyTorch and sentence-transformers (~2 GB download on first install).
+
+4. **Set up GitHub OAuth App:**
    - Go to [GitHub Developer Settings](https://github.com/settings/developers)
    - Create new OAuth App with:
      - **Application name**: `KE-WP Mapping Tool`
@@ -114,32 +129,29 @@ All workflows run automatically on push to main branch and can be triggered manu
      - **Authorization callback URL**: `http://localhost:5000/callback`
    - Copy Client ID and Client Secret
 
-3. **Configure environment:**
+5. **Configure environment:**
    ```bash
-   cp .env.template .env
+   cp .env.example .env
    # Edit .env with your GitHub OAuth credentials
    ```
 
    Required `.env` configuration:
    ```env
    FLASK_SECRET_KEY=your-unique-secret-key
-   GITHUB_CLIENT_ID=your-github-client-id  
+   GITHUB_CLIENT_ID=your-github-client-id
    GITHUB_CLIENT_SECRET=your-github-client-secret
    ADMIN_USERS=your-github-username
    PORT=5000
    ```
 
-4. **Install dependencies:**
+6. **Launch the application:**
    ```bash
-   pip install -r requirements.txt
-   ```
-
-5. **Launch the application:**
-   ```bash
+   chmod +x start.sh
    ./start.sh
    ```
+   Or run directly with `python app.py`.
 
-6. **Access the application:**
+7. **Access the application:**
    - Open: http://localhost:5000
    - Click "Login with GitHub"
    - Start mapping KE-WP relationships!
