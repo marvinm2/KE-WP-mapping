@@ -5,12 +5,13 @@
 [![Code Quality](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/code-quality.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/code-quality.yml)
 [![Security & Compliance](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/security.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/security.yml)
 
-A modern Flask-based web application for mapping Key Events (KEs) to WikiPathways (WPs) with comprehensive metadata management. Built with a modular blueprint architecture for enhanced maintainability and scalability.
+A modern Flask-based web application for mapping Key Events (KEs) to WikiPathways (WPs) and Gene Ontology Biological Process (GO BP) terms with comprehensive metadata management. Built with a modular blueprint architecture for enhanced maintainability and scalability.
 
 ## Features
 
 ### Core Functionality
 - **KE-WP Mapping**: Create relationships between Key Events and WikiPathways with connection types and confidence levels
+- **KE-GO Mapping**: Map Key Events to Gene Ontology Biological Process (BP) terms with gene-based and semantic scoring
 - **Multiple Pathway Selection**: Map multiple WikiPathways to a single Key Event with individual confidence assessments
 - **AOP Network Visualization**: Interactive Cytoscape.js-based network visualization with:
   - Real-time AOP pathway network rendering with biological level color-coding
@@ -22,6 +23,10 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
   - Gene-based pathway matching with overlap analysis
   - Domain-specific biological concept recognition
   - Dynamic confidence scoring with non-linear scaling
+- **GO Term Suggestions**: Intelligent GO BP term recommendations using:
+  - Pre-computed BioBERT embeddings for ~30K GO BP terms
+  - Gene annotation overlap between KE-associated genes and GO terms
+  - Hybrid scoring combining gene, text, and semantic signals
 - **Enhanced Pathway Selection**: Comprehensive pathway information display including:
   - Pathway descriptions with collapsible text
   - SVG diagram previews with click-to-expand functionality
@@ -156,8 +161,10 @@ All workflows run automatically on push to main branch and can be triggered manu
 ├── schemas.py                # Input validation schemas
 ├── monitoring.py             # Performance & health monitoring
 ├── rate_limiter.py           # API rate limiting
-├── aop_network_service.py    # AOP network visualization service
-└── pathway_suggestions.py    # Intelligent pathway suggestions
+├── pathway_suggestions.py    # Intelligent pathway suggestions
+├── go_suggestions.py         # GO term suggestion service
+├── ke_gene_service.py        # Gene extraction from Key Events
+└── scoring_utils.py          # Shared scoring utilities
 ```
 
 ### Key Components
@@ -188,6 +195,10 @@ All workflows run automatically on push to main branch and can be triggered manu
 | `/get_ke_options` | GET | Fetch Key Events from SPARQL | SPARQL |
 | `/get_pathway_options` | GET | Fetch pathways from SPARQL | SPARQL |
 | `/get_aop_network/<aop_id>` | GET | Fetch AOP network visualization data | SPARQL |
+| `/suggest_go_terms/<ke_id>` | GET | GO BP term suggestions for a Key Event | General |
+| `/submit_go_mapping` | POST | Create new KE-GO mapping | Submission |
+| `/check_go_mapping` | GET | Check if KE-GO mapping exists | General |
+| `/api/go-scoring-config` | GET | KE-GO assessment scoring configuration | General |
 | `/submit_proposal` | POST | Submit change proposal | Submission |
 
 ### Admin Endpoints
@@ -331,6 +342,8 @@ chmod +x start.sh
 
 - **Key Events**: [AOP-Wiki SPARQL Endpoint](https://aopwiki.rdf.bigcat-bioinformatics.org/sparql)
 - **WikiPathways**: [WikiPathways SPARQL Endpoint](https://sparql.wikipathways.org/sparql)
+- **Gene Ontology**: [GO OBO file](http://purl.obolibrary.org/obo/go.obo) (Biological Process terms)
+- **GO Annotations**: [UniProt-GOA Human](https://www.ebi.ac.uk/GOA) (GO-gene associations)
 - **Caching**: 24-hour cache for SPARQL responses
 
 ## Contributing
@@ -348,43 +361,22 @@ chmod +x start.sh
 - Add docstrings for all functions/classes
 - Maintain separation of concerns with blueprints
 
-## Changelog
-
-### Version 2.2.0 (Current)
-- **AOP Network Visualization**: Interactive Cytoscape.js network visualization
-- **Enhanced Multi-pathway Interface**: Individual pathway assessments
-- **Completed Blueprint Architecture**: Fully modular application design
-- **Form State Persistence**: Auto-save functionality
-- **Improved UI/UX**: Enhanced navigation and cleaner interface
-
-### Version 2.0.0 (Blueprint Foundation)
-- **Blueprint Architecture**: Modular application design
-- **Dependency Injection**: Service container pattern
-- **Configuration Management**: Environment-aware settings
-- **Centralized Error Handling**: Consistent error responses
-- **Health Monitoring**: System status endpoints
-- **Enhanced Security**: CSRF protection, input validation
-
-### Version 1.0.0 (Legacy)
-- Basic Flask application (758 lines monolithic structure)
-- GitHub OAuth authentication
-- KE-WP mapping functionality
-- Admin proposal system
-
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
+- **Issues**: [GitHub Issues](https://github.com/marvinm2/KE-WP-mapping/issues)
 - **Documentation**: This README and inline code documentation
 - **Contact**: [marvin.martens@maastrichtuniversity.nl]
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the GPL-2.0 License - see the LICENSE file for details.
 
 ## Acknowledgments
 
 - **AOP-Wiki**: Key Event data and SPARQL endpoint
-- **WikiPathways**: Pathway data and SPARQL integration  
+- **WikiPathways**: Pathway data and SPARQL integration
+- **Gene Ontology Consortium**: GO term ontology and annotations
+- **UniProt-GOA**: Gene Ontology annotation database
 - **BiGCaT**: Bioinformatics research group at Maastricht University
 - **Flask Community**: Framework and extension ecosystem
 
