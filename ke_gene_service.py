@@ -54,7 +54,7 @@ def get_genes_from_ke(
                 aop_wiki_endpoint, query_hash
             )
             if cached_response:
-                logger.info(f"Serving KE genes from cache for {ke_id}")
+                logger.info("Serving KE genes from cache for %s", ke_id)
                 return json.loads(cached_response)
 
         response = requests.post(
@@ -84,14 +84,14 @@ def get_genes_from_ke(
                     aop_wiki_endpoint, query_hash, json.dumps(genes), 24
                 )
 
-            logger.info(f"Found {len(genes)} genes for KE {ke_id}: {genes}")
+            logger.info("Found %d genes for KE %s: %s", len(genes), ke_id, genes)
             return genes
         else:
             logger.error(
-                f"AOP-Wiki gene query failed: {response.status_code} - {response.text}"
+                "AOP-Wiki gene query failed: %s - %s", response.status_code, response.text
             )
             return []
 
     except Exception as e:
-        logger.error(f"Error extracting genes from KE {ke_id}: {str(e)}")
+        logger.error("Error extracting genes from KE %s: %s", ke_id, e)
         return []

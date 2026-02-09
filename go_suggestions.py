@@ -51,22 +51,22 @@ class GoSuggestionService:
         if os.path.exists(path):
             try:
                 self.go_embeddings = np.load(path, allow_pickle=True).item()
-                logger.info(f"Loaded {len(self.go_embeddings)} GO BP embeddings")
+                logger.info("Loaded %d GO BP embeddings", len(self.go_embeddings))
             except Exception as e:
-                logger.warning(f"Could not load GO embeddings: {e}")
+                logger.warning("Could not load GO embeddings: %s", e)
         else:
-            logger.warning(f"GO embeddings file not found: {path}")
+            logger.warning("GO embeddings file not found: %s", path)
 
     def _load_go_name_embeddings(self, path):
         """Load pre-computed GO BP name-only embeddings"""
         if os.path.exists(path):
             try:
                 self.go_name_embeddings = np.load(path, allow_pickle=True).item()
-                logger.info(f"Loaded {len(self.go_name_embeddings)} GO BP name embeddings")
+                logger.info("Loaded %d GO BP name embeddings", len(self.go_name_embeddings))
             except Exception as e:
-                logger.warning(f"Could not load GO name embeddings: {e}")
+                logger.warning("Could not load GO name embeddings: %s", e)
         else:
-            logger.warning(f"GO name embeddings file not found: {path}, will use combined only")
+            logger.warning("GO name embeddings file not found: %s, will use combined only", path)
 
     def _load_go_metadata(self, path):
         """Load GO BP metadata (names, definitions, relationships)"""
@@ -74,11 +74,11 @@ class GoSuggestionService:
             try:
                 with open(path, 'r', encoding='utf-8') as f:
                     self.go_metadata = json.load(f)
-                logger.info(f"Loaded metadata for {len(self.go_metadata)} GO BP terms")
+                logger.info("Loaded metadata for %d GO BP terms", len(self.go_metadata))
             except Exception as e:
-                logger.warning(f"Could not load GO metadata: {e}")
+                logger.warning("Could not load GO metadata: %s", e)
         else:
-            logger.warning(f"GO metadata file not found: {path}")
+            logger.warning("GO metadata file not found: %s", path)
 
     def _load_go_annotations(self, path):
         """Load GO BP gene annotations"""
@@ -86,11 +86,11 @@ class GoSuggestionService:
             try:
                 with open(path, 'r', encoding='utf-8') as f:
                     self.go_gene_annotations = json.load(f)
-                logger.info(f"Loaded gene annotations for {len(self.go_gene_annotations)} GO BP terms")
+                logger.info("Loaded gene annotations for %d GO BP terms", len(self.go_gene_annotations))
             except Exception as e:
-                logger.warning(f"Could not load GO annotations: {e}")
+                logger.warning("Could not load GO annotations: %s", e)
         else:
-            logger.warning(f"GO annotations file not found: {path}")
+            logger.warning("GO annotations file not found: %s", path)
 
     def get_go_suggestions(
         self,
@@ -112,7 +112,7 @@ class GoSuggestionService:
             Dictionary containing suggestions with scores
         """
         try:
-            logger.info(f"Getting GO suggestions for {ke_id} (filter: {method_filter})")
+            logger.info("Getting GO suggestions for %s (filter: %s)", ke_id, method_filter)
 
             # Get genes associated with this KE
             genes = self._get_genes_from_ke(ke_id)
@@ -154,7 +154,7 @@ class GoSuggestionService:
             }
 
         except Exception as e:
-            logger.error(f"Error getting GO suggestions for {ke_id}: {str(e)}")
+            logger.error("Error getting GO suggestions for %s: %s", ke_id, e)
             return {
                 "error": "Failed to generate GO suggestions",
                 "ke_id": ke_id,
@@ -215,7 +215,7 @@ class GoSuggestionService:
                 # Weighted combination
                 combined = (transformed_name * name_weight) + (transformed_def * def_weight)
 
-                logger.info(f"Split embedding scoring: {name_weight:.0%} name + {def_weight:.0%} definition")
+                logger.info("Split embedding scoring: %.0f%% name + %.0f%% definition", name_weight * 100, def_weight * 100)
             else:
                 # Fallback: combined-only embeddings
                 go_ids = list(self.go_embeddings.keys())
@@ -254,11 +254,11 @@ class GoSuggestionService:
 
                 results.append(result)
 
-            logger.info(f"Found {len(results)} embedding-based GO suggestions")
+            logger.info("Found %d embedding-based GO suggestions", len(results))
             return results
 
         except Exception as e:
-            logger.error(f"Embedding-based GO suggestion failed: {e}")
+            logger.error("Embedding-based GO suggestion failed: %s", e)
             return []
 
     def _compute_gene_overlap_scores(self, ke_genes: List[str]) -> List[Dict]:
@@ -319,11 +319,11 @@ class GoSuggestionService:
                     'go_gene_count': go_size
                 })
 
-            logger.info(f"Found {len(results)} gene-based GO suggestions")
+            logger.info("Found %d gene-based GO suggestions", len(results))
             return results
 
         except Exception as e:
-            logger.error(f"Gene overlap GO suggestion failed: {e}")
+            logger.error("Gene overlap GO suggestion failed: %s", e)
             return []
 
     def _combine_go_scores(

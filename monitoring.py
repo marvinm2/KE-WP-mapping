@@ -79,7 +79,7 @@ class MetricsCollector:
             conn.close()
             logger.info("Metrics tables initialized")
         except Exception as e:
-            logger.error(f"Failed to initialize metrics tables: {e}")
+            logger.error("Failed to initialize metrics tables: %s", e)
 
     def record_request(
         self,
@@ -161,7 +161,7 @@ class MetricsCollector:
             conn.commit()
             conn.close()
         except Exception as e:
-            logger.error(f"Failed to store metric: {e}")
+            logger.error("Failed to store metric: %s", e)
 
     def get_endpoint_stats(self, endpoint: str, hours: int = 24) -> Dict[str, Any]:
         """Get statistics for a specific endpoint"""
@@ -199,7 +199,7 @@ class MetricsCollector:
                     "hours": hours,
                 }
         except Exception as e:
-            logger.error(f"Failed to get endpoint stats: {e}")
+            logger.error("Failed to get endpoint stats: %s", e)
 
         return {"endpoint": endpoint, "error": "Failed to fetch stats"}
 
@@ -261,7 +261,7 @@ class MetricsCollector:
             }
 
         except Exception as e:
-            logger.error(f"Failed to get system health: {e}")
+            logger.error("Failed to get system health: %s", e)
             return {"error": "Failed to fetch system health"}
 
 
@@ -335,11 +335,11 @@ class PerformanceProfiler:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         duration = time.time() - self.start_time
-        logger.info(f"Performance: {self.operation_name} took {duration:.3f} seconds")
+        logger.info("Performance: %s took %.3f seconds", self.operation_name, duration)
 
         if duration > 1.0:  # Log slow operations
             logger.warning(
-                f"Slow operation detected: {self.operation_name} took {duration:.3f} seconds"
+                "Slow operation detected: %s took %.3f seconds", self.operation_name, duration
             )
 
 
@@ -354,7 +354,7 @@ def log_slow_queries(threshold_seconds: float = 1.0):
             duration = time.time() - start_time
 
             if duration > threshold_seconds:
-                logger.warning(f"Slow query in {f.__name__}: {duration:.3f}s")
+                logger.warning("Slow query in %s: %.3fs", f.__name__, duration)
 
             return result
 

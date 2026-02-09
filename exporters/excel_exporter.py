@@ -96,7 +96,7 @@ class ExcelExporter:
                     try:
                         if len(str(cell.value)) > max_length:
                             max_length = len(str(cell.value))
-                    except:
+                    except (TypeError, AttributeError):
                         pass
                 adjusted_width = min(max_length + 2, 50)  # Cap at 50 characters
                 ws_data.column_dimensions[column_letter].width = adjusted_width
@@ -139,7 +139,7 @@ class ExcelExporter:
                     try:
                         if len(str(cell.value)) > max_length:
                             max_length = len(str(cell.value))
-                    except:
+                    except (TypeError, AttributeError):
                         pass
                 adjusted_width = min(max_length + 2, 60)
                 ws_dict.column_dimensions[column_letter].width = adjusted_width
@@ -177,7 +177,7 @@ class ExcelExporter:
                     try:
                         if len(str(cell.value)) > max_length:
                             max_length = len(str(cell.value))
-                    except:
+                    except (TypeError, AttributeError):
                         pass
                 adjusted_width = min(max_length + 2, 80)
                 ws_values.column_dimensions[column_letter].width = adjusted_width

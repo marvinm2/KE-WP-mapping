@@ -161,7 +161,7 @@ class Database:
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
-            logger.error(f"Database initialization failed: {e}")
+            logger.error("Database initialization failed: %s", e)
             conn.rollback()
             raise
         finally:
@@ -190,7 +190,7 @@ class Database:
 
             if missing_fields:
                 logger.info(
-                    f"Adding missing admin fields to proposals table: {missing_fields}"
+                    "Adding missing admin fields to proposals table: %s", missing_fields
                 )
 
                 for field in missing_fields:
@@ -204,7 +204,7 @@ class Database:
                 logger.info("Successfully migrated proposals table with admin fields")
 
         except Exception as e:
-            logger.error(f"Error migrating proposals table: {e}")
+            logger.error("Error migrating proposals table: %s", e)
             raise
 
     def _migrate_mappings_updated_by_field(self, conn):
@@ -225,7 +225,7 @@ class Database:
                 logger.info("Successfully migrated mappings table with updated_by field")
 
         except Exception as e:
-            logger.error(f"Error migrating mappings table: {e}")
+            logger.error("Error migrating mappings table: %s", e)
             raise
 
 
@@ -264,13 +264,13 @@ class MappingModel:
             )
 
             conn.commit()
-            logger.info(f"Created mapping: KE={ke_id}, WP={wp_id}, User={created_by}")
+            logger.info("Created mapping: KE=%s, WP=%s, User=%s", ke_id, wp_id, created_by)
             return cursor.lastrowid
         except sqlite3.IntegrityError:
-            logger.warning(f"Duplicate mapping attempted: KE={ke_id}, WP={wp_id}")
+            logger.warning("Duplicate mapping attempted: KE=%s, WP=%s", ke_id, wp_id)
             return None
         except Exception as e:
-            logger.error(f"Error creating mapping: {e}")
+            logger.error("Error creating mapping: %s", e)
             conn.rollback()
             return None
         finally:
@@ -408,10 +408,10 @@ class MappingModel:
 
             conn.execute(query, params)
             conn.commit()
-            logger.info(f"Updated mapping {mapping_id} by {updated_by}")
+            logger.info("Updated mapping %s by %s", mapping_id, updated_by)
             return True
         except Exception as e:
-            logger.error(f"Error updating mapping: {e}")
+            logger.error("Error updating mapping: %s", e)
             conn.rollback()
             return False
         finally:
@@ -432,10 +432,10 @@ class MappingModel:
         try:
             conn.execute("DELETE FROM mappings WHERE id = ?", (mapping_id,))
             conn.commit()
-            logger.info(f"Deleted mapping {mapping_id} by {deleted_by}")
+            logger.info("Deleted mapping %s by %s", mapping_id, deleted_by)
             return True
         except Exception as e:
-            logger.error(f"Error deleting mapping: {e}")
+            logger.error("Error deleting mapping: %s", e)
             conn.rollback()
             return False
         finally:
@@ -481,11 +481,11 @@ class ProposalModel:
 
             conn.commit()
             logger.info(
-                f"Created proposal for mapping {mapping_id} by {github_username}"
+                "Created proposal for mapping %s by %s", mapping_id, github_username
             )
             return cursor.lastrowid
         except Exception as e:
-            logger.error(f"Error creating proposal: {e}")
+            logger.error("Error creating proposal: %s", e)
             conn.rollback()
             return None
         finally:
@@ -573,7 +573,7 @@ class ProposalModel:
         """
         # Validate status to prevent SQL injection
         if status not in ["approved", "rejected"]:
-            logger.error(f"Invalid status value: {status}")
+            logger.error("Invalid status value: %s", status)
             return False
 
         conn = self.db.get_connection()
@@ -596,11 +596,11 @@ class ProposalModel:
 
             conn.commit()
             logger.info(
-                f"Updated proposal {proposal_id} to {status} by {admin_username}"
+                "Updated proposal %s to %s by %s", proposal_id, status, admin_username
             )
             return True
         except Exception as e:
-            logger.error(f"Error updating proposal status: {e}")
+            logger.error("Error updating proposal status: %s", e)
             conn.rollback()
             return False
         finally:
@@ -669,13 +669,13 @@ class GoMappingModel:
             )
 
             conn.commit()
-            logger.info(f"Created GO mapping: KE={ke_id}, GO={go_id}, User={created_by}")
+            logger.info("Created GO mapping: KE=%s, GO=%s, User=%s", ke_id, go_id, created_by)
             return cursor.lastrowid
         except sqlite3.IntegrityError:
-            logger.warning(f"Duplicate GO mapping attempted: KE={ke_id}, GO={go_id}")
+            logger.warning("Duplicate GO mapping attempted: KE=%s, GO=%s", ke_id, go_id)
             return None
         except Exception as e:
-            logger.error(f"Error creating GO mapping: {e}")
+            logger.error("Error creating GO mapping: %s", e)
             conn.rollback()
             return None
         finally:
@@ -792,11 +792,11 @@ class GoProposalModel:
 
             conn.commit()
             logger.info(
-                f"Created GO proposal for mapping {mapping_id} by {github_username}"
+                "Created GO proposal for mapping %s by %s", mapping_id, github_username
             )
             return cursor.lastrowid
         except Exception as e:
-            logger.error(f"Error creating GO proposal: {e}")
+            logger.error("Error creating GO proposal: %s", e)
             conn.rollback()
             return None
         finally:
@@ -860,7 +860,7 @@ class CacheModel:
             conn.commit()
             return True
         except Exception as e:
-            logger.error(f"Error caching response: {e}")
+            logger.error("Error caching response: %s", e)
             return False
         finally:
             conn.close()
@@ -877,8 +877,8 @@ class CacheModel:
             deleted_count = cursor.rowcount
             conn.commit()
             if deleted_count > 0:
-                logger.info(f"Cleaned up {deleted_count} expired cache entries")
+                logger.info("Cleaned up %d expired cache entries", deleted_count)
         except Exception as e:
-            logger.error(f"Error cleaning cache: {e}")
+            logger.error("Error cleaning cache: %s", e)
         finally:
             conn.close()

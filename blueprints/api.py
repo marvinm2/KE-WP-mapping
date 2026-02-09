@@ -88,7 +88,7 @@ def check_entry():
         )
 
         if not is_valid:
-            logger.warning(f"Invalid check entry request: {errors}")
+            logger.warning("Invalid check entry request: %s", errors)
             return jsonify({"error": "Invalid input data", "details": errors}), 400
 
         ke_id = validated_data["ke_id"]
@@ -97,7 +97,7 @@ def check_entry():
         result = mapping_model.check_mapping_exists(ke_id, wp_id)
         return jsonify(result), 200
     except Exception as e:
-        logger.error(f"Error checking entry: {str(e)}")
+        logger.error("Error checking entry: %s", e)
         return jsonify({"error": "Failed to check entry"}), 500
 
 
@@ -123,7 +123,7 @@ def submit():
         )
 
         if not is_valid:
-            logger.warning(f"Invalid submit request: {errors}")
+            logger.warning("Invalid submit request: %s", errors)
             return jsonify({"error": "Invalid input data", "details": errors}), 400
 
         # Sanitize string inputs
@@ -141,7 +141,7 @@ def submit():
         if created_by != "anonymous" and not SecurityValidation.validate_username(
             created_by
         ):
-            logger.error(f"Invalid username format: {created_by}")
+            logger.error("Invalid username format: %s", created_by)
             return jsonify({"error": "Authentication error"}), 401
 
         # Create mapping
@@ -156,7 +156,7 @@ def submit():
         )
 
         if mapping_id:
-            logger.info(f"New mapping created: {ke_id} -> {wp_id} by {created_by}")
+            logger.info("New mapping created: %s -> %s by %s", ke_id, wp_id, created_by)
             return jsonify({"message": "Entry added successfully."}), 200
         else:
             return (
@@ -164,7 +164,7 @@ def submit():
                 400,
             )
     except Exception as e:
-        logger.error(f"Error adding entry: {str(e)}")
+        logger.error("Error adding entry: %s", e)
         return jsonify({"error": "Failed to add entry"}), 500
 
 
@@ -230,18 +230,18 @@ def get_ke_options():
 
             # Cache the response
             cache_model.cache_response(endpoint, query_hash, json.dumps(results), 24)
-            logger.info(f"Fetched and cached {len(results)} KE options")
+            logger.info("Fetched and cached %d KE options", len(results))
             return jsonify(results), 200
         else:
             logger.error(
-                f"SPARQL Query Failed: {response.status_code} - {response.text}"
+                "SPARQL Query Failed: %s - %s", response.status_code, response.text
             )
             return jsonify({"error": "Failed to fetch KE options"}), 500
     except requests.exceptions.Timeout:
         logger.error("SPARQL request timeout")
         return jsonify({"error": "Service timeout - please try again"}), 503
     except Exception as e:
-        logger.error(f"Error fetching KE options: {str(e)}")
+        logger.error("Error fetching KE options: %s", e)
         return jsonify({"error": "Failed to fetch KE options"}), 500
 
 
@@ -309,18 +309,18 @@ def get_pathway_options():
 
             # Cache the response
             cache_model.cache_response(endpoint, query_hash, json.dumps(results), 24)
-            logger.info(f"Fetched and cached {len(results)} pathway options")
+            logger.info("Fetched and cached %d pathway options", len(results))
             return jsonify(results), 200
         else:
             logger.error(
-                f"SPARQL Pathway Query Failed: {response.status_code} - {response.text}"
+                "SPARQL Pathway Query Failed: %s - %s", response.status_code, response.text
             )
             return jsonify({"error": "Failed to fetch pathway options"}), 500
     except requests.exceptions.Timeout:
         logger.error("SPARQL pathway request timeout")
         return jsonify({"error": "Service timeout - please try again"}), 503
     except Exception as e:
-        logger.error(f"Error fetching pathway options: {str(e)}")
+        logger.error("Error fetching pathway options: %s", e)
         return jsonify({"error": "Failed to fetch pathway options"}), 500
 
 
@@ -376,7 +376,7 @@ def get_data_versions():
                     }
                     
         except Exception as e:
-            logger.warning(f"Could not fetch AOP-Wiki version: {e}")
+            logger.warning("Could not fetch AOP-Wiki version: %s", e)
             versions["aop_wiki"] = {
                 "source": "AOP-Wiki RDF",
                 "version": "Unknown",
@@ -430,7 +430,7 @@ def get_data_versions():
                     }
                     
         except Exception as e:
-            logger.warning(f"Could not fetch WikiPathways version: {e}")
+            logger.warning("Could not fetch WikiPathways version: %s", e)
             versions["wikipathways"] = {
                 "source": "WikiPathways",
                 "version": "Unknown",
@@ -442,7 +442,7 @@ def get_data_versions():
         return jsonify(versions), 200
         
     except Exception as e:
-        logger.error(f"Error fetching data versions: {e}")
+        logger.error("Error fetching data versions: %s", e)
         return jsonify({"error": "Failed to load data version information"}), 500
 
 
@@ -472,7 +472,7 @@ def submit_proposal():
         }
 
         # Debug logging
-        logger.info(f"Proposal submission data: {proposal_data}")
+        logger.info("Proposal submission data: %s", proposal_data)
 
         # Validate input data
         is_valid, validated_data, errors = validate_request_data(
@@ -480,7 +480,7 @@ def submit_proposal():
         )
 
         if not is_valid:
-            logger.warning(f"Invalid proposal request: {errors}")
+            logger.warning("Invalid proposal request: %s", errors)
             return jsonify({"error": "Invalid input data", "details": errors}), 400
 
         # Sanitize and extract validated data
@@ -543,7 +543,7 @@ def submit_proposal():
 
         if proposal_id:
             logger.info(
-                f"Created proposal {proposal_id} by user {github_username} for mapping {mapping_id}"
+                "Created proposal %s by user %s for mapping %s", proposal_id, github_username, mapping_id
             )
             return (
                 jsonify(
@@ -558,7 +558,7 @@ def submit_proposal():
             return jsonify({"error": "Failed to create proposal"}), 500
 
     except Exception as e:
-        logger.error(f"Error saving proposal: {str(e)}")
+        logger.error("Error saving proposal: %s", e)
         return jsonify({"error": "Failed to save proposal"}), 500
 
 
@@ -616,7 +616,7 @@ def suggest_pathways(ke_id):
         if not ke_id or len(ke_id.strip()) == 0:
             return jsonify({"error": "Invalid Key Event ID"}), 400
 
-        logger.info(f"Getting pathway suggestions for KE: {ke_id} (bio_level: {bio_level}, method_filter: {method_filter})")
+        logger.info("Getting pathway suggestions for KE: %s (bio_level: %s, method_filter: %s)", ke_id, bio_level, method_filter)
 
         # Get all suggestions from service with biological level context
         all_suggestions = pathway_suggestion_service.get_pathway_suggestions(
@@ -624,7 +624,7 @@ def suggest_pathways(ke_id):
         )
 
         if "error" in all_suggestions:
-            logger.error(f"Suggestion service error: {all_suggestions['error']}")
+            logger.error("Suggestion service error: %s", all_suggestions['error'])
             return jsonify(all_suggestions), 500
 
         # Get total count from combined suggestions
@@ -665,11 +665,11 @@ def suggest_pathways(ke_id):
             "timestamp": int(time.time())
         }
 
-        logger.info(f"Returned {len(suggestions)} suggestions for KE {ke_id} (filter: {method_filter})")
+        logger.info("Returned %d suggestions for KE %s (filter: %s)", len(suggestions), ke_id, method_filter)
         return jsonify(response), 200
 
     except Exception as e:
-        logger.error(f"Error getting pathway suggestions for {ke_id}: {str(e)}")
+        logger.error("Error getting pathway suggestions for %s: %s", ke_id, e)
         return jsonify({"error": "Failed to get pathway suggestions"}), 500
 
 
@@ -709,7 +709,7 @@ def search_pathways():
         elif limit < 1:
             limit = 20
             
-        logger.info(f"Searching pathways with query: '{query}', threshold: {threshold}")
+        logger.info("Searching pathways with query: '%s', threshold: %s", query, threshold)
         
         # Perform search
         results = pathway_suggestion_service.search_pathways(
@@ -725,11 +725,11 @@ def search_pathways():
             "timestamp": int(time.time())
         }
         
-        logger.info(f"Found {len(results)} pathways matching '{query}'")
+        logger.info("Found %d pathways matching '%s'", len(results), query)
         return jsonify(response), 200
         
     except Exception as e:
-        logger.error(f"Error searching pathways: {str(e)}")
+        logger.error("Error searching pathways: %s", e)
         return jsonify({"error": "Failed to search pathways"}), 500
 
 
@@ -754,7 +754,7 @@ def get_ke_genes(ke_id):
         if not ke_id or len(ke_id.strip()) == 0:
             return jsonify({"error": "Invalid Key Event ID"}), 400
             
-        logger.info(f"Getting genes for KE: {ke_id}")
+        logger.info("Getting genes for KE: %s", ke_id)
         
         # Get genes from service
         genes = pathway_suggestion_service._get_genes_from_ke(ke_id)
@@ -766,11 +766,11 @@ def get_ke_genes(ke_id):
             "timestamp": int(time.time())
         }
         
-        logger.info(f"Found {len(genes)} genes for KE {ke_id}")
+        logger.info("Found %d genes for KE %s", len(genes), ke_id)
         return jsonify(response), 200
         
     except Exception as e:
-        logger.error(f"Error getting genes for KE {ke_id}: {str(e)}")
+        logger.error("Error getting genes for KE %s: %s", ke_id, e)
         return jsonify({"error": "Failed to get KE genes"}), 500
 
 
@@ -832,7 +832,7 @@ def get_scoring_config():
         return jsonify(response), 200
 
     except Exception as e:
-        logger.error(f"Error serving scoring config: {str(e)}")
+        logger.error("Error serving scoring config: %s", e)
         # Return defaults on error (200 with defaults, not 500)
         default_config = ConfigLoader.get_default_config()
         ke_assessment = default_config.ke_pathway_assessment
@@ -919,18 +919,18 @@ def get_aop_options():
 
             # Cache the response for 24 hours
             cache_model.cache_response(endpoint, query_hash, json.dumps(results), 24)
-            logger.info(f"Fetched and cached {len(results)} AOP options")
+            logger.info("Fetched and cached %d AOP options", len(results))
             return jsonify(results), 200
         else:
             logger.error(
-                f"SPARQL AOP Query Failed: {response.status_code} - {response.text}"
+                "SPARQL AOP Query Failed: %s - %s", response.status_code, response.text
             )
             return jsonify({"error": "Failed to fetch AOP options"}), 500
     except requests.exceptions.Timeout:
         logger.error("SPARQL AOP request timeout")
         return jsonify({"error": "Service timeout - please try again"}), 503
     except Exception as e:
-        logger.error(f"Error fetching AOP options: {str(e)}")
+        logger.error("Error fetching AOP options: %s", e)
         return jsonify({"error": "Failed to fetch AOP options"}), 500
 
 
@@ -977,7 +977,7 @@ def get_aop_kes(aop_id):
         cached_response = cache_model.get_cached_response(endpoint, query_hash)
 
         if cached_response:
-            logger.info(f"Serving KEs for {aop_label} from cache")
+            logger.info("Serving KEs for %s from cache", aop_label)
             return jsonify(json.loads(cached_response)), 200
 
         response = requests.post(
@@ -993,7 +993,7 @@ def get_aop_kes(aop_id):
         if response.status_code == 200:
             data = response.json()
             if "results" not in data or "bindings" not in data["results"]:
-                logger.error(f"Invalid SPARQL response format for AOP {aop_label} KEs")
+                logger.error("Invalid SPARQL response format for AOP %s KEs", aop_label)
                 return jsonify({"error": "Invalid response from AOP service"}), 500
 
             results = [
@@ -1012,18 +1012,18 @@ def get_aop_kes(aop_id):
 
             # Cache the response for 24 hours
             cache_model.cache_response(endpoint, query_hash, json.dumps(results), 24)
-            logger.info(f"Fetched and cached {len(results)} KEs for {aop_label}")
+            logger.info("Fetched and cached %d KEs for %s", len(results), aop_label)
             return jsonify(results), 200
         else:
             logger.error(
-                f"SPARQL AOP KE Query Failed: {response.status_code} - {response.text}"
+                "SPARQL AOP KE Query Failed: %s - %s", response.status_code, response.text
             )
             return jsonify({"error": "Failed to fetch KEs for AOP"}), 500
     except requests.exceptions.Timeout:
         logger.error("SPARQL AOP KE request timeout")
         return jsonify({"error": "Service timeout - please try again"}), 503
     except Exception as e:
-        logger.error(f"Error fetching KEs for AOP {aop_id}: {str(e)}")
+        logger.error("Error fetching KEs for AOP %s: %s", aop_id, e)
         return jsonify({"error": "Failed to fetch KEs for AOP"}), 500
 
 
@@ -1068,7 +1068,7 @@ def suggest_go_terms(ke_id):
         if not ke_id or len(ke_id.strip()) == 0:
             return jsonify({"error": "Invalid Key Event ID"}), 400
 
-        logger.info(f"Getting GO suggestions for KE: {ke_id} (method_filter: {method_filter})")
+        logger.info("Getting GO suggestions for KE: %s (method_filter: %s)", ke_id, method_filter)
 
         result = go_suggestion_service.get_go_suggestions(
             ke_id, ke_title, limit, method_filter
@@ -1085,11 +1085,11 @@ def suggest_go_terms(ke_id):
             "timestamp": int(time.time())
         }
 
-        logger.info(f"Returned {len(result.get('suggestions', []))} GO suggestions for KE {ke_id}")
+        logger.info("Returned %d GO suggestions for KE %s", len(result.get('suggestions', [])), ke_id)
         return jsonify(result), 200
 
     except Exception as e:
-        logger.error(f"Error getting GO suggestions for {ke_id}: {str(e)}")
+        logger.error("Error getting GO suggestions for %s: %s", ke_id, e)
         return jsonify({"error": "Failed to get GO suggestions"}), 500
 
 
@@ -1113,7 +1113,7 @@ def submit_go_mapping():
         )
 
         if not is_valid:
-            logger.warning(f"Invalid GO submit request: {errors}")
+            logger.warning("Invalid GO submit request: %s", errors)
             return jsonify({"error": "Invalid input data", "details": errors}), 400
 
         ke_id = SecurityValidation.sanitize_string(validated_data["ke_id"])
@@ -1142,13 +1142,13 @@ def submit_go_mapping():
         )
 
         if mapping_id:
-            logger.info(f"New GO mapping created: {ke_id} -> {go_id} by {created_by}")
+            logger.info("New GO mapping created: %s -> %s by %s", ke_id, go_id, created_by)
             return jsonify({"message": "GO mapping added successfully."}), 200
         else:
             return jsonify({"error": "The KE-GO pair already exists in the dataset."}), 400
 
     except Exception as e:
-        logger.error(f"Error adding GO mapping: {str(e)}")
+        logger.error("Error adding GO mapping: %s", e)
         return jsonify({"error": "Failed to add GO mapping"}), 500
 
 
@@ -1178,7 +1178,7 @@ def check_go_entry():
         return jsonify(result), 200
 
     except Exception as e:
-        logger.error(f"Error checking GO entry: {str(e)}")
+        logger.error("Error checking GO entry: %s", e)
         return jsonify({"error": "Failed to check GO entry"}), 500
 
 
@@ -1216,7 +1216,7 @@ def get_go_scoring_config():
         return jsonify(response), 200
 
     except Exception as e:
-        logger.error(f"Error serving GO scoring config: {str(e)}")
+        logger.error("Error serving GO scoring config: %s", e)
         default_config = ConfigLoader.get_default_config()
         ke_go = default_config.ke_go_assessment
 

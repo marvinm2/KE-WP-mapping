@@ -69,7 +69,7 @@ def register_error_handlers(app):
     @app.errorhandler(ApplicationError)
     def handle_application_error(error):
         """Handle custom application errors"""
-        logger.error(f"Application error: {error.message} - Details: {error.details}")
+        logger.error("Application error: %s - Details: %s", error.message, error.details)
 
         if (
             request.is_json
@@ -97,7 +97,7 @@ def register_error_handlers(app):
     @app.errorhandler(400)
     def handle_bad_request(error):
         """Handle 400 Bad Request errors"""
-        logger.warning(f"Bad request: {request.url} - {error}")
+        logger.warning("Bad request: %s - %s", request.url, error)
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Invalid request data"}), 400
@@ -112,7 +112,7 @@ def register_error_handlers(app):
     @app.errorhandler(401)
     def handle_unauthorized(error):
         """Handle 401 Unauthorized errors"""
-        logger.warning(f"Unauthorized access attempt: {request.url}")
+        logger.warning("Unauthorized access attempt: %s", request.url)
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Authentication required"}), 401
@@ -129,7 +129,7 @@ def register_error_handlers(app):
     @app.errorhandler(403)
     def handle_forbidden(error):
         """Handle 403 Forbidden errors"""
-        logger.warning(f"Forbidden access attempt: {request.url}")
+        logger.warning("Forbidden access attempt: %s", request.url)
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Access denied"}), 403
@@ -146,7 +146,7 @@ def register_error_handlers(app):
     @app.errorhandler(404)
     def handle_not_found(error):
         """Handle 404 Not Found errors"""
-        logger.info(f"Page not found: {request.url}")
+        logger.info("Page not found: %s", request.url)
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Resource not found"}), 404
@@ -163,7 +163,7 @@ def register_error_handlers(app):
     @app.errorhandler(429)
     def handle_rate_limit(error):
         """Handle 429 Rate Limit errors"""
-        logger.warning(f"Rate limit exceeded: {request.url} from {request.remote_addr}")
+        logger.warning("Rate limit exceeded: %s from %s", request.url, request.remote_addr)
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Too many requests. Please try again later."}), 429
@@ -180,7 +180,7 @@ def register_error_handlers(app):
     @app.errorhandler(500)
     def handle_internal_error(error):
         """Handle 500 Internal Server Error"""
-        logger.error(f"Internal server error: {request.url} - {error}")
+        logger.error("Internal server error: %s - %s", request.url, error)
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Internal server error"}), 500
@@ -197,7 +197,7 @@ def register_error_handlers(app):
     @app.errorhandler(503)
     def handle_service_unavailable(error):
         """Handle 503 Service Unavailable errors"""
-        logger.error(f"Service unavailable: {request.url} - {error}")
+        logger.error("Service unavailable: %s - %s", request.url, error)
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Service temporarily unavailable"}), 503
@@ -214,7 +214,7 @@ def register_error_handlers(app):
     @app.errorhandler(Exception)
     def handle_unexpected_error(error):
         """Handle unexpected errors"""
-        logger.exception(f"Unexpected error: {request.url} - {str(error)}")
+        logger.exception("Unexpected error: %s - %s", request.url, error)
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "An unexpected error occurred"}), 500
@@ -237,7 +237,7 @@ def handle_errors(f):
         try:
             return f(*args, **kwargs)
         except ValidationError as e:
-            logger.warning(f"Validation error in {f.__name__}: {e.message}")
+            logger.warning("Validation error in %s: %s", f.__name__, e.message)
             if request.is_json or request.path.startswith("/api/"):
                 return (
                     jsonify({"error": e.message, "details": e.details}),
@@ -246,13 +246,13 @@ def handle_errors(f):
             else:
                 return render_template("error.html", error=e.message), e.status_code
         except AuthenticationError as e:
-            logger.warning(f"Authentication error in {f.__name__}: {e.message}")
+            logger.warning("Authentication error in %s: %s", f.__name__, e.message)
             if request.is_json or request.path.startswith("/api/"):
                 return jsonify({"error": e.message}), e.status_code
             else:
                 return render_template("error.html", error=e.message), e.status_code
         except Exception as e:
-            logger.exception(f"Unexpected error in {f.__name__}: {str(e)}")
+            logger.exception("Unexpected error in %s: %s", f.__name__, e)
             if request.is_json or request.path.startswith("/api/"):
                 return jsonify({"error": "An unexpected error occurred"}), 500
             else:
@@ -267,8 +267,8 @@ def handle_errors(f):
 def log_error_details(error: Exception, context: str = None):
     """Helper function to log error details with context"""
     context_str = f" in {context}" if context else ""
-    logger.error(f"Error{context_str}: {str(error)}")
-    logger.debug(f"Error details{context_str}:", exc_info=True)
+    logger.error("Error%s: %s", context_str, error)
+    logger.debug("Error details%s:", context_str, exc_info=True)
 
 
 def create_error_response(message: str, status_code: int = 500, details: dict = None):

@@ -172,8 +172,8 @@ def list_mappings():
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error listing mappings: {e}")
-        return jsonify({"error": "Failed to retrieve mappings", "details": str(e)}), 500
+        logger.error("Error listing mappings: %s", e)
+        return jsonify({"error": "Failed to retrieve mappings", "details": "Internal error"}), 500
 
 
 @enhanced_api_bp.route("/mappings/<int:mapping_id>", methods=["GET"])
@@ -204,8 +204,8 @@ def get_mapping(mapping_id):
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error retrieving mapping {mapping_id}: {e}")
-        return jsonify({"error": "Failed to retrieve mapping", "details": str(e)}), 500
+        logger.error("Error retrieving mapping %s: %s", mapping_id, e)
+        return jsonify({"error": "Failed to retrieve mapping", "details": "Internal error"}), 500
 
 
 @enhanced_api_bp.route("/mappings", methods=["POST"])
@@ -260,8 +260,8 @@ def create_mapping():
         return jsonify(result), 201
         
     except Exception as e:
-        logger.error(f"Error creating mapping: {e}")
-        return jsonify({"error": "Failed to create mapping", "details": str(e)}), 500
+        logger.error("Error creating mapping: %s", e)
+        return jsonify({"error": "Failed to create mapping", "details": "Internal error"}), 500
 
 
 @enhanced_api_bp.route("/mappings/<int:mapping_id>", methods=["PUT", "PATCH"])
@@ -333,8 +333,8 @@ def update_mapping(mapping_id):
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error updating mapping {mapping_id}: {e}")
-        return jsonify({"error": "Failed to update mapping", "details": str(e)}), 500
+        logger.error("Error updating mapping %s: %s", mapping_id, e)
+        return jsonify({"error": "Failed to update mapping", "details": "Internal error"}), 500
 
 
 @enhanced_api_bp.route("/mappings/<int:mapping_id>", methods=["DELETE"])
@@ -370,8 +370,8 @@ def delete_mapping(mapping_id):
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error deleting mapping {mapping_id}: {e}")
-        return jsonify({"error": "Failed to delete mapping", "details": str(e)}), 500
+        logger.error("Error deleting mapping %s: %s", mapping_id, e)
+        return jsonify({"error": "Failed to delete mapping", "details": "Internal error"}), 500
 
 
 # ========== Bulk Operations ==========
@@ -397,8 +397,8 @@ def bulk_operations():
             return jsonify({"error": f"Unsupported bulk operation: {operation}"}), 400
             
     except Exception as e:
-        logger.error(f"Error in bulk operations: {e}")
-        return jsonify({"error": "Bulk operation failed", "details": str(e)}), 500
+        logger.error("Error in bulk operations: %s", e)
+        return jsonify({"error": "Bulk operation failed", "details": "Internal error"}), 500
 
 
 def bulk_create_mappings():
@@ -462,10 +462,11 @@ def bulk_create_mappings():
                 })
                 
         except Exception as e:
+            logger.error("Error in bulk create for index %d: %s", i, e)
             results["failed"].append({
                 "index": i,
                 "data": mapping_data,
-                "error": str(e)
+                "error": "Internal error"
             })
     
     response = {
@@ -561,8 +562,8 @@ def mapping_statistics():
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error generating statistics: {e}")
-        return jsonify({"error": "Failed to generate statistics", "details": str(e)}), 500
+        logger.error("Error generating statistics: %s", e)
+        return jsonify({"error": "Failed to generate statistics", "details": "Internal error"}), 500
 
 
 # ========== API Documentation ==========

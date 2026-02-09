@@ -69,10 +69,10 @@ def explore():
             try:
                 go_data = go_mapping_model.get_all_mappings()
             except Exception as e:
-                logger.warning(f"Failed to load GO mappings: {e}")
+                logger.warning("Failed to load GO mappings: %s", e)
         return render_template("explore.html", dataset=data, go_dataset=go_data, user_info=user_info)
     except Exception as e:
-        logger.error(f"Error loading dataset: {str(e)}")
+        logger.error("Error loading dataset: %s", e)
         return render_template(
             "explore.html", dataset=[], go_dataset=[], user_info={}, error="Failed to load dataset"
         )
@@ -211,11 +211,11 @@ def download():
             "Content-Disposition"
         ] = f'attachment; filename=ke_wp_mappings_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
 
-        logger.info(f"Dataset downloaded: {len(mappings)} mappings exported")
+        logger.info("Dataset downloaded: %d mappings exported", len(mappings))
         return response
 
     except Exception as e:
-        logger.error(f"Error generating dataset download: {str(e)}")
+        logger.error("Error generating dataset download: %s", e)
         return (
             render_template("error.html", error="Failed to generate dataset download"),
             500,
@@ -308,17 +308,18 @@ def export_dataset(format_name):
         from timezone_utils import format_local_datetime
         response.headers["X-Export-Timestamp"] = format_local_datetime()
         
-        logger.info(f"Dataset exported in {format_name} format")
+        logger.info("Dataset exported in %s format", format_name)
         return response
         
     except ImportError as e:
+        logger.error("Missing dependencies for %s export: %s", format_name, e)
         return jsonify({
             "error": f"Required dependencies not installed for {format_name} export",
-            "details": str(e)
+            "details": "Internal error"
         }), 500
     except Exception as e:
-        logger.error(f"Error exporting dataset in {format_name} format: {e}")
-        return jsonify({"error": "Export failed", "details": str(e)}), 500
+        logger.error("Error exporting dataset in %s format: %s", format_name, e)
+        return jsonify({"error": "Export failed", "details": "Internal error"}), 500
 
 
 @main_bp.route("/export/formats")
@@ -381,8 +382,8 @@ def dataset_metadata():
         metadata = metadata_manager.get_current_metadata()
         return jsonify(metadata)
     except Exception as e:
-        logger.error(f"Error retrieving dataset metadata: {e}")
-        return jsonify({"error": "Failed to retrieve metadata", "details": str(e)}), 500
+        logger.error("Error retrieving dataset metadata: %s", e)
+        return jsonify({"error": "Failed to retrieve metadata", "details": "Internal error"}), 500
 
 
 @main_bp.route("/dataset/versions")
@@ -395,8 +396,8 @@ def dataset_versions():
         versions = metadata_manager.get_versions()
         return jsonify({"versions": versions})
     except Exception as e:
-        logger.error(f"Error retrieving dataset versions: {e}")
-        return jsonify({"error": "Failed to retrieve versions", "details": str(e)}), 500
+        logger.error("Error retrieving dataset versions: %s", e)
+        return jsonify({"error": "Failed to retrieve versions", "details": "Internal error"}), 500
 
 
 @main_bp.route("/dataset/citation")
@@ -425,10 +426,11 @@ def dataset_citation():
             return jsonify(response_data)
             
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        logger.warning("Invalid citation format request: %s", e)
+        return jsonify({"error": "Invalid citation format"}), 400
     except Exception as e:
-        logger.error(f"Error generating citation: {e}")
-        return jsonify({"error": "Failed to generate citation", "details": str(e)}), 500
+        logger.error("Error generating citation: %s", e)
+        return jsonify({"error": "Failed to generate citation", "details": "Internal error"}), 500
 
 
 @main_bp.route("/dataset/datacite")
@@ -447,8 +449,8 @@ def datacite_metadata():
         return response
         
     except Exception as e:
-        logger.error(f"Error generating DataCite metadata: {e}")
-        return jsonify({"error": "Failed to generate DataCite metadata", "details": str(e)}), 500
+        logger.error("Error generating DataCite metadata: %s", e)
+        return jsonify({"error": "Failed to generate DataCite metadata", "details": "Internal error"}), 500
 
 
 @main_bp.route("/documentation")
@@ -475,10 +477,10 @@ def documentation(section='overview'):
 
     # Validate section
     if section not in sections:
-        logger.warning(f"Invalid documentation section requested: {section}")
+        logger.warning("Invalid documentation section requested: %s", section)
         section = 'overview'
 
-    logger.info(f"Documentation section requested: {section}")
+    logger.info("Documentation section requested: %s", section)
 
     return render_template('documentation.html',
         current_section=section,

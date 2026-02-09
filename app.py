@@ -35,8 +35,6 @@ from services import ServiceContainer
 load_dotenv(".env")  # Explicitly specify .env file
 
 # Debug: Check if environment variables are loaded
-import logging
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -44,7 +42,7 @@ required_vars = ["FLASK_SECRET_KEY", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"]
 for var in required_vars:
     value = os.getenv(var)
     logger.info(
-        f"{var}: {'SET' if value else 'NOT SET'} ({'*' * min(len(value) if value else 0, 5) if value else 'None'})"
+        "%s: %s (%s)", var, 'SET' if value else 'NOT SET', '*' * min(len(value) if value else 0, 5) if value else 'None'
     )
 
 
@@ -87,7 +85,7 @@ def create_app(config_name: str = None):
     # CSRF error handler
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
-        logger.warning(f"CSRF error: {e.description} from {request.remote_addr}")
+        logger.warning("CSRF error: %s from %s", e.description, request.remote_addr)
         if request.is_json:
             return jsonify({"error": "CSRF token missing or invalid"}), 400
         return (
@@ -149,13 +147,13 @@ def create_app(config_name: str = None):
                 }
             )
         except Exception as e:
-            logger.error(f"Health check failed: {e}")
+            logger.error("Health check failed: %s", e)
             return (
                 jsonify(
                     {
                         "status": "unhealthy",
                         "timestamp": format_admin_timestamp(),
-                        "error": str(e),
+                        "error": "Health check failed",
                     }
                 ),
                 500,
@@ -179,7 +177,7 @@ def create_app(config_name: str = None):
     def cleanup_services(error):
         """Cleanup services on app context teardown"""
         if error:
-            logger.error(f"Application context error: {error}")
+            logger.error("Application context error: %s", error)
 
     # Store service container for access by other modules
     app.service_container = services

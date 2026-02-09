@@ -62,7 +62,7 @@ def admin_required(f):
         admin_users = [user.strip() for user in admin_users if user.strip()]
 
         if current_user not in admin_users:
-            logger.warning(f"User {current_user} attempted to access admin route")
+            logger.warning("User %s attempted to access admin route", current_user)
             return jsonify({"error": "Admin access required"}), 403
 
         return f(*args, **kwargs)
@@ -118,23 +118,23 @@ def admin_proposals():
                     utc_dt = datetime.fromisoformat(proposal['created_at'].replace('Z', '+00:00'))
                     local_dt = utc_to_local(utc_dt)
                     proposal['created_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-                except:
+                except (ValueError, TypeError):
                     proposal['created_at_formatted'] = proposal['created_at']
-            
+
             if proposal.get('approved_at'):
                 try:
                     utc_dt = datetime.fromisoformat(proposal['approved_at'].replace('Z', '+00:00'))
                     local_dt = utc_to_local(utc_dt)
                     proposal['approved_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-                except:
+                except (ValueError, TypeError):
                     proposal['approved_at_formatted'] = proposal['approved_at']
-                    
+
             if proposal.get('rejected_at'):
                 try:
                     utc_dt = datetime.fromisoformat(proposal['rejected_at'].replace('Z', '+00:00'))
                     local_dt = utc_to_local(utc_dt)
                     proposal['rejected_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-                except:
+                except (ValueError, TypeError):
                     proposal['rejected_at_formatted'] = proposal['rejected_at']
 
         # Add admin status to template context
@@ -148,7 +148,7 @@ def admin_proposals():
         )
 
     except Exception as e:
-        logger.error(f"Error loading admin proposals: {e}")
+        logger.error("Error loading admin proposals: %s", e)
         return render_template(
             "admin_proposals.html",
             proposals=[],
@@ -181,29 +181,29 @@ def admin_proposal_detail(proposal_id: int):
                 utc_dt = datetime.fromisoformat(proposal['created_at'].replace('Z', '+00:00'))
                 local_dt = utc_to_local(utc_dt)
                 proposal['created_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            except:
+            except (ValueError, TypeError):
                 proposal['created_at_formatted'] = proposal['created_at']
-        
+
         if proposal.get('approved_at'):
             try:
                 utc_dt = datetime.fromisoformat(proposal['approved_at'].replace('Z', '+00:00'))
                 local_dt = utc_to_local(utc_dt)
                 proposal['approved_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            except:
+            except (ValueError, TypeError):
                 proposal['approved_at_formatted'] = proposal['approved_at']
-                
+
         if proposal.get('rejected_at'):
             try:
                 utc_dt = datetime.fromisoformat(proposal['rejected_at'].replace('Z', '+00:00'))
                 local_dt = utc_to_local(utc_dt)
                 proposal['rejected_at_formatted'] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            except:
+            except (ValueError, TypeError):
                 proposal['rejected_at_formatted'] = proposal['rejected_at']
 
         return jsonify(proposal)
 
     except Exception as e:
-        logger.error(f"Error getting proposal {proposal_id}: {e}")
+        logger.error("Error getting proposal %s: %s", proposal_id, e)
         return jsonify({"error": "Failed to load proposal"}), 500
 
 
@@ -225,7 +225,7 @@ def approve_proposal(proposal_id: int):
         admin_data = {"admin_notes": request.form.get("admin_notes", "")}
 
         # Debug logging
-        logger.info(f"Admin approve request data: {admin_data}")
+        logger.info("Admin approve request data: %s", admin_data)
 
         # Validate admin notes input
         is_valid, validated_data, errors = validate_request_data(
@@ -233,7 +233,7 @@ def approve_proposal(proposal_id: int):
         )
 
         if not is_valid:
-            logger.warning(f"Invalid admin notes in approve: {errors}")
+            logger.warning("Invalid admin notes in approve: %s", errors)
             return jsonify({"error": "Invalid input data", "details": errors}), 400
 
         # Get sanitized admin notes
@@ -244,7 +244,7 @@ def approve_proposal(proposal_id: int):
 
         # Validate admin username
         if not SecurityValidation.validate_username(admin_username):
-            logger.error(f"Invalid admin username in approve: {admin_username}")
+            logger.error("Invalid admin username in approve: %s", admin_username)
             return jsonify({"error": "Authentication error"}), 401
 
         # Get proposal details
@@ -283,7 +283,7 @@ def approve_proposal(proposal_id: int):
             )
 
             logger.info(
-                f"Proposal {proposal_id} approved by {admin_username}, mapping {action}"
+                "Proposal %s approved by %s, mapping %s", proposal_id, admin_username, action
             )
             return (
                 jsonify(
@@ -298,7 +298,7 @@ def approve_proposal(proposal_id: int):
             return jsonify({"error": f"Failed to {action.rstrip('d')} mapping"}), 500
 
     except Exception as e:
-        logger.error(f"Error approving proposal {proposal_id}: {e}")
+        logger.error("Error approving proposal %s: %s", proposal_id, e)
         return jsonify({"error": "Failed to approve proposal"}), 500
 
 
@@ -320,7 +320,7 @@ def reject_proposal(proposal_id: int):
         admin_data = {"admin_notes": request.form.get("admin_notes", "")}
 
         # Debug logging
-        logger.info(f"Admin reject request data: {admin_data}")
+        logger.info("Admin reject request data: %s", admin_data)
 
         # Validate admin notes input
         is_valid, validated_data, errors = validate_request_data(
@@ -328,7 +328,7 @@ def reject_proposal(proposal_id: int):
         )
 
         if not is_valid:
-            logger.warning(f"Invalid admin notes in reject: {errors}")
+            logger.warning("Invalid admin notes in reject: %s", errors)
             return jsonify({"error": "Invalid input data", "details": errors}), 400
 
         # Get sanitized admin notes
@@ -339,7 +339,7 @@ def reject_proposal(proposal_id: int):
 
         # Validate admin username
         if not SecurityValidation.validate_username(admin_username):
-            logger.error(f"Invalid admin username in reject: {admin_username}")
+            logger.error("Invalid admin username in reject: %s", admin_username)
             return jsonify({"error": "Authentication error"}), 401
 
         # Get proposal details
@@ -359,11 +359,11 @@ def reject_proposal(proposal_id: int):
         )
 
         if success:
-            logger.info(f"Proposal {proposal_id} rejected by {admin_username}")
+            logger.info("Proposal %s rejected by %s", proposal_id, admin_username)
             return jsonify({"message": "Proposal rejected successfully."}), 200
         else:
             return jsonify({"error": "Failed to reject proposal"}), 500
 
     except Exception as e:
-        logger.error(f"Error rejecting proposal {proposal_id}: {e}")
+        logger.error("Error rejecting proposal %s: %s", proposal_id, e)
         return jsonify({"error": "Failed to reject proposal"}), 500

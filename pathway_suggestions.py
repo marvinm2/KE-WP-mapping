@@ -90,18 +90,18 @@ class PathwaySuggestionService:
             Dictionary containing gene-based, text-based, and embedding-based suggestions
         """
         try:
-            logger.info(f"Getting pathway suggestions for {ke_id}")
+            logger.info("Getting pathway suggestions for %s", ke_id)
 
             # Get gene-based suggestions
             genes = self._get_genes_from_ke(ke_id)
             gene_suggestions = []
             if genes:
                 gene_suggestions = self._find_pathways_by_genes(genes, limit)
-                logger.info(f"Found {len(gene_suggestions)} gene-based suggestions")
+                logger.info("Found %d gene-based suggestions", len(gene_suggestions))
 
             # Get text-based suggestions
             text_suggestions = self._fuzzy_search_pathways(ke_title, bio_level, limit)
-            logger.info(f"Found {len(text_suggestions)} text-based suggestions")
+            logger.info("Found %d text-based suggestions", len(text_suggestions))
 
             # Get embedding-based suggestions (NEW)
             embedding_suggestions = []
@@ -110,7 +110,7 @@ class PathwaySuggestionService:
                 embedding_suggestions = self._get_embedding_based_suggestions(
                     ke_id, ke_title, ke_description, bio_level, limit
                 )
-                logger.info(f"Found {len(embedding_suggestions)} embedding-based suggestions")
+                logger.info("Found %d embedding-based suggestions", len(embedding_suggestions))
 
             # Combine all three with hybrid scoring
             combined_suggestions = self._combine_multi_signal_suggestions(
@@ -130,7 +130,7 @@ class PathwaySuggestionService:
             }
 
         except Exception as e:
-            logger.error(f"Error getting pathway suggestions for {ke_id}: {str(e)}")
+            logger.error("Error getting pathway suggestions for %s: %s", ke_id, e)
             return {
                 "error": "Failed to generate pathway suggestions",
                 "ke_id": ke_id,
@@ -248,16 +248,16 @@ class PathwaySuggestionService:
                         24,
                     )
 
-                logger.info(f"Found {len(limited_results)} gene-based pathway suggestions")
+                logger.info("Found %d gene-based pathway suggestions", len(limited_results))
                 return limited_results
             else:
                 logger.error(
-                    f"WikiPathways gene query failed: {response.status_code} - {response.text}"
+                    "WikiPathways gene query failed: %s - %s", response.status_code, response.text
                 )
                 return []
 
         except Exception as e:
-            logger.error(f"Error finding pathways by genes: {str(e)}")
+            logger.error("Error finding pathways by genes: %s", e)
             return []
 
     def _get_pathway_gene_counts(self, pathway_ids: List[str]) -> Dict[str, int]:
@@ -334,16 +334,16 @@ class PathwaySuggestionService:
                         24,
                     )
 
-                logger.info(f"Retrieved gene counts for {len(gene_counts)} pathways")
+                logger.info("Retrieved gene counts for %d pathways", len(gene_counts))
                 return gene_counts
             else:
                 logger.error(
-                    f"WikiPathways gene count query failed: {response.status_code} - {response.text}"
+                    "WikiPathways gene count query failed: %s - %s", response.status_code, response.text
                 )
                 return {}
 
         except Exception as e:
-            logger.error(f"Error getting pathway gene counts: {str(e)}")
+            logger.error("Error getting pathway gene counts: %s", e)
             return {}
 
     def _calculate_gene_confidence(
@@ -523,11 +523,11 @@ class PathwaySuggestionService:
             scored_pathways.sort(key=lambda x: x["combined_similarity"], reverse=True)
             limited_results = scored_pathways[:limit]
 
-            logger.info(f"Found {len(limited_results)} text-based pathway suggestions")
+            logger.info("Found %d text-based pathway suggestions", len(limited_results))
             return limited_results
 
         except Exception as e:
-            logger.error(f"Error in fuzzy pathway search: {str(e)}")
+            logger.error("Error in fuzzy pathway search: %s", e)
             return []
 
     def _get_all_pathways_for_search(self) -> List[Dict[str, str]]:
@@ -600,17 +600,17 @@ class PathwaySuggestionService:
                         cache_key, query_hash, json.dumps(pathways), 6
                     )
 
-                logger.info(f"Loaded {len(pathways)} pathways for text search")
+                logger.info("Loaded %d pathways for text search", len(pathways))
                 return pathways
 
             else:
                 logger.error(
-                    f"All pathways query failed: {response.status_code} - {response.text}"
+                    "All pathways query failed: %s - %s", response.status_code, response.text
                 )
                 return []
 
         except Exception as e:
-            logger.error(f"Error getting all pathways for search: {str(e)}")
+            logger.error("Error getting all pathways for search: %s", e)
             return []
 
     def _calculate_text_similarity(self, text1: str, text2: str, bio_level: str = None) -> float:
@@ -1133,7 +1133,7 @@ class PathwaySuggestionService:
             return []
 
         try:
-            logger.info(f"Computing embedding-based suggestions for {ke_id}")
+            logger.info("Computing embedding-based suggestions for %s", ke_id)
 
             # IMPORTANT: Strip directionality terms from title before computing embeddings
             ke_title_clean = remove_directionality_terms(ke_title)
@@ -1182,12 +1182,12 @@ class PathwaySuggestionService:
             # Sort by confidence descending
             suggestions.sort(key=lambda x: x['confidence_score'], reverse=True)
 
-            logger.info(f"Found {len(suggestions)} embedding-based suggestions")
+            logger.info("Found %d embedding-based suggestions", len(suggestions))
 
             return suggestions[:limit]
 
         except Exception as e:
-            logger.error(f"Embedding-based suggestion failed: {e}")
+            logger.error("Embedding-based suggestion failed: %s", e)
             return []
 
     def _combine_multi_signal_suggestions(
@@ -1355,5 +1355,5 @@ class PathwaySuggestionService:
             return results[:limit]
 
         except Exception as e:
-            logger.error(f"Error in pathway search: {str(e)}")
+            logger.error("Error in pathway search: %s", e)
             return []

@@ -73,10 +73,10 @@ def authorize():
             if user_email and len(user_email) > 0
             else "No public email",
         }
-        logger.info(f"User {user_info['login']} logged in successfully")
+        logger.info("User %s logged in successfully", user_info['login'])
         return redirect(url_for("main.index"))
     except Exception as e:
-        logger.error(f"OAuth callback error: {str(e)}")
+        logger.error("OAuth callback error: %s", e)
         return redirect(url_for("main.index"))
 
 
@@ -85,5 +85,5 @@ def logout():
     """Log out the current user"""
     username = session.get("user", {}).get("username", "unknown")
     session.pop("user", None)
-    logger.info(f"User {username} logged out")
+    logger.info("User %s logged out", username)
     return redirect(url_for("main.index"))
