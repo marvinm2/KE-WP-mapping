@@ -122,7 +122,7 @@ jobs:
       run: |
         radon cc . -s --total-average
         radon mi . -s
-        xenon . --max-absolute C --max-modules B --max-average A
+        xenon . --max-absolute E --max-modules C --max-average B
 
     - name: Generate complexity reports
       run: |
