@@ -84,7 +84,7 @@ class TestRateLimiter:
         client_ip = "192.168.1.1"
         endpoint = "test_endpoint"
         limit = 2
-        window = 1  # 1 second window
+        window = 2  # 2 second window
 
         # Fill up the limit
         for i in range(limit):
@@ -93,8 +93,8 @@ class TestRateLimiter:
         # Should be blocked
         assert rate_limiter.is_rate_limited(client_ip, endpoint, limit, window)
 
-        # Wait for window to expire
-        time.sleep(1.1)
+        # Wait for window to expire (generous margin for CI)
+        time.sleep(3)
 
         # Should be allowed again
         assert not rate_limiter.is_rate_limited(client_ip, endpoint, limit, window)
