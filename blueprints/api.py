@@ -25,6 +25,7 @@ from schemas import (
     validate_request_data,
 )
 from config_loader import ConfigLoader
+from text_utils import sanitize_log
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +44,17 @@ pathway_suggestion_service = None
 go_suggestion_service = None
 go_mapping_model = None
 go_proposal_model = None
+ke_metadata = None
+pathway_metadata = None
 
 
 def set_models(mapping, proposal, cache, suggestion_service=None,
-               go_suggestion_svc=None, go_mapping=None, go_proposal=None):
+               go_suggestion_svc=None, go_mapping=None, go_proposal=None,
+               ke_meta=None, pathway_meta=None):
     """Set the model instances"""
     global mapping_model, proposal_model, cache_model, pathway_suggestion_service
     global go_suggestion_service, go_mapping_model, go_proposal_model
+    global ke_metadata, pathway_metadata
     mapping_model = mapping
     proposal_model = proposal
     cache_model = cache
@@ -57,6 +62,8 @@ def set_models(mapping, proposal, cache, suggestion_service=None,
     go_suggestion_service = go_suggestion_svc
     go_mapping_model = go_mapping
     go_proposal_model = go_proposal
+    ke_metadata = ke_meta
+    pathway_metadata = pathway_meta
 
 
 def login_required(f):
@@ -171,8 +178,14 @@ def submit():
 @api_bp.route("/get_ke_options", methods=["GET"])
 @sparql_rate_limit
 def get_ke_options():
-    """Fetch Key Event options from SPARQL endpoint"""
+    """Fetch Key Event options from pre-computed metadata or SPARQL endpoint"""
     try:
+        # Serve from pre-computed metadata if available
+        if ke_metadata:
+            logger.info("Serving %d KE options from pre-computed metadata", len(ke_metadata))
+            return jsonify(ke_metadata), 200
+
+        # Fall back to live SPARQL query
         sparql_query = """
         PREFIX aopo: <http://aopkb.org/aop_ontology#>
         PREFIX dc: <http://purl.org/dc/elements/1.1/>
@@ -182,9 +195,9 @@ def get_ke_options():
 
         SELECT ?KEtitle ?KElabel ?KEpage ?KEdescription ?biolevel
         WHERE {
-          ?KE a aopo:KeyEvent ; 
-              dc:title ?KEtitle ; 
-              rdfs:label ?KElabel; 
+          ?KE a aopo:KeyEvent ;
+              dc:title ?KEtitle ;
+              rdfs:label ?KElabel;
               foaf:page ?KEpage .
           OPTIONAL { ?KE dc:description ?KEdescription }
           OPTIONAL { ?KE nci:C25664 ?biolevel }
@@ -248,8 +261,14 @@ def get_ke_options():
 @api_bp.route("/get_pathway_options", methods=["GET"])
 @sparql_rate_limit
 def get_pathway_options():
-    """Fetch pathway options from the SPARQL endpoint."""
+    """Fetch pathway options from pre-computed metadata or SPARQL endpoint."""
     try:
+        # Serve from pre-computed metadata if available
+        if pathway_metadata:
+            logger.info("Serving %d pathway options from pre-computed metadata", len(pathway_metadata))
+            return jsonify(pathway_metadata), 200
+
+        # Fall back to live SPARQL query
         sparql_query = """
         PREFIX wp: <http://vocabularies.wikipathways.org/wp#>
         PREFIX dc: <http://purl.org/dc/elements/1.1/>
@@ -257,9 +276,9 @@ def get_pathway_options():
 
         SELECT DISTINCT ?pathwayID ?pathwayTitle ?pathwayLink ?pathwayDescription
         WHERE {
-            ?pathwayRev a wp:Pathway ; 
-                        dc:title ?pathwayTitle ; 
-                        dc:identifier ?pathwayLink ; 
+            ?pathwayRev a wp:Pathway ;
+                        dc:title ?pathwayTitle ;
+                        dc:identifier ?pathwayLink ;
                         dcterms:identifier ?pathwayID ;
                         wp:organismName "Homo sapiens" .
             OPTIONAL { ?pathwayRev dcterms:description ?pathwayDescription }
@@ -472,7 +491,7 @@ def submit_proposal():
         }
 
         # Debug logging
-        logger.info("Proposal submission data: %s", proposal_data)
+        logger.info("Proposal submission data: %s", sanitize_log(str(proposal_data)))
 
         # Validate input data
         is_valid, validated_data, errors = validate_request_data(
@@ -616,7 +635,7 @@ def suggest_pathways(ke_id):
         if not ke_id or len(ke_id.strip()) == 0:
             return jsonify({"error": "Invalid Key Event ID"}), 400
 
-        logger.info("Getting pathway suggestions for KE: %s (bio_level: %s, method_filter: %s)", ke_id, bio_level, method_filter)
+        logger.info("Getting pathway suggestions for KE: %s (bio_level: %s, method_filter: %s)", sanitize_log(ke_id), sanitize_log(bio_level), sanitize_log(method_filter))
 
         # Get all suggestions from service with biological level context
         all_suggestions = pathway_suggestion_service.get_pathway_suggestions(
@@ -665,11 +684,11 @@ def suggest_pathways(ke_id):
             "timestamp": int(time.time())
         }
 
-        logger.info("Returned %d suggestions for KE %s (filter: %s)", len(suggestions), ke_id, method_filter)
+        logger.info("Returned %d suggestions for KE %s (filter: %s)", len(suggestions), sanitize_log(ke_id), sanitize_log(method_filter))
         return jsonify(response), 200
 
     except Exception as e:
-        logger.error("Error getting pathway suggestions for %s: %s", ke_id, e)
+        logger.error("Error getting pathway suggestions for %s: %s", sanitize_log(ke_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to get pathway suggestions"}), 500
 
 
@@ -709,7 +728,7 @@ def search_pathways():
         elif limit < 1:
             limit = 20
             
-        logger.info("Searching pathways with query: '%s', threshold: %s", query, threshold)
+        logger.info("Searching pathways with query: '%s', threshold: %s", sanitize_log(query), threshold)
         
         # Perform search
         results = pathway_suggestion_service.search_pathways(
@@ -725,7 +744,7 @@ def search_pathways():
             "timestamp": int(time.time())
         }
         
-        logger.info("Found %d pathways matching '%s'", len(results), query)
+        logger.info("Found %d pathways matching '%s'", len(results), sanitize_log(query))
         return jsonify(response), 200
         
     except Exception as e:
@@ -754,7 +773,7 @@ def get_ke_genes(ke_id):
         if not ke_id or len(ke_id.strip()) == 0:
             return jsonify({"error": "Invalid Key Event ID"}), 400
             
-        logger.info("Getting genes for KE: %s", ke_id)
+        logger.info("Getting genes for KE: %s", sanitize_log(ke_id))
         
         # Get genes from service
         genes = pathway_suggestion_service._get_genes_from_ke(ke_id)
@@ -766,11 +785,11 @@ def get_ke_genes(ke_id):
             "timestamp": int(time.time())
         }
         
-        logger.info("Found %d genes for KE %s", len(genes), ke_id)
+        logger.info("Found %d genes for KE %s", len(genes), sanitize_log(ke_id))
         return jsonify(response), 200
         
     except Exception as e:
-        logger.error("Error getting genes for KE %s: %s", ke_id, e)
+        logger.error("Error getting genes for KE %s: %s", sanitize_log(ke_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to get KE genes"}), 500
 
 
@@ -977,7 +996,7 @@ def get_aop_kes(aop_id):
         cached_response = cache_model.get_cached_response(endpoint, query_hash)
 
         if cached_response:
-            logger.info("Serving KEs for %s from cache", aop_label)
+            logger.info("Serving KEs for %s from cache", sanitize_log(aop_label))
             return jsonify(json.loads(cached_response)), 200
 
         response = requests.post(
@@ -993,7 +1012,7 @@ def get_aop_kes(aop_id):
         if response.status_code == 200:
             data = response.json()
             if "results" not in data or "bindings" not in data["results"]:
-                logger.error("Invalid SPARQL response format for AOP %s KEs", aop_label)
+                logger.error("Invalid SPARQL response format for AOP %s KEs", sanitize_log(aop_label))
                 return jsonify({"error": "Invalid response from AOP service"}), 500
 
             results = [
@@ -1012,7 +1031,7 @@ def get_aop_kes(aop_id):
 
             # Cache the response for 24 hours
             cache_model.cache_response(endpoint, query_hash, json.dumps(results), 24)
-            logger.info("Fetched and cached %d KEs for %s", len(results), aop_label)
+            logger.info("Fetched and cached %d KEs for %s", len(results), sanitize_log(aop_label))
             return jsonify(results), 200
         else:
             logger.error(
@@ -1023,7 +1042,7 @@ def get_aop_kes(aop_id):
         logger.error("SPARQL AOP KE request timeout")
         return jsonify({"error": "Service timeout - please try again"}), 503
     except Exception as e:
-        logger.error("Error fetching KEs for AOP %s: %s", aop_id, e)
+        logger.error("Error fetching KEs for AOP %s: %s", sanitize_log(aop_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to fetch KEs for AOP"}), 500
 
 
@@ -1068,7 +1087,7 @@ def suggest_go_terms(ke_id):
         if not ke_id or len(ke_id.strip()) == 0:
             return jsonify({"error": "Invalid Key Event ID"}), 400
 
-        logger.info("Getting GO suggestions for KE: %s (method_filter: %s)", ke_id, method_filter)
+        logger.info("Getting GO suggestions for KE: %s (method_filter: %s)", sanitize_log(ke_id), sanitize_log(method_filter))
 
         result = go_suggestion_service.get_go_suggestions(
             ke_id, ke_title, limit, method_filter
@@ -1085,11 +1104,11 @@ def suggest_go_terms(ke_id):
             "timestamp": int(time.time())
         }
 
-        logger.info("Returned %d GO suggestions for KE %s", len(result.get('suggestions', [])), ke_id)
+        logger.info("Returned %d GO suggestions for KE %s", len(result.get('suggestions', [])), sanitize_log(ke_id))
         return jsonify(result), 200
 
     except Exception as e:
-        logger.error("Error getting GO suggestions for %s: %s", ke_id, e)
+        logger.error("Error getting GO suggestions for %s: %s", sanitize_log(ke_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to get GO suggestions"}), 500
 
 

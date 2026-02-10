@@ -12,6 +12,7 @@ from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 
 from timezone_utils import format_admin_timestamp
+from text_utils import sanitize_log
 
 # Import blueprints
 from blueprints import admin_bp, api_bp, auth_bp, main_bp
@@ -27,7 +28,7 @@ from config import get_config
 from error_handlers import register_error_handlers
 
 # Import monitoring
-from monitoring import metrics_collector, monitor_performance
+from monitoring import monitor_performance
 from rate_limiter import general_rate_limit
 from services import ServiceContainer
 
@@ -85,7 +86,7 @@ def create_app(config_name: str = None):
     # CSRF error handler
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
-        logger.warning("CSRF error: %s from %s", e.description, request.remote_addr)
+        logger.warning("CSRF error: %s from %s", sanitize_log(str(e.description)), sanitize_log(request.remote_addr))
         if request.is_json:
             return jsonify({"error": "CSRF token missing or invalid"}), 400
         return (
@@ -106,6 +107,8 @@ def create_app(config_name: str = None):
         go_suggestion_svc=services.go_suggestion_service,
         go_mapping=services.go_mapping_model,
         go_proposal=services.go_proposal_model,
+        ke_meta=services.ke_metadata,
+        pathway_meta=services.pathway_metadata,
     )
     set_admin_models(services.proposal_model, services.mapping_model)
     set_main_models(services.mapping_model, go_mapping=services.go_mapping_model)

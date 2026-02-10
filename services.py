@@ -2,7 +2,9 @@
 Service Container for Dependency Injection
 Provides centralized management of application services and dependencies
 """
+import json
 import logging
+import os
 
 from authlib.integrations.flask_client import OAuth
 
@@ -41,6 +43,8 @@ class ServiceContainer:
         self._github_client = None
         self._scoring_config = None
         self._embedding_service = None
+        self._ke_metadata = None
+        self._pathway_metadata = None
 
         logger.info("Service container initialized")
 
@@ -104,6 +108,34 @@ class ServiceContainer:
                 self._scoring_config = ConfigLoader.get_default_config()
                 logger.info("Using default scoring configuration")
         return self._scoring_config
+
+    @property
+    def ke_metadata(self):
+        """Load and cache KE metadata from pre-computed JSON file"""
+        if self._ke_metadata is None:
+            path = os.path.join(os.path.dirname(__file__), 'ke_metadata.json')
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        self._ke_metadata = json.load(f)
+                    logger.info("Loaded %d KE metadata entries from %s", len(self._ke_metadata), path)
+                except Exception as e:
+                    logger.warning("Failed to load ke_metadata.json: %s", e)
+        return self._ke_metadata
+
+    @property
+    def pathway_metadata(self):
+        """Load and cache pathway metadata from pre-computed JSON file"""
+        if self._pathway_metadata is None:
+            path = os.path.join(os.path.dirname(__file__), 'pathway_metadata.json')
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        self._pathway_metadata = json.load(f)
+                    logger.info("Loaded %d pathway metadata entries from %s", len(self._pathway_metadata), path)
+                except Exception as e:
+                    logger.warning("Failed to load pathway_metadata.json: %s", e)
+        return self._pathway_metadata
 
     @property
     def pathway_suggestion_service(self) -> PathwaySuggestionService:

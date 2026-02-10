@@ -1060,7 +1060,7 @@ class KEWPApp {
                 <div style="border: 1px solid #ddd; border-radius: 4px; padding: 8px; background: white; display: inline-block;">
                     <img src="${svgUrl}" 
                          style="max-width: 200px; max-height: 120px; object-fit: contain; cursor: pointer;" 
-                         onclick="window.KEWPApp.showPathwayPreview('${pathwayId}', '${title.replace(/'/g, "\\'")}', '${svgUrl}')"
+                         onclick="window.KEWPApp.showPathwayPreview('${this.escapeHtml(pathwayId)}', '${this.escapeHtml(title)}', '${svgUrl}')"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
                          onload="this.style.display='block'; this.nextElementSibling.style.display='none'"
                          alt="Pathway diagram">
@@ -1073,11 +1073,11 @@ class KEWPApp {
                 </div>
             </div>
         ` : '';
-        
+
         // Create preview HTML
         const infoHTML = `
             <div style="border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 10px;">
-                <h5 style="margin: 0 0 8px 0; color: #29235C; font-size: 14px;">Pathway: ${title}</h5>
+                <h5 style="margin: 0 0 8px 0; color: #29235C; font-size: 14px;">Pathway: ${this.escapeHtml(title)}</h5>
                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">ID: ${pathwayId}</div>
                 ${description ? `<div style="margin-bottom: 10px; font-size: 13px;">${descriptionHTML}</div>` : '<div style="margin-bottom: 10px; color: #999; font-style: italic; font-size: 13px;">No description available</div>'}
                 ${figureHTML}
@@ -1101,7 +1101,7 @@ class KEWPApp {
                 <div style="margin-top: 8px; text-align: center; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: white;">
                     <img src="${svgUrl}" 
                          style="max-width: 300px; max-height: 200px; object-fit: contain; cursor: pointer;" 
-                         onclick="window.KEWPApp.showPathwayPreview($('#wp_id').val(), '${title.replace(/'/g, "\\'")}', '${svgUrl}')"
+                         onclick="window.KEWPApp.showPathwayPreview($('#wp_id').val(), '${this.escapeHtml(title)}', '${svgUrl}')"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
                          onload="this.style.display='block'; this.nextElementSibling.style.display='none'"
                          alt="Pathway diagram">
@@ -1114,12 +1114,12 @@ class KEWPApp {
                 </div>
             </div>
         ` : '';
-        
+
         // Create preview HTML
         const previewHTML = `
             <div id="pathway-preview" style="margin-top: 10px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
                 <h4 style="margin: 0 0 8px 0; color: #29235C;">Pathway Details:</h4>
-                <p style="margin: 0 0 8px 0;"><strong>Title:</strong> ${title}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Title:</strong> ${this.escapeHtml(title)}</p>
                 ${description ? `<div style="margin-bottom: 10px;"><strong>Description:</strong><br/>${descriptionHTML}</div>` : '<p style="margin: 0 0 10px 0; color: #666; font-style: italic;">No description available</p>'}
                 ${figureHTML}
             </div>
@@ -1190,10 +1190,10 @@ class KEWPApp {
             this.pathwayOptions.forEach(option => {
                 const svgUrl = `https://www.wikipathways.org/wikipathways-assets/pathways/${option.pathwayID}/${option.pathwayID}.svg`;
                 $dropdown.append(
-                    `<option value="${option.pathwayID}" 
-                     data-title="${option.pathwayTitle}"
-                     data-description="${option.pathwayDescription || ''}"
-                     data-svg-url="${svgUrl}">${option.pathwayID} - ${option.pathwayTitle}</option>`
+                    `<option value="${this.escapeHtml(option.pathwayID)}"
+                     data-title="${this.escapeHtml(option.pathwayTitle)}"
+                     data-description="${this.escapeHtml(option.pathwayDescription || '')}"
+                     data-svg-url="${svgUrl}">${this.escapeHtml(option.pathwayID)} - ${this.escapeHtml(option.pathwayTitle)}</option>`
                 );
             });
             
@@ -2247,7 +2247,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 const primaryEvidence = this.formatPrimaryEvidence(suggestion.primary_evidence);
 
                 suggestionsHtml += `
-                    <div class="suggestion-item" data-pathway-id="${suggestion.pathwayID}" data-pathway-title="${this.escapeHtml(suggestion.pathwayTitle)}" data-pathway-svg="${suggestion.pathwaySvgUrl || ''}"
+                    <div class="suggestion-item" data-pathway-id="${this.escapeHtml(suggestion.pathwayID)}" data-pathway-title="${this.escapeHtml(suggestion.pathwayTitle)}" data-pathway-svg="${this.escapeHtml(suggestion.pathwaySvgUrl || '')}"
                          style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border-left: 4px solid ${borderColor}; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
                         <div style="display: flex; gap: 12px; align-items: flex-start;">
                             <div style="flex: 1;">
@@ -2978,7 +2978,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
             
             resultsHtml += `
                 <div class="search-result-item" style="padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background-color 0.2s;"
-                     data-pathway-id="${result.pathwayID}" data-pathway-title="${result.pathwayTitle.replace(/"/g, '&quot;')}"
+                     data-pathway-id="${this.escapeHtml(result.pathwayID)}" data-pathway-title="${this.escapeHtml(result.pathwayTitle)}"
                      onmouseover="this.style.backgroundColor='#f8f9fa'"
                      onmouseout="this.classList.contains('active') || (this.style.backgroundColor='white')">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
@@ -2992,7 +2992,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                             <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
                                 ${descriptionSnippet}
                             </div>
-                            <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${result.pathwayID}', '${result.pathwayTitle.replace(/'/g, "\\'")}', '${result.pathwaySvgUrl || ''}')" 
+                            <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${this.escapeHtml(result.pathwayID)}', '${this.escapeHtml(result.pathwayTitle)}', '${this.escapeHtml(result.pathwaySvgUrl || '')}')"
                                     style="font-size: 10px; padding: 3px 6px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 2px; color: #307BBF; cursor: pointer;">
                                 Preview
                             </button>
@@ -3004,7 +3004,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                                 </div>
                                 <div style="font-size: 9px; color: #666; margin-top: 2px;">match</div>
                             </div>
-                            <div style="width: 60px; height: 45px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${result.pathwayID}', '${result.pathwayTitle.replace(/'/g, "\\'")}', '${result.pathwaySvgUrl || ''}')">
+                            <div style="width: 60px; height: 45px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${this.escapeHtml(result.pathwayID)}', '${this.escapeHtml(result.pathwayTitle)}', '${this.escapeHtml(result.pathwaySvgUrl || '')}')">
                                 <img src="${result.pathwaySvgUrl || ''}" 
                                      style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;" 
                                      onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
@@ -3100,8 +3100,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
                         display: flex; justify-content: space-between; align-items: center;
                         background: #f8f9fa; border-radius: 8px 8px 0 0;">
                         <div>
-                            <h3 style="margin: 0; color: #29235C; font-size: 16px;">${pathwayTitle}</h3>
-                            <div style="font-size: 12px; color: #666; margin-top: 4px;">ID: ${pathwayID}</div>
+                            <h3 style="margin: 0; color: #29235C; font-size: 16px;">${this.escapeHtml(pathwayTitle)}</h3>
+                            <div style="font-size: 12px; color: #666; margin-top: 4px;">ID: ${this.escapeHtml(pathwayID)}</div>
                         </div>
                         <button onclick="$('#pathway-preview-modal').remove()" 
                                 style="
@@ -3129,7 +3129,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                         
                         <!-- Action buttons -->
                         <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                            <button id="select-pathway-btn" data-pathway-id="${pathwayID}" data-pathway-title="${pathwayTitle}" 
+                            <button id="select-pathway-btn" data-pathway-id="${this.escapeHtml(pathwayID)}" data-pathway-title="${this.escapeHtml(pathwayTitle)}"
                                     style="
                                         padding: 8px 16px; background: #307BBF; color: white; 
                                         border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">

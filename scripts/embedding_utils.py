@@ -5,6 +5,7 @@ Provides common setup, embedding computation, and save routines
 used by precompute_ke_embeddings.py, precompute_pathway_title_embeddings.py,
 and precompute_go_embeddings.py.
 """
+import json
 import os
 import sys
 import logging
@@ -81,3 +82,20 @@ def save_embeddings(embeddings, path):
     if embeddings:
         sample_id = next(iter(embeddings))
         logger.info(f"Sample: {sample_id}, shape: {embeddings[sample_id].shape}")
+
+
+def save_metadata(metadata, path):
+    """
+    Save metadata list/dict to JSON file with size reporting.
+
+    Args:
+        metadata: List or dict to serialize
+        path: Output file path
+    """
+    logger.info(f"Saving metadata to {path}...")
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(metadata, f, indent=2)
+
+    file_size_mb = os.path.getsize(path) / 1024 / 1024
+    count = len(metadata)
+    logger.info(f"Saved {count} entries: {file_size_mb:.2f} MB")

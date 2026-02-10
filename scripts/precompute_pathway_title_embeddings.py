@@ -14,7 +14,7 @@ Output:
 import logging
 import requests
 
-from embedding_utils import setup_project_path, init_embedding_service, compute_embeddings_batch, save_embeddings
+from embedding_utils import setup_project_path, init_embedding_service, compute_embeddings_batch, save_embeddings, save_metadata
 
 setup_project_path()
 
@@ -34,13 +34,13 @@ def fetch_all_pathways():
     PREFIX dcterms: <http://purl.org/dc/terms/>
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
 
-    SELECT DISTINCT ?pathway ?pathwayTitle
+    SELECT DISTINCT ?pathway ?pathwayTitle ?pathwayLink ?pathwayDescription
     WHERE {
         ?pathway a wp:Pathway ;
                 dc:title ?pathwayTitle ;
-                wp:organism ?organism .
-
-        FILTER(?organism = <http://purl.obolibrary.org/obo/NCBITaxon_9606>)
+                dc:identifier ?pathwayLink ;
+                wp:organismName "Homo sapiens" .
+        OPTIONAL { ?pathway dcterms:description ?pathwayDescription }
     }
     """
 
@@ -65,7 +65,9 @@ def fetch_all_pathways():
 
             pathway_data = {
                 'pathwayID': pathway_id,
-                'pathwayTitle': result['pathwayTitle']['value']
+                'pathwayTitle': result['pathwayTitle']['value'],
+                'pathwayLink': result.get('pathwayLink', {}).get('value', ''),
+                'pathwayDescription': result.get('pathwayDescription', {}).get('value', '')
             }
             pathways.append(pathway_data)
 
@@ -77,9 +79,11 @@ def fetch_all_pathways():
         raise
 
 
-def precompute_pathway_title_embeddings(output_path='pathway_title_embeddings.npy'):
+def precompute_pathway_title_embeddings(output_path='pathway_title_embeddings.npy',
+                                        metadata_path='pathway_metadata.json'):
     """
-    Fetch all WikiPathways and pre-compute their title-only BioBERT embeddings
+    Fetch all WikiPathways and pre-compute their title-only BioBERT embeddings.
+    Also saves pathway_metadata.json for serving dropdown options without live SPARQL.
     """
     embedding_service = init_embedding_service()
 
@@ -96,6 +100,9 @@ def precompute_pathway_title_embeddings(output_path='pathway_title_embeddings.np
             seen_ids.add(pathway['pathwayID'])
 
     logger.info(f"After removing duplicates: {len(unique_pathways)} unique pathways")
+
+    # Save metadata in the format expected by /get_pathway_options
+    save_metadata(unique_pathways, metadata_path)
 
     # Build {id: text} dict with directionality removal + entity extraction
     items = {}

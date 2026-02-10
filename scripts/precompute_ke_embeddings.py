@@ -12,7 +12,7 @@ import re
 import logging
 import requests
 
-from embedding_utils import setup_project_path, init_embedding_service, compute_embeddings_batch, save_embeddings
+from embedding_utils import setup_project_path, init_embedding_service, compute_embeddings_batch, save_embeddings, save_metadata
 
 setup_project_path()
 
@@ -34,11 +34,12 @@ def fetch_all_kes():
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
     PREFIX nci: <http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#>
 
-    SELECT DISTINCT ?KElabel ?KEtitle ?KEdescription ?biolevel
+    SELECT DISTINCT ?KElabel ?KEtitle ?KEdescription ?biolevel ?KEpage
     WHERE {
       ?KE a aopo:KeyEvent ;
           dc:title ?KEtitle ;
-          rdfs:label ?KElabel .
+          rdfs:label ?KElabel ;
+          foaf:page ?KEpage .
       OPTIONAL { ?KE dc:description ?KEdescription }
       OPTIONAL { ?KE nci:C25664 ?biolevel }
     }
@@ -67,7 +68,8 @@ def fetch_all_kes():
                 'ke_id': ke_id,
                 'ke_title': result['KEtitle']['value'],
                 'ke_description': result.get('KEdescription', {}).get('value', ''),
-                'biolevel': result.get('biolevel', {}).get('value', '')
+                'biolevel': result.get('biolevel', {}).get('value', ''),
+                'ke_page': result.get('KEpage', {}).get('value', '')
             }
             kes.append(ke_data)
 
@@ -79,15 +81,30 @@ def fetch_all_kes():
         raise
 
 
-def precompute_all_ke_embeddings(output_path='ke_embeddings.npy'):
+def precompute_all_ke_embeddings(output_path='ke_embeddings.npy',
+                                  metadata_path='ke_metadata.json'):
     """
-    Fetch all Key Events and pre-compute their BioBERT embeddings
+    Fetch all Key Events and pre-compute their BioBERT embeddings.
+    Also saves ke_metadata.json for serving dropdown options without live SPARQL.
     """
     embedding_service = init_embedding_service()
 
     # Fetch all Key Events
     logger.info("Fetching all Key Events from AOP-Wiki...")
     kes = fetch_all_kes()
+
+    # Save metadata in the format expected by /get_ke_options
+    metadata = [
+        {
+            'KElabel': ke['ke_id'],
+            'KEtitle': ke['ke_title'],
+            'KEdescription': ke['ke_description'],
+            'biolevel': ke['biolevel'],
+            'KEpage': ke['ke_page'],
+        }
+        for ke in kes
+    ]
+    save_metadata(metadata, metadata_path)
 
     # Build {id: text} dict with directionality removal
     items = {}
