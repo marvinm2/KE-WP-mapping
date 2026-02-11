@@ -1,0 +1,7 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: neutralModel
+    data:
+      # Mark sanitize_log as a sanitizer for log injection
+      - ["text_utils", "Member[sanitize_log].ReturnValue", "log-injection"]
