@@ -1015,3 +1015,8 @@ select:focus:not(:focus-visible),
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Suggestion list collapse/expand */
+.suggestion-item-hidden {
+    display: none;
+}

@@ -94,21 +94,13 @@
                 <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
                     Or browse all pathways:
                 </label>
-                <div id="pathway-selections" style="display: flex; gap: 20px; flex-wrap: wrap;">
-                    <div class="pathway-selection-group" data-index="0" style="flex: 1; min-width: 300px; max-width: calc(50% - 10px);">
-                        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc;">
-                            <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 15px;">
-                                <select name="wp_id" required style="flex: 1;">
-                                    <option value="" disabled selected>Select First Pathway</option>
-                                </select>
-                                <button type="button" class="add-pathway-btn" onclick="window.KEWPApp.addPathwaySelection()" 
-                                        style="background: #307BBF; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                                    Add 2nd
-                                </button>
-                            </div>
-                            <div class="pathway-info" style="min-height: 100px; display: none;">
-                                <!-- Pathway information will be inserted here -->
-                            </div>
+                <div id="pathway-selections">
+                    <div class="pathway-selection-group" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc;">
+                        <select name="wp_id" required style="width: 100%; margin-bottom: 15px;">
+                            <option value="" disabled selected>Select a Pathway</option>
+                        </select>
+                        <div class="pathway-info" style="min-height: 100px; display: none;">
+                            <!-- Pathway information will be inserted here -->
                         </div>
                     </div>
                 </div>
@@ -139,20 +131,15 @@
 
         <section id="step-3-result" style="display: none;">
             <h2>Step 4: Assessment Results</h2>
-            <div id="single-pathway-results">
-                <p><strong>Recommended Confidence Level:</strong> <span id="auto-confidence">—</span></p>
-                <p><strong>Connection Type:</strong> <span id="auto-connection">—</span></p>
-                <details style="margin-top: 15px;">
-                    <summary style="cursor: pointer; font-weight: bold;">Understanding Confidence Levels</summary>
-                    <p><strong>High Confidence:</strong> Strong experimental evidence with direct pathway relationship and complete/partial coverage. Molecular-level Key Events receive additional confidence weighting.</p>
-                    <p><strong>Medium Confidence:</strong> Moderate experimental evidence with partial pathway relationship, or strong evidence with limited coverage. Some biological complexity or indirect connections.</p>
-                    <p><strong>Low Confidence:</strong> No direct experimental evidence, weak pathway relationships, or limited coverage. Computational/literature-based mappings or highly phenotypic Key Events.</p>
-                    <p><em>Note: Key Events at molecular, cellular, and tissue levels generally achieve higher confidence scores than organ, individual, or population-level (phenotypic) Key Events.</em></p>
-                </details>
-            </div>
-            <div id="multi-pathway-results">
-                <!-- Multi-pathway results will be populated here by JavaScript -->
-            </div>
+            <p><strong>Recommended Confidence Level:</strong> <span id="auto-confidence">—</span></p>
+            <p><strong>Connection Type:</strong> <span id="auto-connection">—</span></p>
+            <details style="margin-top: 15px;">
+                <summary style="cursor: pointer; font-weight: bold;">Understanding Confidence Levels</summary>
+                <p><strong>High Confidence:</strong> Strong experimental evidence with direct pathway relationship and complete/partial coverage. Molecular-level Key Events receive additional confidence weighting.</p>
+                <p><strong>Medium Confidence:</strong> Moderate experimental evidence with partial pathway relationship, or strong evidence with limited coverage. Some biological complexity or indirect connections.</p>
+                <p><strong>Low Confidence:</strong> No direct experimental evidence, weak pathway relationships, or limited coverage. Computational/literature-based mappings or highly phenotypic Key Events.</p>
+                <p><em>Note: Key Events at molecular, cellular, and tissue levels generally achieve higher confidence scores than organ, individual, or population-level (phenotypic) Key Events.</em></p>
+            </details>
 
             <!-- Hidden form fields to pass values on submit -->
             <input type="hidden" id="confidence_level" name="confidence_level" value="">
