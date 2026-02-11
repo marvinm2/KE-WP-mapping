@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" width="400" height="280">
+  <!-- Title -->
+  <text x="200" y="20" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#29235C">
+    Relationship Types
+  </text>
+
+  <!-- Causative -->
+  <g>
+    <text x="10" y="60" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#333">Causative:</text>
+    <rect x="90" y="45" width="60" height="30" rx="4" fill="#E3F2FD" stroke="#307BBF" stroke-width="2"/>
+    <text x="120" y="65" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#307BBF">Pathway</text>
+    <line x1="155" y1="60" x2="185" y2="60" stroke="#28A745" stroke-width="2.5"/>
+    <polygon points="185,60 178,56 178,64" fill="#28A745"/>
+    <rect x="190" y="45" width="40" height="30" rx="4" fill="#FFE0B2" stroke="#FF6F00" stroke-width="2"/>
+    <text x="210" y="65" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#FF6F00">KE</text>
+  </g>
+
+  <!-- Responsive -->
+  <g>
+    <text x="10" y="120" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#333">Responsive:</text>
+    <rect x="90" y="105" width="40" height="30" rx="4" fill="#FFE0B2" stroke="#FF6F00" stroke-width="2"/>
+    <text x="110" y="125" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#FF6F00">KE</text>
+    <line x1="135" y1="120" x2="165" y2="120" stroke="#28A745" stroke-width="2.5"/>
+    <polygon points="165,120 158,116 158,124" fill="#28A745"/>
+    <rect x="170" y="105" width="60" height="30" rx="4" fill="#E3F2FD" stroke="#307BBF" stroke-width="2"/>
+    <text x="200" y="125" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#307BBF">Pathway</text>
+  </g>
+
+  <!-- Bidirectional -->
+  <g>
+    <text x="10" y="180" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#333">Bidirectional:</text>
+    <rect x="90" y="165" width="60" height="30" rx="4" fill="#E3F2FD" stroke="#307BBF" stroke-width="2"/>
+    <text x="120" y="185" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#307BBF">Pathway</text>
+    <!-- Right arrow -->
+    <line x1="155" y1="175" x2="185" y2="175" stroke="#28A745" stroke-width="2"/>
+    <polygon points="185,175 180,172 180,178" fill="#28A745"/>
+    <!-- Left arrow -->
+    <line x1="155" y1="185" x2="185" y2="185" stroke="#28A745" stroke-width="2"/>
+    <polygon points="155,185 160,182 160,188" fill="#28A745"/>
+    <rect x="190" y="165" width="40" height="30" rx="4" fill="#FFE0B2" stroke="#FF6F00" stroke-width="2"/>
+    <text x="210" y="185" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#FF6F00">KE</text>
+  </g>
+
+  <!-- Unclear -->
+  <g>
+    <text x="10" y="240" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#333">Unclear:</text>
+    <rect x="90" y="225" width="60" height="30" rx="4" fill="#E3F2FD" stroke="#307BBF" stroke-width="2"/>
+    <text x="120" y="245" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#307BBF">Pathway</text>
+    <text x="170" y="245" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#999">?</text>
+    <rect x="190" y="225" width="40" height="30" rx="4" fill="#FFE0B2" stroke="#FF6F00" stroke-width="2"/>
+    <text x="210" y="245" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#FF6F00">KE</text>
+  </g>
+</svg>

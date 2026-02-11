@@ -5,6 +5,70 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-02-11
+
+### KE-GO Mapping Service
+#### Added
+- **KE-GO BP Term Mapping**: Complete implementation for mapping Key Events to Gene Ontology Biological Process terms
+- **GO Term Suggestion Engine**: Intelligent recommendations using:
+  - Pre-computed BioBERT embeddings for ~30,000 GO BP terms
+  - Gene annotation overlap between KE-associated genes and GO terms
+  - Hybrid scoring combining gene (35%), text (25%), and semantic (40%) signals
+- **GO Mapping Database Schema**: New tables `ke_go_mappings` and `ke_go_proposals`
+- **GO Mapping API Endpoints**:
+  - `/suggest_go_terms/<ke_id>` - Get GO BP term suggestions
+  - `/submit_go_mapping` - Submit KE-GO mapping
+  - `/check_go_mapping` - Check for duplicate mappings
+  - `/api/go-scoring-config` - GO assessment configuration
+- **Tab-based UI**: Integrated GO mapping tab with suggestion display and submission workflow
+- **Pre-computed GO Data Files**:
+  - `go_bp_embeddings.npy` - BioBERT embeddings for ~30K GO BP terms
+  - `go_bp_name_embeddings.npy` - Name-only embeddings
+  - `go_bp_metadata.json` - GO term metadata (ID, name, definition)
+  - `go_bp_gene_annotations.json` - GO BP term → gene mappings
+
+#### Related Issues
+- Closes #75 (parent), #76, #77, #78, #79, #81 (sub-issues)
+- #80 remains open as optional future enhancement (GO hierarchy integration)
+
+---
+
+### UI Improvements
+#### Enhanced
+- **Single Pathway Selection**: Simplified workflow to one pathway at a time (removed "Add 2nd pathway" button)
+- **Collapsible Suggestions**: Show top 3 pathway suggestions by default, expandable to view all
+- **Scoring Info Box**: Added collapsible information box explaining gene/text/semantic scoring methods
+- **Pathway Info Layout**: Side-by-side display with description (60%) and larger figure (40%)
+- **Larger Pathway Figures**: Increased from 120px to 300px max-height with auto-scaling
+
+#### Related Issues
+- Closes #95 (single pathway), #97 (collapsible suggestions), #98 (scoring info box)
+
+---
+
+### KE Dropdown Enhancements
+#### Added
+- **Select2 Integration**: Searchable KE dropdown with enhanced filtering
+- **Pre-computed KE Metadata**: Replaced live SPARQL queries with `ke_metadata.json` (1.8MB)
+- **Data Alignment**: KE dropdown now uses same data source as BioBERT embeddings
+
+#### Related Issues
+- Closes #73
+
+---
+
+### Infrastructure & Security
+#### Fixed
+- **Security Alerts**: Reduced from ~1,100 to minimal alerts
+- **CI/CD Improvements**: CPU-only PyTorch install, CodeQL custom sanitizers
+- **Pre-computed Metadata**: Replaced live SPARQL dropdown queries with pre-computed data for KE/AOP/pathway dropdowns
+- **Test Reliability**: Fixed flaky rate limiter and SPARQL endpoint tests
+
+#### Technical Improvements
+- **Performance**: Pre-computed metadata eliminates SPARQL latency for dropdown population
+- **Reliability**: Reduced dependency on external SPARQL endpoints for UI population
+- **Maintainability**: Centralized metadata generation in `scripts/precompute_*_embeddings.py`
+
 ## [2.2.0] - 2025-08-14
 
 ### AOP Network Visualization

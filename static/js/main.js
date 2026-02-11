@@ -1369,6 +1369,9 @@ class KEWPApp {
 • Bidirectional: Both causative and responsive relationships exist
 • Unclear: The relationship exists but directionality is uncertain">❓</span>
                         </h4>
+                        <div style="margin: 10px 0; text-align: center;">
+                            <img src="/static/images/assessment/q1-relationship.svg" alt="Relationship types diagram" style="max-width: 400px; width: 100%; height: auto;">
+                        </div>
                         <div class="btn-group" data-step="step1" data-assessment="${assessmentId}">
                             <button class="btn-option" data-value="causative">Causative</button>
                             <button class="btn-option" data-value="responsive">Responsive</button>
@@ -1387,6 +1390,9 @@ class KEWPApp {
 
 You don't need to search papers - answer based on what you already know.">❓</span>
                         </h4>
+                        <div style="margin: 10px 0; text-align: center;">
+                            <img src="/static/images/assessment/q2-evidence.svg" alt="Evidence strength diagram" style="max-width: 320px; width: 100%; height: auto;">
+                        </div>
                         <div class="btn-group" data-step="step2" data-assessment="${assessmentId}">
                             <button class="btn-option" data-value="known">Known connection</button>
                             <button class="btn-option" data-value="likely">Likely connection</button>
@@ -1404,6 +1410,9 @@ You don't need to search papers - answer based on what you already know.">❓</s
 
 This helps identify which pathways need to be more specific.">❓</span>
                         </h4>
+                        <div style="margin: 10px 0; text-align: center;">
+                            <img src="/static/images/assessment/q3-specificity.svg" alt="Pathway specificity diagram" style="max-width: 380px; width: 100%; height: auto;">
+                        </div>
                         <div class="btn-group" data-step="step3" data-assessment="${assessmentId}">
                             <button class="btn-option" data-value="specific">KE-specific</button>
                             <button class="btn-option" data-value="includes">Includes KE</button>
@@ -1420,6 +1429,9 @@ This helps identify which pathways need to be more specific.">❓</span>
 
 This helps identify gaps in existing pathways for future development.">❓</span>
                         </h4>
+                        <div style="margin: 10px 0; text-align: center;">
+                            <img src="/static/images/assessment/q4-coverage.svg" alt="KE coverage diagram" style="max-width: 350px; width: 100%; height: auto;">
+                        </div>
                         <div class="btn-group" data-step="step4" data-assessment="${assessmentId}">
                             <button class="btn-option" data-value="complete">Complete mechanism</button>
                             <button class="btn-option" data-value="keysteps">Key steps only</button>
@@ -2573,7 +2585,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
             
             resultsHtml += `
                 <div class="search-result-item" style="padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background-color 0.2s;"
-                     data-pathway-id="${this.escapeHtml(result.pathwayID)}" data-pathway-title="${this.escapeHtml(result.pathwayTitle)}"
+                     data-pathway-id="${this.escapeHtml(result.pathwayID)}" data-pathway-title="${this.escapeHtml(result.pathwayTitle)}" data-pathway-description="${this.escapeHtml(result.pathwayDescription || '')}"
                      onmouseover="this.style.backgroundColor='#f8f9fa'"
                      onmouseout="this.classList.contains('active') || (this.style.backgroundColor='white')">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
@@ -2621,20 +2633,21 @@ This helps identify gaps in existing pathways for future development.">❓</span
             const $item = $(e.currentTarget);
             const pathwayId = $item.data('pathway-id');
             const pathwayTitle = $item.data('pathway-title');
-            
-            this.selectSearchResult(pathwayId, pathwayTitle);
+            const pathwayDescription = $item.data('pathway-description');
+
+            this.selectSearchResult(pathwayId, pathwayTitle, pathwayDescription);
         });
     }
 
-    selectSearchResult(pathwayId, pathwayTitle) {
+    selectSearchResult(pathwayId, pathwayTitle, pathwayDescription) {
         // Clear search
         $("#pathway-search").val('');
         $("#search-results").hide();
-        
+
         // Find the first available pathway dropdown (select[name='wp_id'])
         const $dropdown = $("select[name='wp_id']").first();
         const $option = $dropdown.find(`option[value="${pathwayId}"]`);
-        
+
         if ($option.length > 0) {
             // Select the pathway
             $dropdown.val(pathwayId).trigger('change');
@@ -2643,13 +2656,14 @@ This helps identify gaps in existing pathways for future development.">❓</span
         } else {
             // Pathway not in dropdown - need to add it dynamically
             // Adding pathway to dropdown
-            
-            // Add option to dropdown
-            $dropdown.append(`<option value="${pathwayId}" data-title="${pathwayTitle}">${pathwayId} - ${pathwayTitle}</option>`);
-            
+
+            // Add option to dropdown with description
+            const svgUrl = `https://www.wikipathways.org/wikipathways-assets/pathways/${pathwayId}/${pathwayId}.svg`;
+            $dropdown.append(`<option value="${pathwayId}" data-title="${pathwayTitle}" data-description="${this.escapeHtml(pathwayDescription || '')}" data-svg-url="${svgUrl}">${pathwayId} - ${pathwayTitle}</option>`);
+
             // Select the newly added pathway
             $dropdown.val(pathwayId).trigger('change');
-            
+
             this.showMessage(`✅ Added and selected pathway: ${pathwayTitle}`, "success");
         }
     }
