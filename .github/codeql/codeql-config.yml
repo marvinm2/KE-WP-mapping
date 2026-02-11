@@ -5,7 +5,7 @@ queries:
   - uses: security-extended
   - uses: security-and-quality
 
-# Load custom sanitizer definitions
+# Load custom sanitizer query pack
 packs:
   python:
-    - .github/codeql/python-log-injection.qll
+    - ke-wp-mapping/custom-sanitizers
