@@ -6,6 +6,7 @@ import logging
 from functools import wraps
 
 from flask import jsonify, render_template, request
+from text_utils import sanitize_log
 from werkzeug.exceptions import (
     BadRequest,
     Forbidden,
@@ -97,7 +98,7 @@ def register_error_handlers(app):
     @app.errorhandler(400)
     def handle_bad_request(error):
         """Handle 400 Bad Request errors"""
-        logger.warning("Bad request: %s - %s", request.url, error)
+        logger.warning("Bad request: %s - %s", sanitize_log(request.url), sanitize_log(str(error)))
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Invalid request data"}), 400
@@ -112,7 +113,7 @@ def register_error_handlers(app):
     @app.errorhandler(401)
     def handle_unauthorized(error):
         """Handle 401 Unauthorized errors"""
-        logger.warning("Unauthorized access attempt: %s", request.url)
+        logger.warning("Unauthorized access attempt: %s", sanitize_log(request.url))
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Authentication required"}), 401
@@ -129,7 +130,7 @@ def register_error_handlers(app):
     @app.errorhandler(403)
     def handle_forbidden(error):
         """Handle 403 Forbidden errors"""
-        logger.warning("Forbidden access attempt: %s", request.url)
+        logger.warning("Forbidden access attempt: %s", sanitize_log(request.url))
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Access denied"}), 403
@@ -146,7 +147,7 @@ def register_error_handlers(app):
     @app.errorhandler(404)
     def handle_not_found(error):
         """Handle 404 Not Found errors"""
-        logger.info("Page not found: %s", request.url)
+        logger.info("Page not found: %s", sanitize_log(request.url))
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Resource not found"}), 404
@@ -163,7 +164,7 @@ def register_error_handlers(app):
     @app.errorhandler(429)
     def handle_rate_limit(error):
         """Handle 429 Rate Limit errors"""
-        logger.warning("Rate limit exceeded: %s from %s", request.url, request.remote_addr)
+        logger.warning("Rate limit exceeded: %s from %s", sanitize_log(request.url), sanitize_log(request.remote_addr))
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Too many requests. Please try again later."}), 429
@@ -180,7 +181,7 @@ def register_error_handlers(app):
     @app.errorhandler(500)
     def handle_internal_error(error):
         """Handle 500 Internal Server Error"""
-        logger.error("Internal server error: %s - %s", request.url, error)
+        logger.error("Internal server error: %s - %s", sanitize_log(request.url), sanitize_log(str(error)))
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Internal server error"}), 500
@@ -197,7 +198,7 @@ def register_error_handlers(app):
     @app.errorhandler(503)
     def handle_service_unavailable(error):
         """Handle 503 Service Unavailable errors"""
-        logger.error("Service unavailable: %s - %s", request.url, error)
+        logger.error("Service unavailable: %s - %s", sanitize_log(request.url), sanitize_log(str(error)))
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "Service temporarily unavailable"}), 503
@@ -214,7 +215,7 @@ def register_error_handlers(app):
     @app.errorhandler(Exception)
     def handle_unexpected_error(error):
         """Handle unexpected errors"""
-        logger.exception("Unexpected error: %s - %s", request.url, error)
+        logger.exception("Unexpected error: %s - %s", sanitize_log(request.url), sanitize_log(str(error)))
 
         if request.is_json or request.path.startswith("/api/"):
             return jsonify({"error": "An unexpected error occurred"}), 500

@@ -7,7 +7,7 @@ import json
 import logging
 import re
 from difflib import SequenceMatcher
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import requests
 from config_loader import ConfigLoader

@@ -10,6 +10,7 @@ from flask import Blueprint, make_response, render_template, send_file, session,
 
 from models import MappingModel
 from monitoring import monitor_performance
+from text_utils import sanitize_log
 
 logger = logging.getLogger(__name__)
 
@@ -308,17 +309,17 @@ def export_dataset(format_name):
         from timezone_utils import format_local_datetime
         response.headers["X-Export-Timestamp"] = format_local_datetime()
         
-        logger.info("Dataset exported in %s format", format_name)
+        logger.info("Dataset exported in %s format", sanitize_log(format_name))
         return response
         
     except ImportError as e:
-        logger.error("Missing dependencies for %s export: %s", format_name, e)
+        logger.error("Missing dependencies for %s export: %s", sanitize_log(format_name), sanitize_log(str(e)))
         return jsonify({
             "error": f"Required dependencies not installed for {format_name} export",
             "details": "Internal error"
         }), 500
     except Exception as e:
-        logger.error("Error exporting dataset in %s format: %s", format_name, e)
+        logger.error("Error exporting dataset in %s format: %s", sanitize_log(format_name), sanitize_log(str(e)))
         return jsonify({"error": "Export failed", "details": "Internal error"}), 500
 
 
@@ -477,10 +478,10 @@ def documentation(section='overview'):
 
     # Validate section
     if section not in sections:
-        logger.warning("Invalid documentation section requested: %s", section)
+        logger.warning("Invalid documentation section requested: %s", sanitize_log(section))
         section = 'overview'
 
-    logger.info("Documentation section requested: %s", section)
+    logger.info("Documentation section requested: %s", sanitize_log(section))
 
     return render_template('documentation.html',
         current_section=section,

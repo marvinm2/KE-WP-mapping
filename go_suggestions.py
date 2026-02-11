@@ -6,7 +6,7 @@ using pre-computed embeddings and gene annotation overlap.
 import json
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import numpy as np
 from config_loader import ConfigLoader

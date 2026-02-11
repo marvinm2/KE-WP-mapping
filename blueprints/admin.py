@@ -10,6 +10,7 @@ from functools import wraps
 from flask import Blueprint, jsonify, render_template, request, session
 
 from timezone_utils import format_local_datetime, utc_to_local
+from text_utils import sanitize_log
 
 from models import MappingModel, ProposalModel
 from monitoring import monitor_performance
@@ -203,7 +204,7 @@ def admin_proposal_detail(proposal_id: int):
         return jsonify(proposal)
 
     except Exception as e:
-        logger.error("Error getting proposal %s: %s", proposal_id, e)
+        logger.error("Error getting proposal %s: %s", proposal_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to load proposal"}), 500
 
 
@@ -225,7 +226,7 @@ def approve_proposal(proposal_id: int):
         admin_data = {"admin_notes": request.form.get("admin_notes", "")}
 
         # Debug logging
-        logger.info("Admin approve request data: %s", admin_data)
+        logger.info("Admin approve request data: %s", sanitize_log(str(admin_data)))
 
         # Validate admin notes input
         is_valid, validated_data, errors = validate_request_data(
@@ -283,7 +284,7 @@ def approve_proposal(proposal_id: int):
             )
 
             logger.info(
-                "Proposal %s approved by %s, mapping %s", proposal_id, admin_username, action
+                "Proposal %s approved by %s, mapping %s", proposal_id, sanitize_log(admin_username), action
             )
             return (
                 jsonify(
@@ -298,7 +299,7 @@ def approve_proposal(proposal_id: int):
             return jsonify({"error": f"Failed to {action.rstrip('d')} mapping"}), 500
 
     except Exception as e:
-        logger.error("Error approving proposal %s: %s", proposal_id, e)
+        logger.error("Error approving proposal %s: %s", proposal_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to approve proposal"}), 500
 
 
@@ -320,7 +321,7 @@ def reject_proposal(proposal_id: int):
         admin_data = {"admin_notes": request.form.get("admin_notes", "")}
 
         # Debug logging
-        logger.info("Admin reject request data: %s", admin_data)
+        logger.info("Admin reject request data: %s", sanitize_log(str(admin_data)))
 
         # Validate admin notes input
         is_valid, validated_data, errors = validate_request_data(
@@ -359,11 +360,11 @@ def reject_proposal(proposal_id: int):
         )
 
         if success:
-            logger.info("Proposal %s rejected by %s", proposal_id, admin_username)
+            logger.info("Proposal %s rejected by %s", proposal_id, sanitize_log(admin_username))
             return jsonify({"message": "Proposal rejected successfully."}), 200
         else:
             return jsonify({"error": "Failed to reject proposal"}), 500
 
     except Exception as e:
-        logger.error("Error rejecting proposal %s: %s", proposal_id, e)
+        logger.error("Error rejecting proposal %s: %s", proposal_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to reject proposal"}), 500

@@ -2,13 +2,12 @@
 Performance monitoring and metrics collection
 """
 import functools
-import json
 import logging
 import sqlite3
 import threading
 import time
 from collections import defaultdict, deque
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from flask import g, request
 

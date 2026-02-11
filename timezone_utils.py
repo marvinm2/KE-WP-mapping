@@ -2,7 +2,7 @@
 Timezone utilities for consistent local time display
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 import pytz
 
 

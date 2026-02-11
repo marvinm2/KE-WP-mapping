@@ -6,7 +6,7 @@ import logging
 import os
 
 from authlib.integrations.flask_client import OAuth
-from flask import Blueprint, redirect, request, session, url_for
+from flask import Blueprint, redirect, session, url_for
 
 logger = logging.getLogger(__name__)
 

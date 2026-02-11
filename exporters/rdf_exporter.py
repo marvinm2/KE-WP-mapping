@@ -3,7 +3,6 @@ RDF and Turtle export functionality for KE-WP mapping dataset
 Provides semantic web compatible exports using standard vocabularies
 """
 import logging
-from datetime import datetime
 from typing import Dict, List
 from xml.sax.saxutils import escape
 

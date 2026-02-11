@@ -4,7 +4,7 @@ WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install \
-    torch==2.5.1+cpu \
+    torch==2.6.0+cpu \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
 

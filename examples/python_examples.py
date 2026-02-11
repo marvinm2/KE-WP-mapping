@@ -6,9 +6,8 @@ Demonstrates various ways to access and analyze the dataset
 import requests
 import pandas as pd
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List
 import matplotlib.pyplot as plt
-import seaborn as sns
 from datetime import datetime
 
 

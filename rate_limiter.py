@@ -8,6 +8,7 @@ from collections import defaultdict
 from functools import wraps
 
 from flask import g, jsonify, request
+from text_utils import sanitize_log
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,7 @@ def rate_limit(limit: int = 100, window: int = 3600, per_endpoint: bool = True):
             endpoint = request.endpoint if per_endpoint else "global"
 
             if g.rate_limiter.is_rate_limited(client_ip, endpoint, limit, window):
-                logger.warning(f"Rate limit exceeded for {client_ip} on {endpoint}")
+                logger.warning("Rate limit exceeded for %s on %s", sanitize_log(client_ip), sanitize_log(endpoint))
                 return (
                     jsonify(
                         {

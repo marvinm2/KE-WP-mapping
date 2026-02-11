@@ -9,6 +9,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def sanitize_log(value):
+    """Strip newlines and control chars to prevent log injection."""
+    if not isinstance(value, str):
+        value = str(value)
+    return value.replace('\n', '\\n').replace('\r', '\\r').replace('\x00', '')
+
+
 def remove_directionality_terms(text: str) -> str:
     """
     Remove directionality terms from KE titles for better semantic matching

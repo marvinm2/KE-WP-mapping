@@ -3,7 +3,7 @@ Enhanced RESTful API with full CRUD operations, pagination, and OpenAPI document
 """
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from flask import Blueprint, jsonify, request
 from marshmallow import Schema, fields, validate
@@ -12,6 +12,7 @@ from models import MappingModel
 from monitoring import monitor_performance
 from rate_limiter import general_rate_limit
 from schemas import MappingSchema, validate_request_data
+from text_utils import sanitize_log
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +205,7 @@ def get_mapping(mapping_id):
         return jsonify(result)
         
     except Exception as e:
-        logger.error("Error retrieving mapping %s: %s", mapping_id, e)
+        logger.error("Error retrieving mapping %s: %s", mapping_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to retrieve mapping", "details": "Internal error"}), 500
 
 
@@ -333,7 +334,7 @@ def update_mapping(mapping_id):
         return jsonify(result)
         
     except Exception as e:
-        logger.error("Error updating mapping %s: %s", mapping_id, e)
+        logger.error("Error updating mapping %s: %s", mapping_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to update mapping", "details": "Internal error"}), 500
 
 
@@ -370,7 +371,7 @@ def delete_mapping(mapping_id):
         return jsonify(result)
         
     except Exception as e:
-        logger.error("Error deleting mapping %s: %s", mapping_id, e)
+        logger.error("Error deleting mapping %s: %s", mapping_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to delete mapping", "details": "Internal error"}), 500
 
 

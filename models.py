@@ -2,7 +2,6 @@
 Database models for KE-WP Mapping Application
 """
 import logging
-import os
 import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional

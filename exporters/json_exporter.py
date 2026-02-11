@@ -4,7 +4,7 @@ JSON and JSON-LD export functionality for KE-WP mapping dataset
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
