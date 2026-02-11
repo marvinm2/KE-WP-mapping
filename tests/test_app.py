@@ -91,48 +91,30 @@ class TestMappingAPI:
 
 
 class TestSPARQLEndpoints:
-    @patch("requests.post")
-    def test_get_ke_options_success(self, mock_post, client):
-        """Test successful KE options retrieval"""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": {
-                "bindings": [
-                    {
-                        "KEtitle": {"value": "Test KE Title"},
-                        "KElabel": {"value": "KE:1"},
-                        "KEpage": {"value": "http://example.com"},
-                    }
-                ]
-            }
+    @patch("blueprints.api.ke_metadata", [
+        {
+            "KEtitle": "Test KE Title",
+            "KElabel": "KE:1",
+            "KEpage": "http://example.com",
         }
-        mock_post.return_value = mock_response
-
+    ])
+    def test_get_ke_options_success(self, client):
+        """Test successful KE options retrieval from pre-computed metadata"""
         response = client.get("/get_ke_options")
         assert response.status_code == 200
         data = json.loads(response.data)
         assert len(data) == 1
         assert data[0]["KEtitle"] == "Test KE Title"
 
-    @patch("requests.post")
-    def test_get_pathway_options_success(self, mock_post, client):
-        """Test successful pathway options retrieval"""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": {
-                "bindings": [
-                    {
-                        "pathwayID": {"value": "WP:1"},
-                        "pathwayTitle": {"value": "Test Pathway"},
-                        "pathwayLink": {"value": "http://example.com"},
-                    }
-                ]
-            }
+    @patch("blueprints.api.pathway_metadata", [
+        {
+            "pathwayID": "WP:1",
+            "pathwayTitle": "Test Pathway",
+            "pathwayLink": "http://example.com",
         }
-        mock_post.return_value = mock_response
-
+    ])
+    def test_get_pathway_options_success(self, client):
+        """Test successful pathway options retrieval from pre-computed metadata"""
         response = client.get("/get_pathway_options")
         assert response.status_code == 200
         data = json.loads(response.data)
