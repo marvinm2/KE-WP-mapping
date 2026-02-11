@@ -19,7 +19,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
         pip install safety pip-audit cyclonedx-bom
 
     - name: Run Safety check
@@ -216,7 +216,7 @@ jobs:
         # Check Python package licenses
         python -m pip install --upgrade pip
         pip install pip-licenses
-        pip install -r requirements.txt || echo "Some dependencies failed to install — checking licenses for what installed"
+        pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu || echo "Some dependencies failed to install — checking licenses for what installed"
         pip-licenses --format=json --output-file=licenses-report.json || true
         pip-licenses --format=plain || true
 
