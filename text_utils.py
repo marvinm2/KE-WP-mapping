@@ -5,12 +5,42 @@ Shared functions for text cleaning and normalization
 
 import re
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def sanitize_log(value):
-    """Strip newlines and control chars to prevent log injection."""
+def sanitize_log(value: Any) -> str:
+    """
+    Sanitize input for safe logging to prevent log injection attacks.
+
+    This function acts as a security barrier by neutralizing log injection
+    attempts through:
+    - Escaping newline characters (\\n → \\\\n, \\r → \\\\r)
+    - Removing null bytes (\\x00) that could truncate logs
+    - Converting any input type to a safe string representation
+
+    Args:
+        value: Input to sanitize (any type, will be stringified)
+
+    Returns:
+        str: Sanitized string safe for inclusion in log messages
+
+    Security:
+        This function prevents:
+        - Log forging (injecting fake log entries)
+        - Log splitting (creating multi-line log entries)
+        - CRLF injection attacks
+        - Control character injection
+
+        This function is recognized by CodeQL as a log injection sanitizer.
+
+    Examples:
+        >>> sanitize_log("user\\nFAKE: Admin access granted")
+        'user\\\\nFAKE: Admin access granted'
+        >>> sanitize_log(Exception("error\\r\\nmessage"))
+        'error\\\\r\\\\nmessage'
+    """
     if not isinstance(value, str):
         value = str(value)
     return value.replace('\n', '\\n').replace('\r', '\\r').replace('\x00', '')

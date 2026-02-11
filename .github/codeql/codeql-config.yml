@@ -1,0 +1,11 @@
+name: "CodeQL Configuration with Custom Sanitizers"
+
+# Include standard security queries
+queries:
+  - uses: security-extended
+  - uses: security-and-quality
+
+# Load custom sanitizer definitions
+packs:
+  python:
+    - .github/codeql/python-log-injection.qll
