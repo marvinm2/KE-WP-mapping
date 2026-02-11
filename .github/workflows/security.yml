@@ -98,7 +98,6 @@ jobs:
       with:
         languages: python
         queries: security-extended,security-and-quality
-        model-packs: .github/codeql
 
     - name: Autobuild
       uses: github/codeql-action/autobuild@v4
