@@ -403,12 +403,27 @@ pathway_suggestion:
 
 
   # ----------------------------------------------------------------------------
+  # Ontology-based matching (pathway classification tags)
+  # ----------------------------------------------------------------------------
+  ontology_tag_matching:
+    enabled: true                           # Feature flag
+    min_threshold: 0.20                     # Minimum score to include
+    fuzzy_match_threshold: 0.85             # String similarity threshold for partial matches
+
+    # Bonus for exact tag matches
+    exact_match_boost: 0.30                 # Add this per exact match
+    fuzzy_match_boost: 0.15                 # Add this per fuzzy match
+
+    # Max confidence from ontology tags
+    max_confidence: 0.90
+
   # Hybrid Scoring Weights (Multi-Signal Combination)
   # ----------------------------------------------------------------------------
   hybrid_weights:
-    gene: 0.35          # Gene-based scoring weight (unique biological signal)
-    text: 0.25          # Text-based scoring weight (reduced - 67% coverage, lower accuracy)
-    embedding: 0.40     # Embedding-based scoring weight (increased - 100% coverage, best accuracy)
+    gene: 0.30          # Gene-based scoring weight (mechanistic overlap)
+    text: 0.20          # Text-based scoring weight (lexical similarity)
+    embedding: 0.35     # Embedding-based scoring weight (semantic similarity)
+    ontology: 0.15      # Ontology-based scoring weight (pathway classification)
 
     # Bonus for multiple evidence types
     multi_evidence_bonus: 0.05

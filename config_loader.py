@@ -279,11 +279,23 @@ class EmbeddingBasedMatching:
 
 
 @dataclass
+class OntologyTagMatching:
+    """Ontology tag matching configuration for pathway scoring"""
+    enabled: bool = True
+    min_threshold: float = 0.20
+    fuzzy_match_threshold: float = 0.85
+    exact_match_boost: float = 0.30
+    fuzzy_match_boost: float = 0.15
+    max_confidence: float = 0.90
+
+
+@dataclass
 class HybridWeights:
     """Hybrid scoring weights for multi-signal combination"""
-    gene: float = 0.35
-    text: float = 0.35
-    embedding: float = 0.30
+    gene: float = 0.30
+    text: float = 0.20
+    embedding: float = 0.35
+    ontology: float = 0.15
     multi_evidence_bonus: float = 0.05
 
 
@@ -297,6 +309,7 @@ class PathwaySuggestionConfig:
     biological_level_multipliers: BiologicalLevelMultipliers = field(default_factory=BiologicalLevelMultipliers)
     substring_scoring: SubstringScoring = field(default_factory=SubstringScoring)
     embedding_based_matching: EmbeddingBasedMatching = field(default_factory=EmbeddingBasedMatching)
+    ontology_tag_matching: OntologyTagMatching = field(default_factory=OntologyTagMatching)
     hybrid_weights: HybridWeights = field(default_factory=HybridWeights)
 
 

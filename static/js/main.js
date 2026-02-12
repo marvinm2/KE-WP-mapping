@@ -1873,6 +1873,25 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 const primaryEvidence = this.formatPrimaryEvidence(suggestion.primary_evidence);
                 const hiddenClass = index >= 3 ? 'suggestion-item-hidden' : '';
 
+                // Prepare ontology tags HTML
+                const ontologyTagsHtml = suggestion.ontologyTags && suggestion.ontologyTags.length > 0
+                    ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">
+                        ${suggestion.ontologyTags.map(tag =>
+                            `<span style="font-size: 10px; padding: 2px 6px; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; border-radius: 3px; white-space: nowrap;">${this.escapeHtml(tag)}</span>`
+                        ).join('')}
+                       </div>`
+                    : '';
+
+                // Prepare publications HTML
+                const publicationsHtml = suggestion.publications && suggestion.publications.length > 0
+                    ? `<div style="margin-top: 6px; font-size: 11px; color: #666;">
+                        📚 <strong>${suggestion.publications.length}</strong> reference${suggestion.publications.length > 1 ? 's' : ''}:
+                        ${suggestion.publications.slice(0, 3).map(pub =>
+                            `<a href="${pub.url}" target="_blank" onclick="event.stopPropagation();" style="color: #307BBF;">PMID:${pub.pmid}</a>`
+                        ).join(', ')}${suggestion.publications.length > 3 ? `, +${suggestion.publications.length - 3} more` : ''}
+                       </div>`
+                    : '';
+
                 suggestionsHtml += `
                     <div class="suggestion-item ${hiddenClass}" data-pathway-id="${this.escapeHtml(suggestion.pathwayID)}" data-pathway-title="${this.escapeHtml(suggestion.pathwayTitle)}" data-pathway-svg="${this.escapeHtml(suggestion.pathwaySvgUrl || '')}"
                          style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border-left: 4px solid ${borderColor}; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
@@ -1885,9 +1904,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
                                     </div>
                                     ${finalScoreBar}
                                 </div>
+                                ${ontologyTagsHtml}
                                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
                                     ID: ${suggestion.pathwayID} | Primary: ${primaryEvidence} | <a href="https://www.wikipathways.org/pathways/${suggestion.pathwayID}" target="_blank" onclick="event.stopPropagation();" style="color: #307BBF;">View on WikiPathways</a>
                                 </div>
+                                ${publicationsHtml}
                                 ${scoreDetails}
                                 <button class="pathway-preview-btn"
                                         style="font-size: 11px; padding: 4px 8px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 3px; color: #307BBF; cursor: pointer; margin-top: 8px;">

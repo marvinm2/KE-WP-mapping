@@ -103,7 +103,7 @@ class PathwaySuggestionService:
             text_suggestions = self._fuzzy_search_pathways(ke_title, bio_level, limit)
             logger.info("Found %d text-based suggestions", len(text_suggestions))
 
-            # Get embedding-based suggestions (NEW)
+            # Get embedding-based suggestions
             embedding_suggestions = []
             if self.embedding_service:
                 ke_description = ""  # Fetch from AOP-Wiki if available in future
@@ -112,9 +112,13 @@ class PathwaySuggestionService:
                 )
                 logger.info("Found %d embedding-based suggestions", len(embedding_suggestions))
 
-            # Combine all three with hybrid scoring
+            # Get ontology tag-based suggestions
+            ontology_suggestions = self._compute_ontology_tag_scores(ke_title, ke_id, limit)
+            logger.info("Found %d ontology tag-based suggestions", len(ontology_suggestions))
+
+            # Combine all four signals with hybrid scoring
             combined_suggestions = self._combine_multi_signal_suggestions(
-                gene_suggestions, text_suggestions, embedding_suggestions, limit
+                gene_suggestions, text_suggestions, embedding_suggestions, ontology_suggestions, limit
             )
 
             return {
@@ -125,6 +129,7 @@ class PathwaySuggestionService:
                 "gene_based_suggestions": gene_suggestions,
                 "text_based_suggestions": text_suggestions,
                 "embedding_based_suggestions": embedding_suggestions,
+                "ontology_based_suggestions": ontology_suggestions,
                 "combined_suggestions": combined_suggestions,
                 "total_suggestions": len(combined_suggestions),
             }
@@ -531,86 +536,39 @@ class PathwaySuggestionService:
             return []
 
     def _get_all_pathways_for_search(self) -> List[Dict[str, str]]:
-        """Get all pathways with titles and descriptions for text search"""
+        """
+        Get all pathways with titles and descriptions for text search
+        Uses pre-computed pathway_metadata.json which includes ontology tags and publications
+        """
         try:
-            sparql_query = """
-            PREFIX wp: <http://vocabularies.wikipathways.org/wp#>
-            PREFIX dc: <http://purl.org/dc/elements/1.1/>
-            PREFIX dcterms: <http://purl.org/dc/terms/>
+            import os
 
-            SELECT DISTINCT ?pathwayID ?pathwayTitle ?pathwayDescription
-            WHERE {
-                ?pathwayRev a wp:Pathway ; 
-                            dc:title ?pathwayTitle ; 
-                            dcterms:identifier ?pathwayID ;
-                            wp:organismName "Homo sapiens" .
-                OPTIONAL { ?pathwayRev dcterms:description ?pathwayDescription }
-            }
-            """
+            # Load from pre-computed metadata file
+            metadata_path = os.path.join(os.path.dirname(__file__), 'pathway_metadata.json')
 
-            # Check cache first
-            query_hash = hashlib.md5(sparql_query.encode()).hexdigest()
-            cache_key = f"all_pathways_search"
-            
-            if self.cache_model:
-                cached_response = self.cache_model.get_cached_response(
-                    cache_key, query_hash
-                )
-                if cached_response:
-                    logger.info("Serving all pathways from cache for text search")
-                    return json.loads(cached_response)
+            with open(metadata_path, 'r') as f:
+                pathways = json.load(f)
 
-            response = requests.post(
-                self.wikipathways_endpoint,
-                data={"query": sparql_query},
-                headers={
-                    "Accept": "application/sparql-results+json",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                timeout=60,  # Longer timeout for comprehensive query
-            )
+            # Ensure all pathways have required fields and enrichment data
+            for pathway in pathways:
+                # Add SVG URL if not present
+                if 'pathwaySvgUrl' not in pathway:
+                    pathway['pathwaySvgUrl'] = f"https://www.wikipathways.org/wikipathways-assets/pathways/{pathway['pathwayID']}/{pathway['pathwayID']}.svg"
 
-            if response.status_code == 200:
-                data = response.json()
-                pathways = []
-                seen_pathway_ids = set()
+                # Ensure enrichment fields exist (default to empty lists if missing)
+                if 'ontologyTags' not in pathway:
+                    pathway['ontologyTags'] = []
+                if 'publications' not in pathway:
+                    pathway['publications'] = []
 
-                if "results" in data and "bindings" in data["results"]:
-                    for binding in data["results"]["bindings"]:
-                        pathway_id = binding.get("pathwayID", {}).get("value", "")
-                        pathway_title = binding.get("pathwayTitle", {}).get("value", "")
-                        pathway_desc = binding.get("pathwayDescription", {}).get("value", "")
+            logger.info("Loaded %d pathways from pre-computed metadata (with enrichment data)", len(pathways))
+            return pathways
 
-                        # Deduplicate by pathway ID
-                        if pathway_id and pathway_title and pathway_id not in seen_pathway_ids:
-                            pathways.append(
-                                {
-                                    "pathwayID": pathway_id,
-                                    "pathwayTitle": pathway_title,
-                                    "pathwayDescription": pathway_desc,
-                                    "pathwayLink": f"https://www.wikipathways.org/index.php/Pathway:{pathway_id}",
-                                    "pathwaySvgUrl": f"https://www.wikipathways.org/wikipathways-assets/pathways/{pathway_id}/{pathway_id}.svg",
-                                }
-                            )
-                            seen_pathway_ids.add(pathway_id)
-
-                # Cache the results for longer (6 hours)
-                if self.cache_model:
-                    self.cache_model.cache_response(
-                        cache_key, query_hash, json.dumps(pathways), 6
-                    )
-
-                logger.info("Loaded %d pathways for text search", len(pathways))
-                return pathways
-
-            else:
-                logger.error(
-                    "All pathways query failed: %s - %s", response.status_code, response.text
-                )
-                return []
-
+        except FileNotFoundError:
+            logger.warning("pathway_metadata.json not found, falling back to empty list")
+            return []
         except Exception as e:
-            logger.error("Error getting all pathways for search: %s", e)
+            logger.error("Error loading pathway metadata: %s", e)
             return []
 
     def _calculate_text_similarity(self, text1: str, text2: str, bio_level: str = None) -> float:
@@ -1190,15 +1148,143 @@ class PathwaySuggestionService:
             logger.error("Embedding-based suggestion failed: %s", e)
             return []
 
+    def _compute_ontology_tag_scores(
+        self, ke_title: str, ke_id: str = None, limit: int = 20
+    ) -> List[Dict[str, any]]:
+        """
+        Score pathways by matching ontology tags to KE biological concepts
+
+        Args:
+            ke_title: Key Event title to extract concepts from
+            ke_id: Key Event ID (optional, for logging)
+            limit: Maximum number of results
+
+        Returns:
+            List of pathway dictionaries with ontology-based confidence scores
+        """
+        try:
+            if not self.config.pathway_suggestion.ontology_tag_matching.enabled:
+                logger.info("Ontology tag matching disabled")
+                return []
+
+            # Load pathways with ontology tags
+            all_pathways = self._get_all_pathways_for_search()
+
+            # Clean and extract biological keywords from KE title
+            ke_title_clean = self._clean_text(remove_directionality_terms(ke_title))
+            ke_keywords = self._extract_biological_keywords(ke_title_clean)
+
+            if not ke_keywords:
+                logger.info("No biological keywords extracted from KE title")
+                return []
+
+            logger.info("Extracted %d keywords from KE: %s", len(ke_keywords), ke_keywords)
+
+            # Score each pathway based on ontology tag matches
+            scored_pathways = []
+            config = self.config.pathway_suggestion.ontology_tag_matching
+
+            for pathway in all_pathways:
+                tags = pathway.get('ontologyTags', [])
+
+                if not tags:
+                    continue  # Skip pathways without tags
+
+                # Calculate match score
+                exact_matches = 0
+                fuzzy_matches = 0
+                matched_tags = []
+
+                for keyword in ke_keywords:
+                    for tag in tags:
+                        tag_clean = self._clean_text(tag)
+
+                        # Check for exact substring match
+                        if keyword in tag_clean or tag_clean in keyword:
+                            exact_matches += 1
+                            matched_tags.append(tag)
+                            break
+
+                        # Check for fuzzy match using SequenceMatcher
+                        similarity = SequenceMatcher(None, keyword, tag_clean).ratio()
+                        if similarity >= config.fuzzy_match_threshold:
+                            fuzzy_matches += 1
+                            matched_tags.append(tag)
+                            break
+
+                # Calculate confidence score
+                confidence_score = (
+                    exact_matches * config.exact_match_boost +
+                    fuzzy_matches * config.fuzzy_match_boost
+                )
+
+                # Cap at max_confidence
+                confidence_score = min(confidence_score, config.max_confidence)
+
+                # Only include if above threshold
+                if confidence_score >= config.min_threshold:
+                    scored_pathways.append({
+                        **pathway,
+                        'confidence_score': round(confidence_score, 3),
+                        'suggestion_type': 'ontology_tag',
+                        'match_types': ['ontology'],
+                        'primary_evidence': 'ontology_tags',
+                        'ontology_match_details': {
+                            'exact_matches': exact_matches,
+                            'fuzzy_matches': fuzzy_matches,
+                            'ke_keywords': ke_keywords,
+                            'matched_tags': matched_tags[:3],  # Sample for debugging
+                        }
+                    })
+
+            # Sort by confidence and limit
+            scored_pathways.sort(key=lambda x: x['confidence_score'], reverse=True)
+            limited_results = scored_pathways[:limit]
+
+            logger.info("Found %d ontology tag-based suggestions", len(limited_results))
+            return limited_results
+
+        except Exception as e:
+            logger.error("Error computing ontology tag scores: %s", e)
+            return []
+
+    def _extract_biological_keywords(self, text: str) -> List[str]:
+        """
+        Extract biological keywords from cleaned text
+
+        Removes common stopwords and keeps domain-specific terms
+        """
+        # Common stopwords to remove
+        stopwords = {
+            'the', 'of', 'in', 'and', 'or', 'a', 'an', 'to', 'from', 'by',
+            'with', 'for', 'on', 'at', 'is', 'are', 'was', 'were', 'be',
+            'increased', 'decreased', 'leading', 'resulting'
+        }
+
+        # Split and filter
+        words = text.lower().split()
+        keywords = [w for w in words if w not in stopwords and len(w) > 2]
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_keywords = []
+        for keyword in keywords:
+            if keyword not in seen:
+                seen.add(keyword)
+                unique_keywords.append(keyword)
+
+        return unique_keywords
+
     def _combine_multi_signal_suggestions(
         self,
         gene_suggestions: List[Dict],
         text_suggestions: List[Dict],
         embedding_suggestions: List[Dict],
+        ontology_suggestions: List[Dict],
         limit: int
     ) -> List[Dict]:
         """
-        Combine three scoring signals with transparent hybrid scoring
+        Combine four scoring signals with transparent hybrid scoring
 
         Returns:
             List of suggestions with all scores visible
@@ -1210,9 +1296,10 @@ class PathwaySuggestionService:
             None
         )
 
-        gene_weight = getattr(hybrid_weights, 'gene', 0.35) if hybrid_weights else 0.35
-        text_weight = getattr(hybrid_weights, 'text', 0.35) if hybrid_weights else 0.35
-        embedding_weight = getattr(hybrid_weights, 'embedding', 0.30) if hybrid_weights else 0.30
+        gene_weight = getattr(hybrid_weights, 'gene', 0.30) if hybrid_weights else 0.30
+        text_weight = getattr(hybrid_weights, 'text', 0.20) if hybrid_weights else 0.20
+        embedding_weight = getattr(hybrid_weights, 'embedding', 0.35) if hybrid_weights else 0.35
+        ontology_weight = getattr(hybrid_weights, 'ontology', 0.15) if hybrid_weights else 0.15
 
         final_threshold = self.config.pathway_suggestion.dynamic_thresholds.base_threshold
 
@@ -1221,13 +1308,15 @@ class PathwaySuggestionService:
                 'gene': gene_suggestions,
                 'text': text_suggestions,
                 'embedding': embedding_suggestions,
+                'ontology': ontology_suggestions,
             },
             id_field='pathwayID',
-            weights={'gene': gene_weight, 'text': text_weight, 'embedding': embedding_weight},
+            weights={'gene': gene_weight, 'text': text_weight, 'embedding': embedding_weight, 'ontology': ontology_weight},
             score_field_map={
                 'gene': 'confidence_score',
                 'text': 'confidence_score',
                 'embedding': 'confidence_score',
+                'ontology': 'confidence_score',
             },
             multi_evidence_bonus=0.05,
             min_threshold=final_threshold,
@@ -1240,20 +1329,24 @@ class PathwaySuggestionService:
             gene_score = sig.get('gene', 0.0)
             text_score = sig.get('text', 0.0)
             emb_score = sig.get('embedding', 0.0)
+            ontology_score = sig.get('ontology', 0.0)
 
             pathway['scores'] = {
                 'gene_confidence': gene_score,
                 'text_confidence': text_score,
                 'embedding_similarity': emb_score,
+                'ontology_confidence': ontology_score,
                 'final_score': pathway['hybrid_score'],
             }
 
             # Determine primary evidence source
-            max_signal = max(gene_score, text_score, emb_score)
+            max_signal = max(gene_score, text_score, emb_score, ontology_score)
             if max_signal == gene_score and gene_score > 0:
                 pathway['primary_evidence'] = 'gene_overlap'
             elif max_signal == emb_score and emb_score > 0:
                 pathway['primary_evidence'] = 'semantic_similarity'
+            elif max_signal == ontology_score and ontology_score > 0:
+                pathway['primary_evidence'] = 'ontology_tags'
             else:
                 pathway['primary_evidence'] = 'text_similarity'
 
