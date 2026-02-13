@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   packages: write
+  security-events: write
 
 env:
   REGISTRY: ghcr.io
@@ -133,15 +134,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
 
-    - name: Install Docker Compose
-      run: |
-        # Install docker-compose if not available
-        if ! command -v docker-compose &> /dev/null; then
-          sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-        fi
-        docker-compose --version
-
     - name: Create test environment
       run: |
         cp .env.example .env
@@ -154,7 +146,7 @@ jobs:
     - name: Test Docker Compose
       run: |
         # Build and start services
-        docker-compose up -d --build
+        docker compose up -d --build
         
         # Wait for services to start
         echo "Waiting for services to start..."
@@ -162,11 +154,11 @@ jobs:
         
         # Check if all services are running
         echo "Service status:"
-        docker-compose ps
+        docker compose ps
         
         # Show logs for debugging
         echo "Web service logs:"
-        docker-compose logs web
+        docker compose logs web
         
         # Test web service health with retry
         echo "Testing health endpoint..."
@@ -181,23 +173,23 @@ jobs:
         done
         
         # Test Redis connectivity if service exists
-        if docker-compose ps redis | grep -q "Up"; then
+        if docker compose ps redis | grep -q "Up"; then
           echo "Testing Redis connectivity..."
-          docker-compose exec -T redis redis-cli ping || echo "⚠️ Redis test skipped"
+          docker compose exec -T redis redis-cli ping || echo "⚠️ Redis test skipped"
         else
           echo "Redis service not running - skipping Redis test"
         fi
         
         # Check for critical errors in logs
         echo "Checking for critical errors..."
-        if docker-compose logs web | grep -i "critical\|fatal\|error.*failed"; then
+        if docker compose logs web | grep -i "critical\|fatal\|error.*failed"; then
           echo "⚠️ Critical errors found in logs"
         else
           echo "✅ No critical errors in logs"
         fi
         
         # Stop services
-        docker-compose down
+        docker compose down
         
         echo "✅ Docker Compose tests passed"
 
@@ -263,7 +255,7 @@ jobs:
         echo "ADMIN_USERS=testuser" >> .env
         
         # Build and start
-        docker-compose up -d
+        docker compose up -d --build
         sleep 20
 
     - name: Install performance testing tools
@@ -298,7 +290,7 @@ jobs:
     - name: Cleanup
       if: always()
       run: |
-        docker-compose down
+        docker compose down
 
   image-analysis:
     runs-on: ubuntu-latest
@@ -323,14 +315,16 @@ jobs:
     - name: Analyze image with dive
       run: |
         # Install dive
-        curl -sSL https://github.com/wagoodman/dive/releases/download/v0.10.0/dive_0.10.0_linux_amd64.tar.gz | tar -xz
+        curl -sSL https://github.com/wagoodman/dive/releases/download/v0.12.0/dive_0.12.0_linux_amd64.tar.gz | tar -xz
         sudo mv dive /usr/local/bin/
-        
-        # Verify installation
+
+        # Verify installation and image availability
         dive --version
-        
-        # Analyze image efficiency
-        dive analyze-image:latest --ci --lowestEfficiency=0.8 --highestWastedBytes=10MB
+        docker images analyze-image:latest
+
+        # Export image and analyze efficiency
+        docker save analyze-image:latest -o /tmp/analyze-image.tar
+        dive --source docker-archive /tmp/analyze-image.tar --ci --lowestEfficiency=0.8 --highestWastedBytes=10MB
 
     - name: Get image information
       run: |
