@@ -12,7 +12,7 @@ pylint==2.17.7
 # Security Analysis (pinned to avoid conflicts)
 bandit[toml]==1.7.5
 safety==3.0.1
-pip-audit==2.6.1
+pip-audit==2.10.0
 
 # Additional Testing Tools (avoiding conflicts with main requirements)
 pytest-mock==3.12.0
