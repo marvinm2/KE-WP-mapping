@@ -81,8 +81,8 @@ def fetch_all_kes():
         raise
 
 
-def precompute_all_ke_embeddings(output_path='ke_embeddings.npy',
-                                  metadata_path='ke_metadata.json'):
+def precompute_all_ke_embeddings(output_path='data/ke_embeddings.npy',
+                                  metadata_path='data/ke_metadata.json'):
     """
     Fetch all Key Events and pre-compute their BioBERT embeddings.
     Also saves ke_metadata.json for serving dropdown options without live SPARQL.

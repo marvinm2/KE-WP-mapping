@@ -180,8 +180,8 @@ def fetch_pathway_publications():
         return {}
 
 
-def precompute_pathway_title_embeddings(output_path='pathway_title_embeddings.npy',
-                                        metadata_path='pathway_metadata.json'):
+def precompute_pathway_title_embeddings(output_path='data/pathway_title_embeddings.npy',
+                                        metadata_path='data/pathway_metadata.json'):
     """
     Fetch all WikiPathways and pre-compute their title-only BioBERT embeddings.
     Also saves pathway_metadata.json for serving dropdown options without live SPARQL.

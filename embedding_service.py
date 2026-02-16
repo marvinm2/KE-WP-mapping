@@ -126,8 +126,8 @@ class BiologicalEmbeddingService:
 
             # Load pre-computed pathway TITLE embeddings if available
             self.pathway_title_embeddings = {}
-            if os.path.exists('pathway_title_embeddings.npy'):
-                self._load_precomputed_pathway_title_embeddings('pathway_title_embeddings.npy')
+            if os.path.exists('data/pathway_title_embeddings.npy'):
+                self._load_precomputed_pathway_title_embeddings('data/pathway_title_embeddings.npy')
 
             logger.info(f"BioBERT service initialized successfully")
 

@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def precompute_all_pathway_embeddings(output_path='pathway_embeddings.npy'):
+def precompute_all_pathway_embeddings(output_path='data/pathway_embeddings.npy'):
     """
     Fetch all WikiPathways and pre-compute their BioBERT embeddings
     """

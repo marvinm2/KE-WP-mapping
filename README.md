@@ -10,31 +10,24 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
 ## Features
 
 ### Core Functionality
+
 - **KE-WP Mapping**: Create relationships between Key Events and WikiPathways with connection types and confidence levels
 - **KE-GO Mapping**: Map Key Events to Gene Ontology Biological Process (BP) terms with gene-based and semantic scoring
-- **Multiple Pathway Selection**: Map multiple WikiPathways to a single Key Event with individual confidence assessments
-- **AOP Network Visualization**: Interactive Cytoscape.js-based network visualization with:
-  - Real-time AOP pathway network rendering with biological level color-coding
-  - Topology-based MIE/AO classification and intelligent edge validation
-  - Dynamic network exploration with zoom, pan, and node interaction
-  - Structure-aware pathway analysis and relationship mapping
 - **Intelligent Pathway Suggestions**: Advanced algorithm suggesting relevant pathways based on Key Events using:
   - Multi-algorithm text similarity with biological term weighting
   - Gene-based pathway matching with overlap analysis
-  - Domain-specific biological concept recognition
+  - BioBERT semantic similarity with pre-computed embeddings
   - Dynamic confidence scoring with non-linear scaling
 - **GO Term Suggestions**: Intelligent GO BP term recommendations using:
   - Pre-computed BioBERT embeddings for ~30K GO BP terms
   - Gene annotation overlap between KE-associated genes and GO terms
   - Hybrid scoring combining gene, text, and semantic signals
-- **Enhanced Pathway Selection**: Comprehensive pathway information display including:
-  - Pathway descriptions with collapsible text
-  - SVG diagram previews with click-to-expand functionality
-  - Data source version information (AOP-Wiki, WikiPathways)
-- **Streamlined Confidence Assessment**: 5-question workflow with biological level weighting:
+- **Streamlined Confidence Assessment**: 4-question guided workflow with biological level weighting:
   - Transparent scoring algorithm (0-7.5 points) with biological level bonus
   - Automatic +1 bonus for molecular/cellular/tissue-level Key Events
-  - Progressive question disclosure with simplified, accessible language
+  - Progressive question disclosure with collapsible answered steps
+  - KE + Pathway info cards displayed alongside each assessment
+  - Edit previous answers with automatic recalculation of subsequent steps
   - Real-time score calculation and detailed feedback
 - **Data Exploration**: Interactive, searchable dataset browser with advanced filtering
 - **Proposal System**: Community-driven change proposals with admin review workflow
@@ -42,18 +35,28 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
 - **Export Capabilities**: Download datasets in multiple formats
 
 ### User Experience Enhancements
-- **Navigation Support**: Ctrl+click functionality on buttons for opening in new tabs
-- **Pathway Previews**: Inline pathway information with figure previews in selection interface
-- **Data Provenance**: Version information display for data sources in application footer
-- **Responsive Design**: Horizontal layout support for multi-pathway interface (max 2 pathways)
+
+- **Unified Pathway Discovery**: Step 2 organizes pathway selection into three sub-tabs:
+  - **Suggested**: AI-powered pathway recommendations based on selected Key Event
+  - **Search**: Full-text pathway search with fuzzy matching
+  - **Browse All**: Traditional dropdown with pathway descriptions, SVG previews, and collapsible text
+- **KE Context Panel**: When a Key Event is selected, an expandable panel shows:
+  - AOP membership with direct links to AOP-Wiki
+  - Existing WP and GO mappings with confidence levels
+  - Summary badges for quick overview
+- **Pathway Previews**: Inline pathway information with SVG figure previews and click-to-expand
+- **Data Provenance**: Version information display for data sources (AOP-Wiki, WikiPathways) in application footer
+- **Responsive Design**: Mobile-friendly layouts with responsive grid for info cards and assessment panels
 
 ### Security & Authentication
+
 - **GitHub OAuth Integration**: Secure authentication with GitHub
 - **Role-based Access Control**: Admin dashboard for proposal management with proper Docker deployment support
 - **CSRF Protection**: Comprehensive security against cross-site attacks
 - **Rate Limiting**: API protection with intelligent throttling
 
 ### Architecture
+
 - **Blueprint Modular Design**: Clean separation of concerns
 - **Dependency Injection**: Testable and maintainable code structure
 - **Configuration Management**: Environment-aware settings with Docker support
@@ -66,12 +69,14 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
 This project includes comprehensive GitHub Actions workflows for automated testing, quality assurance, and deployment:
 
 ### CI/CD Pipeline
+
 - **Matrix Testing**: Python 3.10 & 3.11 compatibility
 - **Automated Testing**: Full test suite with pytest and coverage reporting
 - **Code Formatting**: Black code formatting and isort import sorting
 - **Environment Testing**: Validates application startup and health endpoints
 
 ### Docker Build & Test
+
 - **Multi-platform Builds**: AMD64 and ARM64 architecture support
 - **Container Testing**: Automated health checks and endpoint validation
 - **Docker Compose Testing**: Full stack deployment validation
@@ -202,7 +207,7 @@ docker-compose up -d
 ├── error_handlers.py         # Centralized error handling
 ├── blueprints/               # Modular route organization
 │   ├── auth.py              # Authentication & OAuth
-│   ├── api.py               # Data API endpoints & AOP network
+│   ├── api.py               # Data API endpoints
 │   ├── admin.py             # Admin dashboard
 │   └── main.py              # Core application routes
 ├── models.py                 # Data models & database layer
@@ -224,13 +229,16 @@ docker-compose up -d
 
 ## API Documentation
 
-### Core Endpoints
+### Page Routes
 
 | Endpoint | Method | Description | Authentication |
 |----------|--------|-------------|----------------|
 | `/` | GET | Main application page | Optional |
 | `/explore` | GET | Dataset exploration interface | Optional |
-| `/aop_network` | GET | Interactive AOP network visualization | Optional |
+| `/download` | GET | Dataset download page | Optional |
+| `/ke-details` | GET | Key Event detail page | Optional |
+| `/pw-details` | GET | Pathway detail page | Optional |
+| `/documentation` | GET | Application documentation | Optional |
 | `/login` | GET | GitHub OAuth login | None |
 | `/logout` | GET | User logout | Required |
 
@@ -239,13 +247,20 @@ docker-compose up -d
 | Endpoint | Method | Description | Rate Limit |
 |----------|--------|-------------|------------|
 | `/check` | POST | Validate KE-WP pair existence | General |
-| `/submit` | POST | Create new mapping | Submission |
-| `/get_ke_options` | GET | Fetch Key Events from SPARQL | SPARQL |
-| `/get_pathway_options` | GET | Fetch pathways from SPARQL | SPARQL |
-| `/get_aop_network/<aop_id>` | GET | Fetch AOP network visualization data | SPARQL |
-| `/suggest_go_terms/<ke_id>` | GET | GO BP term suggestions for a Key Event | General |
+| `/submit` | POST | Create new KE-WP mapping | Submission |
+| `/get_ke_options` | GET | Fetch Key Event options | SPARQL |
+| `/get_pathway_options` | GET | Fetch pathway options | SPARQL |
+| `/get_aop_options` | GET | Fetch AOP options | SPARQL |
+| `/get_aop_kes/<aop_id>` | GET | Fetch Key Events for a specific AOP | SPARQL |
+| `/get_data_versions` | GET | Fetch data source version info | SPARQL |
+| `/suggest_pathways/<ke_id>` | GET | Pathway suggestions for a Key Event | SPARQL |
+| `/search_pathways` | GET | Full-text pathway search with fuzzy matching | SPARQL |
+| `/ke_genes/<ke_id>` | GET | Genes associated with a Key Event | SPARQL |
+| `/api/ke_context/<ke_id>` | GET | KE context: AOPs, existing WP/GO mappings | General |
+| `/api/scoring-config` | GET | KE-WP assessment scoring configuration | General |
+| `/suggest_go_terms/<ke_id>` | GET | GO BP term suggestions for a Key Event | SPARQL |
 | `/submit_go_mapping` | POST | Create new KE-GO mapping | Submission |
-| `/check_go_mapping` | GET | Check if KE-GO mapping exists | General |
+| `/check_go_entry` | POST | Check if KE-GO pair exists | General |
 | `/api/go-scoring-config` | GET | KE-GO assessment scoring configuration | General |
 | `/submit_proposal` | POST | Submit change proposal | Submission |
 
@@ -257,6 +272,16 @@ docker-compose up -d
 | `/admin/proposals/<id>` | GET | View proposal details | Admin only |
 | `/admin/proposals/<id>/approve` | POST | Approve proposal | Admin only |
 | `/admin/proposals/<id>/reject` | POST | Reject proposal | Admin only |
+
+### Export & Data Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/export/<format>` | GET | Export dataset (csv, tsv, json, excel, rdf) |
+| `/export/formats` | GET | List available export formats |
+| `/dataset/metadata` | GET | Dataset metadata |
+| `/dataset/versions` | GET | Dataset version history |
+| `/dataset/citation` | GET | Citation information |
 
 ### Monitoring Endpoints
 
@@ -293,6 +318,7 @@ docker-compose up -d
 | `RATELIMIT_STORAGE_URL` | Rate limiting backend | `memory://` | No |
 
 ### Configuration Classes
+
 - **DevelopmentConfig**: Local development settings
 - **ProductionConfig**: Production-ready configuration
 - **TestingConfig**: Unit testing environment
@@ -300,6 +326,9 @@ docker-compose up -d
 ## Testing
 
 ```bash
+# Run the full test suite
+PYTHONPATH=. pytest tests/ -v
+
 # Run with test configuration
 python -c "from app import create_app; app = create_app('testing')"
 
@@ -311,6 +340,7 @@ curl http://localhost:5000/metrics
 ## Monitoring & Health Checks
 
 ### Health Check Response
+
 ```json
 {
   "status": "healthy|degraded|unhealthy",
@@ -331,6 +361,7 @@ curl http://localhost:5000/metrics
 ```
 
 ### Metrics Available
+
 - System resource usage
 - Endpoint response times
 - Request/error rates
@@ -340,6 +371,7 @@ curl http://localhost:5000/metrics
 ## Development
 
 ### Local Development
+
 ```bash
 # Enable debug mode
 export FLASK_DEBUG=true
@@ -350,6 +382,7 @@ python app.py
 ```
 
 ### Adding New Features
+
 1. Create new blueprint in `blueprints/`
 2. Register in `app.py`
 3. Add configuration in `config.py`
@@ -362,6 +395,7 @@ python app.py
 ### Common Issues
 
 **Port already in use:**
+
 ```bash
 # Change port in .env
 PORT=5001
@@ -369,11 +403,13 @@ PORT=5001
 ```
 
 **OAuth not working:**
+
 - Verify callback URL: `http://localhost:5000/callback`
 - Check Client ID/Secret in GitHub settings
 - Ensure OAuth app is not suspended
 
 **Database errors:**
+
 ```bash
 # Reset database
 rm ke_wp_mapping.db
@@ -381,6 +417,7 @@ python app.py  # Will recreate automatically
 ```
 
 **Permission errors:**
+
 ```bash
 # Make startup script executable
 chmod +x start.sh
@@ -404,6 +441,7 @@ chmod +x start.sh
 6. Submit a pull request
 
 ### Code Style
+
 - Follow PEP 8 Python style guidelines
 - Use type hints where applicable
 - Add docstrings for all functions/classes

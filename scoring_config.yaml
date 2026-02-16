@@ -169,8 +169,8 @@ pathway_suggestion:
     model: "dmis-lab/biobert-base-cased-v1.2"  # HuggingFace model ID
     min_threshold: 0.4                          # Minimum similarity to include
     use_gpu: true                               # Use GPU if available
-    precomputed_embeddings: "pathway_embeddings.npy"  # Pre-computed pathway vectors
-    precomputed_ke_embeddings: "ke_embeddings.npy"    # Pre-computed KE vectors
+    precomputed_embeddings: "data/pathway_embeddings.npy"  # Pre-computed pathway vectors
+    precomputed_ke_embeddings: "data/ke_embeddings.npy"    # Pre-computed KE vectors
 
     # Fallback behavior
     fallback_to_text: true                      # Use text-based if embeddings fail

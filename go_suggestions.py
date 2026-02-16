@@ -25,10 +25,10 @@ class GoSuggestionService:
         cache_model=None,
         config=None,
         embedding_service=None,
-        go_embeddings_path='go_bp_embeddings.npy',
-        go_name_embeddings_path='go_bp_name_embeddings.npy',
-        go_metadata_path='go_bp_metadata.json',
-        go_annotations_path='go_bp_gene_annotations.json'
+        go_embeddings_path='data/go_bp_embeddings.npy',
+        go_name_embeddings_path='data/go_bp_name_embeddings.npy',
+        go_metadata_path='data/go_bp_metadata.json',
+        go_annotations_path='data/go_bp_gene_annotations.json'
     ):
         self.cache_model = cache_model
         self.config = config or ConfigLoader.get_default_config()

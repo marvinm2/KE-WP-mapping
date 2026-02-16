@@ -419,7 +419,7 @@ class PathwaySuggestionService:
             import os
 
             # Load from pre-computed metadata file
-            metadata_path = os.path.join(os.path.dirname(__file__), 'pathway_metadata.json')
+            metadata_path = os.path.join(os.path.dirname(__file__), 'data', 'pathway_metadata.json')
 
             with open(metadata_path, 'r') as f:
                 pathways = json.load(f)

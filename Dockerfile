@@ -18,7 +18,7 @@ COPY --from=builder /install /usr/local
 COPY . .
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
 USER appuser
-RUN mkdir -p /app/proposals /app/static/css /app/static/js /app/data
+RUN mkdir -p /app/static/css /app/static/js /app/data
 EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=20s --retries=3 \
     CMD curl -f http://localhost:5000/health || exit 1

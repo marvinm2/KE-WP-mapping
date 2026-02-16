@@ -176,3 +176,69 @@ class TestAuthentication:
         )
         # Returns 400 because mapping_id is required but missing
         assert response.status_code == 400
+
+
+class TestKEContext:
+    @patch("blueprints.api.cache_model")
+    @patch("blueprints.api.mapping_model")
+    @patch("blueprints.api.go_mapping_model")
+    @patch("requests.post")
+    def test_ke_context_returns_json_structure(self, mock_post, mock_go_model, mock_mapping, mock_cache, client):
+        """Test KE context endpoint returns expected JSON structure"""
+        # Mock SPARQL response for AOP membership
+        mock_sparql_response = MagicMock()
+        mock_sparql_response.status_code = 200
+        mock_sparql_response.json.return_value = {
+            "results": {
+                "bindings": [
+                    {"aopId": {"value": "AOP 1"}, "aopTitle": {"value": "Test AOP"}}
+                ]
+            }
+        }
+        mock_post.return_value = mock_sparql_response
+
+        # Mock database models
+        mock_cache.get_cached_response.return_value = None
+        mock_mapping.get_mappings_by_ke.return_value = [
+            {"wp_id": "WP100", "wp_title": "Test Pathway", "confidence_level": "high"}
+        ]
+        mock_go_model.get_mappings_by_ke.return_value = []
+
+        response = client.get("/api/ke_context/KE%2055")
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert "ke_id" in data
+        assert "aop_membership" in data
+        assert "wp_mappings" in data
+        assert "go_mappings" in data
+        assert "summary" in data
+        assert data["summary"]["aop_count"] == 1
+        assert data["summary"]["wp_mapping_count"] == 1
+        assert data["summary"]["go_mapping_count"] == 0
+
+    def test_ke_context_empty_id(self, client):
+        """Test KE context with empty ID returns 400"""
+        response = client.get("/api/ke_context/%20")
+        assert response.status_code == 400
+
+    @patch("blueprints.api.cache_model")
+    @patch("blueprints.api.mapping_model")
+    @patch("blueprints.api.go_mapping_model")
+    @patch("requests.post")
+    def test_ke_context_no_results(self, mock_post, mock_go_model, mock_mapping, mock_cache, client):
+        """Test KE context with no matching data"""
+        mock_sparql_response = MagicMock()
+        mock_sparql_response.status_code = 200
+        mock_sparql_response.json.return_value = {"results": {"bindings": []}}
+        mock_post.return_value = mock_sparql_response
+
+        mock_cache.get_cached_response.return_value = None
+        mock_mapping.get_mappings_by_ke.return_value = []
+        mock_go_model.get_mappings_by_ke.return_value = []
+
+        response = client.get("/api/ke_context/KE%20999")
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["summary"]["aop_count"] == 0
+        assert data["summary"]["wp_mapping_count"] == 0
+        assert data["summary"]["go_mapping_count"] == 0

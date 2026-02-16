@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 GO_OBO_URL = "http://purl.obolibrary.org/obo/go.obo"
-GO_OBO_LOCAL = "go.obo"
+GO_OBO_LOCAL = "data/go.obo"
 
 
 def download_go_obo(url=GO_OBO_URL, local_path=GO_OBO_LOCAL):
@@ -119,9 +119,9 @@ def parse_obo_file(obo_path):
 
 
 def precompute_go_embeddings(
-    embeddings_path='go_bp_embeddings.npy',
-    name_embeddings_path='go_bp_name_embeddings.npy',
-    metadata_path='go_bp_metadata.json'
+    embeddings_path='data/go_bp_embeddings.npy',
+    name_embeddings_path='data/go_bp_name_embeddings.npy',
+    metadata_path='data/go_bp_metadata.json'
 ):
     """
     Parse GO OBO file and pre-compute BioBERT embeddings for all BP terms.

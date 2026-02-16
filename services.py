@@ -113,7 +113,7 @@ class ServiceContainer:
     def ke_metadata(self):
         """Load and cache KE metadata from pre-computed JSON file"""
         if self._ke_metadata is None:
-            path = os.path.join(os.path.dirname(__file__), 'ke_metadata.json')
+            path = os.path.join(os.path.dirname(__file__), 'data', 'ke_metadata.json')
             if os.path.exists(path):
                 try:
                     with open(path, 'r', encoding='utf-8') as f:
@@ -127,7 +127,7 @@ class ServiceContainer:
     def pathway_metadata(self):
         """Load and cache pathway metadata from pre-computed JSON file"""
         if self._pathway_metadata is None:
-            path = os.path.join(os.path.dirname(__file__), 'pathway_metadata.json')
+            path = os.path.join(os.path.dirname(__file__), 'data', 'pathway_metadata.json')
             if os.path.exists(path):
                 try:
                     with open(path, 'r', encoding='utf-8') as f:
@@ -206,12 +206,12 @@ class ServiceContainer:
                     precomputed_path = getattr(
                         embedding_config,
                         'precomputed_embeddings',
-                        'pathway_embeddings.npy'
+                        'data/pathway_embeddings.npy'
                     )
                     precomputed_ke_path = getattr(
                         embedding_config,
                         'precomputed_ke_embeddings',
-                        'ke_embeddings.npy'
+                        'data/ke_embeddings.npy'
                     )
 
                     # Extract score transformation config

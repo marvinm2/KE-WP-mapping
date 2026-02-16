@@ -269,8 +269,8 @@ class EmbeddingBasedMatching:
     model: str = "dmis-lab/biobert-base-cased-v1.2"
     min_threshold: float = 0.4      # Minimum similarity to include
     use_gpu: bool = True
-    precomputed_embeddings: str = "pathway_embeddings.npy"
-    precomputed_ke_embeddings: str = "ke_embeddings.npy"
+    precomputed_embeddings: str = "data/pathway_embeddings.npy"
+    precomputed_ke_embeddings: str = "data/ke_embeddings.npy"
     fallback_to_text: bool = True
     title_weight: float = 0.85      # Weight for title similarity (description = 1 - this)
     skip_precomputed_for_titles: bool = True  # Skip pre-computed for entity extraction

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # UniProt-GOA human annotations
 GOA_URL = "https://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz"
-GOA_LOCAL = "goa_human.gaf.gz"
+GOA_LOCAL = "data/goa_human.gaf.gz"
 
 
 def download_goa_file(url=GOA_URL, local_path=GOA_LOCAL):
@@ -109,7 +109,7 @@ def parse_gaf_file(gaf_path):
     return go_gene_map
 
 
-def download_go_annotations(output_path='go_bp_gene_annotations.json'):
+def download_go_annotations(output_path='data/go_bp_gene_annotations.json'):
     """
     Download and process GO gene annotations for human BP terms
     """
