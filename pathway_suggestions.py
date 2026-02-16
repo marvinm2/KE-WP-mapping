@@ -17,52 +17,6 @@ from text_utils import remove_directionality_terms
 
 logger = logging.getLogger(__name__)
 
-# Pathway name standardization dictionary for common terminology differences
-PATHWAY_SYNONYMS = {
-    # Wnt signaling variations
-    "wnt": ["wnt signaling", "wnt/beta-catenin", "canonical wnt", "wnt pathway", "wnt signalling"],
-    "wnt pathway": ["wnt signaling", "wnt/beta-catenin", "canonical wnt", "wnt signalling"],
-    "wnt signaling": ["wnt pathway", "wnt/beta-catenin", "canonical wnt", "wnt signalling"],
-    
-    # PPAR variations
-    "ppar": ["ppar signaling", "ppar-alpha", "ppar-gamma", "ppar-delta", "peroxisome proliferator"],
-    "ppar alpha": ["ppar-alpha pathway", "ppar signaling", "ppara", "peroxisome proliferator alpha"],
-    "ppar-alpha": ["ppar alpha", "ppar signaling", "ppara pathway"],
-    
-    # NF-kB variations
-    "nf-kb": ["nf-kappa b", "nfκb signaling", "nfkb", "nuclear factor kappa b"],
-    "nfkb": ["nf-kb", "nf-kappa b", "nfκb signaling", "nuclear factor kappa b"],
-    "nuclear factor": ["nf-kb", "nf-kappa b", "nfκb signaling"],
-    
-    # TGF-beta variations
-    "tgf-beta": ["tgf-β", "tgfb signaling", "transforming growth factor", "tgf beta"],
-    "tgf beta": ["tgf-beta", "tgf-β", "tgfb signaling", "transforming growth factor"],
-    "transforming growth": ["tgf-beta", "tgf-β", "tgfb signaling"],
-    
-    # p53 variations
-    "p53": ["p53 signaling", "tp53", "p53 pathway", "tumor protein 53"],
-    "tp53": ["p53", "p53 signaling", "p53 pathway", "tumor protein 53"],
-    
-    # Apoptosis variations
-    "apoptosis": ["programmed cell death", "cell death", "apoptotic"],
-    "cell death": ["apoptosis", "programmed cell death", "apoptotic"],
-    
-    # Cell cycle variations
-    "cell cycle": ["cell division", "mitosis", "meiosis", "cell proliferation"],
-    "cell division": ["cell cycle", "mitosis", "cell proliferation"],
-    
-    # Immune response variations
-    "immune": ["immunity", "immunological", "inflammatory", "inflammation"],
-    "inflammatory": ["immune", "immunity", "inflammation", "inflammatory response"],
-    "inflammation": ["immune", "inflammatory", "inflammatory response"],
-    
-    # Metabolism variations
-    "metabolism": ["metabolic", "biosynthesis", "catabolism", "anabolism"],
-    "metabolic": ["metabolism", "biosynthesis", "catabolism"],
-    "glucose": ["glycolysis", "gluconeogenesis", "glucose metabolism"],
-    "fatty acid": ["lipid", "fat metabolism", "lipogenesis", "lipolysis"],
-}
-
 
 class PathwaySuggestionService:
     """Service for generating pathway suggestions based on Key Events"""
@@ -99,10 +53,6 @@ class PathwaySuggestionService:
                 gene_suggestions = self._find_pathways_by_genes(genes, limit)
                 logger.info("Found %d gene-based suggestions", len(gene_suggestions))
 
-            # Get text-based suggestions
-            text_suggestions = self._fuzzy_search_pathways(ke_title, bio_level, limit)
-            logger.info("Found %d text-based suggestions", len(text_suggestions))
-
             # Get embedding-based suggestions
             embedding_suggestions = []
             if self.embedding_service:
@@ -116,9 +66,9 @@ class PathwaySuggestionService:
             ontology_suggestions = self._compute_ontology_tag_scores(ke_title, ke_id, limit)
             logger.info("Found %d ontology tag-based suggestions", len(ontology_suggestions))
 
-            # Combine all four signals with hybrid scoring
+            # Combine all signals with hybrid scoring
             combined_suggestions = self._combine_multi_signal_suggestions(
-                gene_suggestions, text_suggestions, embedding_suggestions, ontology_suggestions, limit
+                gene_suggestions, [], embedding_suggestions, ontology_suggestions, limit
             )
 
             return {
@@ -127,7 +77,6 @@ class PathwaySuggestionService:
                 "genes_found": len(genes),
                 "gene_list": genes,
                 "gene_based_suggestions": gene_suggestions,
-                "text_based_suggestions": text_suggestions,
                 "embedding_based_suggestions": embedding_suggestions,
                 "ontology_based_suggestions": ontology_suggestions,
                 "combined_suggestions": combined_suggestions,
@@ -461,80 +410,6 @@ class PathwaySuggestionService:
 
         return results
 
-    def _fuzzy_search_pathways(
-        self, ke_title: str, bio_level: str = None, limit: int = 20
-    ) -> List[Dict[str, any]]:
-        """
-        Perform fuzzy text-based search for pathways
-
-        Args:
-            ke_title: Key Event title to match against
-            limit: Maximum number of results
-
-        Returns:
-            List of pathway dictionaries with similarity scores
-        """
-        try:
-            # First, get all pathway titles and descriptions
-            pathways = self._get_all_pathways_for_search()
-
-            if not pathways:
-                return []
-
-            # Calculate text similarity for each pathway
-            scored_pathways = []
-            # Remove directionality terms from KE title for better matching
-            ke_title_no_direction = remove_directionality_terms(ke_title)
-            ke_title_clean = self._clean_text(ke_title_no_direction)
-
-            for pathway in pathways:
-                title_similarity = self._calculate_text_similarity(
-                    ke_title_clean, self._clean_text(pathway["pathwayTitle"]), bio_level
-                )
-                
-                desc_similarity = 0
-                if pathway.get("pathwayDescription"):
-                    desc_similarity = self._calculate_text_similarity(
-                        ke_title_clean, self._clean_text(pathway["pathwayDescription"]), bio_level
-                    )
-
-                # Combined similarity score (title weighted higher)
-                combined_similarity = (title_similarity * 0.7) + (desc_similarity * 0.3)
-
-                # Dynamic threshold based on biological context
-                min_threshold = self._get_dynamic_threshold(ke_title_clean, bio_level)
-                if combined_similarity > min_threshold:
-                    # Calculate more sophisticated confidence score
-                    confidence_score = self._calculate_confidence_score(
-                        title_similarity, desc_similarity, combined_similarity, 
-                        ke_title_clean, pathway["pathwayTitle"], bio_level
-                    )
-                    
-                    scored_pathways.append(
-                        {
-                            **pathway,
-                            "title_similarity": round(title_similarity, 3),
-                            "description_similarity": round(desc_similarity, 3),
-                            "combined_similarity": round(combined_similarity, 3),
-                            "suggestion_type": "text_based",
-                            "confidence_score": round(confidence_score, 3),
-                            "pathwaySvgUrl": f"https://www.wikipathways.org/wikipathways-assets/pathways/{pathway['pathwayID']}/{pathway['pathwayID']}.svg",
-                            "match_types": ["text"],  # For UI badge display
-                            "primary_evidence": "text_similarity"  # For UI primary evidence label
-                        }
-                    )
-
-            # Sort by similarity and limit results
-            scored_pathways.sort(key=lambda x: x["combined_similarity"], reverse=True)
-            limited_results = scored_pathways[:limit]
-
-            logger.info("Found %d text-based pathway suggestions", len(limited_results))
-            return limited_results
-
-        except Exception as e:
-            logger.error("Error in fuzzy pathway search: %s", e)
-            return []
-
     def _get_all_pathways_for_search(self) -> List[Dict[str, str]]:
         """
         Get all pathways with titles and descriptions for text search
@@ -570,486 +445,6 @@ class PathwaySuggestionService:
         except Exception as e:
             logger.error("Error loading pathway metadata: %s", e)
             return []
-
-    def _calculate_text_similarity(self, text1: str, text2: str, bio_level: str = None) -> float:
-        """Calculate text similarity using multiple methods with biological level awareness"""
-        if not text1 or not text2:
-            return 0.0
-
-        # Convert to lowercase for comparison
-        text1 = text1.lower()
-        text2 = text2.lower()
-
-        # Check for exact pathway matches first (especially important for molecular level)
-        exact_match_score = self._check_exact_pathway_match(text1, text2, bio_level)
-        if exact_match_score > 0:
-            return exact_match_score
-
-        # Sequence matching (character-based similarity)
-        seq_similarity = SequenceMatcher(None, text1, text2).ratio()
-
-        # Enhanced word-based Jaccard similarity with weighting
-        words1 = set(word.lower() for word in text1.split() if len(word) > 2)  # Filter short words
-        words2 = set(word.lower() for word in text2.split() if len(word) > 2)
-        
-        # Create weighted scoring for different word types
-        important_bio_terms = {
-            'pathway', 'protein', 'gene', 'enzyme', 'receptor', 'signaling', 'signalling',
-            'kinase', 'phosphatase', 'transcription', 'metabolism', 'apoptosis', 'autophagy',
-            'inflammation', 'immune', 'oxidative', 'mitochondrial', 'activation', 'inhibition'
-        }
-
-        intersection = words1.intersection(words2)
-        union = words1.union(words2)
-
-        term_weight = self.config.pathway_suggestion.text_similarity.important_bio_terms_weight
-
-        if union:
-            # Standard Jaccard
-            basic_jaccard = len(intersection) / len(union)
-
-            # Weighted version - give higher weight to important biological terms
-            weighted_intersection = sum(
-                term_weight if word in important_bio_terms else 1.0
-                for word in intersection
-            )
-            weighted_union = sum(
-                term_weight if word in important_bio_terms else 1.0
-                for word in union
-            )
-            weighted_jaccard = weighted_intersection / weighted_union
-
-            # Combine both approaches for better discrimination
-            basic_weight = self.config.pathway_suggestion.text_similarity.high_overlap_weights.get('jaccard', 0.4)
-            weighted_weight = self.config.pathway_suggestion.text_similarity.high_overlap_weights.get('sequence', 0.6)
-            jaccard_similarity = (basic_jaccard * (1 - weighted_weight) + weighted_jaccard * weighted_weight)
-        else:
-            jaccard_similarity = 0
-
-        # Enhanced substring matching with variable scores based on context
-        substring_score = self._calculate_substring_score(text1, text2)
-
-        # Check for synonym matches
-        synonym_boost = self._check_pathway_synonyms(text1, text2)
-        
-        # Check for domain-specific biological concept matches
-        domain_boost = self._check_domain_specific_matches(text1, text2)
-
-        # Enhanced combined scoring with more differentiation
-        # Weight different methods based on their effectiveness
-        cfg = self.config.pathway_suggestion.text_similarity
-
-        high_overlap = cfg.high_overlap_weights
-        if jaccard_similarity > high_overlap.get('threshold', 0.7):
-            base_score = (jaccard_similarity * high_overlap.get('jaccard', 0.65) +
-                         seq_similarity * high_overlap.get('sequence', 0.25) +
-                         substring_score * high_overlap.get('substring', 0.1))
-        else:
-            medium_overlap = cfg.medium_overlap_weights
-            if jaccard_similarity > medium_overlap.get('threshold', 0.4):
-                base_score = (jaccard_similarity * medium_overlap.get('jaccard', 0.5) +
-                             seq_similarity * medium_overlap.get('sequence', 0.3) +
-                             substring_score * medium_overlap.get('substring', 0.2))
-            else:
-                good_substring = cfg.good_substring_weights
-                if substring_score > good_substring.get('threshold', 0.6):
-                    base_score = (substring_score * good_substring.get('substring', 0.6) +
-                                 jaccard_similarity * good_substring.get('jaccard', 0.25) +
-                                 seq_similarity * good_substring.get('sequence', 0.15))
-                else:
-                    high_sequence = cfg.high_sequence_weights
-                    if seq_similarity > high_sequence.get('threshold', 0.7):
-                        base_score = (seq_similarity * high_sequence.get('sequence', 0.55) +
-                                     jaccard_similarity * high_sequence.get('jaccard', 0.3) +
-                                     substring_score * high_sequence.get('substring', 0.15))
-                    else:
-                        low_quality = cfg.low_quality_weights
-                        base_score = (seq_similarity * low_quality.get('sequence', 0.35) +
-                                     jaccard_similarity * low_quality.get('jaccard', 0.35) +
-                                     substring_score * low_quality.get('substring', 0.3))
-                        base_score = base_score * low_quality.get('penalty', 0.85)
-
-        # Apply synonym and domain boosts more selectively with diminishing returns
-        total_boost = max(synonym_boost, domain_boost)
-        if total_boost > 0:
-            threshold = cfg.boost_threshold
-            boost_factor = cfg.high_score_boost_factor if base_score > threshold else cfg.low_score_boost_factor
-            final_score = min(0.98, base_score * boost_factor + total_boost * cfg.boost_contribution)
-        else:
-            final_score = base_score
-        
-        # Apply biological level adjustments
-        if bio_level:
-            final_score = self._apply_biological_level_adjustment(final_score, text1, text2, bio_level)
-
-        return min(1.0, final_score)
-
-    def _check_exact_pathway_match(self, text1: str, text2: str, bio_level: str = None) -> float:
-        """Check for exact pathway name matches, especially important for molecular level KEs"""
-        # Only apply exact matching for molecular and cellular levels to avoid over-matching
-        if bio_level not in ["Molecular", "Cellular"]:
-            return 0.0
-            
-        # Extract key pathway terms
-        key_terms1 = self._extract_pathway_key_terms(text1)
-        key_terms2 = self._extract_pathway_key_terms(text2)
-        
-        # Check for exact matches of key pathway terms (require longer matches for better precision)
-        for term1 in key_terms1:
-            for term2 in key_terms2:
-                if term1 == term2 and len(term1) > 6:  # Require even longer matches for precision
-                    # Additional check: ensure it's a meaningful pathway match, not just a common word
-                    if term1 in PATHWAY_SYNONYMS or any(term1 in syns for syns in PATHWAY_SYNONYMS.values()):
-                        # High score for exact pathway matches
-                        if bio_level == "Molecular":
-                            return 0.95  # Very high confidence for molecular level exact matches
-                        elif bio_level == "Cellular":
-                            return 0.85  # High confidence for cellular level
-        
-        return 0.0
-
-    def _extract_pathway_key_terms(self, text: str) -> List[str]:
-        """Extract key pathway terms from text"""
-        # Remove common stop words and directionality terms
-        stop_words = {
-            "pathway", "signaling", "signalling", "regulation", "system", "network",
-            "process", "response", "activity", "function", "mechanism", "cascade"
-        }
-        
-        words = text.lower().split()
-        key_terms = []
-        
-        # Extract multi-word pathway names
-        for i in range(len(words)):
-            # Single important words
-            if words[i] not in stop_words and len(words[i]) > 2:
-                key_terms.append(words[i])
-            
-            # Two-word combinations
-            if i < len(words) - 1:
-                two_word = f"{words[i]} {words[i+1]}"
-                if not any(stop in two_word for stop in stop_words):
-                    key_terms.append(two_word)
-        
-        return key_terms
-
-    def _calculate_substring_score(self, text1: str, text2: str) -> float:
-        """Calculate sophisticated substring matching score"""
-        # Exact substring match
-        if text1 in text2 or text2 in text1:
-            # Higher score for longer matches relative to text length
-            shorter_len = min(len(text1), len(text2))
-            longer_len = max(len(text1), len(text2))
-            length_ratio = shorter_len / longer_len
-            return 0.6 + (length_ratio * 0.3)  # Score between 0.6-0.9
-        
-        # Check for significant word overlaps with improved scoring
-        words1 = text1.split()
-        words2 = text2.split()
-        
-        # Find meaningful common words with length and importance weighting
-        common_words = []
-        important_biological_terms = {
-            'protein', 'gene', 'enzyme', 'receptor', 'kinase', 'phosphatase', 
-            'transcription', 'translation', 'metabolism', 'apoptosis', 'autophagy',
-            'inflammation', 'immune', 'oxidative', 'mitochondrial', 'cellular',
-            'molecular', 'binding', 'activation', 'inhibition', 'degradation'
-        }
-        
-        for word1 in words1:
-            if word1 in words2:
-                # Weight longer words more heavily
-                if len(word1) > 5:  # Longer threshold for more specificity
-                    common_words.append((word1, 1.0))
-                elif len(word1) > 3 and word1 in important_biological_terms:
-                    common_words.append((word1, 0.8))  # Important bio terms get good weight
-                elif len(word1) > 3:
-                    common_words.append((word1, 0.6))
-        
-        if common_words:
-            # Score based on weighted proportion of significant words
-            significant_words1 = [w for w in words1 if len(w) > 3]
-            significant_words2 = [w for w in words2 if len(w) > 3]
-            total_significant = max(len(significant_words1), len(significant_words2))
-            
-            if total_significant > 0:
-                # Use weighted scoring for better differentiation
-                weighted_matches = sum(weight for word, weight in common_words)
-                weighted_ratio = weighted_matches / total_significant
-                # Apply non-linear scaling for better spread
-                return min(0.6, weighted_ratio * 0.7) ** 0.8  # Score up to ~0.55
-        
-        return 0.0
-
-    def _check_pathway_synonyms(self, text1: str, text2: str) -> float:
-        """Check for pathway synonym matches and return boost score"""
-        boost = 0.0
-        
-        for key_term, synonyms in PATHWAY_SYNONYMS.items():
-            # Check if key term is in text1 and any synonym is in text2
-            if key_term in text1:
-                for synonym in synonyms:
-                    if synonym in text2:
-                        boost = max(boost, 0.3)  # Significant boost for synonym matches
-                        break
-            
-            # Check reverse: key term in text2, synonyms in text1
-            if key_term in text2:
-                for synonym in synonyms:
-                    if synonym in text1:
-                        boost = max(boost, 0.3)
-                        break
-        
-        return boost
-
-    def _check_domain_specific_matches(self, text1: str, text2: str) -> float:
-        """Check for domain-specific biological concept matches that might be missed by general similarity"""
-        boost = 0.0
-        
-        # Immune system concepts
-        immune_concepts = {
-            ('t cell', 'immune', 'lymphocyte', 'cd4', 'cd8'): 
-                ['immune', 'immunological', 'lymphocyte', 'tcell', 't-cell', 'adaptive immunity'],
-            ('inflammation', 'inflammatory'): 
-                ['inflammation', 'inflammatory', 'cytokine', 'interleukin', 'nf-kb', 'nfkb'],
-            ('macrophage', 'monocyte'): 
-                ['macrophage', 'monocyte', 'innate immunity', 'phagocytosis']
-        }
-        
-        # Metabolic concepts
-        metabolic_concepts = {
-            ('metabolism', 'metabolic', 'fatty acid', 'glucose'): 
-                ['metabolism', 'metabolic', 'glycolysis', 'gluconeogenesis', 'lipid', 'fatty acid'],
-            ('oxidative stress', 'reactive oxygen', 'ros'): 
-                ['oxidative', 'antioxidant', 'reactive oxygen', 'ros', 'glutathione', 'catalase']
-        }
-        
-        # Cell cycle and death concepts  
-        cell_concepts = {
-            ('apoptosis', 'cell death', 'programmed death'): 
-                ['apoptosis', 'programmed cell death', 'caspase', 'p53', 'bcl2'],
-            ('proliferation', 'cell division', 'growth'): 
-                ['proliferation', 'cell cycle', 'mitosis', 'cyclin', 'growth factor'],
-            ('differentiation', 'development'): 
-                ['differentiation', 'development', 'stem cell', 'lineage']
-        }
-        
-        # Renal/kidney concepts
-        renal_concepts = {
-            ('renal', 'kidney', 'tubular', 'nephron'): 
-                ['renal', 'kidney', 'nephron', 'glomerular', 'tubular', 'transport', 'filtration']
-        }
-        
-        all_concepts = {**immune_concepts, **metabolic_concepts, **cell_concepts, **renal_concepts}
-        
-        text1_lower = text1.lower()
-        text2_lower = text2.lower()
-        
-        for concept_group, pathway_terms in all_concepts.items():
-            # Check if text1 has concept terms and text2 has pathway terms
-            concept_match = any(concept in text1_lower for concept in concept_group)
-            pathway_match = any(term in text2_lower for term in pathway_terms)
-            
-            if concept_match and pathway_match:
-                boost = max(boost, 0.25)  # Substantial boost for domain matches
-                
-            # Check reverse
-            concept_match_rev = any(concept in text2_lower for concept in concept_group)
-            pathway_match_rev = any(term in text1_lower for term in pathway_terms)
-            
-            if concept_match_rev and pathway_match_rev:
-                boost = max(boost, 0.25)
-        
-        return boost
-
-    def _calculate_confidence_score(self, title_sim: float, desc_sim: float, combined_sim: float,
-                                   ke_title: str, pathway_title: str, bio_level: str = None) -> float:
-        """Calculate a more sophisticated confidence score based on multiple factors"""
-
-        cfg = self.config.pathway_suggestion.confidence_scoring
-
-        # Enhanced base confidence with non-linear scaling for better differentiation
-        tier_high = cfg.tier_high
-        if combined_sim > tier_high['threshold']:
-            base_confidence = tier_high['base'] + (combined_sim - tier_high['threshold']) * tier_high['multiplier']
-        else:
-            tier_medium = cfg.tier_medium
-            if combined_sim > tier_medium['threshold']:
-                base_confidence = tier_medium['base'] + (combined_sim - tier_medium['threshold']) * tier_medium['multiplier']
-            else:
-                tier_low = cfg.tier_low
-                if combined_sim > tier_low['threshold']:
-                    base_confidence = tier_low['base'] + (combined_sim - tier_low['threshold']) * tier_low['multiplier']
-                else:
-                    tier_minimum = cfg.tier_minimum
-                    base_confidence = combined_sim * tier_minimum['multiplier']
-
-        # Boost for high title similarity (title matches are more reliable)
-        title_boosts = cfg.title_boosts
-        if title_sim > title_boosts['very_high']['threshold']:
-            base_confidence += title_boosts['very_high']['boost']
-        elif title_sim > title_boosts['high']['threshold']:
-            base_confidence += title_boosts['high']['boost']
-        elif title_sim > title_boosts['medium']['threshold']:
-            base_confidence += title_boosts['medium']['boost']
-
-        # Boost for consistent title and description similarity
-        consistency = cfg.consistency
-        both_scores_high = (title_sim > consistency['min_score'] and desc_sim > consistency['min_score'])
-        if abs(title_sim - desc_sim) < consistency['threshold'] and both_scores_high:
-            base_confidence += consistency['boost']
-
-        # Penalty for very low title similarity even if description is good
-        penalty = cfg.low_title_penalty
-        if title_sim < penalty['title_threshold'] and desc_sim > penalty['desc_threshold']:
-            base_confidence *= penalty['multiplier']
-
-        # Biological level adjustments
-        bio_level_cfg = cfg.biological_level
-        if bio_level == "Molecular" and title_sim > bio_level_cfg['molecular_title_threshold']:
-            base_confidence += bio_level_cfg['molecular_boost']
-        elif bio_level in ["Tissue", "Organ"] and desc_sim > title_sim:
-            base_confidence += bio_level_cfg['higher_level_boost']
-
-        # Length and specificity bonus (more granular)
-        ke_words = len(ke_title.split())
-        pathway_words = len(pathway_title.split())
-
-        # Reward descriptive titles with granular scoring
-        length_bonuses = cfg.length_bonuses
-        if ke_words >= length_bonuses['very_descriptive']['word_threshold'] and pathway_words >= length_bonuses['very_descriptive']['word_threshold']:
-            base_confidence += length_bonuses['very_descriptive']['boost']
-        elif ke_words >= length_bonuses['moderately_descriptive']['word_threshold'] and pathway_words >= length_bonuses['moderately_descriptive']['word_threshold']:
-            base_confidence += length_bonuses['moderately_descriptive']['boost']
-        elif ke_words >= length_bonuses['minimally_descriptive']['word_threshold'] and pathway_words >= length_bonuses['minimally_descriptive']['word_threshold']:
-            base_confidence += length_bonuses['minimally_descriptive']['boost']
-
-        # Penalize very short or very long mismatches
-        length_diff = abs(ke_words - pathway_words)
-        length_penalties = cfg.length_penalties
-        if length_diff > length_penalties['very_different']['diff_threshold']:
-            base_confidence *= length_penalties['very_different']['multiplier']
-        elif length_diff > length_penalties['somewhat_different']['diff_threshold']:
-            base_confidence *= length_penalties['somewhat_different']['multiplier']
-
-        # Similarity score fine-tuning for more differentiation
-        sim_adj = cfg.similarity_adjustments
-        if combined_sim > sim_adj['excellent']['threshold']:
-            base_confidence += sim_adj['excellent']['boost']
-        elif combined_sim > sim_adj['very_good']['threshold']:
-            base_confidence += sim_adj['very_good']['boost']
-        elif combined_sim < sim_adj['poor']['threshold']:
-            base_confidence *= sim_adj['poor']['multiplier']
-
-        # Add small random component for ties (deterministic based on pathway ID hash)
-        pathway_hash = int(hashlib.md5(pathway_title.encode()).hexdigest()[:8], 16)
-        random_component = (pathway_hash % 100) / 10000 * cfg.random_component_max
-        base_confidence += random_component
-
-        # Ensure confidence stays within reasonable bounds with more precision
-        return min(cfg.max_confidence, max(cfg.min_confidence, base_confidence))
-
-    def _apply_biological_level_adjustment(self, base_score: float, text1: str, text2: str, bio_level: str) -> float:
-        """Apply biological level-specific adjustments to similarity score"""
-        adjusted_score = base_score
-
-        bio_mult = self.config.pathway_suggestion.biological_level_multipliers
-
-        if bio_level == "Molecular":
-            # Molecular level: boost exact pathway name matches
-            if self._is_pathway_name_match(text1, text2):
-                adjusted_score *= bio_mult.molecular['pathway_name_match']
-            # Boost gene/protein pathway matches
-            elif self._is_gene_protein_pathway_match(text1, text2):
-                adjusted_score *= bio_mult.molecular['gene_protein_match']
-
-        elif bio_level == "Cellular":
-            # Cellular level: boost process-related matches
-            if self._is_cellular_process_match(text1, text2):
-                adjusted_score *= bio_mult.cellular['cellular_process_match']
-            # Standard boost for good pathway matches
-            elif base_score > bio_mult.cellular['good_pathway_threshold']:
-                adjusted_score *= bio_mult.cellular['good_pathway_match']
-
-        elif bio_level in ["Tissue", "Organ"]:
-            # Tissue/Organ level: boost system-level pathway matches
-            if self._is_system_level_match(text1, text2):
-                adjusted_score *= bio_mult.tissue_organ['system_level_match']
-            # Boost disease-related pathway matches
-            elif self._is_disease_pathway_match(text1, text2):
-                adjusted_score *= bio_mult.tissue_organ['disease_pathway_match']
-
-        return adjusted_score
-
-    def _get_dynamic_threshold(self, ke_title: str, bio_level: str = None) -> float:
-        """Get dynamic similarity threshold based on KE characteristics"""
-        cfg = self.config.pathway_suggestion.dynamic_thresholds
-        base_threshold = cfg.base_threshold
-
-        high_spec = cfg.high_specificity_terms
-        broad_proc = cfg.broad_process_terms
-
-        ke_lower = ke_title.lower()
-
-        if any(term in ke_lower for term in high_spec['terms']):
-            return base_threshold + high_spec['adjustment']
-        elif any(term in ke_lower for term in broad_proc['terms']):
-            return base_threshold + broad_proc['adjustment']
-
-        # Biological level adjustments
-        bio_level_adj = cfg.biological_level_adjustments
-        if bio_level == "Molecular":
-            return base_threshold + bio_level_adj.get('molecular', 0)
-        elif bio_level in ["Tissue", "Organ"]:
-            tissue_adj = bio_level_adj.get('tissue', 0)
-            organ_adj = bio_level_adj.get('organ', 0)
-            return base_threshold + max(tissue_adj, organ_adj)
-
-        return base_threshold
-
-    def _is_pathway_name_match(self, text1: str, text2: str) -> bool:
-        """Check if texts represent pathway name matches"""
-        pathway_indicators = ["pathway", "signaling", "signalling", "cascade", "network"]
-        return any(indicator in text1 and indicator in text2 for indicator in pathway_indicators)
-
-    def _is_gene_protein_pathway_match(self, text1: str, text2: str) -> bool:
-        """Check if one text mentions a gene/protein and other mentions corresponding pathway"""
-        # This is a simplified check - in a full implementation, we'd use a gene/protein database
-        gene_protein_patterns = [
-            ("ppar", "ppar"), ("wnt", "wnt"), ("nf", "nf"), ("tgf", "tgf"), ("p53", "p53"),
-            ("egfr", "egf"), ("vegf", "vegf"), ("jak", "jak"), ("stat", "stat")
-        ]
-        
-        for gene_pattern, pathway_pattern in gene_protein_patterns:
-            if gene_pattern in text1.lower() and pathway_pattern in text2.lower():
-                return True
-            if pathway_pattern in text1.lower() and gene_pattern in text2.lower():
-                return True
-        return False
-
-    def _is_cellular_process_match(self, text1: str, text2: str) -> bool:
-        """Check if texts represent cellular process matches"""
-        cellular_processes = [
-            "apoptosis", "cell death", "cell cycle", "cell division", "differentiation",
-            "proliferation", "migration", "adhesion", "signal transduction"
-        ]
-        return any(process in text1.lower() and process in text2.lower() for process in cellular_processes)
-
-    def _is_system_level_match(self, text1: str, text2: str) -> bool:
-        """Check if texts represent system-level matches"""
-        system_terms = [
-            "immune system", "nervous system", "cardiovascular", "respiratory",
-            "digestive", "endocrine", "metabolic system", "development"
-        ]
-        return any(term in text1.lower() and term in text2.lower() for term in system_terms)
-
-    def _is_disease_pathway_match(self, text1: str, text2: str) -> bool:
-        """Check if texts represent disease pathway matches"""
-        disease_terms = [
-            "cancer", "tumor", "diabetes", "alzheimer", "parkinson", "heart disease",
-            "hypertension", "inflammation", "infection", "autoimmune"
-        ]
-        return any(term in text1.lower() and term in text2.lower() for term in disease_terms)
 
     def _clean_text(self, text: str) -> str:
         """Clean and normalize text for comparison"""
@@ -1284,7 +679,7 @@ class PathwaySuggestionService:
         limit: int
     ) -> List[Dict]:
         """
-        Combine four scoring signals with transparent hybrid scoring
+        Combine scoring signals with transparent hybrid scoring
 
         Returns:
             List of suggestions with all scores visible
@@ -1296,9 +691,8 @@ class PathwaySuggestionService:
             None
         )
 
-        gene_weight = getattr(hybrid_weights, 'gene', 0.30) if hybrid_weights else 0.30
-        text_weight = getattr(hybrid_weights, 'text', 0.20) if hybrid_weights else 0.20
-        embedding_weight = getattr(hybrid_weights, 'embedding', 0.35) if hybrid_weights else 0.35
+        gene_weight = getattr(hybrid_weights, 'gene', 0.35) if hybrid_weights else 0.35
+        embedding_weight = getattr(hybrid_weights, 'embedding', 0.50) if hybrid_weights else 0.50
         ontology_weight = getattr(hybrid_weights, 'ontology', 0.15) if hybrid_weights else 0.15
 
         final_threshold = self.config.pathway_suggestion.dynamic_thresholds.base_threshold
@@ -1306,15 +700,13 @@ class PathwaySuggestionService:
         combined = combine_scored_items(
             scored_lists={
                 'gene': gene_suggestions,
-                'text': text_suggestions,
                 'embedding': embedding_suggestions,
                 'ontology': ontology_suggestions,
             },
             id_field='pathwayID',
-            weights={'gene': gene_weight, 'text': text_weight, 'embedding': embedding_weight, 'ontology': ontology_weight},
+            weights={'gene': gene_weight, 'embedding': embedding_weight, 'ontology': ontology_weight},
             score_field_map={
                 'gene': 'confidence_score',
-                'text': 'confidence_score',
                 'embedding': 'confidence_score',
                 'ontology': 'confidence_score',
             },
@@ -1327,20 +719,18 @@ class PathwaySuggestionService:
         for pathway in combined:
             sig = pathway.pop('signal_scores', {})
             gene_score = sig.get('gene', 0.0)
-            text_score = sig.get('text', 0.0)
             emb_score = sig.get('embedding', 0.0)
             ontology_score = sig.get('ontology', 0.0)
 
             pathway['scores'] = {
                 'gene_confidence': gene_score,
-                'text_confidence': text_score,
                 'embedding_similarity': emb_score,
                 'ontology_confidence': ontology_score,
                 'final_score': pathway['hybrid_score'],
             }
 
             # Determine primary evidence source
-            max_signal = max(gene_score, text_score, emb_score, ontology_score)
+            max_signal = max(gene_score, emb_score, ontology_score)
             if max_signal == gene_score and gene_score > 0:
                 pathway['primary_evidence'] = 'gene_overlap'
             elif max_signal == emb_score and emb_score > 0:
@@ -1348,10 +738,9 @@ class PathwaySuggestionService:
             elif max_signal == ontology_score and ontology_score > 0:
                 pathway['primary_evidence'] = 'ontology_tags'
             else:
-                pathway['primary_evidence'] = 'text_similarity'
+                pathway['primary_evidence'] = 'gene_overlap'
 
-            # Add embedding_details from per-signal data (avoids field collision
-            # where text signal's title_similarity overwrites embedding's)
+            # Add embedding_details from per-signal data
             if 'embedding' in pathway.get('match_types', []):
                 emb_data = pathway.get('_signal_data', {}).get('embedding', {})
                 pathway['embedding_details'] = {
@@ -1365,41 +754,11 @@ class PathwaySuggestionService:
 
         return combined[:limit]
 
-    def _combine_and_rank_suggestions(
-        self,
-        gene_suggestions: List[Dict],
-        text_suggestions: List[Dict],
-        limit: int,
-    ) -> List[Dict]:
-        """Combine gene-based and text-based suggestions with hybrid ranking (Legacy method)"""
-        all_suggestions = []
-        seen_pathways = set()
-
-        # Add gene-based suggestions (higher priority)
-        for suggestion in gene_suggestions:
-            pathway_id = suggestion["pathwayID"]
-            if pathway_id not in seen_pathways:
-                suggestion["final_score"] = suggestion["confidence_score"]
-                all_suggestions.append(suggestion)
-                seen_pathways.add(pathway_id)
-
-        # Add text-based suggestions that aren't already included
-        for suggestion in text_suggestions:
-            pathway_id = suggestion["pathwayID"]
-            if pathway_id not in seen_pathways:
-                suggestion["final_score"] = suggestion["confidence_score"]
-                all_suggestions.append(suggestion)
-                seen_pathways.add(pathway_id)
-
-        # Sort by final score and limit results
-        all_suggestions.sort(key=lambda x: x["final_score"], reverse=True)
-        return all_suggestions[:limit]
-
     def search_pathways(
         self, query: str, threshold: float = 0.4, limit: int = 20
     ) -> List[Dict[str, any]]:
         """
-        Enhanced search functionality with fuzzy matching
+        Search pathways using SequenceMatcher fuzzy matching
 
         Args:
             query: Search query string
@@ -1420,18 +779,16 @@ class PathwaySuggestionService:
 
             results = []
             for pathway in pathways:
-                title_similarity = self._calculate_text_similarity(
-                    query_clean, self._clean_text(pathway["pathwayTitle"])
-                )
-                
+                title_clean = self._clean_text(pathway["pathwayTitle"])
+                title_similarity = SequenceMatcher(None, query_clean, title_clean).ratio()
+
                 desc_similarity = 0
                 if pathway.get("pathwayDescription"):
-                    desc_similarity = self._calculate_text_similarity(
-                        query_clean, self._clean_text(pathway["pathwayDescription"])
-                    )
+                    desc_clean = self._clean_text(pathway["pathwayDescription"])
+                    desc_similarity = SequenceMatcher(None, query_clean, desc_clean).ratio()
 
                 max_similarity = max(title_similarity, desc_similarity)
-                
+
                 if max_similarity >= threshold:
                     results.append(
                         {

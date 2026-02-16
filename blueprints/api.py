@@ -594,7 +594,7 @@ def suggest_pathways(ke_id):
         ke_title: Key Event title for text-based matching
         bio_level: Biological level of the KE (Molecular, Cellular, etc.)
         limit: Maximum number of suggestions (default 10)
-        method_filter: Optional filter - 'all', 'gene', 'text', 'semantic' (default: 'all')
+        method_filter: Optional filter - 'all', 'gene', 'semantic' (default: 'all')
 
     Returns:
         JSON response with:
@@ -603,7 +603,6 @@ def suggest_pathways(ke_id):
         - total_count: Total number of suggestions before filtering
         - filtered_count: Number of suggestions after filtering
         - gene_based_suggestions: Pathways matched by gene overlap (if method_filter='all')
-        - text_based_suggestions: Pathways matched by text similarity (if method_filter='all')
         - embedding_based_suggestions: Pathways matched by BioBERT semantic similarity (if method_filter='all')
         - combined_suggestions: Unified list with hybrid scores (if method_filter='all')
         - genes_found: Number of genes associated with the KE
@@ -621,7 +620,7 @@ def suggest_pathways(ke_id):
         method_filter = request.args.get('method_filter', 'all')
 
         # Validate method filter
-        valid_methods = ['all', 'gene', 'text', 'semantic']
+        valid_methods = ['all', 'gene', 'semantic']
         if method_filter not in valid_methods:
             method_filter = 'all'
 
@@ -659,8 +658,6 @@ def suggest_pathways(ke_id):
             # Use the dedicated method-specific suggestion arrays
             if method_filter == 'gene':
                 suggestions = all_suggestions.get('gene_based_suggestions', [])
-            elif method_filter == 'text':
-                suggestions = all_suggestions.get('text_based_suggestions', [])
             elif method_filter == 'semantic':
                 suggestions = all_suggestions.get('embedding_based_suggestions', [])
             else:
@@ -1044,6 +1041,130 @@ def get_aop_kes(aop_id):
     except Exception as e:
         logger.error("Error fetching KEs for AOP %s: %s", sanitize_log(aop_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to fetch KEs for AOP"}), 500
+
+
+# ==============================================================================
+# KE Context Endpoint
+# ==============================================================================
+
+
+@api_bp.route("/api/ke_context/<ke_id>", methods=["GET"])
+@general_rate_limit
+def get_ke_context(ke_id):
+    """
+    Get context for a Key Event: AOP membership and existing mappings.
+
+    Args:
+        ke_id: Key Event ID (e.g. "KE 55")
+
+    Returns:
+        JSON with aop_membership, wp_mappings, go_mappings, and summary counts
+    """
+    try:
+        if not ke_id or len(ke_id.strip()) == 0:
+            return jsonify({"error": "Invalid Key Event ID"}), 400
+
+        result = {
+            "ke_id": ke_id,
+            "aop_membership": [],
+            "wp_mappings": [],
+            "go_mappings": [],
+            "summary": {"aop_count": 0, "wp_mapping_count": 0, "go_mapping_count": 0}
+        }
+
+        # Get AOP membership via SPARQL (with caching)
+        try:
+            ke_number = ke_id.replace("KE ", "").strip()
+            aop_query = f"""
+            PREFIX aopo: <http://aopkb.org/aop_ontology#>
+            PREFIX dc: <http://purl.org/dc/elements/1.1/>
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+            SELECT DISTINCT ?aopId ?aopTitle
+            WHERE {{
+                ?aop a aopo:AdverseOutcomePathway ;
+                     rdfs:label ?aopId ;
+                     dc:title ?aopTitle ;
+                     aopo:has_key_event ?ke .
+                ?ke rdfs:label "KE {ke_number}" .
+            }}
+            ORDER BY ?aopId
+            """
+            endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
+            cache_key = f"ke_context_aops_{ke_id}"
+            query_hash = hashlib.md5(cache_key.encode()).hexdigest()
+
+            cached = cache_model.get_cached_response(endpoint, query_hash) if cache_model else None
+            if cached:
+                result["aop_membership"] = json.loads(cached)
+            else:
+                response = requests.post(
+                    endpoint,
+                    data={"query": aop_query},
+                    headers={
+                        "Accept": "application/sparql-results+json",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    timeout=15,
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    aops = [
+                        {
+                            "aop_id": b.get("aopId", {}).get("value", ""),
+                            "aop_title": b.get("aopTitle", {}).get("value", ""),
+                        }
+                        for b in data.get("results", {}).get("bindings", [])
+                        if "aopId" in b
+                    ]
+                    result["aop_membership"] = aops
+                    if cache_model:
+                        cache_model.cache_response(endpoint, query_hash, json.dumps(aops), 24)
+        except Exception as e:
+            logger.warning("Could not fetch AOP membership for %s: %s", sanitize_log(ke_id), e)
+
+        # Get existing WP mappings from database
+        if mapping_model:
+            try:
+                wp_mappings = mapping_model.get_mappings_by_ke(ke_id)
+                result["wp_mappings"] = [
+                    {
+                        "wp_id": m["wp_id"],
+                        "wp_title": m["wp_title"],
+                        "confidence_level": m["confidence_level"],
+                    }
+                    for m in wp_mappings
+                ]
+            except Exception as e:
+                logger.warning("Could not fetch WP mappings for %s: %s", sanitize_log(ke_id), e)
+
+        # Get existing GO mappings from database
+        if go_mapping_model:
+            try:
+                go_mappings = go_mapping_model.get_mappings_by_ke(ke_id)
+                result["go_mappings"] = [
+                    {
+                        "go_id": m["go_id"],
+                        "go_name": m["go_name"],
+                        "confidence_level": m["confidence_level"],
+                    }
+                    for m in go_mappings
+                ]
+            except Exception as e:
+                logger.warning("Could not fetch GO mappings for %s: %s", sanitize_log(ke_id), e)
+
+        # Update summary counts
+        result["summary"] = {
+            "aop_count": len(result["aop_membership"]),
+            "wp_mapping_count": len(result["wp_mappings"]),
+            "go_mapping_count": len(result["go_mappings"]),
+        }
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error("Error getting KE context for %s: %s", sanitize_log(ke_id), sanitize_log(str(e)))
+        return jsonify({"error": "Failed to get KE context"}), 500
 
 
 # ==============================================================================

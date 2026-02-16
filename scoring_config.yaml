@@ -20,7 +20,7 @@
 # PATHWAY SUGGESTION SCORING (Backend - pathway_suggestions.py)
 # ==============================================================================
 # These parameters control how pathways are automatically suggested based on
-# selected Key Events. The system uses both gene-based and text-based matching.
+# selected Key Events. The system uses gene-based, embedding-based, and ontology-based matching.
 
 pathway_suggestion:
 
@@ -73,156 +73,12 @@ pathway_suggestion:
 
 
   # ----------------------------------------------------------------------------
-  # Text Similarity Scoring
+  # Confidence Score Quality Tiers
   # ----------------------------------------------------------------------------
-  # Controls how KE descriptions are matched against pathway titles/descriptions
-
-  text_similarity:
-
-    # Weight for biologically important terms in Jaccard similarity
-    # Terms like "pathway", "protein", "gene", "enzyme", "apoptosis" etc.
-    # get this weight vs. 1.0 for common words
-    important_bio_terms_weight: 2.0    # Default: 2.0
-
-    # Adaptive algorithm weighting based on overlap quality
-    # The system chooses weights based on which similarity metric is strongest
-
-    high_overlap_weights:              # When Jaccard similarity > 0.7
-      jaccard: 0.65                    # High word overlap = trust Jaccard most
-      sequence: 0.25
-      substring: 0.10
-      threshold: 0.7
-
-    medium_overlap_weights:            # When 0.4 < Jaccard <= 0.7
-      jaccard: 0.50                    # Moderate overlap = balanced weights
-      sequence: 0.30
-      substring: 0.20
-      threshold: 0.4
-
-    good_substring_weights:            # When substring score > 0.6
-      substring: 0.60                  # Strong phrase match = trust substring
-      jaccard: 0.25
-      sequence: 0.15
-      threshold: 0.6
-
-    high_sequence_weights:             # When sequence similarity > 0.7
-      sequence: 0.55                   # Character-level match = trust sequence
-      jaccard: 0.30
-      substring: 0.15
-      threshold: 0.7
-
-    low_quality_weights:               # Fallback for weak matches
-      sequence: 0.35                   # Equal weighting with penalty
-      jaccard: 0.35
-      substring: 0.30
-      penalty: 0.85                    # Reduce final score by this factor
-
-    # Boost factors for special matches
-    synonym_boost: 0.30                # Boost for pathway synonym matches
-                                       # (e.g., "Wnt signaling" = "Wnt pathway")
-    domain_boost: 0.25                 # Boost for domain-specific matches
-                                       # (e.g., immune, metabolic, renal terms)
-    boost_threshold: 0.6               # Score above which boosts are reduced
-    high_score_boost_factor: 1.15      # Multiplier for scores > threshold
-    low_score_boost_factor: 1.25       # Multiplier for scores <= threshold
-    boost_contribution: 0.2            # How much boost adds to final score
-
-
-  # ----------------------------------------------------------------------------
-  # Confidence Score Calculation
-  # ----------------------------------------------------------------------------
-  # Sophisticated non-linear algorithm that combines multiple factors to
-  # determine final confidence score for pathway suggestions
+  # Quality tier thresholds for UI badges (used by frontend)
 
   confidence_scoring:
-
-    # Non-linear scaling tiers - higher similarities get exponentially better scores
-    tier_high:
-      threshold: 0.8                   # For combined_similarity > 0.8
-      base: 0.48                       # Starting score at this tier
-      multiplier: 0.6                  # (combined_sim - 0.8) * 0.6 + base
-
-    tier_medium:
-      threshold: 0.6                   # For combined_similarity > 0.6
-      base: 0.36
-      multiplier: 0.6
-
-    tier_low:
-      threshold: 0.4                   # For combined_similarity > 0.4
-      base: 0.24
-      multiplier: 0.6
-
-    tier_minimum:
-      multiplier: 0.6                  # For combined_similarity < 0.4
-
-    # Title similarity boosts - titles are more important than descriptions
-    title_boosts:
-      very_high:
-        threshold: 0.8                 # Title similarity > 0.8
-        boost: 0.15                    # Add this to confidence
-      high:
-        threshold: 0.6                 # Title similarity > 0.6
-        boost: 0.10
-      medium:
-        threshold: 0.4                 # Title similarity > 0.4
-        boost: 0.05
-
-    # Consistency bonus - both title and description match well
-    consistency:
-      threshold: 0.1                   # Max difference between title and desc similarity
-      min_score: 0.5                   # Both must be above this
-      boost: 0.10                      # Bonus for consistent high scores
-
-    # Penalty for title/description mismatch
-    low_title_penalty:
-      title_threshold: 0.2             # Title similarity < this
-      desc_threshold: 0.5              # But description similarity > this
-      multiplier: 0.8                  # Reduce confidence by this factor
-
-    # Biological level adjustments
-    biological_level:
-      molecular_boost: 0.10            # Bonus for molecular-level KEs
-      molecular_title_threshold: 0.7   # With title similarity > this
-      higher_level_boost: 0.05         # Bonus for tissue/organ level KEs
-                                       # When description > title
-
-    # Length and descriptiveness bonuses
-    length_bonuses:
-      very_descriptive:
-        word_threshold: 5              # Both have >= 5 matching words
-        boost: 0.08
-      moderately_descriptive:
-        word_threshold: 3              # Both have >= 3 matching words
-        boost: 0.05
-      minimally_descriptive:
-        word_threshold: 2              # Both have >= 2 matching words
-        boost: 0.02
-
-    # Penalties for length differences
-    length_penalties:
-      very_different:
-        diff_threshold: 4              # |KE words - Pathway words| > 4
-        multiplier: 0.95
-      somewhat_different:
-        diff_threshold: 2              # |KE words - Pathway words| > 2
-        multiplier: 0.98
-
-    # Similarity score fine-tuning
-    similarity_adjustments:
-      excellent:
-        threshold: 0.9                 # Combined similarity > 0.9
-        boost: 0.05
-      very_good:
-        threshold: 0.8                 # Combined similarity > 0.8
-        boost: 0.03
-      poor:
-        threshold: 0.4                 # Combined similarity < 0.4
-        multiplier: 0.9                # Reduce score
-
-    # Deterministic tie-breaking using pathway title hash
-    random_component_max: 0.01         # Add 0-0.01 based on hash for consistency
-
-    # Final confidence bounds
+    # Final confidence bounds (kept for validation)
     min_confidence: 0.08               # Minimum possible confidence
     max_confidence: 0.98               # Maximum possible confidence
 
@@ -303,29 +159,6 @@ pathway_suggestion:
     tissue_organ:
       system_level_match: 1.3          # For system/phenotypic matches
       disease_pathway_match: 1.2       # For disease-related pathways
-
-
-  # ----------------------------------------------------------------------------
-  # Substring Scoring
-  # ----------------------------------------------------------------------------
-  # Parameters for substring matching algorithm
-
-  substring_scoring:
-    exact_match:
-      base_score: 0.6                  # Base score for exact substring match
-      length_bonus: 0.3                # Additional bonus based on length ratio
-
-    common_words:
-      long_word_length: 5              # Words longer than this get full weight
-      medium_word_length: 3            # Words longer than this need bio check
-      long_weight: 1.0                 # Weight for long words
-      bio_term_weight: 0.8             # Weight for biological terms
-      medium_weight: 0.6               # Weight for medium words
-
-    weighted_ratio:
-      multiplier: 0.7                  # Overall multiplier
-      power: 0.8                       # Non-linear scaling: ratio^0.8
-      max_score: 0.55                  # Maximum substring score
 
 
   # ----------------------------------------------------------------------------
@@ -420,9 +253,9 @@ pathway_suggestion:
   # Hybrid Scoring Weights (Multi-Signal Combination)
   # ----------------------------------------------------------------------------
   hybrid_weights:
-    gene: 0.30          # Gene-based scoring weight (mechanistic overlap)
-    text: 0.20          # Text-based scoring weight (lexical similarity)
-    embedding: 0.35     # Embedding-based scoring weight (semantic similarity)
+    gene: 0.35          # Gene-based scoring weight (mechanistic overlap)
+    text: 0.0           # Text-based scoring removed (kept for backward compatibility)
+    embedding: 0.50     # Embedding-based scoring weight (semantic similarity)
     ontology: 0.15      # Ontology-based scoring weight (pathway classification)
 
     # Bonus for multiple evidence types

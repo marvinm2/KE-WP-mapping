@@ -189,6 +189,31 @@ class KEWPApp {
         $("#go-mapping-form").on('submit', (e) => {
             this.handleGoFormSubmission(e);
         });
+
+        // Step 2 sub-tab switching (#96)
+        this.setupStep2SubTabs();
+    }
+
+    setupStep2SubTabs() {
+        $(document).on('click', '.step2-subtab', (e) => {
+            const $btn = $(e.currentTarget);
+            const subtab = $btn.data('subtab');
+
+            // Update active state
+            $('.step2-subtab').removeClass('active');
+            $btn.addClass('active');
+
+            // Show/hide panels
+            $('.step2-panel').hide();
+            $(`#step2-panel-${subtab}`).show();
+        });
+    }
+
+    switchToSubTab(subtab) {
+        $('.step2-subtab').removeClass('active');
+        $(`.step2-subtab[data-subtab="${subtab}"]`).addClass('active');
+        $('.step2-panel').hide();
+        $(`#step2-panel-${subtab}`).show();
     }
 
     loadDropdownOptions() {
@@ -830,40 +855,100 @@ class KEWPApp {
 
     handlePathwayStepProgression($pathwayAssessment, pathwayId) {
         const answers = this.pathwayAssessments[pathwayId];
-        const s1 = answers["step1"];  // Relationship type
-        const s2 = answers["step2"];  // Evidence quality
-        const s3 = answers["step3"];  // Pathway specificity
-        const s4 = answers["step4"];  // Coverage comprehensiveness
+        const s1 = answers["step1"];
+        const s2 = answers["step2"];
+        const s3 = answers["step3"];
+        const s4 = answers["step4"];
 
-        // Debug logging
-        console.log('handlePathwayStepProgression debug:', {
-            pathwayId: pathwayId,
-            answers: answers,
-            s1, s2, s3, s4
+        const $steps = $pathwayAssessment.find(".assessment-step");
+        const stepLabels = {
+            step1: { num: 1, label: "Relationship", values: { causative: "Causative", responsive: "Responsive", bidirectional: "Bidirectional", unclear: "Unclear" } },
+            step2: { num: 2, label: "Basis", values: { known: "Known connection", likely: "Likely connection", possible: "Possible connection", uncertain: "Uncertain connection" } },
+            step3: { num: 3, label: "Specificity", values: { specific: "KE-specific", includes: "Includes KE", loose: "Loosely related" } },
+            step4: { num: 4, label: "Coverage", values: { complete: "Complete mechanism", keysteps: "Key steps only", minor: "Minor aspects" } }
+        };
+
+        // Remove any existing collapsed summaries
+        $pathwayAssessment.find('.assessment-step-collapsed').remove();
+
+        // Reset visibility
+        $steps.filter("[data-step='step2'], [data-step='step3'], [data-step='step4']").hide();
+        $steps.show(); // show all active steps first
+
+        // Determine which step is the current (latest unanswered)
+        const answeredSteps = [];
+        if (s1) answeredSteps.push('step1');
+        if (s1 && s2) answeredSteps.push('step2');
+        if (s1 && s2 && s3) answeredSteps.push('step3');
+        if (s1 && s2 && s3 && s4) answeredSteps.push('step4');
+
+        // Determine the next step to show
+        const allStepKeys = ['step1', 'step2', 'step3', 'step4'];
+        const currentStepIdx = answeredSteps.length; // index of next unanswered step
+
+        // Collapse answered steps and show the current one
+        allStepKeys.forEach((stepKey, idx) => {
+            const $step = $steps.filter(`[data-step='${stepKey}']`);
+            const answer = answers[stepKey];
+
+            if (answer && idx < currentStepIdx) {
+                // This step is answered and not the latest — collapse it
+                $step.hide();
+                const info = stepLabels[stepKey];
+                const displayValue = info.values[answer] || answer;
+                const collapsedHtml = `
+                    <div class="assessment-step-collapsed" data-collapsed-step="${stepKey}">
+                        <span class="collapsed-summary">Q${info.num}: <strong>${info.label}</strong> &mdash; ${this.escapeHtml(displayValue)}</span>
+                        <button type="button" class="collapsed-edit-btn" data-edit-step="${stepKey}" data-pathway-id="${pathwayId}">Edit</button>
+                    </div>
+                `;
+                $step.before(collapsedHtml);
+            } else if (idx === currentStepIdx) {
+                // This is the next step to answer — show it
+                $step.show();
+            } else {
+                // Future steps — hide
+                $step.hide();
+            }
         });
 
-        // Find steps within this pathway assessment
-        const $steps = $pathwayAssessment.find(".assessment-step");
+        // Bind edit handlers
+        $pathwayAssessment.find('.collapsed-edit-btn').off('click').on('click', (e) => {
+            const editStep = $(e.currentTarget).data('edit-step');
+            const editPathwayId = $(e.currentTarget).data('pathway-id');
+            this.editAssessmentStep($pathwayAssessment, editPathwayId, editStep);
+        });
 
-        // Reset visibility for new 4-step workflow
-        $steps.filter("[data-step='step2'], [data-step='step3'], [data-step='step4']").hide();
-
-        if (s1) {
-            $steps.filter("[data-step='step2']").show();
-
-            if (s2) {
-                $steps.filter("[data-step='step3']").show();
-
-                if (s3) {
-                    $steps.filter("[data-step='step4']").show();
-
-                    if (s4) {
-                        // Complete assessment for this pathway
-                        this.evaluatePathwayConfidence($pathwayAssessment, pathwayId);
-                    }
-                }
-            }
+        if (s1 && s2 && s3 && s4) {
+            this.evaluatePathwayConfidence($pathwayAssessment, pathwayId);
         }
+    }
+
+    editAssessmentStep($pathwayAssessment, pathwayId, stepKey) {
+        // Clear this step and all subsequent answers
+        const allStepKeys = ['step1', 'step2', 'step3', 'step4'];
+        const stepIdx = allStepKeys.indexOf(stepKey);
+
+        for (let i = stepIdx; i < allStepKeys.length; i++) {
+            delete this.pathwayAssessments[pathwayId][allStepKeys[i]];
+        }
+
+        // Clear selected buttons for affected steps
+        allStepKeys.slice(stepIdx).forEach(sk => {
+            $pathwayAssessment.find(`.btn-group[data-step="${sk}"] .btn-option`).removeClass('selected');
+        });
+
+        // Hide result
+        $pathwayAssessment.find('.assessment-result').hide();
+
+        // Remove stored result
+        if (this.pathwayResults) {
+            delete this.pathwayResults[pathwayId];
+        }
+
+        // Re-run progression to rebuild collapsed/expanded state
+        this.handlePathwayStepProgression($pathwayAssessment, pathwayId);
+        this.updateAssessmentStatus();
     }
 
     evaluatePathwayConfidence($pathwayAssessment, pathwayId) {
@@ -977,16 +1062,26 @@ class KEWPApp {
         const title = selectedOption.data('title') || '';
         const description = selectedOption.data('description') || '';
         const biolevel = selectedOption.data('biolevel') || '';
-        
+
         // Show/hide KE preview
         if (title && description) {
             this.showKEPreview(title, description);
         } else {
             this.hideKEPreview();
         }
-        
+
         // Store biological level for later use in assessment
         this.selectedBiolevel = biolevel;
+
+        // Store selected KE info for assessment info cards (#103)
+        this.selectedKEInfo = keId ? { keId, title, biolevel } : null;
+
+        // Load KE context panel (#99)
+        if (keId) {
+            this.loadKEContext(keId);
+        } else {
+            $('#ke-context-panel').remove();
+        }
 
         // Load suggestions for the active tab
         if (keId && title) {
@@ -1000,6 +1095,110 @@ class KEWPApp {
         } else {
             this.hidePathwaySuggestions();
             this.hideGoSuggestions();
+        }
+    }
+
+    loadKEContext(keId) {
+        // Remove previous context panel
+        $('#ke-context-panel').remove();
+
+        const encodedKeId = encodeURIComponent(keId);
+        $.getJSON(`/api/ke_context/${encodedKeId}`)
+            .done((data) => {
+                this.displayKEContext(data);
+            })
+            .fail((xhr, status, error) => {
+                console.warn('Failed to load KE context:', error);
+            });
+    }
+
+    displayKEContext(data) {
+        // Remove previous
+        $('#ke-context-panel').remove();
+
+        const s = data.summary || {};
+        const aopCount = s.aop_count || 0;
+        const wpCount = s.wp_mapping_count || 0;
+        const goCount = s.go_mapping_count || 0;
+
+        if (aopCount === 0 && wpCount === 0 && goCount === 0) {
+            // Show minimal panel
+            const html = `
+                <div id="ke-context-panel" class="ke-context-panel">
+                    <div class="context-summary">
+                        <span class="context-badge"><strong>0</strong> AOPs</span>
+                        <span class="context-badge"><strong>0</strong> WP mappings</span>
+                        <span class="context-badge"><strong>0</strong> GO mappings</span>
+                    </div>
+                    <div style="font-size: 12px; color: #888; font-style: italic;">No existing context found for this Key Event.</div>
+                </div>
+            `;
+            if ($("#ke-preview").length) {
+                $("#ke-preview").after(html);
+            } else {
+                $("#ke_id").parent().after(html);
+            }
+            return;
+        }
+
+        let html = `<div id="ke-context-panel" class="ke-context-panel">`;
+
+        // Summary badges
+        html += `<div class="context-summary">`;
+        html += `<span class="context-badge"><strong>${aopCount}</strong> AOP${aopCount !== 1 ? 's' : ''}</span>`;
+        html += `<span class="context-badge"><strong>${wpCount}</strong> WP mapping${wpCount !== 1 ? 's' : ''}</span>`;
+        html += `<span class="context-badge"><strong>${goCount}</strong> GO mapping${goCount !== 1 ? 's' : ''}</span>`;
+        html += `</div>`;
+
+        // AOP membership details
+        if (aopCount > 0) {
+            html += `<details><summary>AOP Membership (${aopCount})</summary>`;
+            html += `<table class="context-table"><thead><tr><th>AOP</th><th>Title</th></tr></thead><tbody>`;
+            data.aop_membership.forEach(aop => {
+                const aopNum = aop.aop_id.replace('AOP ', '');
+                html += `<tr>
+                    <td><a href="https://aopwiki.org/aops/${aopNum}" target="_blank" style="color: #307BBF;">${this.escapeHtml(aop.aop_id)}</a></td>
+                    <td>${this.escapeHtml(aop.aop_title)}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></details>`;
+        }
+
+        // WP mappings details
+        if (wpCount > 0) {
+            html += `<details><summary>Existing WP Mappings (${wpCount})</summary>`;
+            html += `<table class="context-table"><thead><tr><th>Pathway</th><th>Title</th><th>Confidence</th></tr></thead><tbody>`;
+            data.wp_mappings.forEach(m => {
+                html += `<tr>
+                    <td><a href="https://www.wikipathways.org/pathways/${m.wp_id}" target="_blank" style="color: #307BBF;">${this.escapeHtml(m.wp_id)}</a></td>
+                    <td>${this.escapeHtml(m.wp_title)}</td>
+                    <td>${this.escapeHtml(m.confidence_level)}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></details>`;
+        }
+
+        // GO mappings details
+        if (goCount > 0) {
+            html += `<details><summary>Existing GO Mappings (${goCount})</summary>`;
+            html += `<table class="context-table"><thead><tr><th>GO Term</th><th>Name</th><th>Confidence</th></tr></thead><tbody>`;
+            data.go_mappings.forEach(m => {
+                html += `<tr>
+                    <td><a href="https://www.ebi.ac.uk/QuickGO/term/${m.go_id}" target="_blank" style="color: #307BBF;">${this.escapeHtml(m.go_id)}</a></td>
+                    <td>${this.escapeHtml(m.go_name)}</td>
+                    <td>${this.escapeHtml(m.confidence_level)}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></details>`;
+        }
+
+        html += `</div>`;
+
+        // Insert after KE preview or KE dropdown
+        if ($("#ke-preview").length) {
+            $("#ke-preview").after(html);
+        } else {
+            $("#ke_id").parent().after(html);
         }
     }
 
@@ -1352,10 +1551,31 @@ class KEWPApp {
 
     createPathwayAssessment(pathway, index) {
         const assessmentId = `assessment-${pathway.index}`;
-        
+        const keInfo = this.selectedKEInfo || {};
+        const keId = keInfo.keId || $('#ke_id').val() || '';
+        const keTitle = keInfo.title || $('#ke_id option:selected').data('title') || '';
+        const keBiolevel = keInfo.biolevel || this.selectedBiolevel || '';
+
         return `
             <div class="pathway-assessment pathway-assessment-container" data-pathway-id="${pathway.id}" data-pathway-index="${pathway.index}">
-                
+
+                <!-- Info Cards (#103) -->
+                <div class="assessment-info-cards">
+                    <div class="assessment-info-card ke-card">
+                        <h4>Key Event</h4>
+                        <p><strong>${this.escapeHtml(keId)}</strong></p>
+                        <p>${this.escapeHtml(keTitle)}</p>
+                        ${keBiolevel ? `<p style="font-size: 12px; color: #666;">Level: ${this.escapeHtml(keBiolevel)}</p>` : ''}
+                        <a href="/ke-details?ke_id=${encodeURIComponent(keId)}" target="_blank">View details &rarr;</a>
+                    </div>
+                    <div class="assessment-info-card pw-card">
+                        <h4>Pathway</h4>
+                        <p><strong>${this.escapeHtml(pathway.id)}</strong></p>
+                        <p>${this.escapeHtml(pathway.title)}</p>
+                        <a href="/pw-details?pathway_id=${encodeURIComponent(pathway.id)}" target="_blank">View details &rarr;</a>
+                    </div>
+                </div>
+
                 <h3 style="margin: 0 0 15px 0; color: #29235C; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
                     Assessment for: ${pathway.title}
                     <span style="font-size: 14px; color: #666; font-weight: normal;">(${pathway.id})</span>
@@ -1769,31 +1989,18 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     showPathwaySuggestionsLoading() {
-        // Remove existing suggestions
-        $("#pathway-suggestions").remove();
-        
-        const loadingHtml = `
-            <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
-                <h3 style="margin: 0 0 10px 0; color: #29235C;">Suggested Pathways</h3>
-                <div style="display: flex; align-items: center; color: #666;">
-                    <div style="margin-right: 10px; font-size: 12px;">Loading...</div>
-                    <span>Loading pathway suggestions...</span>
-                </div>
+        $("#pathway-suggestions").html(`
+            <div style="padding: 20px; text-align: center;">
+                <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <p style="margin-top: 10px; color: #666;">Loading pathway suggestions...</p>
             </div>
-        `;
-        
-        // Insert after KE preview or KE dropdown
-        if ($("#ke-preview").length) {
-            $("#ke-preview").after(loadingHtml);
-        } else {
-            $("#ke_id").parent().after(loadingHtml);
-        }
+        `);
+
+        // Auto-switch to Suggested tab
+        this.switchToSubTab('suggested');
     }
 
     displayPathwaySuggestions(data, filter = 'all') {
-        // Remove existing suggestions
-        $("#pathway-suggestions").remove();
-
         // Handle different response structures
         const suggestions = filter === 'all'
             ? (data.combined_suggestions || [])
@@ -1807,7 +2014,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
 
         let suggestionsHtml = `
-            <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
                 <h3 style="margin: 0 0 15px 0; color: #29235C;">Suggested Pathways for Selected KE</h3>
 
                 <!-- Method Filter Toggle -->
@@ -1821,10 +2027,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
                         <button type="button" class="method-filter-btn" data-method="gene"
                                 style="padding: 8px 16px; border: 2px solid #307BBF; background: white; color: #307BBF; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
                             Gene-based Only
-                        </button>
-                        <button type="button" class="method-filter-btn" data-method="text"
-                                style="padding: 8px 16px; border: 2px solid #307BBF; background: white; color: #307BBF; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
-                            Text-based Only
                         </button>
                         <button type="button" class="method-filter-btn" data-method="semantic"
                                 style="padding: 8px 16px; border: 2px solid #307BBF; background: white; color: #307BBF; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
@@ -1841,9 +2043,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
                     </summary>
                     <div style="margin-top: 10px; font-size: 13px; line-height: 1.6; color: #555;">
                         <p style="margin: 8px 0;"><strong>Gene-based (35%)</strong>: Measures overlap between genes associated with the Key Event and genes in each pathway. Higher overlap = stronger match.</p>
-                        <p style="margin: 8px 0;"><strong>Text-based (25%)</strong>: Compares KE title/description with pathway names using fuzzy text matching, synonym detection, and biological term weighting.</p>
-                        <p style="margin: 8px 0;"><strong>Semantic (40%)</strong>: Uses BioBERT embeddings to measure deep semantic similarity between KE and pathway descriptions, capturing meaning beyond keyword matching.</p>
-                        <p style="margin: 8px 0; padding-top: 8px; border-top: 1px solid #eee;"><em>The combined score merges all three signals. Pathways found by multiple methods receive a bonus. Scores are shown as percentages.</em></p>
+                        <p style="margin: 8px 0;"><strong>Semantic (50%)</strong>: Uses BioBERT embeddings to measure deep semantic similarity between KE and pathway descriptions, capturing meaning beyond keyword matching.</p>
+                        <p style="margin: 8px 0;"><strong>Ontology (15%)</strong>: Matches pathway ontology classification tags against KE biological concepts.</p>
+                        <p style="margin: 8px 0; padding-top: 8px; border-top: 1px solid #eee;"><em>The combined score merges all signals. Pathways found by multiple methods receive a bonus. Scores are shown as percentages.</em></p>
                     </div>
                 </details>
         `;
@@ -1946,17 +2148,15 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         suggestionsHtml += `
                 <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666; text-align: center;">
-                    Click any suggestion to auto-select it in the pathway dropdown below
+                    Click any suggestion to auto-select it as your pathway
                 </div>
-            </div>
         `;
 
-        // Insert after KE preview or KE dropdown
-        if ($("#ke-preview").length) {
-            $("#ke-preview").after(suggestionsHtml);
-        } else {
-            $("#ke_id").parent().after(suggestionsHtml);
-        }
+        // Write into the static container
+        $("#pathway-suggestions").html(suggestionsHtml);
+
+        // Auto-switch to Suggested tab
+        this.switchToSubTab('suggested');
 
         // Set up method filter buttons
         this.setupMethodFilterButtons(filter, totalCount, filteredCount);
@@ -2041,18 +2241,15 @@ This helps identify gaps in existing pathways for future development.">❓</span
         let details = "";
 
         if (filter !== 'all') {
-            // Filtered view with no results
-            const methodName = filter.charAt(0).toUpperCase() + filter.slice(1);
             message = `No ${filter}-based suggestions found.`;
             details = `Try a different method filter or use "All Methods (Combined)" to see other results.`;
         } else if (data && data.genes_found === 0) {
-            details = "No associated genes were found in the AOP-Wiki data. Try searching manually using the dropdown below.";
+            details = "No associated genes were found in the AOP-Wiki data. Try using the Search or Browse All tabs.";
         } else if (data && data.genes_found > 0) {
             details = `Found ${data.genes_found} associated gene${data.genes_found !== 1 ? 's' : ''} (${data.gene_list.join(', ')}) but no matching pathways were identified.`;
         }
 
         let noSuggestionsHtml = `
-            <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
                 <h3 style="margin: 0 0 15px 0; color: #29235C;">Suggested Pathways for Selected KE</h3>
 
                 <!-- Method Filter Toggle -->
@@ -2066,10 +2263,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
                         <button type="button" class="method-filter-btn ${filter === 'gene' ? 'active' : ''}" data-method="gene"
                                 style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'gene' ? '#307BBF' : 'white'}; color: ${filter === 'gene' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
                             Gene-based Only
-                        </button>
-                        <button type="button" class="method-filter-btn ${filter === 'text' ? 'active' : ''}" data-method="text"
-                                style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'text' ? '#307BBF' : 'white'}; color: ${filter === 'text' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
-                            Text-based Only
                         </button>
                         <button type="button" class="method-filter-btn ${filter === 'semantic' ? 'active' : ''}" data-method="semantic"
                                 style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'semantic' ? '#307BBF' : 'white'}; color: ${filter === 'semantic' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
@@ -2096,46 +2289,35 @@ This helps identify gaps in existing pathways for future development.">❓</span
                     <div style="margin-bottom: 8px; font-weight: bold;">${message}</div>
                     ${details ? `<div style="font-size: 12px; color: #888; margin-bottom: 15px;">${details}</div>` : ''}
                     <div style="margin-top: 15px; font-size: 12px; color: #307BBF;">
-                        <em>Try using the search function below to find pathways manually</em>
+                        <em>Try using the Search or Browse All tabs to find pathways manually</em>
                     </div>
                 </div>
-            </div>
         `;
 
-        // Insert after KE preview or KE dropdown
-        if ($("#ke-preview").length) {
-            $("#ke-preview").after(noSuggestionsHtml);
-        } else {
-            $("#ke_id").parent().after(noSuggestionsHtml);
-        }
+        // Write into the static container
+        $("#pathway-suggestions").html(noSuggestionsHtml);
+
+        // Auto-switch to Suggested tab
+        this.switchToSubTab('suggested');
 
         // Set up filter button click handlers
         this.setupMethodFilterButtons(filter, 0, 0);
     }
 
     showPathwaySuggestionsError(errorMessage) {
-        // Remove existing suggestions
-        $("#pathway-suggestions").remove();
-        
-        const errorHtml = `
-            <div id="pathway-suggestions" style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
-                <h3 style="margin: 0 0 10px 0; color: #29235C;">Pathway Suggestions</h3>
-                <div style="color: #dc3545; text-align: center; padding: 20px;">
-                    <div style="font-size: 16px; margin-bottom: 10px; color: #666; font-weight: bold;">Warning</div>
-                    <div>${errorMessage}</div>
-                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                        You can still browse pathways manually using the dropdown below
-                    </div>
+        $("#pathway-suggestions").html(`
+            <h3 style="margin: 0 0 10px 0; color: #29235C;">Pathway Suggestions</h3>
+            <div style="color: #dc3545; text-align: center; padding: 20px;">
+                <div style="font-size: 16px; margin-bottom: 10px; color: #666; font-weight: bold;">Warning</div>
+                <div>${errorMessage}</div>
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    Try using the Search or Browse All tabs to find pathways manually
                 </div>
             </div>
-        `;
-        
-        // Insert after KE preview or KE dropdown
-        if ($("#ke-preview").length) {
-            $("#ke-preview").after(errorHtml);
-        } else {
-            $("#ke_id").parent().after(errorHtml);
-        }
+        `);
+
+        // Auto-switch to Suggested tab
+        this.switchToSubTab('suggested');
     }
 
     createConfidenceBar(score) {
@@ -2198,10 +2380,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
             badges.push('<span style="background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px;">📊 Gene</span>');
         }
 
-        if (matchTypes.includes('text')) {
-            badges.push('<span style="background: #d1ecf1; color: #0c5460; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px;">📝 Text</span>');
-        }
-
         if (matchTypes.includes('embedding')) {
             badges.push('<span style="background: #f3e5f5; color: #6a1b9a; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px;">🧠 Semantic</span>');
         }
@@ -2221,8 +2399,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         if (type === 'gene_based') {
             return this.getGeneScoreDetails(suggestion);
-        } else if (type === 'text_based') {
-            return this.getTextScoreDetails(suggestion);
         } else if (type === 'embedding_based') {
             return this.getEmbeddingScoreDetails(suggestion);
         }
@@ -2249,20 +2425,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 <div style="font-size: 11px; color: #155724; margin-bottom: 4px; padding: 4px; background: #d4edda; border-radius: 3px;">
                     📊 <strong>Gene Score: ${Math.round(scores.gene_confidence * 100)}%</strong> - ${geneInfo}${pathwayInfo}
                     ${suggestion.matching_genes ? `<br><span style="font-size: 10px;">Matching genes: ${suggestion.matching_genes.join(', ')}</span>` : ''}
-                </div>
-            `);
-        }
-
-        // Text-based details
-        if (scores.text_confidence && scores.text_confidence > 0) {
-            const titleSim = suggestion.title_similarity
-                ? ` (title: ${Math.round(suggestion.title_similarity * 100)}%)`
-                : '';
-
-            details.push(`
-                <div style="font-size: 11px; color: #0c5460; margin-bottom: 4px; padding: 4px; background: #d1ecf1; border-radius: 3px;">
-                    📝 <strong>Text Score: ${Math.round(scores.text_confidence * 100)}%</strong>${titleSim}
-                    <br><span style="font-size: 10px;">Multi-algorithm text similarity</span>
                 </div>
             `);
         }
@@ -2303,20 +2465,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
             <div style="font-size: 11px; color: #155724; margin-top: 8px; padding: 6px; background: #d4edda; border-radius: 3px;">
                 <div><strong>Gene Overlap:</strong> ${Math.round(overlapRatio * 100)}%</div>
                 <div style="margin-top: 4px;"><strong>Matching Genes:</strong> ${genes.length > 0 ? genes.join(', ') : 'None'} (${geneCount} genes)</div>
-            </div>
-        `;
-    }
-
-    getTextScoreDetails(suggestion) {
-        const titleSim = suggestion.title_similarity || 0;
-        const descSim = suggestion.description_similarity || 0;
-        const combinedSim = suggestion.combined_similarity || 0;
-
-        return `
-            <div style="font-size: 11px; color: #0c5460; margin-top: 8px; padding: 6px; background: #d1ecf1; border-radius: 3px;">
-                <div><strong>Title Similarity:</strong> ${Math.round(titleSim * 100)}%</div>
-                <div style="margin-top: 2px;"><strong>Description Similarity:</strong> ${Math.round(descSim * 100)}%</div>
-                <div style="margin-top: 2px;"><strong>Combined Text Score:</strong> ${Math.round(combinedSim * 100)}%</div>
             </div>
         `;
     }
@@ -2363,10 +2511,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
             // Gene-based view - use gene overlap ratio
             score = suggestion.gene_overlap_ratio || 0;
             label = 'Gene Overlap';
-        } else if (suggestion.suggestion_type === 'text_based') {
-            // Text-based view - use combined text similarity
-            score = suggestion.combined_similarity || 0;
-            label = 'Text Match';
         } else if (suggestion.suggestion_type === 'embedding_based') {
             // Embedding-based view - use semantic similarity
             score = suggestion.embedding_similarity || 0;
@@ -2399,7 +2543,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const labels = {
             'gene_overlap': 'Gene Overlap',
             'semantic_similarity': 'Semantic Match',
-            'text_similarity': 'Text Match'
+            'ontology_tags': 'Ontology Match'
         };
         return labels[primary] || primary || 'Unknown';
     }
@@ -2457,13 +2601,25 @@ This helps identify gaps in existing pathways for future development.">❓</span
             // Select the pathway
             $dropdown.val(pathwayId).trigger('change');
 
-            // Show success message
-            this.showMessage(`Selected suggested pathway: ${pathwayTitle}`, "success");
+            // Show selected pathway banner
+            const $banner = $('#selected-pathway-banner');
+            $banner.html(`
+                <span>Selected: <strong>${this.escapeHtml(pathwayTitle)}</strong> (${this.escapeHtml(pathwayId)})</span>
+                <button type="button" class="banner-dismiss" title="Dismiss">&times;</button>
+            `).show();
+            $banner.find('.banner-dismiss').on('click', () => $banner.hide());
 
             // Ensure the assessment section is triggered with a slight delay
             setTimeout(() => {
                 this.updateSelectedPathways();
                 this.toggleAssessmentSection();
+
+                // Auto-scroll to Step 3 if visible
+                if ($('#confidence-guide').is(':visible')) {
+                    $('html, body').animate({
+                        scrollTop: $('#confidence-guide').offset().top - 20
+                    }, 500);
+                }
             }, 50);
         } else {
             console.error(`Pathway option not found in dropdown: ${pathwayId}`);
@@ -2472,7 +2628,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     hidePathwaySuggestions() {
-        $("#pathway-suggestions").remove();
+        $("#pathway-suggestions").html(`
+            <p style="color: #666; font-style: italic; text-align: center; padding: 20px;">Select a Key Event in Step 1 to see pathway suggestions.</p>
+        `);
+        $('#selected-pathway-banner').hide();
     }
 
     setupPathwaySearch() {
@@ -3111,16 +3270,13 @@ This helps identify gaps in existing pathways for future development.">❓</span
             $('#wp-tab-content').show();
             $('#go-tab-content').hide();
 
-            // Reload WP suggestions (they were removed when switching to GO)
+            // Reload WP suggestions if a KE is selected
             if (keId && keTitle) {
                 this.loadPathwaySuggestions(keId, keTitle, this.currentMethodFilter);
             }
         } else {
             $('#wp-tab-content').hide();
             $('#go-tab-content').show();
-
-            // Hide WP pathway suggestions (they sit outside tab content divs)
-            this.hidePathwaySuggestions();
 
             // Load GO suggestions if a KE is already selected
             if (keId && keTitle) {
@@ -3513,18 +3669,82 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
     handleGoStepProgression() {
         const answers = this.goAssessmentAnswers;
-        const s1 = answers['go-step1'];  // Connection type
-        const s2 = answers['go-step2'];  // Term specificity
-        const s3 = answers['go-step3'];  // Evidence support
+        const s1 = answers['go-step1'];
+        const s2 = answers['go-step2'];
+        const s3 = answers['go-step3'];
 
-        // Show steps progressively
-        $('.go-assessment-step[data-step="go-step2"]').toggle(!!s1);
-        $('.go-assessment-step[data-step="go-step3"]').toggle(!!(s1 && s2));
+        const $form = $('#go-assessment-form');
+        const stepLabels = {
+            'go-step1': { num: 1, label: "Connection", values: { describes: "Describes", involves: "Involves", related: "Related", context: "Context" } },
+            'go-step2': { num: 2, label: "Specificity", values: { exact: "Exact Match", parent_child: "Parent/Child", related: "Related", broad: "Broad Term" } },
+            'go-step3': { num: 3, label: "Evidence", values: { experimental: "Experimental", curated: "Curated", inferred: "Inferred", assumed: "Assumed" } }
+        };
 
-        // Evaluate when all steps completed
+        // Remove existing collapsed summaries
+        $form.find('.assessment-step-collapsed').remove();
+
+        const answeredSteps = [];
+        if (s1) answeredSteps.push('go-step1');
+        if (s1 && s2) answeredSteps.push('go-step2');
+        if (s1 && s2 && s3) answeredSteps.push('go-step3');
+
+        const allStepKeys = ['go-step1', 'go-step2', 'go-step3'];
+        const currentStepIdx = answeredSteps.length;
+
+        allStepKeys.forEach((stepKey, idx) => {
+            const $step = $(`.go-assessment-step[data-step="${stepKey}"]`);
+            const answer = answers[stepKey];
+
+            if (answer && idx < currentStepIdx) {
+                $step.hide();
+                const info = stepLabels[stepKey];
+                const displayValue = info.values[answer] || answer;
+                const collapsedHtml = `
+                    <div class="assessment-step-collapsed" data-collapsed-step="${stepKey}">
+                        <span class="collapsed-summary">Q${info.num}: <strong>${info.label}</strong> &mdash; ${this.escapeHtml(displayValue)}</span>
+                        <button type="button" class="collapsed-edit-btn go-collapsed-edit" data-edit-step="${stepKey}">Edit</button>
+                    </div>
+                `;
+                $step.before(collapsedHtml);
+            } else if (idx === currentStepIdx) {
+                $step.show();
+            } else {
+                $step.hide();
+            }
+        });
+
+        // Bind edit handlers for GO
+        $form.find('.go-collapsed-edit').off('click').on('click', (e) => {
+            const editStep = $(e.currentTarget).data('edit-step');
+            this.editGoAssessmentStep(editStep);
+        });
+
         if (s1 && s2 && s3) {
             this.evaluateGoConfidence();
         }
+    }
+
+    editGoAssessmentStep(stepKey) {
+        const allStepKeys = ['go-step1', 'go-step2', 'go-step3'];
+        const stepIdx = allStepKeys.indexOf(stepKey);
+
+        for (let i = stepIdx; i < allStepKeys.length; i++) {
+            delete this.goAssessmentAnswers[allStepKeys[i]];
+        }
+
+        // Clear selected buttons
+        allStepKeys.slice(stepIdx).forEach(sk => {
+            $(`.go-btn-group[data-step="${sk}"] .btn-option`).removeClass('selected');
+        });
+
+        // Hide results
+        $('.go-assessment-result').hide();
+        $('#go-step-result').hide();
+        $('#go-step-submit').hide();
+        this.goMappingResult = null;
+
+        // Re-run progression
+        this.handleGoStepProgression();
     }
 
     evaluateGoConfidence() {
