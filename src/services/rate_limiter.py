@@ -8,7 +8,7 @@ from collections import defaultdict
 from functools import wraps
 
 from flask import g, jsonify, request
-from text_utils import sanitize_log
+from src.utils.text import sanitize_log
 
 logger = logging.getLogger(__name__)
 

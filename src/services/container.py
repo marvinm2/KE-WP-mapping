@@ -8,13 +8,14 @@ import os
 
 from authlib.integrations.flask_client import OAuth
 
-from models import CacheModel, Database, GoMappingModel, GoProposalModel, MappingModel, ProposalModel
-from monitoring import MetricsCollector
-from pathway_suggestions import PathwaySuggestionService
-from go_suggestions import GoSuggestionService
-from rate_limiter import RateLimiter
-from config_loader import ConfigLoader
-from embedding_service import BiologicalEmbeddingService
+from src import PROJECT_ROOT
+from src.core.models import CacheModel, Database, GoMappingModel, GoProposalModel, MappingModel, ProposalModel
+from src.services.monitoring import MetricsCollector
+from src.suggestions.pathway import PathwaySuggestionService
+from src.suggestions.go import GoSuggestionService
+from src.services.rate_limiter import RateLimiter
+from src.core.config_loader import ConfigLoader
+from src.services.embedding import BiologicalEmbeddingService
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ class ServiceContainer:
     def ke_metadata(self):
         """Load and cache KE metadata from pre-computed JSON file"""
         if self._ke_metadata is None:
-            path = os.path.join(os.path.dirname(__file__), 'data', 'ke_metadata.json')
+            path = os.path.join(PROJECT_ROOT, 'data', 'ke_metadata.json')
             if os.path.exists(path):
                 try:
                     with open(path, 'r', encoding='utf-8') as f:
@@ -127,7 +128,7 @@ class ServiceContainer:
     def pathway_metadata(self):
         """Load and cache pathway metadata from pre-computed JSON file"""
         if self._pathway_metadata is None:
-            path = os.path.join(os.path.dirname(__file__), 'data', 'pathway_metadata.json')
+            path = os.path.join(PROJECT_ROOT, 'data', 'pathway_metadata.json')
             if os.path.exists(path):
                 try:
                     with open(path, 'r', encoding='utf-8') as f:

@@ -6,7 +6,7 @@ import tempfile
 
 import pytest
 
-from models import CacheModel, Database, MappingModel, ProposalModel
+from src.core.models import CacheModel, Database, MappingModel, ProposalModel
 
 
 @pytest.fixture

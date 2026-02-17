@@ -12,9 +12,9 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath('.'))
 
-from embedding_service import BiologicalEmbeddingService
-from models import Database, CacheModel
-from config_loader import ConfigLoader
+from src.services.embedding import BiologicalEmbeddingService
+from src.core.models import Database, CacheModel
+from src.core.config_loader import ConfigLoader
 import numpy as np
 import logging
 from tqdm import tqdm
@@ -33,7 +33,7 @@ def precompute_all_pathway_embeddings(output_path='data/pathway_embeddings.npy')
     embedding_service = BiologicalEmbeddingService()
 
     # Initialize database and cache model
-    from config import Config
+    from src.core.config import Config
     config = Config()
     db = Database(config.DATABASE_PATH)
     cache_model = CacheModel(db)
@@ -41,7 +41,7 @@ def precompute_all_pathway_embeddings(output_path='data/pathway_embeddings.npy')
     # Use existing pathway suggestion service to fetch all pathways
     logger.info("Fetching all WikiPathways...")
 
-    from pathway_suggestions import PathwaySuggestionService
+    from src.suggestions.pathway import PathwaySuggestionService
 
     # Load scoring config
     scoring_config = ConfigLoader.load_config()

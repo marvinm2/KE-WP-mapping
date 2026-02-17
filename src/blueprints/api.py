@@ -12,10 +12,10 @@ from functools import wraps
 import requests
 from flask import Blueprint, jsonify, request, session
 
-from models import CacheModel, MappingModel, ProposalModel
-from monitoring import monitor_performance
-from rate_limiter import general_rate_limit, sparql_rate_limit, submission_rate_limit
-from schemas import (
+from src.core.models import CacheModel, MappingModel, ProposalModel
+from src.services.monitoring import monitor_performance
+from src.services.rate_limiter import general_rate_limit, sparql_rate_limit, submission_rate_limit
+from src.core.schemas import (
     CheckEntrySchema,
     GoCheckEntrySchema,
     GoMappingSchema,
@@ -24,8 +24,8 @@ from schemas import (
     SecurityValidation,
     validate_request_data,
 )
-from config_loader import ConfigLoader
-from text_utils import sanitize_log
+from src.core.config_loader import ConfigLoader
+from src.utils.text import sanitize_log
 
 logger = logging.getLogger(__name__)
 

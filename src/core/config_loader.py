@@ -24,6 +24,8 @@ import yaml
 import logging
 import os
 
+from src import PROJECT_ROOT
+
 logger = logging.getLogger(__name__)
 
 
@@ -467,7 +469,7 @@ class ConfigLoader:
         if config_path is None:
             # Default path in project root
             config_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
+                PROJECT_ROOT,
                 'scoring_config.yaml'
             )
 

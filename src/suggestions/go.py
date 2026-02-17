@@ -9,10 +9,10 @@ import os
 from typing import Dict, List
 
 import numpy as np
-from config_loader import ConfigLoader
-from ke_gene_service import get_genes_from_ke
-from scoring_utils import combine_scored_items
-from text_utils import remove_directionality_terms
+from src.core.config_loader import ConfigLoader
+from src.suggestions.ke_genes import get_genes_from_ke
+from src.suggestions.scoring import combine_scored_items
+from src.utils.text import remove_directionality_terms
 
 logger = logging.getLogger(__name__)
 

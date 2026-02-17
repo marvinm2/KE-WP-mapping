@@ -6,7 +6,7 @@ import logging
 from functools import wraps
 
 from flask import jsonify, render_template, request
-from text_utils import sanitize_log
+from src.utils.text import sanitize_log
 from werkzeug.exceptions import (
     BadRequest,
     Forbidden,

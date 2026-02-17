@@ -10,10 +10,11 @@ from difflib import SequenceMatcher
 from typing import Dict, List
 
 import requests
-from config_loader import ConfigLoader
-from ke_gene_service import get_genes_from_ke
-from scoring_utils import combine_scored_items
-from text_utils import remove_directionality_terms
+from src import PROJECT_ROOT
+from src.core.config_loader import ConfigLoader
+from src.suggestions.ke_genes import get_genes_from_ke
+from src.suggestions.scoring import combine_scored_items
+from src.utils.text import remove_directionality_terms
 
 logger = logging.getLogger(__name__)
 
@@ -419,7 +420,7 @@ class PathwaySuggestionService:
             import os
 
             # Load from pre-computed metadata file
-            metadata_path = os.path.join(os.path.dirname(__file__), 'data', 'pathway_metadata.json')
+            metadata_path = os.path.join(PROJECT_ROOT, 'data', 'pathway_metadata.json')
 
             with open(metadata_path, 'r') as f:
                 pathways = json.load(f)

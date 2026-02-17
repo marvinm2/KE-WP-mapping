@@ -7,7 +7,7 @@ import tempfile
 import pytest
 
 from app import app
-from models import Database
+from src.core.models import Database
 
 
 @pytest.fixture

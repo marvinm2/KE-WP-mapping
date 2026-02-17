@@ -30,7 +30,7 @@ def init_embedding_service():
     Returns:
         BiologicalEmbeddingService instance
     """
-    from embedding_service import BiologicalEmbeddingService
+    from src.services.embedding import BiologicalEmbeddingService
 
     logger.info("Initializing BioBERT service...")
     service = BiologicalEmbeddingService()

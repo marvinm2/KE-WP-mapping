@@ -18,7 +18,7 @@ from embedding_utils import setup_project_path, init_embedding_service, compute_
 
 setup_project_path()
 
-from text_utils import remove_directionality_terms, extract_entities
+from src.utils.text import remove_directionality_terms, extract_entities
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

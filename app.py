@@ -11,26 +11,26 @@ from flask import Flask, jsonify, render_template, request
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 
-from timezone_utils import format_admin_timestamp
-from text_utils import sanitize_log
+from src.utils.timezone import format_admin_timestamp
+from src.utils.text import sanitize_log
 
 # Import blueprints
-from blueprints import admin_bp, api_bp, auth_bp, main_bp
-from blueprints.admin import set_models as set_admin_models
-from blueprints.api import set_models as set_api_models
+from src.blueprints import admin_bp, api_bp, auth_bp, main_bp
+from src.blueprints.admin import set_models as set_admin_models
+from src.blueprints.api import set_models as set_api_models
 
 # Import blueprint model setters
-from blueprints.auth import set_models as set_auth_models
-from blueprints.main import set_models as set_main_models
+from src.blueprints.auth import set_models as set_auth_models
+from src.blueprints.main import set_models as set_main_models
 
 # Import configuration and services
-from config import get_config
-from error_handlers import register_error_handlers
+from src.core.config import get_config
+from src.core.error_handlers import register_error_handlers
 
 # Import monitoring
-from monitoring import monitor_performance
-from rate_limiter import general_rate_limit
-from services import ServiceContainer
+from src.services.monitoring import monitor_performance
+from src.services.rate_limiter import general_rate_limit
+from src.services.container import ServiceContainer
 
 # Load environment variables
 load_dotenv(".env")  # Explicitly specify .env file

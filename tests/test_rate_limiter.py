@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from rate_limiter import RateLimiter
+from src.services.rate_limiter import RateLimiter
 
 
 @pytest.fixture

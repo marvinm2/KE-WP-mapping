@@ -91,7 +91,7 @@ class TestMappingAPI:
 
 
 class TestSPARQLEndpoints:
-    @patch("blueprints.api.ke_metadata", [
+    @patch("src.blueprints.api.ke_metadata", [
         {
             "KEtitle": "Test KE Title",
             "KElabel": "KE:1",
@@ -106,7 +106,7 @@ class TestSPARQLEndpoints:
         assert len(data) == 1
         assert data[0]["KEtitle"] == "Test KE Title"
 
-    @patch("blueprints.api.pathway_metadata", [
+    @patch("src.blueprints.api.pathway_metadata", [
         {
             "pathwayID": "WP:1",
             "pathwayTitle": "Test Pathway",
@@ -179,9 +179,9 @@ class TestAuthentication:
 
 
 class TestKEContext:
-    @patch("blueprints.api.cache_model")
-    @patch("blueprints.api.mapping_model")
-    @patch("blueprints.api.go_mapping_model")
+    @patch("src.blueprints.api.cache_model")
+    @patch("src.blueprints.api.mapping_model")
+    @patch("src.blueprints.api.go_mapping_model")
     @patch("requests.post")
     def test_ke_context_returns_json_structure(self, mock_post, mock_go_model, mock_mapping, mock_cache, client):
         """Test KE context endpoint returns expected JSON structure"""
@@ -221,9 +221,9 @@ class TestKEContext:
         response = client.get("/api/ke_context/%20")
         assert response.status_code == 400
 
-    @patch("blueprints.api.cache_model")
-    @patch("blueprints.api.mapping_model")
-    @patch("blueprints.api.go_mapping_model")
+    @patch("src.blueprints.api.cache_model")
+    @patch("src.blueprints.api.mapping_model")
+    @patch("src.blueprints.api.go_mapping_model")
     @patch("requests.post")
     def test_ke_context_no_results(self, mock_post, mock_go_model, mock_mapping, mock_cache, client):
         """Test KE context with no matching data"""

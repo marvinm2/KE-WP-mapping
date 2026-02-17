@@ -9,13 +9,13 @@ from functools import wraps
 
 from flask import Blueprint, jsonify, render_template, request, session
 
-from timezone_utils import format_local_datetime, utc_to_local
-from text_utils import sanitize_log
+from src.utils.timezone import format_local_datetime, utc_to_local
+from src.utils.text import sanitize_log
 
-from models import MappingModel, ProposalModel
-from monitoring import monitor_performance
-from rate_limiter import submission_rate_limit
-from schemas import AdminNotesSchema, SecurityValidation, validate_request_data
+from src.core.models import MappingModel, ProposalModel
+from src.services.monitoring import monitor_performance
+from src.services.rate_limiter import submission_rate_limit
+from src.core.schemas import AdminNotesSchema, SecurityValidation, validate_request_data
 
 logger = logging.getLogger(__name__)
 
