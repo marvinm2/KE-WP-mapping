@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 50" width="120" height="50">
+  <rect x="2" y="14" width="34" height="22" rx="4" fill="#307BBF" stroke="#29235C" stroke-width="1"/>
+  <text x="19" y="29" font-size="10" fill="white" text-anchor="middle" font-family="sans-serif">PW</text>
+  <line x1="40" y1="25" x2="78" y2="25" stroke="#29235C" stroke-width="2.5"/>
+  <polygon points="40,19 30,25 40,31" fill="#29235C"/>
+  <polygon points="78,19 88,25 78,31" fill="#29235C"/>
+  <rect x="90" y="14" width="28" height="22" rx="4" fill="#EB5B25" stroke="#29235C" stroke-width="1"/>
+  <text x="104" y="29" font-size="10" fill="white" text-anchor="middle" font-family="sans-serif">KE</text>
+</svg>

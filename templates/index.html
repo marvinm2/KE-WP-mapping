@@ -34,8 +34,9 @@
         </div>
 
         <section>
-            <h2>Step 1: Select Key Event</h2>
+            <h2 id="step1-header">Step 1: Select Key Event</h2>
 
+            <div id="step1-content">
             <!-- AOP Filter (optional) -->
             <div class="filter-container" style="margin-bottom: 15px;">
                 <label for="aop_filter" style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
@@ -66,13 +67,15 @@
                 </select>
             </div>
             <p>For detailed Key Event information, visit the <a href="/ke-details" target="_blank">Key Event details page</a>.</p>
+            </div>
         </section>
 
         <!-- WP Mapping Tab Content -->
         <div id="wp-tab-content" class="tab-content">
         <section>
-            <h2>Step 2: Select Pathway</h2>
+            <h2 id="step2-header">Step 2: Select Pathway</h2>
 
+            <div id="step2-content">
             <!-- Sub-tab navigation -->
             <div class="step2-subtabs">
                 <button type="button" class="step2-subtab active" data-subtab="suggested">Suggested</button>
@@ -129,6 +132,7 @@
             <div id="selected-pathway-banner" style="display: none;"></div>
 
             <p>For detailed pathway information, visit the <a href="/pw-details" target="_blank">pathway details page</a>.</p>
+            </div>
         </section>
         <section id="confidence-guide" style="display: none;">
             <h2>Step 3: Assess Confidence of Mappings</h2>
@@ -152,7 +156,7 @@
 
 
         <section id="step-3-result" style="display: none;">
-            <h2>Step 4: Assessment Results</h2>
+            <h2>Step 4: Results & Submit</h2>
             <p><strong>Recommended Confidence Level:</strong> <span id="auto-confidence">—</span></p>
             <p><strong>Connection Type:</strong> <span id="auto-connection">—</span></p>
             <details style="margin-top: 15px;">
@@ -166,19 +170,18 @@
             <!-- Hidden form fields to pass values on submit -->
             <input type="hidden" id="confidence_level" name="confidence_level" value="">
             <input type="hidden" id="connection_type" name="connection_type" value="">
-        </section>
 
-        <section id="step-5-submit" style="display: none;">
-            <h2>Step 5: Submit Your Mapping</h2>
-            {% if session.get('user') %}
-                <form id="mapping-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" disabled>Complete Assessment First</button>
-                </form>
-            {% else %}
-                <p style="color: red; font-weight: bold;">Please <a href="{{ url_for('auth.login') }}">log in with GitHub</a> or use a <a href="{{ url_for('auth.guest_login') }}">workshop access code</a> to submit your mapping.</p>
-                <button disabled>Submit KE-WP Mapping</button>
-            {% endif %}
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                {% if session.get('user') %}
+                    <form id="mapping-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" disabled>Complete Assessment First</button>
+                    </form>
+                {% else %}
+                    <p style="color: red; font-weight: bold;">Please <a href="{{ url_for('auth.login') }}">log in with GitHub</a> or use a <a href="{{ url_for('auth.guest_login') }}">workshop access code</a> to submit your mapping.</p>
+                    <button disabled>Submit KE-WP Mapping</button>
+                {% endif %}
+            </div>
         </section>
 
         <div id="existing-entries"></div>
