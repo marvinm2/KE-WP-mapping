@@ -100,7 +100,7 @@ pathway_suggestion:
   # Threshold varies based on term specificity and biological level
 
   dynamic_thresholds:
-    base_threshold: 0.30               # Default minimum similarity (raised from 0.25 to filter noise)
+    base_threshold: 0.15               # Default minimum similarity (lowered from 0.30 after text signal removal)
 
     # High specificity terms require stricter matching
     high_specificity_terms:

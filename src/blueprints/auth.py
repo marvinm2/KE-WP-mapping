@@ -49,6 +49,11 @@ def login():
         logger.error("GitHub OAuth client not initialized")
         return redirect(url_for("main.index"))
 
+    # Save return URL so we can redirect back after OAuth
+    next_url = request.args.get("next") or request.referrer
+    if next_url:
+        session["login_next_url"] = next_url
+
     redirect_uri = url_for("auth.authorize", _external=True)
     return github_client.authorize_redirect(redirect_uri)
 
@@ -78,9 +83,11 @@ def authorize():
             else "No public email",
         }
         logger.info("User %s logged in successfully", user_info['login'])
-        return redirect(url_for("main.index"))
+        next_url = session.pop("login_next_url", None) or url_for("main.index")
+        return redirect(next_url)
     except Exception as e:
         logger.error("OAuth callback error: %s", e)
+        session.pop("login_next_url", None)
         return redirect(url_for("main.index"))
 
 
@@ -98,6 +105,10 @@ def guest_login():
     """Render guest login form"""
     if session.get("user"):
         return redirect(url_for("main.index"))
+    # Save return URL so we can redirect back after guest login
+    next_url = request.args.get("next") or request.referrer
+    if next_url:
+        session["login_next_url"] = next_url
     return render_template("guest_login.html")
 
 
@@ -123,4 +134,5 @@ def guest_login_submit():
         "is_guest": True,
     }
     logger.info("Guest user logged in with label=%s", result["label"])
-    return redirect(url_for("main.index"))
+    next_url = session.pop("login_next_url", None) or url_for("main.index")
+    return redirect(next_url)

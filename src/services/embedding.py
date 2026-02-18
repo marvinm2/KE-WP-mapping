@@ -171,7 +171,7 @@ class BiologicalEmbeddingService:
 
         Delegates to text_utils.extract_entities() with config-driven parameters.
         """
-        from text_utils import extract_entities
+        from src.utils.text import extract_entities
 
         config = self.entity_extract_config
         if not config.get('enabled', False):
