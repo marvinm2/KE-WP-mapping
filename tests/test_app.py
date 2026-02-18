@@ -242,3 +242,44 @@ class TestKEContext:
         assert data["summary"]["aop_count"] == 0
         assert data["summary"]["wp_mapping_count"] == 0
         assert data["summary"]["go_mapping_count"] == 0
+
+
+class TestGuestAuth:
+    def test_guest_login_page_renders(self, client):
+        """Test guest login page renders correctly"""
+        response = client.get("/guest-login")
+        assert response.status_code == 200
+        assert b"Workshop Login" in response.data
+        assert b"access code" in response.data
+
+    def test_guest_login_invalid_code(self, client):
+        """Test guest login with invalid code shows error"""
+        response = client.post("/guest-login", data={"code": "invalid-code"})
+        assert response.status_code == 200
+        assert b"Invalid" in response.data or b"expired" in response.data
+
+    def test_guest_login_redirects_if_logged_in(self, auth_client):
+        """Test guest login redirects if already authenticated"""
+        response = auth_client.get("/guest-login")
+        assert response.status_code == 302
+
+    def test_guest_can_submit_mapping(self, guest_client):
+        """Test that a guest user can submit a mapping"""
+        response = guest_client.post(
+            "/submit",
+            data={
+                "ke_id": "KE 123",
+                "ke_title": "Test Key Event",
+                "wp_id": "WP1234",
+                "wp_title": "Test Pathway",
+                "confidence_level": "low",
+                "connection_type": "undefined",
+            },
+        )
+        # Should not get 401 (auth error) - guest is authenticated
+        assert response.status_code != 401
+
+    def test_guest_cannot_access_admin(self, guest_client):
+        """Test that guest users cannot access admin routes"""
+        response = guest_client.get("/admin/proposals")
+        assert response.status_code == 403

@@ -47,3 +47,15 @@ def auth_client(client):
     with client.session_transaction() as sess:
         sess["user"] = {"username": "testuser", "email": "test@example.com"}
     return client
+
+
+@pytest.fixture
+def guest_client(client):
+    """Create a guest-authenticated test client"""
+    with client.session_transaction() as sess:
+        sess["user"] = {
+            "username": "guest-test-participant",
+            "email": "workshop-guest",
+            "is_guest": True,
+        }
+    return client

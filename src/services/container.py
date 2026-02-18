@@ -9,7 +9,7 @@ import os
 from authlib.integrations.flask_client import OAuth
 
 from src import PROJECT_ROOT
-from src.core.models import CacheModel, Database, GoMappingModel, GoProposalModel, MappingModel, ProposalModel
+from src.core.models import CacheModel, Database, GoMappingModel, GoProposalModel, GuestCodeModel, MappingModel, ProposalModel
 from src.services.monitoring import MetricsCollector
 from src.suggestions.pathway import PathwaySuggestionService
 from src.suggestions.go import GoSuggestionService
@@ -40,6 +40,7 @@ class ServiceContainer:
         self._go_suggestion_service = None
         self._go_mapping_model = None
         self._go_proposal_model = None
+        self._guest_code_model = None
         self._oauth = None
         self._github_client = None
         self._scoring_config = None
@@ -166,6 +167,14 @@ class ServiceContainer:
             self._go_proposal_model = GoProposalModel(self.database)
             logger.debug("GoProposalModel instance created")
         return self._go_proposal_model
+
+    @property
+    def guest_code_model(self) -> GuestCodeModel:
+        """Get or create guest code model instance"""
+        if self._guest_code_model is None:
+            self._guest_code_model = GuestCodeModel(self.database)
+            logger.debug("GuestCodeModel instance created")
+        return self._guest_code_model
 
     @property
     def go_suggestion_service(self) -> GoSuggestionService:

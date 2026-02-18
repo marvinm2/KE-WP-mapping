@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin: Guest Access Codes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <style>
+        .create-form {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .create-form h3 {
+            margin-top: 0;
+            color: #29235C;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-group label {
+            font-weight: bold;
+            font-size: 13px;
+            color: #29235C;
+        }
+        .form-group input, .form-group select {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn-create {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 9px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-create:hover { background: #218838; }
+        .btn-revoke {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .btn-revoke:hover { background: #c82333; }
+        .status-active { color: #28a745; font-weight: bold; }
+        .status-expired { color: #6c757d; font-weight: bold; }
+        .status-revoked { color: #dc3545; font-weight: bold; }
+        .status-exhausted { color: #fd7e14; font-weight: bold; }
+        .code-display {
+            font-family: monospace;
+            font-size: 13px;
+            color: #666;
+        }
+        .code-reveal-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            width: 450px;
+            text-align: center;
+        }
+        .code-reveal-modal .generated-code {
+            font-family: monospace;
+            font-size: 24px;
+            font-weight: bold;
+            color: #307BBF;
+            background: #f0f7ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            letter-spacing: 2px;
+            user-select: all;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        .btn-copy {
+            background: #307BBF;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-copy:hover { background: #2568a0; }
+        .btn-close-modal {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="page-container">
+    {% include 'components/navigation.html' %}
+    <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #EB5B25 0%, #29235C 100%); color: white;">
+        <h2 style="margin: 0;">Admin: Guest Access Codes</h2>
+    </div>
+
+    <div class="container">
+        {% if error %}
+            <div style="color: red; font-weight: bold; margin: 20px 0;">
+                Error: {{ error }}
+            </div>
+        {% endif %}
+
+        <div class="create-form">
+            <h3>Create New Access Code</h3>
+            <form id="createCodeForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="label">Label</label>
+                        <input type="text" id="label" name="label" placeholder="e.g. workshop-feb-2025" required
+                               pattern="[a-zA-Z0-9_-]{3,50}" title="3-50 chars: letters, numbers, hyphens, underscores">
+                    </div>
+                    <div class="form-group">
+                        <label for="expiry_hours">Expires In</label>
+                        <select id="expiry_hours" name="expiry_hours">
+                            <option value="2">2 hours</option>
+                            <option value="8">8 hours</option>
+                            <option value="24" selected>24 hours</option>
+                            <option value="72">3 days</option>
+                            <option value="168">1 week</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="max_uses">Max Uses</label>
+                        <input type="number" id="max_uses" name="max_uses" value="20" min="1" max="100" style="width: 80px;">
+                    </div>
+                    <button type="submit" class="btn-create">Create Code</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="existing-entries-container">
+            <h2>Access Codes</h2>
+            <table id="codesTable" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Label</th>
+                        <th>Code</th>
+                        <th>Status</th>
+                        <th>Uses</th>
+                        <th>Created By</th>
+                        <th>Expires At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for code in codes %}
+                    <tr>
+                        <td>{{ code.id }}</td>
+                        <td><strong>{{ code.label }}</strong></td>
+                        <td class="code-display">{{ code.code[:4] }}****</td>
+                        <td><span class="status-{{ code.status }}">{{ code.status|title }}</span></td>
+                        <td>{{ code.use_count }} / {{ code.max_uses }}</td>
+                        <td>{{ code.created_by }}</td>
+                        <td>{{ code.expires_at }}</td>
+                        <td>
+                            {% if code.status == 'active' %}
+                                <button class="btn-revoke" onclick="revokeCode({{ code.id }})">Revoke</button>
+                            {% elif code.status == 'revoked' %}
+                                <span style="color: #999; font-size: 12px;">Revoked by {{ code.revoked_by }}</span>
+                            {% else %}
+                                <span style="color: #999; font-size: 12px;">{{ code.status|title }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Code Reveal Modal -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
+    <div class="code-reveal-modal" id="codeModal">
+        <h3 style="margin-top: 0; color: #29235C;">Access Code Created</h3>
+        <p style="color: #666;">Share this code with workshop participants. It will only be shown once.</p>
+        <div class="generated-code" id="generatedCode"></div>
+        <div style="margin-top: 20px;">
+            <button class="btn-copy" onclick="copyCode()">Copy Code</button>
+            <button class="btn-close-modal" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 KE-WP Mapping Service - Admin Panel</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/datatable-config.js') }}"></script>
+    <script>
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        $(document).ready(function() {
+            $('#codesTable').DataTable(
+                DataTableConfig.merge('base', {
+                    order: [[0, 'desc']],
+                    pageLength: 25,
+                    columnDefs: [
+                        { width: '5%', targets: 0 },
+                        { width: '15%', targets: 7, orderable: false }
+                    ]
+                })
+            );
+        });
+
+        document.getElementById('createCodeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            formData.append('csrf_token', csrfToken);
+
+            fetch('/admin/guest-codes/create', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code) {
+                    document.getElementById('generatedCode').textContent = data.code;
+                    document.getElementById('codeModal').style.display = 'block';
+                    document.getElementById('modalOverlay').style.display = 'block';
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+        });
+
+        function copyCode() {
+            const code = document.getElementById('generatedCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy Code'; }, 2000);
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('codeModal').style.display = 'none';
+            document.getElementById('modalOverlay').style.display = 'none';
+            location.reload();
+        }
+
+        function revokeCode(codeId) {
+            if (!confirm('Are you sure you want to revoke this access code?')) return;
+
+            const formData = new FormData();
+            formData.append('csrf_token', csrfToken);
+
+            fetch(`/admin/guest-codes/${codeId}/revoke`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert('Success: ' + data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+        }
+    </script>
+</div>
+</body>
+</html>

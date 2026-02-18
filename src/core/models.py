@@ -2,6 +2,7 @@
 Database models for KE-WP Mapping Application
 """
 import logging
+import secrets
 import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -149,6 +150,28 @@ class Database:
             )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_go_proposals_mapping_id ON ke_go_proposals(mapping_id)"
+            )
+
+            # Create guest codes table
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS guest_codes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code TEXT NOT NULL UNIQUE,
+                    label TEXT NOT NULL,
+                    created_by TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP NOT NULL,
+                    max_uses INTEGER DEFAULT 1,
+                    use_count INTEGER DEFAULT 0,
+                    is_revoked BOOLEAN DEFAULT FALSE,
+                    revoked_at TIMESTAMP,
+                    revoked_by TEXT
+                )
+            """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_guest_codes_code ON guest_codes(code)"
             )
 
             # Migrate proposals table to add admin fields if needed
@@ -879,5 +902,218 @@ class CacheModel:
                 logger.info("Cleaned up %d expired cache entries", deleted_count)
         except Exception as e:
             logger.error("Error cleaning cache: %s", e)
+        finally:
+            conn.close()
+
+
+class GuestCodeModel:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def create_code(
+        self, label: str, created_by: str, expires_at: str, max_uses: int = 1
+    ) -> Optional[str]:
+        """
+        Create a new guest access code
+
+        Args:
+            label: Descriptive label for this code (e.g. 'workshop-2025')
+            created_by: Admin username who created the code
+            expires_at: ISO timestamp when the code expires
+            max_uses: Maximum number of times the code can be used
+
+        Returns:
+            The generated code string, or None on failure
+        """
+        code = secrets.token_urlsafe(6)
+        conn = self.db.get_connection()
+        try:
+            conn.execute(
+                """
+                INSERT INTO guest_codes (code, label, created_by, expires_at, max_uses)
+                VALUES (?, ?, ?, ?, ?)
+            """,
+                (code, label, created_by, expires_at, max_uses),
+            )
+            conn.commit()
+            logger.info(
+                "Created guest code for label=%s by %s (max_uses=%d)",
+                label,
+                created_by,
+                max_uses,
+            )
+            return code
+        except sqlite3.IntegrityError:
+            logger.warning("Duplicate guest code generated, retrying")
+            conn.rollback()
+            # Retry once with a new code
+            code = secrets.token_urlsafe(6)
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO guest_codes (code, label, created_by, expires_at, max_uses)
+                    VALUES (?, ?, ?, ?, ?)
+                """,
+                    (code, label, created_by, expires_at, max_uses),
+                )
+                conn.commit()
+                return code
+            except Exception:
+                conn.rollback()
+                return None
+        except Exception as e:
+            logger.error("Error creating guest code: %s", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def validate_code(self, code: str) -> Optional[Dict]:
+        """
+        Validate a guest access code and increment its use count
+
+        Args:
+            code: The access code to validate
+
+        Returns:
+            Dict with code details if valid, None if invalid/expired/revoked/exhausted
+        """
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, code, label, expires_at, max_uses, use_count, is_revoked
+                FROM guest_codes
+                WHERE code = ?
+            """,
+                (code,),
+            )
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            row_dict = dict(row)
+
+            # Check revoked
+            if row_dict["is_revoked"]:
+                return None
+
+            # Check expired
+            try:
+                expires = datetime.fromisoformat(row_dict["expires_at"])
+                if expires < datetime.utcnow():
+                    return None
+            except (ValueError, TypeError):
+                return None
+
+            # Check usage limit
+            if row_dict["use_count"] >= row_dict["max_uses"]:
+                return None
+
+            # Increment use count
+            conn.execute(
+                "UPDATE guest_codes SET use_count = use_count + 1 WHERE id = ?",
+                (row_dict["id"],),
+            )
+            conn.commit()
+
+            logger.info("Guest code validated for label=%s", row_dict["label"])
+            return row_dict
+
+        except Exception as e:
+            logger.error("Error validating guest code: %s", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def get_all_codes(self) -> List[Dict]:
+        """
+        Get all guest codes with computed status
+
+        Returns:
+            List of code dicts with added 'status' field
+        """
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, code, label, created_by, created_at, expires_at,
+                       max_uses, use_count, is_revoked, revoked_at, revoked_by
+                FROM guest_codes
+                ORDER BY created_at DESC
+            """
+            )
+            codes = [dict(row) for row in cursor.fetchall()]
+
+            now = datetime.utcnow()
+            for code in codes:
+                if code["is_revoked"]:
+                    code["status"] = "revoked"
+                elif code["use_count"] >= code["max_uses"]:
+                    code["status"] = "exhausted"
+                else:
+                    try:
+                        expires = datetime.fromisoformat(code["expires_at"])
+                        code["status"] = "expired" if expires < now else "active"
+                    except (ValueError, TypeError):
+                        code["status"] = "unknown"
+
+            return codes
+        finally:
+            conn.close()
+
+    def revoke_code(self, code_id: int, revoked_by: str) -> bool:
+        """
+        Revoke a guest code
+
+        Args:
+            code_id: Database ID of the code to revoke
+            revoked_by: Admin username revoking the code
+
+        Returns:
+            True if successful
+        """
+        conn = self.db.get_connection()
+        try:
+            conn.execute(
+                """
+                UPDATE guest_codes
+                SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP, revoked_by = ?
+                WHERE id = ?
+            """,
+                (revoked_by, code_id),
+            )
+            conn.commit()
+            logger.info("Guest code %d revoked by %s", code_id, revoked_by)
+            return True
+        except Exception as e:
+            logger.error("Error revoking guest code: %s", e)
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def delete_code(self, code_id: int) -> bool:
+        """
+        Delete a guest code
+
+        Args:
+            code_id: Database ID of the code to delete
+
+        Returns:
+            True if successful
+        """
+        conn = self.db.get_connection()
+        try:
+            conn.execute("DELETE FROM guest_codes WHERE id = ?", (code_id,))
+            conn.commit()
+            logger.info("Guest code %d deleted", code_id)
+            return True
+        except Exception as e:
+            logger.error("Error deleting guest code: %s", e)
+            conn.rollback()
+            return False
         finally:
             conn.close()

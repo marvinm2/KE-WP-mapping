@@ -100,7 +100,7 @@ def create_app(config_name: str = None):
     oauth = services.init_oauth(app)
 
     # Set up models for blueprints
-    set_auth_models(services.github_client)
+    set_auth_models(services.github_client, guest_code=services.guest_code_model)
     set_api_models(
         services.mapping_model, services.proposal_model, services.cache_model,
         services.pathway_suggestion_service,
@@ -110,16 +110,19 @@ def create_app(config_name: str = None):
         ke_meta=services.ke_metadata,
         pathway_meta=services.pathway_metadata,
     )
-    set_admin_models(services.proposal_model, services.mapping_model)
+    set_admin_models(services.proposal_model, services.mapping_model, guest_code=services.guest_code_model)
     set_main_models(services.mapping_model, go_mapping=services.go_mapping_model)
 
     # Context processor to make is_admin available to all templates
     @app.context_processor
     def inject_user_context():
-        """Inject user context including admin status to all templates"""
+        """Inject user context including admin and guest status to all templates"""
         from flask import session
 
-        current_user = session.get("user", {}).get("username")
+        user_data = session.get("user", {})
+        current_user = user_data.get("username")
+        is_guest = user_data.get("is_guest", False)
+
         if current_user:
             admin_users = os.getenv("ADMIN_USERS", "").split(",")
             admin_users = [user.strip() for user in admin_users if user.strip()]
@@ -127,7 +130,7 @@ def create_app(config_name: str = None):
         else:
             is_admin = False
 
-        return dict(is_admin=is_admin)
+        return dict(is_admin=is_admin, is_guest=is_guest)
 
     # Register blueprints
     app.register_blueprint(main_bp)

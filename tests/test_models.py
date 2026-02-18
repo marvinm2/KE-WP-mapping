@@ -3,10 +3,11 @@ Tests for database models
 """
 import os
 import tempfile
+from datetime import datetime, timedelta
 
 import pytest
 
-from src.core.models import CacheModel, Database, MappingModel, ProposalModel
+from src.core.models import CacheModel, Database, GuestCodeModel, MappingModel, ProposalModel
 
 
 @pytest.fixture
@@ -157,3 +158,131 @@ class TestCacheModel:
         # This test would require time manipulation or database inspection
         # For now, just test that the method runs without error
         cache_model.cleanup_expired_cache()
+
+
+class TestGuestCodeModel:
+    @pytest.fixture
+    def guest_code_model(self, test_db):
+        return GuestCodeModel(test_db)
+
+    def test_create_code(self, guest_code_model):
+        """Test creating a guest access code"""
+        expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        code = guest_code_model.create_code(
+            label="test-workshop",
+            created_by="admin",
+            expires_at=expires,
+            max_uses=5,
+        )
+        assert code is not None
+        assert isinstance(code, str)
+        assert len(code) > 0
+
+    def test_validate_valid_code(self, guest_code_model):
+        """Test validating a valid code"""
+        expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        code = guest_code_model.create_code(
+            label="valid-code",
+            created_by="admin",
+            expires_at=expires,
+            max_uses=5,
+        )
+
+        result = guest_code_model.validate_code(code)
+        assert result is not None
+        assert result["label"] == "valid-code"
+
+    def test_validate_expired_code(self, guest_code_model):
+        """Test that expired codes are rejected"""
+        expires = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+        code = guest_code_model.create_code(
+            label="expired-code",
+            created_by="admin",
+            expires_at=expires,
+            max_uses=5,
+        )
+
+        result = guest_code_model.validate_code(code)
+        assert result is None
+
+    def test_validate_revoked_code(self, guest_code_model):
+        """Test that revoked codes are rejected"""
+        expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        code = guest_code_model.create_code(
+            label="revoked-code",
+            created_by="admin",
+            expires_at=expires,
+            max_uses=5,
+        )
+
+        # Get code ID from all codes
+        all_codes = guest_code_model.get_all_codes()
+        code_entry = [c for c in all_codes if c["code"] == code][0]
+
+        guest_code_model.revoke_code(code_entry["id"], "admin")
+
+        result = guest_code_model.validate_code(code)
+        assert result is None
+
+    def test_validate_exhausted_code(self, guest_code_model):
+        """Test that exhausted codes are rejected"""
+        expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        code = guest_code_model.create_code(
+            label="single-use",
+            created_by="admin",
+            expires_at=expires,
+            max_uses=1,
+        )
+
+        # First use should succeed
+        result = guest_code_model.validate_code(code)
+        assert result is not None
+
+        # Second use should fail
+        result = guest_code_model.validate_code(code)
+        assert result is None
+
+    def test_revoke_code(self, guest_code_model):
+        """Test revoking a code"""
+        expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        code = guest_code_model.create_code(
+            label="to-revoke",
+            created_by="admin",
+            expires_at=expires,
+        )
+
+        all_codes = guest_code_model.get_all_codes()
+        code_entry = [c for c in all_codes if c["code"] == code][0]
+
+        success = guest_code_model.revoke_code(code_entry["id"], "admin")
+        assert success is True
+
+        # Verify status
+        all_codes = guest_code_model.get_all_codes()
+        code_entry = [c for c in all_codes if c["code"] == code][0]
+        assert code_entry["status"] == "revoked"
+
+    def test_get_all_codes_with_status(self, guest_code_model):
+        """Test that get_all_codes computes status correctly"""
+        # Active code
+        active_expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        guest_code_model.create_code(
+            label="active-code",
+            created_by="admin",
+            expires_at=active_expires,
+        )
+
+        # Expired code
+        expired_expires = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+        guest_code_model.create_code(
+            label="expired-code2",
+            created_by="admin",
+            expires_at=expired_expires,
+        )
+
+        codes = guest_code_model.get_all_codes()
+        assert len(codes) == 2
+
+        statuses = {c["label"]: c["status"] for c in codes}
+        assert statuses["active-code"] == "active"
+        assert statuses["expired-code2"] == "expired"

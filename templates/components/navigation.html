@@ -12,7 +12,8 @@
                 <li><a href="/explore" class="nav-link {{ 'active' if request.path == '/explore' else '' }}">Explore</a></li>
                 <li><a href="/documentation" class="nav-link {{ 'active' if request.path.startswith('/documentation') else '' }}">Documentation</a></li>
                 {% if is_admin %}
-                <li><a href="/admin/proposals" class="nav-link {{ 'active' if request.path.startswith('/admin') else '' }}">Admin</a></li>
+                <li><a href="/admin/proposals" class="nav-link {{ 'active' if request.path == '/admin/proposals' else '' }}">Admin</a></li>
+                <li><a href="/admin/guest-codes" class="nav-link {{ 'active' if request.path == '/admin/guest-codes' else '' }}">Guest Codes</a></li>
                 {% endif %}
             </ul>
 
@@ -24,11 +25,15 @@
                             Welcome, {{ session['user']['username'] }}
                             {% if is_admin %}
                                 <span style="color: #EB5B25; font-weight: bold;">(Admin)</span>
+                            {% elif is_guest %}
+                                <span style="color: #93D5F6; font-weight: bold;">(Guest)</span>
                             {% endif %}
                         </p>
                         <a href="{{ url_for('auth.logout') }}" style="color: white; margin-left: 10px;">Logout</a>
                     {% else %}
                         <a href="{{ url_for('auth.login') }}" style="color: white;">Login with GitHub</a>
+                        <span style="color: rgba(255,255,255,0.5); margin: 0 8px;">|</span>
+                        <a href="{{ url_for('auth.guest_login') }}" style="color: #93D5F6;">Workshop Login</a>
                     {% endif %}
                 </div>
             </div>

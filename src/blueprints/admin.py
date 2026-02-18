@@ -4,7 +4,8 @@ Handles administrative functions for proposal management
 """
 import logging
 import os
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 from functools import wraps
 
 from flask import Blueprint, jsonify, render_template, request, session
@@ -24,13 +25,15 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 # Global model instances (will be set by app initialization)
 proposal_model = None
 mapping_model = None
+guest_code_model = None
 
 
-def set_models(proposal, mapping):
+def set_models(proposal, mapping, guest_code=None):
     """Set the model instances"""
-    global proposal_model, mapping_model
+    global proposal_model, mapping_model, guest_code_model
     proposal_model = proposal
     mapping_model = mapping
+    guest_code_model = guest_code
 
 
 def login_required(f):
@@ -368,3 +371,100 @@ def reject_proposal(proposal_id: int):
     except Exception as e:
         logger.error("Error rejecting proposal %s: %s", proposal_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to reject proposal"}), 500
+
+
+@admin_bp.route("/guest-codes")
+@admin_required
+@monitor_performance
+def admin_guest_codes():
+    """Admin page for managing guest access codes"""
+    try:
+        codes = guest_code_model.get_all_codes() if guest_code_model else []
+        return render_template(
+            "admin_guest_codes.html",
+            codes=codes,
+            user_info=session.get("user", {}),
+        )
+    except Exception as e:
+        logger.error("Error loading guest codes: %s", e)
+        return render_template(
+            "admin_guest_codes.html",
+            codes=[],
+            error="Failed to load guest codes",
+            user_info=session.get("user", {}),
+        )
+
+
+@admin_bp.route("/guest-codes/create", methods=["POST"])
+@admin_required
+@submission_rate_limit
+def create_guest_code():
+    """Create a new guest access code"""
+    try:
+        label = request.form.get("label", "").strip()
+        expiry_hours = request.form.get("expiry_hours", "24")
+        max_uses = request.form.get("max_uses", "1")
+
+        # Validate label format
+        if not label or not re.match(r"^[a-zA-Z0-9_-]{3,50}$", label):
+            return jsonify({
+                "error": "Label must be 3-50 characters, alphanumeric with hyphens and underscores only."
+            }), 400
+
+        # Validate expiry hours
+        try:
+            expiry_hours = int(expiry_hours)
+            if expiry_hours < 1 or expiry_hours > 720:
+                return jsonify({"error": "Expiry must be between 1 and 720 hours."}), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid expiry hours."}), 400
+
+        # Validate max uses
+        try:
+            max_uses = int(max_uses)
+            if max_uses < 1 or max_uses > 100:
+                return jsonify({"error": "Max uses must be between 1 and 100."}), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid max uses."}), 400
+
+        admin_username = session.get("user", {}).get("username")
+        expires_at = (datetime.utcnow() + timedelta(hours=expiry_hours)).isoformat()
+
+        code = guest_code_model.create_code(
+            label=label,
+            created_by=admin_username,
+            expires_at=expires_at,
+            max_uses=max_uses,
+        )
+
+        if code:
+            logger.info(
+                "Guest code created by %s for label=%s", sanitize_log(admin_username), sanitize_log(label)
+            )
+            return jsonify({"message": "Guest code created.", "code": code}), 201
+        else:
+            return jsonify({"error": "Failed to create guest code."}), 500
+
+    except Exception as e:
+        logger.error("Error creating guest code: %s", sanitize_log(str(e)))
+        return jsonify({"error": "Failed to create guest code."}), 500
+
+
+@admin_bp.route("/guest-codes/<int:code_id>/revoke", methods=["POST"])
+@admin_required
+@submission_rate_limit
+def revoke_guest_code(code_id: int):
+    """Revoke a guest access code"""
+    try:
+        admin_username = session.get("user", {}).get("username")
+        success = guest_code_model.revoke_code(code_id, admin_username)
+
+        if success:
+            logger.info("Guest code %d revoked by %s", code_id, sanitize_log(admin_username))
+            return jsonify({"message": "Guest code revoked."}), 200
+        else:
+            return jsonify({"error": "Failed to revoke guest code."}), 500
+
+    except Exception as e:
+        logger.error("Error revoking guest code %d: %s", code_id, sanitize_log(str(e)))
+        return jsonify({"error": "Failed to revoke guest code."}), 500

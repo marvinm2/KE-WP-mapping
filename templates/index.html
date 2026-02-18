@@ -176,10 +176,10 @@
                     <button type="submit" disabled>Complete Assessment First</button>
                 </form>
             {% else %}
-                <p style="color: red; font-weight: bold;">Please log in with GitHub to submit your mapping.</p>
+                <p style="color: red; font-weight: bold;">Please <a href="{{ url_for('auth.login') }}">log in with GitHub</a> or use a <a href="{{ url_for('auth.guest_login') }}">workshop access code</a> to submit your mapping.</p>
                 <button disabled>Submit KE-WP Mapping</button>
             {% endif %}
-        </section>        
+        </section>
 
         <div id="existing-entries"></div>
         <p id="message"></p>
@@ -216,7 +216,7 @@
                     <button type="submit" disabled>Complete GO Assessment First</button>
                 </form>
             {% else %}
-                <p style="color: red; font-weight: bold;">Please log in with GitHub to submit your mapping.</p>
+                <p style="color: red; font-weight: bold;">Please <a href="{{ url_for('auth.login') }}">log in with GitHub</a> or use a <a href="{{ url_for('auth.guest_login') }}">workshop access code</a> to submit your mapping.</p>
                 <button disabled>Submit KE-GO Mapping</button>
             {% endif %}
         </section>

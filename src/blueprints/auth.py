@@ -6,7 +6,9 @@ import logging
 import os
 
 from authlib.integrations.flask_client import OAuth
-from flask import Blueprint, redirect, session, url_for
+from flask import Blueprint, redirect, render_template, request, session, url_for
+
+from src.services.rate_limiter import submission_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +32,14 @@ def init_oauth(app):
 
 # Store github client globally (will be set by app initialization)
 github_client = None
+guest_code_model = None
 
 
-def set_models(client):
-    """Set the GitHub OAuth client"""
-    global github_client
+def set_models(client, guest_code=None):
+    """Set the GitHub OAuth client and guest code model"""
+    global github_client, guest_code_model
     github_client = client
+    guest_code_model = guest_code
 
 
 @auth_bp.route("/login")
@@ -86,4 +90,37 @@ def logout():
     username = session.get("user", {}).get("username", "unknown")
     session.pop("user", None)
     logger.info("User %s logged out", username)
+    return redirect(url_for("main.index"))
+
+
+@auth_bp.route("/guest-login")
+def guest_login():
+    """Render guest login form"""
+    if session.get("user"):
+        return redirect(url_for("main.index"))
+    return render_template("guest_login.html")
+
+
+@auth_bp.route("/guest-login", methods=["POST"])
+@submission_rate_limit
+def guest_login_submit():
+    """Validate guest access code and create session"""
+    if session.get("user"):
+        return redirect(url_for("main.index"))
+
+    code = request.form.get("code", "").strip()
+    if not code or not guest_code_model:
+        return render_template("guest_login.html", error="Invalid access code.")
+
+    result = guest_code_model.validate_code(code)
+    if not result:
+        logger.warning("Failed guest login attempt")
+        return render_template("guest_login.html", error="Invalid, expired, or exhausted access code.")
+
+    session["user"] = {
+        "username": f"guest-{result['label']}",
+        "email": "workshop-guest",
+        "is_guest": True,
+    }
+    logger.info("Guest user logged in with label=%s", result["label"])
     return redirect(url_for("main.index"))

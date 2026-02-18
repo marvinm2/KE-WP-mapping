@@ -207,9 +207,14 @@ class SecurityValidation:
 
     @staticmethod
     def validate_username(username: str) -> bool:
-        """Validate GitHub username format"""
+        """Validate GitHub or guest username format"""
         if not isinstance(username, str):
             return False
+
+        # Guest usernames: guest-<label> where label is alphanumeric with hyphens/underscores
+        if username.startswith("guest-"):
+            guest_label = username[6:]
+            return bool(re.match(r"^[a-zA-Z0-9_-]{3,50}$", guest_label))
 
         # GitHub username rules: alphanumeric, hyphens, max 39 chars, no consecutive hyphens
         pattern = r"^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$"

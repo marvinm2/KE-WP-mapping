@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workshop Login - KE-WP Mapping</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        .guest-login-container {
+            max-width: 420px;
+            margin: 80px auto;
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .guest-login-container h2 {
+            color: #29235C;
+            margin-bottom: 10px;
+        }
+        .guest-login-container p {
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        .guest-login-container input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .guest-login-container input[type="text"]:focus {
+            border-color: #307BBF;
+            outline: none;
+        }
+        .guest-login-container button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            background: #307BBF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .guest-login-container button[type="submit"]:hover {
+            background: #2568a0;
+        }
+        .error-message {
+            color: #dc3545;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #fdf0f0;
+            border-radius: 6px;
+        }
+        .alt-login {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+            color: #666;
+        }
+        .alt-login a {
+            color: #307BBF;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .alt-login a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="page-container">
+    {% include 'components/navigation.html' %}
+    <div class="guest-login-container">
+        <h2>Workshop Login</h2>
+        <p>Enter the access code provided by your workshop organizer to submit mappings.</p>
+
+        {% if error %}
+            <div class="error-message">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('auth.guest_login_submit') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="text" name="code" placeholder="Enter access code" required autofocus autocomplete="off">
+            <button type="submit">Login</button>
+        </form>
+
+        <div class="alt-login">
+            Have a GitHub account? <a href="{{ url_for('auth.login') }}">Login with GitHub</a>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 KE-WP Mapping Service</p>
+    </footer>
+</div>
+</body>
+</html>
