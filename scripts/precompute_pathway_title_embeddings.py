@@ -8,7 +8,7 @@ Usage:
     python scripts/precompute_pathway_title_embeddings.py
 
 Output:
-    pathway_title_embeddings.npy - NumPy dictionary {pathway_id: title_embedding_vector}
+    pathway_title_embeddings.npz - NPZ file with 'ids' (Unicode) and 'matrix' (float32, normalized)
 """
 
 import logging
@@ -180,7 +180,7 @@ def fetch_pathway_publications():
         return {}
 
 
-def precompute_pathway_title_embeddings(output_path='data/pathway_title_embeddings.npy',
+def precompute_pathway_title_embeddings(output_path='data/pathway_title_embeddings.npz',
                                         metadata_path='data/pathway_metadata.json'):
     """
     Fetch all WikiPathways and pre-compute their title-only BioBERT embeddings.

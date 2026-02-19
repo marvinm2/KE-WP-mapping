@@ -8,8 +8,8 @@ Usage:
     python scripts/precompute_go_embeddings.py
 
 Output:
-    go_bp_name_embeddings.npy - NumPy dictionary {go_id: embedding_vector} (name only)
-    go_bp_embeddings.npy - NumPy dictionary {go_id: embedding_vector} (name + definition)
+    go_bp_name_embeddings.npz - NPZ file with 'ids' (Unicode) and 'matrix' (float32, normalized)
+    go_bp_embeddings.npz - NPZ file with 'ids' (Unicode) and 'matrix' (float32, normalized)
     go_bp_metadata.json - {go_id: {name, definition, is_a[], part_of[]}}
 """
 
@@ -129,8 +129,8 @@ def parse_obo_file(obo_path):
 
 
 def precompute_go_embeddings(
-    embeddings_path='data/go_bp_embeddings.npy',
-    name_embeddings_path='data/go_bp_name_embeddings.npy',
+    embeddings_path='data/go_bp_embeddings.npz',
+    name_embeddings_path='data/go_bp_name_embeddings.npz',
     metadata_path='data/go_bp_metadata.json'
 ):
     """

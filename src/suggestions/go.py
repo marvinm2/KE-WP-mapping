@@ -25,8 +25,8 @@ class GoSuggestionService:
         cache_model=None,
         config=None,
         embedding_service=None,
-        go_embeddings_path='data/go_bp_embeddings.npy',
-        go_name_embeddings_path='data/go_bp_name_embeddings.npy',
+        go_embeddings_path='data/go_bp_embeddings.npz',
+        go_name_embeddings_path='data/go_bp_name_embeddings.npz',
         go_metadata_path='data/go_bp_metadata.json',
         go_annotations_path='data/go_bp_gene_annotations.json'
     ):
@@ -47,26 +47,34 @@ class GoSuggestionService:
         self._load_go_annotations(go_annotations_path)
 
     def _load_go_embeddings(self, path):
-        """Load pre-computed GO BP embeddings"""
-        if os.path.exists(path):
+        """Load pre-computed GO BP embeddings from NPZ format (no pickle)."""
+        npz_path = path.replace('.npy', '.npz')
+        if os.path.exists(npz_path):
             try:
-                self.go_embeddings = np.load(path, allow_pickle=True).item()
-                logger.info("Loaded %d GO BP embeddings", len(self.go_embeddings))
+                with np.load(npz_path) as data:
+                    ids = data['ids']
+                    matrix = data['matrix']
+                self.go_embeddings = dict(zip(ids, matrix))
+                logger.info("Loaded %d GO BP embeddings (normalized)", len(self.go_embeddings))
             except Exception as e:
                 logger.warning("Could not load GO embeddings: %s", e)
         else:
-            logger.warning("GO embeddings file not found: %s", path)
+            logger.warning("GO embeddings file not found: %s", npz_path)
 
     def _load_go_name_embeddings(self, path):
-        """Load pre-computed GO BP name-only embeddings"""
-        if os.path.exists(path):
+        """Load pre-computed GO BP name-only embeddings from NPZ format (no pickle)."""
+        npz_path = path.replace('.npy', '.npz')
+        if os.path.exists(npz_path):
             try:
-                self.go_name_embeddings = np.load(path, allow_pickle=True).item()
-                logger.info("Loaded %d GO BP name embeddings", len(self.go_name_embeddings))
+                with np.load(npz_path) as data:
+                    ids = data['ids']
+                    matrix = data['matrix']
+                self.go_name_embeddings = dict(zip(ids, matrix))
+                logger.info("Loaded %d GO BP name embeddings (normalized)", len(self.go_name_embeddings))
             except Exception as e:
                 logger.warning("Could not load GO name embeddings: %s", e)
         else:
-            logger.warning("GO name embeddings file not found: %s, will use combined only", path)
+            logger.warning("GO name embeddings file not found: %s, will use combined only", npz_path)
 
     def _load_go_metadata(self, path):
         """Load GO BP metadata (names, definitions, relationships)"""

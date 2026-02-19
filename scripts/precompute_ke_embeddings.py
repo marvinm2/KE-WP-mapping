@@ -5,7 +5,7 @@ Usage:
     python scripts/precompute_ke_embeddings.py
 
 Output:
-    ke_embeddings.npy - NumPy dictionary {ke_id: embedding_vector}
+    ke_embeddings.npz - NPZ file with 'ids' (Unicode) and 'matrix' (float32, normalized)
 """
 
 import re
@@ -81,7 +81,7 @@ def fetch_all_kes():
         raise
 
 
-def precompute_all_ke_embeddings(output_path='data/ke_embeddings.npy',
+def precompute_all_ke_embeddings(output_path='data/ke_embeddings.npz',
                                   metadata_path='data/ke_metadata.json'):
     """
     Fetch all Key Events and pre-compute their BioBERT embeddings.

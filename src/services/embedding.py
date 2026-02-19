@@ -126,8 +126,8 @@ class BiologicalEmbeddingService:
 
             # Load pre-computed pathway TITLE embeddings if available
             self.pathway_title_embeddings = {}
-            if os.path.exists('data/pathway_title_embeddings.npy'):
-                self._load_precomputed_pathway_title_embeddings('data/pathway_title_embeddings.npy')
+            if os.path.exists('data/pathway_title_embeddings.npz'):
+                self._load_precomputed_pathway_title_embeddings('data/pathway_title_embeddings.npz')
 
             logger.info(f"BioBERT service initialized successfully")
 
@@ -136,33 +136,57 @@ class BiologicalEmbeddingService:
             raise
 
     def _load_precomputed_embeddings(self, path: str):
-        """Load pre-computed pathway embeddings from disk"""
+        """Load pre-computed pathway embeddings from NPZ format (no pickle)."""
+        npz_path = path.replace('.npy', '.npz')
+        if not os.path.exists(npz_path):
+            logger.warning("Pathway embeddings file not found: %s", npz_path)
+            self.pathway_embeddings = {}
+            return
         try:
-            import numpy as np
-            self.pathway_embeddings = np.load(path, allow_pickle=True).item()
-            logger.info(f"Loaded {len(self.pathway_embeddings)} pre-computed pathway embeddings")
+            with np.load(npz_path) as data:  # allow_pickle=False by default
+                ids = data['ids']
+                matrix = data['matrix']
+            self.pathway_embeddings = dict(zip(ids, matrix))
+            logger.info("Loaded %d pre-computed pathway embeddings (normalized)",
+                        len(self.pathway_embeddings))
         except Exception as e:
-            logger.warning(f"Could not load pre-computed embeddings: {e}")
+            logger.warning("Could not load pre-computed embeddings: %s", e)
             self.pathway_embeddings = {}
 
     def _load_precomputed_ke_embeddings(self, path: str):
-        """Load pre-computed KE embeddings from disk"""
+        """Load pre-computed KE embeddings from NPZ format (no pickle)."""
+        npz_path = path.replace('.npy', '.npz')
+        if not os.path.exists(npz_path):
+            logger.warning("KE embeddings file not found: %s", npz_path)
+            self.ke_embeddings = {}
+            return
         try:
-            import numpy as np
-            self.ke_embeddings = np.load(path, allow_pickle=True).item()
-            logger.info(f"Loaded {len(self.ke_embeddings)} pre-computed KE embeddings")
+            with np.load(npz_path) as data:
+                ids = data['ids']
+                matrix = data['matrix']
+            self.ke_embeddings = dict(zip(ids, matrix))
+            logger.info("Loaded %d pre-computed KE embeddings (normalized)",
+                        len(self.ke_embeddings))
         except Exception as e:
-            logger.warning(f"Could not load pre-computed KE embeddings: {e}")
+            logger.warning("Could not load pre-computed KE embeddings: %s", e)
             self.ke_embeddings = {}
 
     def _load_precomputed_pathway_title_embeddings(self, path: str):
-        """Load pre-computed pathway title embeddings from disk"""
+        """Load pre-computed pathway title embeddings from NPZ format (no pickle)."""
+        npz_path = path.replace('.npy', '.npz')
+        if not os.path.exists(npz_path):
+            logger.warning("Pathway title embeddings file not found: %s", npz_path)
+            self.pathway_title_embeddings = {}
+            return
         try:
-            import numpy as np
-            self.pathway_title_embeddings = np.load(path, allow_pickle=True).item()
-            logger.info(f"Loaded {len(self.pathway_title_embeddings)} pre-computed pathway title embeddings")
+            with np.load(npz_path) as data:
+                ids = data['ids']
+                matrix = data['matrix']
+            self.pathway_title_embeddings = dict(zip(ids, matrix))
+            logger.info("Loaded %d pre-computed pathway title embeddings (normalized)",
+                        len(self.pathway_title_embeddings))
         except Exception as e:
-            logger.warning(f"Could not load pre-computed pathway title embeddings: {e}")
+            logger.warning("Could not load pre-computed pathway title embeddings: %s", e)
             self.pathway_title_embeddings = {}
 
     def _extract_entities(self, text: str) -> str:
@@ -353,10 +377,8 @@ class BiologicalEmbeddingService:
             else:
                 emb2 = self.encode(text2_processed)
 
-            # Raw cosine similarity (range -1 to 1)
-            raw_similarity = np.dot(emb1, emb2) / (
-                np.linalg.norm(emb1) * np.linalg.norm(emb2) + 1e-8
-            )
+            # Raw similarity — vectors are pre-normalized so dot product == cosine similarity
+            raw_similarity = np.dot(emb1, emb2)
 
             # Apply power transformation to spread scores
             transformed = self._transform_similarity_score(float(raw_similarity))
@@ -409,10 +431,8 @@ class BiologicalEmbeddingService:
             ke_emb = self.encode(ke_text_processed)
             pathway_emb = self.get_pathway_embedding(pathway_id, pathway_text)
 
-            # Raw description-level cosine similarity
-            raw_desc_sim = np.dot(ke_emb, pathway_emb) / (
-                np.linalg.norm(ke_emb) * np.linalg.norm(pathway_emb) + 1e-8
-            )
+            # Raw description-level similarity — pre-normalized vectors, dot product == cosine
+            raw_desc_sim = np.dot(ke_emb, pathway_emb)
 
             # Apply transformation to description similarity
             desc_sim = self._transform_similarity_score(float(raw_desc_sim))
@@ -459,10 +479,8 @@ class BiologicalEmbeddingService:
                 batch_size=32
             )
 
-            # Batch cosine similarity (raw, range -1 to 1)
-            raw_similarities = np.dot(candidate_embs, query_emb) / (
-                np.linalg.norm(candidate_embs, axis=1) * np.linalg.norm(query_emb) + 1e-8
-            )
+            # Batch similarity — pre-normalized vectors, dot product == cosine similarity
+            raw_similarities = np.dot(candidate_embs, query_emb)
 
             # Apply vectorized transformation
             transformed = self._transform_similarity_batch(raw_similarities)
@@ -537,15 +555,11 @@ class BiologicalEmbeddingService:
             pathway_title_embeddings = np.array(pathway_title_embeddings)
             pathway_full_embeddings = np.array(pathway_full_embeddings)
 
-            # Vectorized raw title similarity computation (range -1 to 1)
-            raw_title_similarities = np.dot(pathway_title_embeddings, ke_title_emb) / (
-                np.linalg.norm(pathway_title_embeddings, axis=1) * np.linalg.norm(ke_title_emb) + 1e-8
-            )
+            # Vectorized title similarity — pre-normalized vectors, dot product == cosine
+            raw_title_similarities = np.dot(pathway_title_embeddings, ke_title_emb)
 
-            # Vectorized raw full-text similarity computation (range -1 to 1)
-            raw_desc_similarities = np.dot(pathway_full_embeddings, ke_full_emb) / (
-                np.linalg.norm(pathway_full_embeddings, axis=1) * np.linalg.norm(ke_full_emb) + 1e-8
-            )
+            # Vectorized full-text similarity — pre-normalized vectors, dot product == cosine
+            raw_desc_similarities = np.dot(pathway_full_embeddings, ke_full_emb)
 
             # Apply vectorized transformation to both
             title_similarities = self._transform_similarity_batch(raw_title_similarities)

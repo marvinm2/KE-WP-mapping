@@ -5,7 +5,7 @@ Usage:
     python scripts/precompute_pathway_embeddings.py
 
 Output:
-    pathway_embeddings.npy - NumPy dictionary {pathway_id: embedding_vector}
+    pathway_embeddings.npz - NPZ file with 'ids' (Unicode) and 'matrix' (float32, normalized)
 """
 
 import sys
@@ -15,15 +15,17 @@ sys.path.insert(0, os.path.abspath('.'))
 from src.services.embedding import BiologicalEmbeddingService
 from src.core.models import Database, CacheModel
 from src.core.config_loader import ConfigLoader
-import numpy as np
 import logging
 from tqdm import tqdm
+
+# Import shared save utility (writes NPZ with normalized matrix)
+from scripts.embedding_utils import save_embeddings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def precompute_all_pathway_embeddings(output_path='data/pathway_embeddings.npy'):
+def precompute_all_pathway_embeddings(output_path='data/pathway_embeddings.npz'):
     """
     Fetch all WikiPathways and pre-compute their BioBERT embeddings
     """
@@ -76,12 +78,8 @@ def precompute_all_pathway_embeddings(output_path='data/pathway_embeddings.npy')
         emb = embedding_service.encode(pathway_text)
         embeddings[pathway_id] = emb
 
-    # Save to disk
-    logger.info(f"Saving to {output_path}...")
-    np.save(output_path, embeddings)
-
-    logger.info(f"✓ Pre-computed {len(embeddings)} pathway embeddings")
-    logger.info(f"File size: {os.path.getsize(output_path) / 1024 / 1024:.2f} MB")
+    # Save to disk using shared utility (NPZ format, pre-normalized vectors)
+    save_embeddings(embeddings, output_path)
 
 
 if __name__ == '__main__':
