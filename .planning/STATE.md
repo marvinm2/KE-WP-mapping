@@ -35,6 +35,7 @@ Progress: [░░░░░░░░░░] 5%
 
 *Updated after each plan completion*
 | Phase 01-deployment-hardening P01 | 12 | 2 tasks | 3 files |
+| Phase 01-deployment-hardening P03 | 5 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -53,6 +54,7 @@ Recent decisions affecting current work:
 - [Phase 01-deployment-hardening]: DATABASE_PATH default is /app/data/ke_wp_mapping.db — must match Docker volume mount point
 - [Phase 01-deployment-hardening]: WAL mode set via PRAGMA on every connection (not once at DB creation) — idempotent and ensures mode survives reconnects
 - [Phase 01-deployment-hardening]: FLASK_ENV must be set before app import in conftest to prevent module-level create_app() using wrong config
+- [Phase 01-deployment-hardening]: NPZ matrix format with pre-normalized vectors: eliminates pickle deserialization risk; dot product equals cosine similarity after unit normalization at save time
 
 ### Pending Todos
 
@@ -66,6 +68,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-19T21:41:40.652Z
-**Stopped at:** Completed 01-deployment-hardening-01-PLAN.md
+**Last session:** 2026-02-19T21:42:57.282Z
+**Stopped at:** Completed 01-deployment-hardening-03-PLAN.md
 **Resume file:** None

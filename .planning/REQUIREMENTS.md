@@ -10,9 +10,9 @@ Requirements for v1.0 release. Each maps to a roadmap phase.
 ### Deployment & Performance
 
 - [x] **DEPLOY-01**: SQLite WAL mode and connection pooling enabled for concurrent curator access
-- [ ] **DEPLOY-02**: Embedding files migrated from pickle/dict format to NPZ matrix format
+- [x] **DEPLOY-02**: Embedding files migrated from pickle/dict format to NPZ matrix format
 - [x] **DEPLOY-03**: Automated database backup mechanism in place before external users can modify data
-- [ ] **DEPLOY-04**: Embedding vectors normalized at precompute time; dot product replaces cosine similarity at query time (closes #65)
+- [x] **DEPLOY-04**: Embedding vectors normalized at precompute time; dot product replaces cosine similarity at query time (closes #65)
 
 ### Data Quality & Curation
 
@@ -105,9 +105,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DEPLOY-01 | Phase 1 | Complete |
-| DEPLOY-02 | Phase 1 | Pending |
+| DEPLOY-02 | Phase 1 | Complete |
 | DEPLOY-03 | Phase 1 | Complete |
-| DEPLOY-04 | Phase 1 | Pending |
+| DEPLOY-04 | Phase 1 | Complete |
 | CURAT-01 | Phase 2 | Pending |
 | CURAT-02 | Phase 2 | Pending |
 | CURAT-03 | Phase 2 | Pending |
