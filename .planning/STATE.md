@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 1 of 6 (Deployment Hardening)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-19 — Roadmap created; all 25 v1 requirements mapped across 6 phases
+Plan: 2 of TBD in current phase
+Status: In progress
+Last activity: 2026-02-19 — Completed 01-02 (Docker hardening and backup system)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [░░░░░░░░░░] 5%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 1 min
+- Total execution time: 0.02 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-deployment-hardening | 1 | 1 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: —
-- Trend: —
+- Last 5 plans: 01-02 (1 min)
+- Trend: Baseline established
 
 *Updated after each plan completion*
 
@@ -45,6 +45,10 @@ Recent decisions affecting current work:
 - [Research]: Dual-Blueprint split — keep existing `api_bp` for UI-internal endpoints; new `v1_api_bp` with `/api/v1` prefix for the stable public API
 - [Research]: Phase 1 (deployment) must precede all other work; data loss and memory blow-up are irreversible and block curator onboarding
 - [Research]: Data provenance columns (CURAT-01, EXPLO-04) must be added in Phase 2 before any curation feeds publication figures
+- [01-02]: Start with 2 Gunicorn workers (not 4) — conservative for BioBERT ~440MB model; scale up after measuring docker stats
+- [01-02]: HEALTHCHECK start-period increased from 20s to 60s — BioBERT preload_app=True takes ~30-40s at startup
+- [01-02]: Use appuser in crontab (not root) — appuser owns /app/data and /app/logs where backup writes
+- [01-02]: Retain backups for 7 days — balances storage cost against recovery window before external curators submit data
 
 ### Pending Todos
 
@@ -58,6 +62,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: Roadmap and STATE.md written; REQUIREMENTS.md traceability updated; ready to plan Phase 1
-Resume file: None
+**Last session:** 2026-02-19
+**Stopped at:** Completed 01-02-PLAN.md (Docker hardening, backup system, gunicorn.conf.py)
+**Resume file:** None
