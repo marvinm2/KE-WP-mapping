@@ -5,6 +5,62 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-02-18
+
+### Assessment UI Revision
+#### Changed
+- **Card-Style Assessment Buttons**: Replaced inline SVG icons with external image files in card layout (image on top, label below)
+- **External Assessment Images**: Assessment graphics moved to `static/images/assessment/q1-q4/` for easy customization
+- **Merged Results & Submit Steps**: Combined Step 4 (Results) and Step 5 (Submit) into a single "Step 4: Results & Submit" section
+- **Pathway Diagram Placement**: Moved pathway diagram inside the pathway info card
+- **Info Card Titles**: Enriched with "KE ID — Title" format for clarity
+
+#### Related Issues
+- Closes #58 (assessment question graphics), #113 (card-style image buttons)
+
+---
+
+### Suggestion & Authentication Fixes
+#### Fixed
+- **Pathway Suggestion Threshold**: Lowered `base_threshold` from 0.30 to 0.15 to restore results after text-based scoring removal (#111)
+- **Login Redirect Preservation**: Return URL now preserved across OAuth and guest login flows so form state survives authentication (#112)
+- **Embedding Import Path**: Fixed import path in `src/services/embedding.py` after `src/` package restructure
+
+#### Related Issues
+- Closes #111, #112
+
+---
+
+### Project Restructure
+#### Changed
+- **Source Package Layout**: Moved Python modules into `src/` sub-packages (`core/`, `services/`, `suggestions/`, `utils/`, `blueprints/`, `exporters/`)
+- **Data Directory**: Moved pre-computed embeddings and metadata files into `data/`
+- **Archived Documentation**: Moved historical docs to `docs/archive/`
+- **Removed Dead Code**: Deleted unused files from project root
+
+---
+
+### Workshop & Authentication
+#### Added
+- **Guest Accounts**: Workshop guest login with admin-managed access codes
+
+---
+
+### Scoring Changes
+#### Changed
+- **Text-Based Scoring Removed**: Removed text similarity from pathway suggestion scoring (#108)
+- **Pathway Ontology Tags**: Added ontology tag integration into scoring system (#82)
+
+---
+
+### Infrastructure
+#### Fixed
+- **Docker Workflow**: Use Compose V2 plugin, add security-events permission
+- **CI/CD Dependency Bumps**: Updated actions/checkout (v4→v6), codecov-action (v4→v5), codeql-action (v3→v4), trivy-action (v0.28→v0.34)
+- **Python Dependencies**: Updated pip-audit, tqdm, python-dotenv
+
+---
+
 ## [2.3.0] - 2026-02-11
 
 ### KE-GO Mapping Service

@@ -70,6 +70,7 @@ def parse_obo_file(obo_path):
                     'definition': '',
                     'is_a': [],
                     'part_of': [],
+                    'synonyms': [],
                     'is_obsolete': False
                 }
                 continue
@@ -84,7 +85,8 @@ def parse_obo_file(obo_path):
                             'name': current_term['name'],
                             'definition': current_term['definition'],
                             'is_a': current_term['is_a'],
-                            'part_of': current_term['part_of']
+                            'part_of': current_term['part_of'],
+                            'synonyms': current_term['synonyms']
                         }
                 in_term = False
                 current_term = None
@@ -111,6 +113,14 @@ def parse_obo_file(obo_path):
             elif line.startswith('relationship: part_of '):
                 part_id = line[22:].split(' ! ')[0].strip()
                 current_term['part_of'].append(part_id)
+            elif line.startswith('synonym: '):
+                # synonym: "alt name" EXACT|BROAD|NARROW|RELATED [...]
+                m = re.match(r'synonym: "(.+?)"\s+(EXACT|BROAD|NARROW|RELATED)', line)
+                if m:
+                    current_term['synonyms'].append({
+                        'text': m.group(1),
+                        'type': m.group(2)
+                    })
             elif line == 'is_obsolete: true':
                 current_term['is_obsolete'] = True
 

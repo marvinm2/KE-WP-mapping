@@ -3484,6 +3484,19 @@ This helps identify gaps in existing pathways for future development.">❓</span
                             </div>
             `;
 
+            // Synonyms (EXACT only, max 5)
+            const exactSynonyms = (suggestion.synonyms || [])
+                .filter(s => s.type === 'EXACT')
+                .map(s => s.text)
+                .slice(0, 5);
+            if (exactSynonyms.length > 0) {
+                html += `
+                    <div style="font-size: 11px; color: #666; margin-bottom: 6px; font-style: italic;">
+                        Also known as: ${exactSynonyms.map(s => this.escapeHtml(s)).join(', ')}
+                    </div>
+                `;
+            }
+
             // Score details - split name/definition similarity if available
             if (suggestion.name_similarity > 0 || suggestion.definition_similarity > 0) {
                 if (suggestion.name_similarity > 0) {
