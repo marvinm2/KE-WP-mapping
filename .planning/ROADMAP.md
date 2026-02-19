@@ -30,7 +30,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Four Gunicorn workers start and serve requests using a single loaded copy of the BioBERT model (memory stays under 4GB total)
   3. Multiple curators can submit proposals simultaneously without "database is locked" errors
   4. Embedding files load correctly without `allow_pickle=True`; dot-product similarity replaces cosine computation at query time
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Fix DATABASE_PATH default and enable SQLite WAL mode + busy_timeout (DEPLOY-01)
+- [ ] 01-02-PLAN.md — Docker/Gunicorn/Backup infrastructure: env_file, gunicorn.conf.py, backup cron (DEPLOY-03)
+- [ ] 01-03-PLAN.md — Migrate embeddings to NPZ format with pre-normalized vectors, replace cosine with dot product (DEPLOY-02, DEPLOY-04)
+- [ ] 01-04-PLAN.md — Add production-guarded BioBERT warm-up call for Gunicorn preload_app (DEPLOY-02, DEPLOY-04)
 
 ### Phase 2: Data Model and Audit Trail
 **Goal**: Every mapping carries complete provenance — who approved it, when, at what confidence, with what suggestion score — and every mapping has a stable identifier that will not change after publication
@@ -94,7 +100,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Deployment Hardening | 0/TBD | Not started | - |
+| 1. Deployment Hardening | 0/4 | Planned | - |
 | 2. Data Model and Audit Trail | 0/TBD | Not started | - |
 | 3. Stable Public REST API | 0/TBD | Not started | - |
 | 4. Curator UX and Explore | 0/TBD | Not started | - |
