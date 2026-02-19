@@ -65,23 +65,48 @@ def compute_embeddings_batch(embedding_service, items, label="items"):
     return embeddings
 
 
-def save_embeddings(embeddings, path):
+def save_embeddings(embeddings: dict, path: str):
     """
-    Save embeddings dict to .npy file with size reporting.
+    Save embeddings dict as NPZ matrix format with pre-normalized vectors (no pickle).
+
+    Format: two arrays in the .npz file:
+      - 'ids': 1D Unicode string array of embedding keys (dtype=str, NOT dtype=object)
+      - 'matrix': 2D float32 array of shape (N, embedding_dim), each row unit-normalized
+
+    Pre-normalization means dot product == cosine similarity at query time (no per-query
+    norm computation needed). Using dtype=str for ids avoids pickle requirement on load.
 
     Args:
-        embeddings: Dict mapping ID -> numpy embedding vector
-        path: Output file path
+        embeddings: Dict mapping ID string -> numpy embedding vector
+        path: Output path (accepts .npy or no extension; always writes .npz)
     """
-    logger.info(f"Saving {len(embeddings)} embeddings to {path}...")
-    np.save(path, embeddings)
+    if not embeddings:
+        logger.warning("save_embeddings called with empty dict, skipping save")
+        return
 
-    file_size_mb = os.path.getsize(path) / 1024 / 1024
-    logger.info(f"Saved: {file_size_mb:.2f} MB")
+    # Always write to .npz extension regardless of input path
+    npz_path = path.replace('.npy', '').rstrip('.')
 
-    if embeddings:
-        sample_id = next(iter(embeddings))
-        logger.info(f"Sample: {sample_id}, shape: {embeddings[sample_id].shape}")
+    # Build ids array with Unicode dtype (NOT dtype=object — that requires pickle on load)
+    ids = np.array(list(embeddings.keys()), dtype=str)
+
+    # Build and normalize matrix
+    matrix = np.array(list(embeddings.values()), dtype=np.float32)
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    # Guard against zero vectors (avoid division by zero)
+    norms = np.where(norms == 0.0, 1.0, norms)
+    matrix = (matrix / norms).astype(np.float32)
+
+    logger.info("Saving %d normalized embeddings to %s.npz ...", len(embeddings), npz_path)
+    np.savez(npz_path, ids=ids, matrix=matrix)
+
+    actual_path = npz_path + '.npz'
+    file_size_mb = os.path.getsize(actual_path) / 1024 / 1024
+    logger.info("Saved: %.2f MB (shape: %s)", file_size_mb, str(matrix.shape))
+
+    sample_id = next(iter(embeddings))
+    logger.info("Sample id: %s, vector norm after normalization: %.6f",
+                sample_id, float(np.linalg.norm(matrix[0])))
 
 
 def save_metadata(metadata, path):
