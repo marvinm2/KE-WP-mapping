@@ -327,6 +327,7 @@ class GoSuggestionConfig:
     embedding_min_threshold: float = 0.3
     gene_min_threshold: float = 0.05
     gene_min_term_size: int = 10
+    name_weight: float = 0.60
 
 
 @dataclass

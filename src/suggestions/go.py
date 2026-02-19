@@ -187,8 +187,8 @@ class GoSuggestionService:
             go_config = getattr(self.config, 'go_suggestion', None)
             min_threshold = getattr(go_config, 'embedding_min_threshold', 0.3) if go_config else 0.3
 
-            # Get name/definition weighting (reuse title_weight from embedding service)
-            name_weight = getattr(self.embedding_service, 'title_weight', 0.85)
+            # Get GO-specific name/definition weighting
+            name_weight = getattr(go_config, 'name_weight', 0.60) if go_config else 0.60
             def_weight = 1.0 - name_weight
 
             ke_norm = np.linalg.norm(ke_emb)

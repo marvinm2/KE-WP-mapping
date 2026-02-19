@@ -155,11 +155,14 @@ def precompute_go_embeddings(
     # Initialize embedding service
     embedding_service = init_embedding_service()
 
-    # Build name-only items {id: cleaned_name}
+    # Build name + EXACT synonyms items {id: cleaned_text}
     name_items = {}
     for go_id, term_data in go_terms.items():
         name = term_data['name']
-        name_items[go_id] = extract_entities(remove_directionality_terms(name))
+        exact_syns = [s['text'] for s in term_data.get('synonyms', []) if s['type'] == 'EXACT']
+        # Append EXACT synonyms to enrich the name embedding
+        text = '. '.join([name] + exact_syns) if exact_syns else name
+        name_items[go_id] = extract_entities(remove_directionality_terms(text))
 
     logger.info("Computing name-only embeddings...")
     name_embeddings = compute_embeddings_batch(embedding_service, name_items, label="GO BP names")

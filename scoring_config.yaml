@@ -387,6 +387,14 @@ go_suggestion:
   # Apply a size dampening factor: score *= min(1.0, go_size / gene_min_term_size)
   gene_min_term_size: 10        # GO terms below this size get dampened scores
 
+  # ----------------------------------------------------------------------------
+  # Name/Definition Embedding Weights (GO-specific)
+  # ----------------------------------------------------------------------------
+  # How much to weight the name vs definition embedding when combining scores.
+  # With synonyms enriching the name embedding, a 60/40 split gives more
+  # room for the definition signal compared to the global 85/15 default.
+  name_weight: 0.60             # Weight for name similarity (definition = 1 - this)
+
 
 # ==============================================================================
 # KE-GO ASSESSMENT SCORING (Frontend - main.js)
