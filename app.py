@@ -195,6 +195,21 @@ def create_app(config_name: str = None):
 # Create application instance for gunicorn/uwsgi
 app = create_app()
 
+# Warm up embedding service for Gunicorn preload_app=True.
+# With preload_app, Gunicorn imports this module in the master process before forking workers.
+# ServiceContainer.embedding_service is lazy — accessing it here forces BioBERT to load
+# in the master, so workers inherit the loaded model via Linux fork copy-on-write.
+# Guard: only fire in production to avoid loading BioBERT during tests or dev server startup.
+if os.getenv("FLASK_ENV") == "production":
+    try:
+        _svc = app.service_container.embedding_service
+        if _svc is not None:
+            logger.info("Embedding service pre-loaded for Gunicorn worker fork (preload_app=True)")
+        else:
+            logger.info("Embedding service disabled by config — skipping preload warm-up")
+    except Exception as _e:
+        logger.warning("Embedding service warm-up failed (non-fatal): %s", _e)
+
 if __name__ == "__main__":
     # Development server configuration
     debug_mode = os.getenv("FLASK_DEBUG", "False").lower() == "true"
