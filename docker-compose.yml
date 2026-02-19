@@ -5,49 +5,15 @@ services:
     build: .
     ports:
       - "5000:5000"
-    environment:
-      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
-      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-      - ADMIN_USERS=${ADMIN_USERS}
-      - FLASK_DEBUG=false
-      - FLASK_ENV=production
+    env_file:
+      - .env
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-    restart: unless-stopped
-    depends_on:
-      - redis
-    networks:
-      - ke-wp-network
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+      - ./backups:/app/data/backups
     restart: unless-stopped
     networks:
       - ke-wp-network
-    command: redis-server --appendonly yes
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - web
-    restart: unless-stopped
-    networks:
-      - ke-wp-network
-
-volumes:
-  redis_data:
 
 networks:
   ke-wp-network:
