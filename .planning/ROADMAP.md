@@ -100,7 +100,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Deployment Hardening | 1/4 | In Progress|  |
+| 1. Deployment Hardening | 2/4 | In Progress|  |
 | 2. Data Model and Audit Trail | 0/TBD | Not started | - |
 | 3. Stable Public REST API | 0/TBD | Not started | - |
 | 4. Curator UX and Explore | 0/TBD | Not started | - |

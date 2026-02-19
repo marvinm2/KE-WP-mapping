@@ -34,6 +34,7 @@ Progress: [░░░░░░░░░░] 5%
 - Trend: Baseline established
 
 *Updated after each plan completion*
+| Phase 01-deployment-hardening P01 | 12 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -49,6 +50,9 @@ Recent decisions affecting current work:
 - [01-02]: HEALTHCHECK start-period increased from 20s to 60s — BioBERT preload_app=True takes ~30-40s at startup
 - [01-02]: Use appuser in crontab (not root) — appuser owns /app/data and /app/logs where backup writes
 - [01-02]: Retain backups for 7 days — balances storage cost against recovery window before external curators submit data
+- [Phase 01-deployment-hardening]: DATABASE_PATH default is /app/data/ke_wp_mapping.db — must match Docker volume mount point
+- [Phase 01-deployment-hardening]: WAL mode set via PRAGMA on every connection (not once at DB creation) — idempotent and ensures mode survives reconnects
+- [Phase 01-deployment-hardening]: FLASK_ENV must be set before app import in conftest to prevent module-level create_app() using wrong config
 
 ### Pending Todos
 
@@ -62,6 +66,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-19
-**Stopped at:** Completed 01-02-PLAN.md (Docker hardening, backup system, gunicorn.conf.py)
+**Last session:** 2026-02-19T21:41:40.652Z
+**Stopped at:** Completed 01-deployment-hardening-01-PLAN.md
 **Resume file:** None
