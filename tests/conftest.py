@@ -6,6 +6,14 @@ import tempfile
 
 import pytest
 
+# Set testing environment before importing app so module-level create_app()
+# uses TestingConfig (DATABASE_PATH=':memory:') rather than the default
+# production path (/app/data/ke_wp_mapping.db).
+os.environ.setdefault("FLASK_ENV", "testing")
+os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key")
+os.environ.setdefault("GITHUB_CLIENT_ID", "dummy")
+os.environ.setdefault("GITHUB_CLIENT_SECRET", "dummy")
+
 from app import app
 from src.core.models import Database
 
