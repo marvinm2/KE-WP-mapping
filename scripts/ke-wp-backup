@@ -1,0 +1,2 @@
+# KE-WP Mapping database backup — daily at 02:00
+0 2 * * * appuser /app/scripts/backup_db.sh >> /app/logs/backup.log 2>&1
