@@ -104,37 +104,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPLOY-01 | — | Pending |
-| DEPLOY-02 | — | Pending |
-| DEPLOY-03 | — | Pending |
-| DEPLOY-04 | — | Pending |
-| CURAT-01 | — | Pending |
-| CURAT-02 | — | Pending |
-| CURAT-03 | — | Pending |
-| API-01 | — | Pending |
-| API-02 | — | Pending |
-| API-03 | — | Pending |
-| API-04 | — | Pending |
-| EXPLO-01 | — | Pending |
-| EXPLO-02 | — | Pending |
-| EXPLO-03 | — | Pending |
-| EXPLO-04 | — | Pending |
-| EXPLO-05 | — | Pending |
-| EXPLO-06 | — | Pending |
-| KE-01 | — | Pending |
-| EXPRT-01 | — | Pending |
-| EXPRT-02 | — | Pending |
-| EXPRT-03 | — | Pending |
-| EXPRT-04 | — | Pending |
-| DOCS-01 | — | Pending |
-| DOCS-02 | — | Pending |
-| DOCS-03 | — | Pending |
+| DEPLOY-01 | Phase 1 | Pending |
+| DEPLOY-02 | Phase 1 | Pending |
+| DEPLOY-03 | Phase 1 | Pending |
+| DEPLOY-04 | Phase 1 | Pending |
+| CURAT-01 | Phase 2 | Pending |
+| CURAT-02 | Phase 2 | Pending |
+| CURAT-03 | Phase 2 | Pending |
+| EXPLO-04 | Phase 2 | Pending |
+| API-01 | Phase 3 | Pending |
+| API-02 | Phase 3 | Pending |
+| API-03 | Phase 3 | Pending |
+| API-04 | Phase 3 | Pending |
+| EXPLO-01 | Phase 4 | Pending |
+| EXPLO-02 | Phase 4 | Pending |
+| EXPLO-03 | Phase 4 | Pending |
+| EXPLO-05 | Phase 4 | Pending |
+| EXPLO-06 | Phase 4 | Pending |
+| KE-01 | Phase 4 | Pending |
+| EXPRT-01 | Phase 5 | Pending |
+| EXPRT-02 | Phase 5 | Pending |
+| EXPRT-03 | Phase 5 | Pending |
+| EXPRT-04 | Phase 5 | Pending |
+| DOCS-01 | Phase 6 | Pending |
+| DOCS-02 | Phase 6 | Pending |
+| DOCS-03 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 25 total
-- Mapped to phases: 0
-- Unmapped: 25 ⚠️
+- Mapped to phases: 25
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 after initial definition*
+*Last updated: 2026-02-19 after roadmap creation — all 25 requirements mapped*
