@@ -519,9 +519,10 @@ class MappingModel:
         try:
             cursor = conn.execute(
                 """
-                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type, 
-                       confidence_level, created_by, created_at, updated_at
-                FROM mappings 
+                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type,
+                       confidence_level, created_by, created_at, updated_at,
+                       uuid, approved_by_curator, approved_at_curator
+                FROM mappings
                 ORDER BY created_at DESC
             """
             )
@@ -535,9 +536,10 @@ class MappingModel:
         try:
             cursor = conn.execute(
                 """
-                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type, 
-                       confidence_level, created_by, created_at, updated_at
-                FROM mappings 
+                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type,
+                       confidence_level, created_by, created_at, updated_at,
+                       uuid, approved_by_curator, approved_at_curator
+                FROM mappings
                 WHERE ke_id = ?
                 ORDER BY created_at DESC
                 """,
@@ -590,12 +592,114 @@ class MappingModel:
         finally:
             conn.close()
 
+    def check_mapping_exists_with_proposals(self, ke_id: str, wp_id: str) -> Dict:
+        """
+        Enriched duplicate check that returns structured blocking payloads.
+
+        Priority order:
+        1. pending_proposal — an open proposal already covers this pair (most actionable)
+        2. approved_mapping — approved mapping exists, user can submit_revision
+        3. ke_exists — KE exists with a different WP (informational)
+        4. nothing found
+
+        Returns one of:
+        - blocking_type='pending_proposal' if a pending proposal exists for the pair
+        - blocking_type='approved_mapping' if an approved KE-WP pair exists (no pending proposal)
+        - ke_exists info if the KE exists with a different WP
+        - ke_exists=False, pair_exists=False if nothing found
+        """
+        conn = self.db.get_connection()
+        try:
+            # 1. Check for pending proposal on the KE-WP pair (highest priority blocking)
+            cursor = conn.execute(
+                """
+                SELECT p.id, p.proposed_confidence, p.proposed_connection_type,
+                       p.github_username, p.created_at,
+                       m.ke_id, m.wp_id, m.ke_title, m.wp_title
+                FROM proposals p
+                JOIN mappings m ON p.mapping_id = m.id
+                WHERE m.ke_id = ? AND m.wp_id = ? AND p.status = 'pending'
+                ORDER BY p.created_at DESC LIMIT 1
+                """,
+                (ke_id, wp_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "pair_exists": True,
+                    "blocking_type": "pending_proposal",
+                    "existing": {
+                        "proposal_id": row["id"],
+                        "ke_id": row["ke_id"],
+                        "wp_id": row["wp_id"],
+                        "ke_title": row["ke_title"],
+                        "wp_title": row["wp_title"],
+                        "proposed_confidence": row["proposed_confidence"],
+                        "proposed_connection_type": row["proposed_connection_type"],
+                        "submitted_by": row["github_username"],
+                        "submitted_at": row["created_at"],
+                    },
+                    "actions": ["flag_stale"],
+                }
+
+            # 2. Check for approved mapping (exact ke_id + wp_id pair)
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type,
+                       confidence_level, approved_by_curator, approved_at_curator, uuid
+                FROM mappings WHERE ke_id = ? AND wp_id = ?
+                """,
+                (ke_id, wp_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "pair_exists": True,
+                    "blocking_type": "approved_mapping",
+                    "existing": {
+                        "ke_id": row["ke_id"],
+                        "wp_id": row["wp_id"],
+                        "ke_title": row["ke_title"],
+                        "wp_title": row["wp_title"],
+                        "confidence_level": row["confidence_level"],
+                        "connection_type": row["connection_type"],
+                        "approved_by_curator": row["approved_by_curator"],
+                        "approved_at_curator": row["approved_at_curator"],
+                        "uuid": row["uuid"],
+                        "id": row["id"],
+                    },
+                    "actions": ["submit_revision"],
+                }
+
+            # 3. Check if KE exists with a different WP (backward-compat ke_exists path)
+            cursor = conn.execute(
+                "SELECT * FROM mappings WHERE ke_id = ?",
+                (ke_id,),
+            )
+            ke_matches = [dict(row) for row in cursor.fetchall()]
+            if ke_matches:
+                return {
+                    "ke_exists": True,
+                    "message": f"The KE ID {ke_id} exists but not with WP ID {wp_id}.",
+                    "ke_matches": ke_matches,
+                }
+
+            return {
+                "ke_exists": False,
+                "pair_exists": False,
+                "message": f"The KE ID {ke_id} and WP ID {wp_id} are new entries.",
+            }
+        finally:
+            conn.close()
+
     def update_mapping(
         self,
         mapping_id: int,
         connection_type: str = None,
         confidence_level: str = None,
         updated_by: str = None,
+        approved_by_curator: str = None,
+        approved_at_curator: str = None,
     ) -> bool:
         """
         Update an existing mapping
@@ -605,6 +709,8 @@ class MappingModel:
             connection_type: New connection type (optional)
             confidence_level: New confidence level (optional)
             updated_by: Username of person making the update
+            approved_by_curator: GitHub username of curator who approved (optional)
+            approved_at_curator: ISO timestamp of curator approval (optional)
 
         Returns:
             True if successful, False otherwise
@@ -614,6 +720,8 @@ class MappingModel:
             "connection_type": "connection_type",
             "confidence_level": "confidence_level",
             "updated_by": "updated_by",
+            "approved_by_curator": "approved_by_curator",
+            "approved_at_curator": "approved_at_curator",
         }
 
         conn = self.db.get_connection()
@@ -626,6 +734,8 @@ class MappingModel:
                 "connection_type": connection_type,
                 "confidence_level": confidence_level,
                 "updated_by": updated_by,
+                "approved_by_curator": approved_by_curator,
+                "approved_at_curator": approved_at_curator,
             }
 
             for field_name, field_value in update_data.items():
@@ -695,14 +805,15 @@ class ProposalModel:
         proposed_connection_type: str = None,
     ) -> Optional[int]:
         """Create a new proposal"""
+        proposal_uuid = str(uuid_lib.uuid4())
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
                 """
                 INSERT INTO proposals (mapping_id, user_name, user_email, user_affiliation,
                                      github_username, proposed_delete, proposed_confidence,
-                                     proposed_connection_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                     proposed_connection_type, uuid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     mapping_id,
@@ -713,12 +824,16 @@ class ProposalModel:
                     proposed_delete,
                     proposed_confidence,
                     proposed_connection_type,
+                    proposal_uuid,
                 ),
             )
 
             conn.commit()
             logger.info(
-                "Created proposal for mapping %s by %s", mapping_id, github_username
+                "Created proposal for mapping %s by %s, UUID=%s",
+                mapping_id,
+                github_username,
+                proposal_uuid,
             )
             return cursor.lastrowid
         except Exception as e:
@@ -843,6 +958,35 @@ class ProposalModel:
         finally:
             conn.close()
 
+    def flag_proposal_stale(self, proposal_id: int, flagged_by: str) -> bool:
+        """
+        Flag a pending proposal as stale for admin review.
+
+        Args:
+            proposal_id: ID of the proposal to flag
+            flagged_by: Username of curator flagging the proposal
+
+        Returns:
+            True if successful, False otherwise
+        """
+        conn = self.db.get_connection()
+        try:
+            conn.execute(
+                "UPDATE proposals SET is_stale = 1 WHERE id = ?",
+                (proposal_id,),
+            )
+            conn.commit()
+            logger.info(
+                "Proposal %s flagged as stale by %s", proposal_id, flagged_by
+            )
+            return True
+        except Exception as e:
+            logger.error("Error flagging proposal %s as stale: %s", proposal_id, e)
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
     def find_mapping_by_details(self, ke_id: str, wp_id: str) -> Optional[int]:
         """
         Find mapping ID by KE and WP IDs
@@ -933,7 +1077,8 @@ class GoMappingModel:
             cursor = conn.execute(
                 """
                 SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
-                       confidence_level, evidence_code, created_by, created_at, updated_at
+                       confidence_level, evidence_code, created_by, created_at, updated_at,
+                       uuid, approved_by_curator, approved_at_curator
                 FROM ke_go_mappings
                 ORDER BY created_at DESC
             """
@@ -949,7 +1094,8 @@ class GoMappingModel:
             cursor = conn.execute(
                 """
                 SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
-                       confidence_level, evidence_code, created_by, created_at, updated_at
+                       confidence_level, evidence_code, created_by, created_at, updated_at,
+                       uuid, approved_by_curator, approved_at_curator
                 FROM ke_go_mappings
                 WHERE ke_id = ?
                 ORDER BY created_at DESC
@@ -997,6 +1143,106 @@ class GoMappingModel:
         finally:
             conn.close()
 
+    def check_go_mapping_exists_with_proposals(self, ke_id: str, go_id: str) -> Dict:
+        """
+        Enriched duplicate check for KE-GO pairs that returns structured blocking payloads.
+
+        Priority order:
+        1. pending_proposal — an open proposal already covers this pair (most actionable)
+        2. approved_mapping — approved mapping exists, user can submit_revision
+        3. ke_exists — KE exists with a different GO term (informational)
+        4. nothing found
+
+        Returns one of:
+        - blocking_type='pending_proposal' if a pending proposal exists for the pair
+        - blocking_type='approved_mapping' if an approved KE-GO pair exists (no pending proposal)
+        - ke_exists info if the KE exists with a different GO term
+        - ke_exists=False, pair_exists=False if nothing found
+        """
+        conn = self.db.get_connection()
+        try:
+            # 1. Check for pending proposal on the KE-GO pair (highest priority blocking)
+            cursor = conn.execute(
+                """
+                SELECT p.id, p.proposed_confidence, p.proposed_connection_type,
+                       p.github_username, p.created_at,
+                       m.ke_id, m.go_id, m.ke_title, m.go_name
+                FROM ke_go_proposals p
+                JOIN ke_go_mappings m ON p.mapping_id = m.id
+                WHERE m.ke_id = ? AND m.go_id = ? AND p.status = 'pending'
+                ORDER BY p.created_at DESC LIMIT 1
+                """,
+                (ke_id, go_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "pair_exists": True,
+                    "blocking_type": "pending_proposal",
+                    "existing": {
+                        "proposal_id": row["id"],
+                        "ke_id": row["ke_id"],
+                        "go_id": row["go_id"],
+                        "ke_title": row["ke_title"],
+                        "go_name": row["go_name"],
+                        "proposed_confidence": row["proposed_confidence"],
+                        "proposed_connection_type": row["proposed_connection_type"],
+                        "submitted_by": row["github_username"],
+                        "submitted_at": row["created_at"],
+                    },
+                    "actions": ["flag_stale"],
+                }
+
+            # 2. Check for approved mapping (exact ke_id + go_id pair)
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
+                       confidence_level, approved_by_curator, approved_at_curator, uuid
+                FROM ke_go_mappings WHERE ke_id = ? AND go_id = ?
+                """,
+                (ke_id, go_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "pair_exists": True,
+                    "blocking_type": "approved_mapping",
+                    "existing": {
+                        "ke_id": row["ke_id"],
+                        "go_id": row["go_id"],
+                        "ke_title": row["ke_title"],
+                        "go_name": row["go_name"],
+                        "confidence_level": row["confidence_level"],
+                        "connection_type": row["connection_type"],
+                        "approved_by_curator": row["approved_by_curator"],
+                        "approved_at_curator": row["approved_at_curator"],
+                        "uuid": row["uuid"],
+                        "id": row["id"],
+                    },
+                    "actions": ["submit_revision"],
+                }
+
+            # 3. Check if KE exists with a different GO term (backward-compat ke_exists path)
+            cursor = conn.execute(
+                "SELECT * FROM ke_go_mappings WHERE ke_id = ?",
+                (ke_id,),
+            )
+            ke_matches = [dict(row) for row in cursor.fetchall()]
+            if ke_matches:
+                return {
+                    "ke_exists": True,
+                    "message": f"The KE ID {ke_id} exists but not with GO ID {go_id}.",
+                    "ke_matches": ke_matches,
+                }
+
+            return {
+                "ke_exists": False,
+                "pair_exists": False,
+                "message": f"The KE ID {ke_id} and GO ID {go_id} are new entries.",
+            }
+        finally:
+            conn.close()
+
 
 class GoProposalModel:
     def __init__(self, db: Database):
@@ -1014,14 +1260,15 @@ class GoProposalModel:
         proposed_connection_type: str = None,
     ) -> Optional[int]:
         """Create a new GO mapping proposal"""
+        proposal_uuid = str(uuid_lib.uuid4())
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
                 """
                 INSERT INTO ke_go_proposals (mapping_id, user_name, user_email, user_affiliation,
                                             github_username, proposed_delete, proposed_confidence,
-                                            proposed_connection_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                            proposed_connection_type, uuid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     mapping_id,
@@ -1032,18 +1279,51 @@ class GoProposalModel:
                     proposed_delete,
                     proposed_confidence,
                     proposed_connection_type,
+                    proposal_uuid,
                 ),
             )
 
             conn.commit()
             logger.info(
-                "Created GO proposal for mapping %s by %s", mapping_id, github_username
+                "Created GO proposal for mapping %s by %s, UUID=%s",
+                mapping_id,
+                github_username,
+                proposal_uuid,
             )
             return cursor.lastrowid
         except Exception as e:
             logger.error("Error creating GO proposal: %s", e)
             conn.rollback()
             return None
+        finally:
+            conn.close()
+
+    def flag_go_proposal_stale(self, proposal_id: int, flagged_by: str) -> bool:
+        """
+        Flag a pending GO proposal as stale for admin review.
+
+        Args:
+            proposal_id: ID of the GO proposal to flag
+            flagged_by: Username of curator flagging the proposal
+
+        Returns:
+            True if successful, False otherwise
+        """
+        conn = self.db.get_connection()
+        try:
+            conn.execute(
+                "UPDATE ke_go_proposals SET is_stale = 1 WHERE id = ?",
+                (proposal_id,),
+            )
+            conn.commit()
+            logger.info(
+                "GO proposal %s flagged as stale by %s", proposal_id, flagged_by
+            )
+            return True
+        except Exception as e:
+            logger.error("Error flagging GO proposal %s as stale: %s", proposal_id, e)
+            conn.rollback()
+            return False
         finally:
             conn.close()
 
