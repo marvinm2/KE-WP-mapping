@@ -4,6 +4,7 @@ Database models for KE-WP Mapping Application
 import logging
 import secrets
 import sqlite3
+import uuid as uuid_lib
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -183,6 +184,10 @@ class Database:
             # Migrate mappings table to add updated_by field if needed
             self._migrate_mappings_updated_by_field(conn)
 
+            # Migrate mapping tables to add uuid and provenance columns (Phase 2)
+            self._migrate_mappings_uuid_and_provenance(conn)
+            self._migrate_go_mappings_uuid_and_provenance(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -251,6 +256,120 @@ class Database:
 
         except Exception as e:
             logger.error("Error migrating mappings table: %s", e)
+            raise
+
+    def _migrate_mappings_uuid_and_provenance(self, conn):
+        """
+        Add uuid and curator provenance columns to mappings table if they don't exist.
+
+        Columns added:
+            - uuid TEXT  — stable UUID per row (backfilled for existing rows)
+            - approved_by_curator TEXT — GitHub username of curator who approved
+            - approved_at_curator TIMESTAMP — when curator approved
+
+        Args:
+            conn: Database connection
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            if "uuid" not in columns:
+                conn.execute("ALTER TABLE mappings ADD COLUMN uuid TEXT")
+                new_columns.append("uuid")
+            if "approved_by_curator" not in columns:
+                conn.execute("ALTER TABLE mappings ADD COLUMN approved_by_curator TEXT")
+                new_columns.append("approved_by_curator")
+            if "approved_at_curator" not in columns:
+                conn.execute(
+                    "ALTER TABLE mappings ADD COLUMN approved_at_curator TIMESTAMP"
+                )
+                new_columns.append("approved_at_curator")
+
+            # Backfill uuid for any rows where uuid IS NULL
+            conn.execute(
+                """
+                UPDATE mappings SET uuid = lower(hex(randomblob(4))) || '-' ||
+                lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) ||
+                '-' || substr('89ab', abs(random()) % 4 + 1, 1) ||
+                substr(lower(hex(randomblob(2))),2) || '-' ||
+                lower(hex(randomblob(6)))
+                WHERE uuid IS NULL
+                """
+            )
+
+            # Ensure unique index on uuid
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_mappings_uuid ON mappings(uuid)"
+            )
+
+            if new_columns:
+                logger.info(
+                    "Migrated mappings table with uuid and provenance columns: %s",
+                    new_columns,
+                )
+
+        except Exception as e:
+            logger.error("Error migrating mappings uuid/provenance columns: %s", e)
+            raise
+
+    def _migrate_go_mappings_uuid_and_provenance(self, conn):
+        """
+        Add uuid and curator provenance columns to ke_go_mappings table if they don't exist.
+
+        Columns added:
+            - uuid TEXT  — stable UUID per row (backfilled for existing rows)
+            - approved_by_curator TEXT — GitHub username of curator who approved
+            - approved_at_curator TIMESTAMP — when curator approved
+
+        Args:
+            conn: Database connection
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            if "uuid" not in columns:
+                conn.execute("ALTER TABLE ke_go_mappings ADD COLUMN uuid TEXT")
+                new_columns.append("uuid")
+            if "approved_by_curator" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN approved_by_curator TEXT"
+                )
+                new_columns.append("approved_by_curator")
+            if "approved_at_curator" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN approved_at_curator TIMESTAMP"
+                )
+                new_columns.append("approved_at_curator")
+
+            # Backfill uuid for any rows where uuid IS NULL
+            conn.execute(
+                """
+                UPDATE ke_go_mappings SET uuid = lower(hex(randomblob(4))) || '-' ||
+                lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) ||
+                '-' || substr('89ab', abs(random()) % 4 + 1, 1) ||
+                substr(lower(hex(randomblob(2))),2) || '-' ||
+                lower(hex(randomblob(6)))
+                WHERE uuid IS NULL
+                """
+            )
+
+            # Ensure unique index on uuid
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_go_mappings_uuid ON ke_go_mappings(uuid)"
+            )
+
+            if new_columns:
+                logger.info(
+                    "Migrated ke_go_mappings table with uuid and provenance columns: %s",
+                    new_columns,
+                )
+
+        except Exception as e:
+            logger.error("Error migrating ke_go_mappings uuid/provenance columns: %s", e)
             raise
 
 
