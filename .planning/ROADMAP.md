@@ -50,7 +50,7 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Schema migrations: uuid, approved_by_curator, approved_at_curator, suggestion_score, is_stale columns across all four mapping/proposal tables
+- [x] 02-01-PLAN.md — Schema migrations: uuid, approved_by_curator, approved_at_curator, suggestion_score, is_stale columns across all four mapping/proposal tables (completed 2026-02-20)
 - [ ] 02-02-PLAN.md — Server enforcement: provenance written at admin approval, enriched /check endpoints, /flag_proposal_stale endpoint, confidence_level required
 - [ ] 02-03-PLAN.md — Frontend: confidence select-button step, suggestion_score capture, live duplicate check with inline preview card and action buttons
 - [ ] 02-04-PLAN.md — Provenance display: Curator/Approved columns in explore table, /mappings/<uuid> detail route, UUID/suggestion_score in admin view
@@ -107,7 +107,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Deployment Hardening | 4/4 | Complete   | 2026-02-19 |
-| 2. Data Model and Audit Trail | 0/4 | Not started | - |
+| 2. Data Model and Audit Trail | 1/4 | In progress | - |
 | 3. Stable Public REST API | 0/TBD | Not started | - |
 | 4. Curator UX and Explore | 0/TBD | Not started | - |
 | 5. Exports and Dataset Publication | 0/TBD | Not started | - |

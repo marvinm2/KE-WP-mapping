@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Curators can efficiently produce a high-quality, reusable KE-pathway/GO mapping database that external tools can consume for toxicological pathway analysis.
-**Current focus:** Phase 1 — Deployment Hardening
+**Current focus:** Phase 2 — Data Model and Audit Trail
 
 ## Current Position
 
-Phase: 1 of 6 (Deployment Hardening)
-Plan: 4 of 4 in current phase
+Phase: 2 of 6 (Data Model and Audit Trail)
+Plan: 1 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-19 — Completed 01-04 (Gunicorn preload warm-up call)
+Last activity: 2026-02-20 — Completed 02-01 (schema migrations — uuid + provenance columns)
 
-Progress: [██░░░░░░░░] 15%
+Progress: [███░░░░░░░] 20%
 
 ## Performance Metrics
 
@@ -28,15 +28,17 @@ Progress: [██░░░░░░░░] 15%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-deployment-hardening | 4 | 20 min | 5 min |
+| 02-data-model-and-audit-trail | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (1 min), 01-03 (5 min), 01-04 (2 min)
-- Trend: Phase 1 complete
+- Last 5 plans: 01-02 (1 min), 01-03 (5 min), 01-04 (2 min), 02-01 (3 min)
+- Trend: Phase 2 started — schema foundation complete
 
 *Updated after each plan completion*
 | Phase 01-deployment-hardening P01 | 12 | 2 tasks | 3 files |
 | Phase 01-deployment-hardening P03 | 5 | 2 tasks | 8 files |
 | Phase 01-deployment-hardening P04 | 2 | 1 task | 1 file |
+| Phase 02-data-model-and-audit-trail P01 | 3 | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -58,6 +60,9 @@ Recent decisions affecting current work:
 - [Phase 01-deployment-hardening]: NPZ matrix format with pre-normalized vectors: eliminates pickle deserialization risk; dot product equals cosine similarity after unit normalization at save time
 - [01-04]: Guard warm-up with FLASK_ENV=production — prevents BioBERT load during pytest (FLASK_ENV=testing) and plain python app.py (FLASK_ENV defaults to development)
 - [01-04]: try/except wraps warm-up so startup failure is non-fatal — workers still lazy-load BioBERT on first request if master-process preload fails
+- [02-01]: Backfill existing mapping rows with SQLite randomblob() UUID expression — runs atomically inside init_db() transaction, avoids loading rows into Python
+- [02-01]: Unique index on uuid uses CREATE UNIQUE INDEX IF NOT EXISTS — idempotent and enforces uniqueness for all future inserts
+- [02-01]: Proposal table uuid is nullable and not backfilled — new proposals get uuid via create_proposal() when wired in a later Phase 2 plan
 
 ### Pending Todos
 
@@ -71,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-20T12:49:09.478Z
-**Stopped at:** Phase 2 planned — 4 plans across 3 waves ready for execution
-**Resume file:** .planning/phases/02-data-model-and-audit-trail/02-01-PLAN.md
+**Last session:** 2026-02-20T13:28:51Z
+**Stopped at:** Completed 02-01-PLAN.md (schema migrations — uuid + provenance columns across 4 tables)
+**Resume file:** .planning/phases/02-data-model-and-audit-trail/02-02-PLAN.md

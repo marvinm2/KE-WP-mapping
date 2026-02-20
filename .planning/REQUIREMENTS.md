@@ -16,9 +16,9 @@ Requirements for v1.0 release. Each maps to a roadmap phase.
 
 ### Data Quality & Curation
 
-- [ ] **CURAT-01**: Each approved mapping records the approving curator and timestamp (provenance/audit trail)
+- [x] **CURAT-01**: Each approved mapping records the approving curator and timestamp (provenance/audit trail)
 - [ ] **CURAT-02**: Duplicate mapping detection prevents submitting the same KE→pathway or KE→GO pair twice
-- [ ] **CURAT-03**: Confidence level (High/Medium/Low) stored with each approved mapping and visible in browse table
+- [x] **CURAT-03**: Confidence level (High/Medium/Low) stored with each approved mapping and visible in browse table
 
 ### Public REST API
 
@@ -32,7 +32,7 @@ Requirements for v1.0 release. Each maps to a roadmap phase.
 - [ ] **EXPLO-01**: Explore page filterable by AOP — shows all approved KE mappings belonging to a selected AOP
 - [ ] **EXPLO-02**: Explore page filterable by confidence level (High/Medium/Low)
 - [ ] **EXPLO-03**: Coverage gap view — shows which KEs in a selected AOP have no approved mappings yet
-- [ ] **EXPLO-04**: All API and explore-page responses include stable, permanent mapping IDs
+- [x] **EXPLO-04**: All API and explore-page responses include stable, permanent mapping IDs
 - [ ] **EXPLO-05**: Dataset metrics dashboard showing mapping counts and coverage statistics (closes #116)
 - [ ] **EXPLO-06**: Custom download interface — user filters dataset then exports the matching subset (closes #116)
 
@@ -108,10 +108,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPLOY-02 | Phase 1 | Complete |
 | DEPLOY-03 | Phase 1 | Complete |
 | DEPLOY-04 | Phase 1 | Complete |
-| CURAT-01 | Phase 2 | Pending |
+| CURAT-01 | Phase 2 | Complete |
 | CURAT-02 | Phase 2 | Pending |
-| CURAT-03 | Phase 2 | Pending |
-| EXPLO-04 | Phase 2 | Pending |
+| CURAT-03 | Phase 2 | Complete |
+| EXPLO-04 | Phase 2 | Complete |
 | API-01 | Phase 3 | Pending |
 | API-02 | Phase 3 | Pending |
 | API-03 | Phase 3 | Pending |
