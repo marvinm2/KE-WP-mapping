@@ -22,10 +22,10 @@ Requirements for v1.0 release. Each maps to a roadmap phase.
 
 ### Public REST API
 
-- [ ] **API-01**: Versioned `/api/v1/` blueprint, entirely separate from existing internal suggestion endpoints
-- [ ] **API-02**: `GET /api/v1/mappings` — paginated KE-WP mapping list, filterable by KE ID, AOP ID, and pathway ID
-- [ ] **API-03**: `GET /api/v1/go-mappings` — paginated KE-GO mapping list, filterable by KE ID and GO term ID
-- [ ] **API-04**: Content negotiation on collection endpoints — `Accept: text/csv` returns tabular data for R/Python scripts
+- [x] **API-01**: Versioned `/api/v1/` blueprint, entirely separate from existing internal suggestion endpoints
+- [x] **API-02**: `GET /api/v1/mappings` — paginated KE-WP mapping list, filterable by KE ID, AOP ID, and pathway ID
+- [x] **API-03**: `GET /api/v1/go-mappings` — paginated KE-GO mapping list, filterable by KE ID and GO term ID
+- [x] **API-04**: Content negotiation on collection endpoints — `Accept: text/csv` returns tabular data for R/Python scripts
 
 ### Explore & Browse
 
@@ -112,10 +112,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CURAT-02 | Phase 2 | Complete |
 | CURAT-03 | Phase 2 | Complete |
 | EXPLO-04 | Phase 2 | Complete |
-| API-01 | Phase 3 | Pending |
-| API-02 | Phase 3 | Pending |
-| API-03 | Phase 3 | Pending |
-| API-04 | Phase 3 | Pending |
+| API-01 | Phase 3 | Complete |
+| API-02 | Phase 3 | Complete |
+| API-03 | Phase 3 | Complete |
+| API-04 | Phase 3 | Complete |
 | EXPLO-01 | Phase 4 | Pending |
 | EXPLO-02 | Phase 4 | Pending |
 | EXPLO-03 | Phase 4 | Pending |

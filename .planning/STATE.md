@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 3 of 6 (Stable Public REST API)
-Plan: 1 of 3 in current phase (COMPLETE)
+Plan: 2 of 3 in current phase (COMPLETE)
 Status: Phase 3 in progress
-Last activity: 2026-02-20 — Completed 03-01 (suggestion_score/go_namespace migrations, paginated query methods, approval wiring)
+Last activity: 2026-02-20 — Completed 03-02 (v1_api_bp blueprint, six public endpoints, CORS, CSV/JSON content negotiation, AOP SPARQL filter)
 
-Progress: [████████░░] 61%
+Progress: [█████████░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 6 min
-- Total execution time: 0.61 hours
+- Total execution time: 0.68 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [████████░░] 61%
 |-------|-------|-------|----------|
 | 01-deployment-hardening | 4 | 20 min | 5 min |
 | 02-data-model-and-audit-trail | 4 (complete) | 26 min | 6.5 min |
-| 03-stable-public-rest-api | 1 of 3 | 5 min | 5 min |
+| 03-stable-public-rest-api | 2 of 3 | 12 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (6 min), 02-03 (3 min), 02-04 (14 min), 03-01 (5 min)
-- Trend: Phase 3 started — data layer complete for v1 API
+- Last 5 plans: 02-03 (3 min), 02-04 (14 min), 03-01 (5 min), 03-02 (7 min)
+- Trend: Phase 3 progressing — v1 API blueprint complete, integration tests remaining
 
 *Updated after each plan completion*
 | Phase 01-deployment-hardening P01 | 12 | 2 tasks | 3 files |
@@ -44,6 +44,7 @@ Progress: [████████░░] 61%
 | Phase 02-data-model-and-audit-trail P04 | 14 | 2 tasks | 5 files |
 | Phase 02-data-model-and-audit-trail P03 | 9 | 2 tasks | 2 files |
 | Phase 03-stable-public-rest-api P01 | 5 | 2 tasks | 2 files |
+| Phase 03-stable-public-rest-api P02 | 7 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,10 @@ Recent decisions affecting current work:
 - [03-01]: suggestion_score column is REAL, nullable — NULL for all pre-Phase-3 rows; non-null only after curator approval of a scored proposal
 - [03-01]: go_namespace DEFAULT 'biological_process' — all current GO mappings are BP; column present for MF/CC extensibility
 - [03-01]: suggestion_score added to ALLOWED_FIELDS in update_mapping() — required so the kwarg is not silently dropped by the dynamic SET clause builder
+- [03-02]: CORS after_request hook scoped to v1_api_bp — does not affect internal blueprints; blueprint-scoped CORS is the correct isolation pattern
+- [03-02]: csrf.exempt(v1_api_bp) must be called before app.register_blueprint(v1_api_bp) — order matters for CSRF exemption
+- [03-02]: AOP SPARQL resolution raises ValueError on any failure, mapped to 400 — prevents 500 on upstream SPARQL unavailability
+- [03-02]: total_pages=0 when total=0 — math.ceil(0/50)=0 correctly represents empty result set
 
 ### Pending Todos
 
@@ -92,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-20T22:00:15Z
-**Stopped at:** Completed 03-01-PLAN.md
-**Resume file:** .planning/phases/03-stable-public-rest-api/03-02-PLAN.md
+**Last session:** 2026-02-20T22:10:00Z
+**Stopped at:** Completed 03-02-PLAN.md
+**Resume file:** .planning/phases/03-stable-public-rest-api/03-03-PLAN.md
