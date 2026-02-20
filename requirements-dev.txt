@@ -35,4 +35,4 @@ sqlite-utils==3.35.2
 
 # API Testing (compatible with our requests version)
 requests-mock==1.11.0
-responses==0.24.1
+responses==0.26.0
