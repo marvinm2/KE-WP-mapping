@@ -268,12 +268,15 @@ def approve_proposal(proposal_id: int):
             success = mapping_model.delete_mapping(mapping_id, admin_username)
             action = "deleted"
         else:
-            # Update the mapping
+            # Update the mapping with provenance
+            approved_at = datetime.utcnow().isoformat()
             success = mapping_model.update_mapping(
                 mapping_id=mapping_id,
                 connection_type=proposal["proposed_connection_type"],
                 confidence_level=proposal["proposed_confidence"],
                 updated_by=admin_username,
+                approved_by_curator=admin_username,
+                approved_at_curator=approved_at,
             )
             action = "updated"
 

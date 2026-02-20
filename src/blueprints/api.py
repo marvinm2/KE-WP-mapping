@@ -101,7 +101,7 @@ def check_entry():
         ke_id = validated_data["ke_id"]
         wp_id = validated_data["wp_id"]
 
-        result = mapping_model.check_mapping_exists(ke_id, wp_id)
+        result = mapping_model.check_mapping_exists_with_proposals(ke_id, wp_id)
         return jsonify(result), 200
     except Exception as e:
         logger.error("Error checking entry: %s", e)
@@ -1312,7 +1312,7 @@ def check_go_entry():
         if not go_mapping_model:
             return jsonify({"error": "GO mapping service unavailable"}), 503
 
-        result = go_mapping_model.check_mapping_exists(
+        result = go_mapping_model.check_go_mapping_exists_with_proposals(
             validated_data["ke_id"], validated_data["go_id"]
         )
         return jsonify(result), 200
@@ -1320,6 +1320,37 @@ def check_go_entry():
     except Exception as e:
         logger.error("Error checking GO entry: %s", e)
         return jsonify({"error": "Failed to check GO entry"}), 500
+
+
+@api_bp.route("/flag_proposal_stale", methods=["POST"])
+@submission_rate_limit
+@login_required
+def flag_proposal_stale():
+    """Flag a pending proposal as stale for admin review."""
+    try:
+        proposal_id = request.form.get("proposal_id", type=int)
+        mapping_type = request.form.get("mapping_type", "wp")  # "wp" or "go"
+
+        if not proposal_id:
+            return jsonify({"error": "proposal_id is required"}), 400
+
+        flagged_by = session.get("user", {}).get("username", "unknown")
+
+        if mapping_type == "go":
+            if not go_proposal_model:
+                return jsonify({"error": "GO proposal service unavailable"}), 503
+            ok = go_proposal_model.flag_go_proposal_stale(proposal_id, flagged_by)
+        else:
+            ok = proposal_model.flag_proposal_stale(proposal_id, flagged_by)
+
+        if ok:
+            logger.info("Proposal %s flagged stale by %s", proposal_id, flagged_by)
+            return jsonify({"message": "Proposal flagged as stale for admin review."}), 200
+        else:
+            return jsonify({"error": "Failed to flag proposal"}), 500
+    except Exception as e:
+        logger.error("Error flagging proposal stale: %s", e)
+        return jsonify({"error": "Failed to flag proposal"}), 500
 
 
 @api_bp.route("/api/go-scoring-config", methods=["GET"])
