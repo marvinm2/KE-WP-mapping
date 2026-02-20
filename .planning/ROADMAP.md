@@ -64,7 +64,12 @@ Plans:
   2. An R script using `httr2` can filter KE-WP mappings by KE ID, AOP ID, or pathway ID and receive only the matching rows
   3. The same `/api/v1/go-mappings` endpoint returns KE-GO mappings filterable by KE ID and GO term ID
   4. Passing `Accept: text/csv` to any collection endpoint returns a tabular CSV response loadable directly by `read.csv()` or `pandas.read_csv()`
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — suggestion_score migration on mappings table, wire score through admin approval, add get_mappings_paginated() and get_go_mappings_paginated() to models
+- [ ] 03-02-PLAN.md — Create v1_api_bp blueprint (all 6 routes, CORS, content negotiation, AOP SPARQL lookup, pagination) and register in app.py
+- [ ] 03-03-PLAN.md — TDD test suite for /api/v1/ blueprint (JSON envelope, CSV, CORS, filters, pagination, 404 paths)
 
 ### Phase 4: Curator UX and Explore
 **Goal**: Curators can efficiently navigate the mapping database, see which KEs still need coverage, and filter approved mappings by AOP, confidence, and other dimensions; dataset metrics are visible at a glance
@@ -108,7 +113,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Deployment Hardening | 4/4 | Complete   | 2026-02-19 |
 | 2. Data Model and Audit Trail | 4/4 | Complete   | 2026-02-20 |
-| 3. Stable Public REST API | 0/TBD | Not started | - |
+| 3. Stable Public REST API | 0/3 | Not started | - |
 | 4. Curator UX and Explore | 0/TBD | Not started | - |
 | 5. Exports and Dataset Publication | 0/TBD | Not started | - |
 | 6. API Documentation | 0/TBD | Not started | - |
