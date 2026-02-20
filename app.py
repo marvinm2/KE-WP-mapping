@@ -15,13 +15,14 @@ from src.utils.timezone import format_admin_timestamp
 from src.utils.text import sanitize_log
 
 # Import blueprints
-from src.blueprints import admin_bp, api_bp, auth_bp, main_bp
+from src.blueprints import admin_bp, api_bp, auth_bp, main_bp, v1_api_bp
 from src.blueprints.admin import set_models as set_admin_models
 from src.blueprints.api import set_models as set_api_models
 
 # Import blueprint model setters
 from src.blueprints.auth import set_models as set_auth_models
 from src.blueprints.main import set_models as set_main_models
+from src.blueprints.v1_api import set_models as set_v1_api_models
 
 # Import configuration and services
 from src.core.config import get_config
@@ -79,6 +80,7 @@ def create_app(config_name: str = None):
 
     # Initialize CSRF protection
     csrf = CSRFProtect(app)
+    csrf.exempt(v1_api_bp)
 
     # Register error handlers
     register_error_handlers(app)
@@ -112,6 +114,11 @@ def create_app(config_name: str = None):
     )
     set_admin_models(services.proposal_model, services.mapping_model, guest_code=services.guest_code_model)
     set_main_models(services.mapping_model, go_mapping=services.go_mapping_model)
+    set_v1_api_models(
+        mapping=services.mapping_model,
+        go_mapping=services.go_mapping_model,
+        cache=services.cache_model,
+    )
 
     # Context processor to make is_admin available to all templates
     @app.context_processor
@@ -137,6 +144,7 @@ def create_app(config_name: str = None):
     app.register_blueprint(auth_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(v1_api_bp)
 
     # Health check and monitoring endpoints
     @app.route("/health")
