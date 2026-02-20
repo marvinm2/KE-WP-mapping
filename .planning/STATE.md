@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Curators can efficiently produce a high-quality, reusable KE-pathway/GO mapping database that external tools can consume for toxicological pathway analysis.
-**Current focus:** Phase 2 — Data Model and Audit Trail
+**Current focus:** Phase 3 — Stable Public REST API
 
 ## Current Position
 
-Phase: 2 of 6 (Data Model and Audit Trail)
-Plan: 4 of 4 in current phase (COMPLETE)
-Status: Phase 2 complete
-Last activity: 2026-02-20 — Completed 02-04 (provenance columns in explore table, /mappings/<uuid> route, admin suggestion_score display)
+Phase: 3 of 6 (Stable Public REST API)
+Plan: 1 of 3 in current phase (COMPLETE)
+Status: Phase 3 in progress
+Last activity: 2026-02-20 — Completed 03-01 (suggestion_score/go_namespace migrations, paginated query methods, approval wiring)
 
-Progress: [████████░░] 58%
+Progress: [████████░░] 61%
 
 ## Performance Metrics
 
@@ -29,10 +29,11 @@ Progress: [████████░░] 58%
 |-------|-------|-------|----------|
 | 01-deployment-hardening | 4 | 20 min | 5 min |
 | 02-data-model-and-audit-trail | 4 (complete) | 26 min | 6.5 min |
+| 03-stable-public-rest-api | 1 of 3 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (3 min), 02-02 (6 min), 02-03 (3 min), 02-04 (14 min)
-- Trend: Phase 2 complete — all provenance and UUID requirements delivered
+- Last 5 plans: 02-02 (6 min), 02-03 (3 min), 02-04 (14 min), 03-01 (5 min)
+- Trend: Phase 3 started — data layer complete for v1 API
 
 *Updated after each plan completion*
 | Phase 01-deployment-hardening P01 | 12 | 2 tasks | 3 files |
@@ -42,6 +43,7 @@ Progress: [████████░░] 58%
 | Phase 02-data-model-and-audit-trail P02 | 6 | 2 tasks | 3 files |
 | Phase 02-data-model-and-audit-trail P04 | 14 | 2 tasks | 5 files |
 | Phase 02-data-model-and-audit-trail P03 | 9 | 2 tasks | 2 files |
+| Phase 03-stable-public-rest-api P01 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -74,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase 02-data-model-and-audit-trail]: checkForDuplicatePair() fires inside setTimeout after pathway selection to ensure wp_id hidden field is updated before AJAX call
 - [Phase 02-data-model-and-audit-trail]: data-score attribute added to suggestion-item HTML using scores.final_score; avoids extra AJAX round-trip for suggestion score capture
 - [Phase 02-data-model-and-audit-trail]: mapping_type='wp' vs mapping_type='go' on flag-stale buttons routes /flag_proposal_stale to correct proposal model
+- [03-01]: suggestion_score column is REAL, nullable — NULL for all pre-Phase-3 rows; non-null only after curator approval of a scored proposal
+- [03-01]: go_namespace DEFAULT 'biological_process' — all current GO mappings are BP; column present for MF/CC extensibility
+- [03-01]: suggestion_score added to ALLOWED_FIELDS in update_mapping() — required so the kwarg is not silently dropped by the dynamic SET clause builder
 
 ### Pending Todos
 
@@ -87,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-20T21:53:21.774Z
-**Stopped at:** Phase 3 plans verified and ready for execution
-**Resume file:** .planning/phases/03-stable-public-rest-api/03-01-PLAN.md
+**Last session:** 2026-02-20T22:00:15Z
+**Stopped at:** Completed 03-01-PLAN.md
+**Resume file:** .planning/phases/03-stable-public-rest-api/03-02-PLAN.md
