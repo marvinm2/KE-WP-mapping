@@ -7,7 +7,7 @@ import time
 from collections import defaultdict
 from functools import wraps
 
-from flask import g, jsonify, request
+from flask import current_app, g, jsonify, request
 from src.utils.text import sanitize_log
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,8 @@ def rate_limit(limit: int = 100, window: int = 3600, per_endpoint: bool = True):
         def decorated_function(*args, **kwargs):
             # Get rate limiter instance
             if not hasattr(g, "rate_limiter"):
-                g.rate_limiter = RateLimiter()
+                db_path = current_app.config.get("DATABASE_PATH", "ke_wp_mapping.db")
+                g.rate_limiter = RateLimiter(db_path)
 
             client_ip = request.environ.get(
                 "HTTP_X_FORWARDED_FOR", request.environ.get("REMOTE_ADDR", "unknown")
