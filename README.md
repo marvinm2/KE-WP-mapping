@@ -199,25 +199,19 @@ docker-compose up -d
 
 ## Architecture Overview
 
-### Blueprint Structure
+### Project Layout
 ```
-├── app.py                    # Application factory (147 lines)
-├── config.py                 # Environment-aware configuration
-├── services.py               # Dependency injection container
-├── error_handlers.py         # Centralized error handling
-├── blueprints/               # Modular route organization
-│   ├── auth.py              # Authentication & OAuth
-│   ├── api.py               # Data API endpoints
-│   ├── admin.py             # Admin dashboard
-│   └── main.py              # Core application routes
-├── models.py                 # Data models & database layer
-├── schemas.py                # Input validation schemas
-├── monitoring.py             # Performance & health monitoring
-├── rate_limiter.py           # API rate limiting
-├── pathway_suggestions.py    # Intelligent pathway suggestions
-├── go_suggestions.py         # GO term suggestion service
-├── ke_gene_service.py        # Gene extraction from Key Events
-└── scoring_utils.py          # Shared scoring utilities
+app.py                  # Application factory (create_app()) — stays at root
+src/
+├── core/               # Models, config, schemas, error handlers
+├── services/           # Container, embedding, monitoring, rate limiter
+├── suggestions/        # Pathway, GO, KE gene, scoring
+├── utils/              # Text, timezone utilities
+├── blueprints/         # Admin, API, auth, main routes
+└── exporters/          # JSON, RDF, Excel, Parquet exporters
+data/                   # Pre-computed embeddings & metadata
+scripts/                # Embedding pre-computation scripts
+tests/                  # Pytest test suite
 ```
 
 ### Key Components
@@ -383,7 +377,7 @@ python app.py
 
 ### Adding New Features
 
-1. Create new blueprint in `blueprints/`
+1. Create new blueprint in `src/blueprints/`
 2. Register in `app.py`
 3. Add configuration in `config.py`
 4. Update service container if needed

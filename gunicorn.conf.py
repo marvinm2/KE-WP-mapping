@@ -15,6 +15,6 @@ preload_app = True   # Load BioBERT model ONCE in master; workers inherit via Li
                      # WARNING: incompatible with --reload; never use --reload in production.
 max_requests = 500   # Restart workers periodically to prevent memory fragmentation
 max_requests_jitter = 50  # Stagger restarts to avoid thundering herd
-accesslog = "/app/logs/access.log"
-errorlog = "/app/logs/error.log"
+accesslog = "-"   # stdout — captured by docker logs
+errorlog = "-"    # stderr — captured by docker logs
 loglevel = "info"

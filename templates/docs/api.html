@@ -45,6 +45,32 @@
 <p>Get gene associations for a specific Key Event.</p>
 <pre><code>curl https://your-domain.com/get_ke_genes/55</code></pre>
 
+<h4>GET /api/ke_context/&lt;ke_id&gt;</h4>
+<p>Get KE context: associated AOPs and any existing WP/GO mappings for a Key Event.</p>
+<pre><code>curl https://your-domain.com/api/ke_context/55</code></pre>
+
+<p><strong>Response:</strong></p>
+<pre><code>{
+    "ke_id": "55",
+    "aops": [{"aop_id": "1", "aop_title": "..."}],
+    "wp_mappings": [{"pathway_id": "WP4726", "pathway_title": "...", "confidence": "High"}],
+    "go_mappings": [{"go_id": "GO:0006915", "go_name": "apoptotic process"}]
+}</code></pre>
+
+<h4>GET /suggest_go_terms/&lt;ke_id&gt;</h4>
+<p>Get GO Biological Process term suggestions for a specific Key Event, ranked by gene overlap and semantic similarity.</p>
+<pre><code>curl https://your-domain.com/suggest_go_terms/55</code></pre>
+
+<p><strong>Response:</strong> JSON object with ranked GO term suggestions including scores and matched genes.</p>
+
+<h4>GET /api/scoring-config</h4>
+<p>Retrieve the current KE-WP assessment scoring configuration.</p>
+<pre><code>curl https://your-domain.com/api/scoring-config</code></pre>
+
+<h4>GET /api/go-scoring-config</h4>
+<p>Retrieve the current KE-GO assessment scoring configuration.</p>
+<pre><code>curl https://your-domain.com/api/go-scoring-config</code></pre>
+
 <h4>POST /submit</h4>
 <p>Create a new KE-WP mapping (requires authentication).</p>
 <pre><code>curl -X POST https://your-domain.com/submit \
@@ -57,14 +83,47 @@
     "connection_type": "Causative"
   }'</code></pre>
 
-<h4>GET /download</h4>
-<p>Export mapping dataset in CSV format.</p>
-<pre><code>curl https://your-domain.com/download -o mappings.csv</code></pre>
+<h4>POST /submit_go_mapping</h4>
+<p>Create a new KE-GO mapping (requires authentication).</p>
+<pre><code>curl -X POST https://your-domain.com/submit_go_mapping \
+  -H "Content-Type: application/json" \
+  -H "X-CSRFToken: YOUR_TOKEN" \
+  -d '{
+    "ke_id": "55",
+    "go_id": "GO:0006915",
+    "confidence": "High",
+    "connection_type": "Causative"
+  }'</code></pre>
+
+<h4>POST /check_go_entry</h4>
+<p>Check whether a KE-GO mapping pair already exists in the database.</p>
+<pre><code>curl -X POST https://your-domain.com/check_go_entry \
+  -H "Content-Type: application/json" \
+  -d '{"ke_id": "55", "go_id": "GO:0006915"}'</code></pre>
+
+<h4>GET /export/&lt;format&gt;</h4>
+<p>Export the mapping dataset in the specified format.</p>
+<pre><code>curl https://your-domain.com/export/csv -o mappings.csv
+curl https://your-domain.com/export/json -o mappings.json
+curl https://your-domain.com/export/excel -o mappings.xlsx
+curl https://your-domain.com/export/rdf -o mappings.ttl</code></pre>
+
+<p><strong>Supported formats:</strong> <code>csv</code>, <code>tsv</code>, <code>json</code>, <code>excel</code>, <code>rdf</code></p>
+
+<h4>GET /guest-login</h4>
+<p>Display the guest login page where workshop participants can enter an access code.</p>
+
+<h4>POST /guest-login</h4>
+<p>Authenticate as a guest user using a workshop access code.</p>
+<pre><code>curl -X POST https://your-domain.com/guest-login \
+  -H "Content-Type: application/json" \
+  -d '{"access_code": "YOUR_CODE"}'</code></pre>
 
 <h3>Authentication</h3>
-<p>Most endpoints are public (GET requests). Mutation endpoints (POST /submit, POST /submit_proposal) require:</p>
+<p>Most endpoints are public (GET requests). Mutation endpoints (POST /submit, POST /submit_go_mapping, POST /submit_proposal) require:</p>
 <ul>
-    <li>GitHub OAuth authentication</li>
+    <li>GitHub OAuth authentication, or</li>
+    <li>Guest authentication via workshop access code (POST /guest-login)</li>
     <li>CSRF token in request headers</li>
 </ul>
 

@@ -10,14 +10,18 @@
     <li>Key Event ID (e.g., "KE 55")</li>
     <li>Key Event title or keywords</li>
 </ul>
+<p>After selecting a KE, a details panel appears showing the KE description, biological level, and a link to measurement methods on AOP-Wiki. A context panel also loads showing AOP membership and any existing WP/GO mappings.</p>
 
-<h4>Step 2: Select WikiPathway(s)</h4>
-<p>Choose one or two related WikiPathways. The system provides:</p>
+<h4>Step 2: Select WikiPathway(s) — KE-WP Mapping</h4>
+<p>Choose one or two related WikiPathways using the <strong>KE-WP Mapping</strong> tab. The system provides three sub-tabs:</p>
 <ul>
-    <li><strong>AI-Powered Suggestions</strong> - Ranked pathway recommendations based on text similarity and gene overlap</li>
-    <li><strong>Pathway Search</strong> - Search for pathways by name or keywords</li>
-    <li><strong>Manual Selection</strong> - Browse all available WikiPathways</li>
+    <li><strong>Suggested</strong> - Ranked pathway recommendations based on text similarity and gene overlap</li>
+    <li><strong>Search</strong> - Search for pathways by name or keywords</li>
+    <li><strong>Browse All</strong> - Browse all available WikiPathways</li>
 </ul>
+
+<h4>Step 2 (alternative): Select GO Term — KE-GO Mapping</h4>
+<p>To map a KE to a Gene Ontology Biological Process term, use the <strong>KE-GO Mapping</strong> tab. The system suggests GO BP terms based on gene overlap and semantic similarity, displayed as suggestion cards with GO term name, definition, matched genes, and similarity scores.</p>
 
 <h4>Step 3: Confidence Assessment (4 Questions)</h4>
 <p>Answer four questions to evaluate mapping quality:</p>
@@ -60,6 +64,10 @@
 
 <div class="info-box">
     <strong>Biological Level Weighting:</strong> Molecular, cellular, and tissue-level KEs receive a +1 bonus point because they're closer to pathway mechanisms than organ/population-level KEs.
+</div>
+
+<div class="info-box">
+    <strong>KE-GO Assessment:</strong> KE-GO mapping has its own confidence assessment with GO-specific connection types. The assessment evaluates the biological relevance of the KE-to-GO-term relationship.
 </div>
 
 <h3>Exploring Existing Mappings</h3>
