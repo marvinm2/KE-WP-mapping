@@ -308,7 +308,9 @@ class BiologicalEmbeddingService:
             768-dimensional embedding vector
         """
         try:
-            return self.model.encode(text, convert_to_numpy=True, show_progress_bar=False)
+            emb = self.model.encode(text, convert_to_numpy=True, show_progress_bar=False)
+            norm = np.linalg.norm(emb)
+            return (emb / norm).astype(np.float32) if norm > 0.0 else emb
         except Exception as e:
             logger.error(f"Encoding failed: {e}")
             # Return zero vector as fallback
