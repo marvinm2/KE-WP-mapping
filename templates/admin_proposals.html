@@ -300,6 +300,12 @@
                     ${proposal.approved_by ? `<div><strong>Processed By:</strong> ${proposal.approved_by}</div>` : ''}
                     ${proposal.rejected_by ? `<div><strong>Processed By:</strong> ${proposal.rejected_by}</div>` : ''}
                 </div>
+
+                <div style="margin-bottom: 15px; padding: 12px; background: #f8fafc; border-radius: 6px; border: 1px solid #dee2e6;">
+                    <h4 style="margin-top: 0;">Admin Details</h4>
+                    <div><strong>Suggestion Score:</strong> ${proposal.suggestion_score !== null && proposal.suggestion_score !== undefined ? proposal.suggestion_score.toFixed(3) : '&mdash;'}</div>
+                    <div><strong>Proposal UUID:</strong> <code style="font-size: 12px;">${proposal.uuid || '&mdash;'}</code></div>
+                </div>
             `;
 
             // Show action buttons only for pending proposals

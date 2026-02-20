@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapping Detail</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+<div class="page-container">
+    {% include 'components/navigation.html' %}
+    <div class="container">
+        <div style="margin-bottom: 16px;">
+            <a href="{{ url_for('main.explore') }}">&larr; Back to Browse</a>
+        </div>
+
+        <h2>Mapping Detail</h2>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tbody>
+                <tr>
+                    <th style="text-align: left; padding: 8px 12px; background: #f8fafc; width: 220px; border: 1px solid #dee2e6;">KE ID</th>
+                    <td style="padding: 8px 12px; border: 1px solid #dee2e6;">{{ mapping.ke_id }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 8px 12px; background: #f8fafc; width: 220px; border: 1px solid #dee2e6;">KE Title</th>
+                    <td style="padding: 8px 12px; border: 1px solid #dee2e6;">{{ mapping.ke_title }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 8px 12px; background: #f8fafc; width: 220px; border: 1px solid #dee2e6;">WP ID</th>
+                    <td style="padding: 8px 12px; border: 1px solid #dee2e6;">{{ mapping.wp_id }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 8px 12px; background: #f8fafc; width: 220px; border: 1px solid #dee2e6;">WP Title</th>
+                    <td style="padding: 8px 12px; border: 1px solid #dee2e6;">{{ mapping.wp_title }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 8px 12px; background: #f8fafc; width: 220px; border: 1px solid #dee2e6;">Connection Type</th>
+                    <td style="padding: 8px 12px; border: 1px solid #dee2e6;">{{ mapping.connection_type }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 8px 12px; background: #f8fafc; width: 220px; border: 1px solid #dee2e6;">Confidence Level</th>
+                    <td style="padding: 8px 12px; border: 1px solid #dee2e6;">{{ mapping.confidence_level }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 8px 12px; background: #f8fafc; width: 220px; border: 1px solid #dee2e6;">Curator</th>
+                    <td style="padding: 8px 12px; border: 1px solid #dee2e6;">{{ mapping.approved_by_curator or mapping.created_by or '&mdash;' }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 8px 12px; background: #f8fafc; width: 220px; border: 1px solid #dee2e6;">Approved</th>
+                    <td style="padding: 8px 12px; border: 1px solid #dee2e6;">{{ (mapping.approved_at_curator or mapping.created_at or '').split('T')[0].split(' ')[0] or '&mdash;' }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 8px 12px; background: #f8fafc; width: 220px; border: 1px solid #dee2e6;">UUID</th>
+                    <td style="padding: 8px 12px; border: 1px solid #dee2e6;"><code style="font-size: 13px;">{{ mapping.uuid }}</code></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 KE-WP Mapping Service</p>
+    </footer>
+</div>
+</body>
+</html>

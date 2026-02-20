@@ -6,7 +6,7 @@ import logging
 import os
 from datetime import datetime
 
-from flask import Blueprint, make_response, render_template, send_file, session, request, jsonify
+from flask import Blueprint, abort, make_response, render_template, send_file, session, request, jsonify
 
 from src.core.models import MappingModel
 from src.services.monitoring import monitor_performance
@@ -452,6 +452,15 @@ def datacite_metadata():
     except Exception as e:
         logger.error("Error generating DataCite metadata: %s", e)
         return jsonify({"error": "Failed to generate DataCite metadata", "details": "Internal error"}), 500
+
+
+@main_bp.route("/mappings/<string:mapping_uuid>")
+def mapping_detail(mapping_uuid):
+    """Stable mapping detail page — accessible via permanent UUID URL."""
+    mapping = mapping_model.get_mapping_by_uuid(mapping_uuid)
+    if not mapping:
+        abort(404)
+    return render_template("mapping_detail.html", mapping=mapping)
 
 
 @main_bp.route("/documentation")
