@@ -1,5 +1,5 @@
 # --- Build stage ---
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.14-slim-bookworm AS builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY requirements.txt .
@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir --prefix=/install \
     -r requirements.txt
 
 # --- Runtime stage ---
-FROM python:3.12-slim-bookworm
+FROM python:3.14-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 FLASK_APP=app.py FLASK_ENV=production
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl sqlite3 cron \
