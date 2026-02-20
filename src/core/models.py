@@ -188,6 +188,10 @@ class Database:
             self._migrate_mappings_uuid_and_provenance(conn)
             self._migrate_go_mappings_uuid_and_provenance(conn)
 
+            # Migrate proposal tables to add phase 2 fields (Phase 2)
+            self._migrate_proposals_phase2_fields(conn)
+            self._migrate_go_proposals_phase2_fields(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -372,6 +376,87 @@ class Database:
             logger.error("Error migrating ke_go_mappings uuid/provenance columns: %s", e)
             raise
 
+    def _migrate_proposals_phase2_fields(self, conn):
+        """
+        Add Phase 2 fields to proposals table if they don't exist.
+
+        Columns added:
+            - uuid TEXT — stable UUID assigned at proposal creation time
+            - suggestion_score REAL — BioBERT hybrid score from suggestion card
+            - is_stale BOOLEAN DEFAULT FALSE — curator flag for admin review
+
+        Args:
+            conn: Database connection
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            if "uuid" not in columns:
+                conn.execute("ALTER TABLE proposals ADD COLUMN uuid TEXT")
+                new_columns.append("uuid")
+            if "suggestion_score" not in columns:
+                conn.execute("ALTER TABLE proposals ADD COLUMN suggestion_score REAL")
+                new_columns.append("suggestion_score")
+            if "is_stale" not in columns:
+                conn.execute(
+                    "ALTER TABLE proposals ADD COLUMN is_stale BOOLEAN DEFAULT FALSE"
+                )
+                new_columns.append("is_stale")
+
+            if new_columns:
+                logger.info(
+                    "Migrated proposals table with Phase 2 fields: %s", new_columns
+                )
+
+        except Exception as e:
+            logger.error("Error migrating proposals Phase 2 fields: %s", e)
+            raise
+
+    def _migrate_go_proposals_phase2_fields(self, conn):
+        """
+        Add Phase 2 fields to ke_go_proposals table if they don't exist.
+
+        Columns added:
+            - uuid TEXT — stable UUID assigned at proposal creation time
+            - suggestion_score REAL — BioBERT hybrid score from suggestion card
+            - is_stale BOOLEAN DEFAULT FALSE — curator flag for admin review
+
+        Note: ke_go_proposals already has approved_by, approved_at, rejected_by,
+        rejected_at from its CREATE TABLE definition — these are not re-added.
+
+        Args:
+            conn: Database connection
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            if "uuid" not in columns:
+                conn.execute("ALTER TABLE ke_go_proposals ADD COLUMN uuid TEXT")
+                new_columns.append("uuid")
+            if "suggestion_score" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_proposals ADD COLUMN suggestion_score REAL"
+                )
+                new_columns.append("suggestion_score")
+            if "is_stale" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_proposals ADD COLUMN is_stale BOOLEAN DEFAULT FALSE"
+                )
+                new_columns.append("is_stale")
+
+            if new_columns:
+                logger.info(
+                    "Migrated ke_go_proposals table with Phase 2 fields: %s", new_columns
+                )
+
+        except Exception as e:
+            logger.error("Error migrating ke_go_proposals Phase 2 fields: %s", e)
+            raise
+
 
 class MappingModel:
     def __init__(self, db: Database):
@@ -388,13 +473,14 @@ class MappingModel:
         created_by: str = None,
     ) -> Optional[int]:
         """Create a new KE-WP mapping"""
+        mapping_uuid = str(uuid_lib.uuid4())
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
                 """
-                INSERT INTO mappings (ke_id, ke_title, wp_id, wp_title, connection_type, 
-                                    confidence_level, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO mappings (ke_id, ke_title, wp_id, wp_title, connection_type,
+                                    confidence_level, created_by, uuid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     ke_id,
@@ -404,11 +490,18 @@ class MappingModel:
                     connection_type,
                     confidence_level,
                     created_by,
+                    mapping_uuid,
                 ),
             )
 
             conn.commit()
-            logger.info("Created mapping: KE=%s, WP=%s, User=%s", ke_id, wp_id, created_by)
+            logger.info(
+                "Created mapping: KE=%s, WP=%s, User=%s, UUID=%s",
+                ke_id,
+                wp_id,
+                created_by,
+                mapping_uuid,
+            )
             return cursor.lastrowid
         except sqlite3.IntegrityError:
             logger.warning("Duplicate mapping attempted: KE=%s, WP=%s", ke_id, wp_id)
@@ -792,13 +885,14 @@ class GoMappingModel:
         created_by: str = None,
     ) -> Optional[int]:
         """Create a new KE-GO mapping"""
+        mapping_uuid = str(uuid_lib.uuid4())
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
                 """
                 INSERT INTO ke_go_mappings (ke_id, ke_title, go_id, go_name, connection_type,
-                                           confidence_level, evidence_code, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                           confidence_level, evidence_code, created_by, uuid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     ke_id,
@@ -809,11 +903,18 @@ class GoMappingModel:
                     confidence_level,
                     evidence_code,
                     created_by,
+                    mapping_uuid,
                 ),
             )
 
             conn.commit()
-            logger.info("Created GO mapping: KE=%s, GO=%s, User=%s", ke_id, go_id, created_by)
+            logger.info(
+                "Created GO mapping: KE=%s, GO=%s, User=%s, UUID=%s",
+                ke_id,
+                go_id,
+                created_by,
+                mapping_uuid,
+            )
             return cursor.lastrowid
         except sqlite3.IntegrityError:
             logger.warning("Duplicate GO mapping attempted: KE=%s, GO=%s", ke_id, go_id)
