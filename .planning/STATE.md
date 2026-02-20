@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 2 of 6 (Data Model and Audit Trail)
-Plan: 2 of 4 in current phase
-Status: In progress
-Last activity: 2026-02-20 — Completed 02-02 (enriched check endpoints, provenance at approval, flag_proposal_stale)
+Plan: 4 of 4 in current phase (COMPLETE)
+Status: Phase 2 complete
+Last activity: 2026-02-20 — Completed 02-04 (provenance columns in explore table, /mappings/<uuid> route, admin suggestion_score display)
 
-Progress: [████░░░░░░] 25%
+Progress: [████████░░] 58%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 5 min
-- Total execution time: 0.38 hours
+- Total plans completed: 7
+- Average duration: 6 min
+- Total execution time: 0.61 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-deployment-hardening | 4 | 20 min | 5 min |
-| 02-data-model-and-audit-trail | 2 | 9 min | 4.5 min |
+| 02-data-model-and-audit-trail | 4 (complete) | 26 min | 6.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (5 min), 01-04 (2 min), 02-01 (3 min), 02-02 (6 min)
-- Trend: Phase 2 progressing — enriched duplicate check and provenance wired
+- Last 5 plans: 02-01 (3 min), 02-02 (6 min), 02-03 (3 min), 02-04 (14 min)
+- Trend: Phase 2 complete — all provenance and UUID requirements delivered
 
 *Updated after each plan completion*
 | Phase 01-deployment-hardening P01 | 12 | 2 tasks | 3 files |
@@ -40,6 +40,7 @@ Progress: [████░░░░░░] 25%
 | Phase 01-deployment-hardening P04 | 2 | 1 task | 1 file |
 | Phase 02-data-model-and-audit-trail P01 | 3 | 2 tasks | 1 file |
 | Phase 02-data-model-and-audit-trail P02 | 6 | 2 tasks | 3 files |
+| Phase 02-data-model-and-audit-trail P04 | 14 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ Recent decisions affecting current work:
 - [02-02]: pending_proposal takes priority over approved_mapping in enriched check methods — most actionable blocking state shown first (flag stale, then resubmit)
 - [02-02]: flag_proposal_stale endpoint placed in api_bp (not admin_bp) — curators (not only admins) need to flag stale proposals; @login_required is sufficient
 - [02-02]: GO proposal admin approval flow not yet implemented — admin.py has no GO proposal approval route; GoMappingModel provenance update deferred until that route is added
+- [Phase 02-data-model-and-audit-trail]: UUID shown in mapping_detail.html (permanent detail page) but NOT in curator explore table — admin/API only per locked decision
+- [Phase 02-data-model-and-audit-trail]: mapping_detail.html uses standalone HTML with navigation include — no base template inheritance; all templates in this project are standalone
 
 ### Pending Todos
 
@@ -80,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-20T13:38:00Z
-**Stopped at:** Completed 02-02-PLAN.md (enriched check endpoints, provenance at approval, flag_proposal_stale)
-**Resume file:** .planning/phases/02-data-model-and-audit-trail/02-03-PLAN.md
+**Last session:** 2026-02-20T13:56:47.858Z
+**Stopped at:** Completed 02-04-PLAN.md (provenance columns in explore table, /mappings/<uuid> route, admin suggestion_score display)
+**Resume file:** .planning/phases/03-public-api/03-01-PLAN.md
