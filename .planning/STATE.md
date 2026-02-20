@@ -10,35 +10,36 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 2 of 6 (Data Model and Audit Trail)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-20 — Completed 02-01 (schema migrations — uuid + provenance columns)
+Last activity: 2026-02-20 — Completed 02-02 (enriched check endpoints, provenance at approval, flag_proposal_stale)
 
-Progress: [███░░░░░░░] 20%
+Progress: [████░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 5 min
-- Total execution time: 0.33 hours
+- Total execution time: 0.38 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-deployment-hardening | 4 | 20 min | 5 min |
-| 02-data-model-and-audit-trail | 1 | 3 min | 3 min |
+| 02-data-model-and-audit-trail | 2 | 9 min | 4.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (1 min), 01-03 (5 min), 01-04 (2 min), 02-01 (3 min)
-- Trend: Phase 2 started — schema foundation complete
+- Last 5 plans: 01-03 (5 min), 01-04 (2 min), 02-01 (3 min), 02-02 (6 min)
+- Trend: Phase 2 progressing — enriched duplicate check and provenance wired
 
 *Updated after each plan completion*
 | Phase 01-deployment-hardening P01 | 12 | 2 tasks | 3 files |
 | Phase 01-deployment-hardening P03 | 5 | 2 tasks | 8 files |
 | Phase 01-deployment-hardening P04 | 2 | 1 task | 1 file |
 | Phase 02-data-model-and-audit-trail P01 | 3 | 2 tasks | 1 file |
+| Phase 02-data-model-and-audit-trail P02 | 6 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Recent decisions affecting current work:
 - [02-01]: Backfill existing mapping rows with SQLite randomblob() UUID expression — runs atomically inside init_db() transaction, avoids loading rows into Python
 - [02-01]: Unique index on uuid uses CREATE UNIQUE INDEX IF NOT EXISTS — idempotent and enforces uniqueness for all future inserts
 - [02-01]: Proposal table uuid is nullable and not backfilled — new proposals get uuid via create_proposal() when wired in a later Phase 2 plan
+- [02-02]: pending_proposal takes priority over approved_mapping in enriched check methods — most actionable blocking state shown first (flag stale, then resubmit)
+- [02-02]: flag_proposal_stale endpoint placed in api_bp (not admin_bp) — curators (not only admins) need to flag stale proposals; @login_required is sufficient
+- [02-02]: GO proposal admin approval flow not yet implemented — admin.py has no GO proposal approval route; GoMappingModel provenance update deferred until that route is added
 
 ### Pending Todos
 
@@ -71,11 +75,11 @@ None yet.
 ### Blockers/Concerns
 
 - [Pre-Phase 1]: Database path must be changed to `/app/data/ke_wp_mapping.db` and mounted as a Docker volume before any external user submits data — data loss risk is irreversible
-- [Pre-Phase 2]: Verify whether `curator_github` is already stored at approval time in `src/blueprints/admin.py` before designing Phase 2 schema additions
+- [Resolved 02-02]: curator_github was NOT stored at approval time — now fixed; approved_by_curator + approved_at_curator written at every approve_proposal() call
 - [Pre-Phase 4]: Explore filter by `aop_id` requires a design decision — pre-compute AOP membership into the database (preferred) vs. live SPARQL join per request
 
 ## Session Continuity
 
-**Last session:** 2026-02-20T13:28:51Z
-**Stopped at:** Completed 02-01-PLAN.md (schema migrations — uuid + provenance columns across 4 tables)
-**Resume file:** .planning/phases/02-data-model-and-audit-trail/02-02-PLAN.md
+**Last session:** 2026-02-20T13:38:00Z
+**Stopped at:** Completed 02-02-PLAN.md (enriched check endpoints, provenance at approval, flag_proposal_stale)
+**Resume file:** .planning/phases/02-data-model-and-audit-trail/02-03-PLAN.md

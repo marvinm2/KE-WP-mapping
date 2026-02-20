@@ -17,7 +17,7 @@ Requirements for v1.0 release. Each maps to a roadmap phase.
 ### Data Quality & Curation
 
 - [x] **CURAT-01**: Each approved mapping records the approving curator and timestamp (provenance/audit trail)
-- [ ] **CURAT-02**: Duplicate mapping detection prevents submitting the same KE→pathway or KE→GO pair twice
+- [x] **CURAT-02**: Duplicate mapping detection prevents submitting the same KE→pathway or KE→GO pair twice
 - [x] **CURAT-03**: Confidence level (High/Medium/Low) stored with each approved mapping and visible in browse table
 
 ### Public REST API
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPLOY-03 | Phase 1 | Complete |
 | DEPLOY-04 | Phase 1 | Complete |
 | CURAT-01 | Phase 2 | Complete |
-| CURAT-02 | Phase 2 | Pending |
+| CURAT-02 | Phase 2 | Complete |
 | CURAT-03 | Phase 2 | Complete |
 | EXPLO-04 | Phase 2 | Complete |
 | API-01 | Phase 3 | Pending |

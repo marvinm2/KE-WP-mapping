@@ -107,7 +107,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Deployment Hardening | 4/4 | Complete   | 2026-02-19 |
-| 2. Data Model and Audit Trail | 1/4 | In progress | - |
+| 2. Data Model and Audit Trail | 2/4 | In Progress|  |
 | 3. Stable Public REST API | 0/TBD | Not started | - |
 | 4. Curator UX and Explore | 0/TBD | Not started | - |
 | 5. Exports and Dataset Publication | 0/TBD | Not started | - |
