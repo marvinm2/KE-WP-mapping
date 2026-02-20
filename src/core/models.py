@@ -764,6 +764,25 @@ class MappingModel:
         finally:
             conn.close()
 
+    def get_mapping_by_uuid(self, mapping_uuid: str) -> Optional[Dict]:
+        """Get a mapping by its stable UUID"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type,
+                       confidence_level, created_by, created_at, updated_at,
+                       uuid, approved_by_curator, approved_at_curator, updated_by
+                FROM mappings
+                WHERE uuid = ?
+                """,
+                (mapping_uuid,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
     def delete_mapping(self, mapping_id: int, deleted_by: str = None) -> bool:
         """
         Delete a mapping
@@ -1240,6 +1259,26 @@ class GoMappingModel:
                 "pair_exists": False,
                 "message": f"The KE ID {ke_id} and GO ID {go_id} are new entries.",
             }
+        finally:
+            conn.close()
+
+
+    def get_go_mapping_by_uuid(self, mapping_uuid: str) -> Optional[Dict]:
+        """Get a GO mapping by its stable UUID"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
+                       confidence_level, evidence_code, created_by, created_at, updated_at,
+                       uuid, approved_by_curator, approved_at_curator
+                FROM ke_go_mappings
+                WHERE uuid = ?
+                """,
+                (mapping_uuid,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
         finally:
             conn.close()
 

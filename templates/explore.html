@@ -48,7 +48,8 @@
                         <th>WP Title</th>
                         <th>Connection Type</th>
                         <th>Confidence Level</th>
-                        <th>Timestamp</th>
+                        <th>Curator</th>
+                        <th>Approved</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -61,7 +62,8 @@
                         <td>{{ row['wp_title'] or row['WP_Title'] }}</td>
                         <td>{{ row['connection_type'] or row['Connection_Type'] }}</td>
                         <td>{{ row['confidence_level'] or row['Confidence_Level'] }}</td>
-                        <td>{{ (row['created_at'] or row['Timestamp'] or '').split('.')[0] }}</td>
+                        <td>{{ row['approved_by_curator'] or row['created_by'] or '—' }}</td>
+                        <td>{{ (row['approved_at_curator'] or row['created_at'] or '').split('T')[0].split(' ')[0] }}</td>
                         <td>
                             <button class="propose-change" data-entry="{{ row }}">Propose Change</button>
                         </td>
@@ -168,15 +170,16 @@
             // Setup KE-WP DataTable
             $('#datasetTable').DataTable(
                 DataTableConfig.merge('withFullExport', {
-                    order: [[6, 'desc']],
+                    order: [[7, 'desc']],
                     columnDefs: [
-                        { width: '10%', targets: 0, className: 'dt-center' },
-                        { width: '20%', targets: 1, className: 'dt-center' },
-                        { width: '10%', targets: 2, className: 'dt-center' },
-                        { width: '20%', targets: 3, className: 'dt-center' },
-                        { width: '15%', targets: 4, className: 'dt-center' },
-                        { width: '15%', targets: 5, className: 'dt-center' },
-                        { width: '10%', targets: 6, className: 'dt-center' }
+                        { width: '8%',  targets: 0, className: 'dt-center' },
+                        { width: '18%', targets: 1, className: 'dt-center' },
+                        { width: '8%',  targets: 2, className: 'dt-center' },
+                        { width: '18%', targets: 3, className: 'dt-center' },
+                        { width: '13%', targets: 4, className: 'dt-center' },
+                        { width: '13%', targets: 5, className: 'dt-center' },
+                        { width: '10%', targets: 6, className: 'dt-center' },
+                        { width: '10%', targets: 7, className: 'dt-center' }
                     ]
                 })
             );
