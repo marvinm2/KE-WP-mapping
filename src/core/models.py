@@ -192,6 +192,11 @@ class Database:
             self._migrate_proposals_phase2_fields(conn)
             self._migrate_go_proposals_phase2_fields(conn)
 
+            # Migrate mappings/go_mappings tables to add Phase 3 columns
+            self._migrate_mappings_suggestion_score(conn)
+            self._migrate_go_mappings_suggestion_score(conn)
+            self._migrate_go_mappings_go_namespace(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -457,6 +462,70 @@ class Database:
             logger.error("Error migrating ke_go_proposals Phase 2 fields: %s", e)
             raise
 
+    def _migrate_mappings_suggestion_score(self, conn):
+        """
+        Add suggestion_score column to mappings table if it does not exist.
+
+        suggestion_score (REAL, nullable) — BioBERT hybrid score copied from
+        the approved proposal at admin approval time. NULL for all pre-Phase-3
+        rows (score was only stored on proposals before this migration).
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "suggestion_score" not in columns:
+                conn.execute("ALTER TABLE mappings ADD COLUMN suggestion_score REAL")
+                logger.info("Migrated mappings table: added suggestion_score column")
+        except Exception as e:
+            logger.error("Error migrating mappings suggestion_score: %s", e)
+            raise
+
+    def _migrate_go_mappings_suggestion_score(self, conn):
+        """
+        Add suggestion_score column to ke_go_mappings table if it does not exist.
+
+        suggestion_score (REAL, nullable) — BioBERT hybrid score copied from
+        the approved GO proposal at admin approval time. NULL for all pre-Phase-3
+        rows (score was only stored on proposals before this migration).
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "suggestion_score" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN suggestion_score REAL"
+                )
+                logger.info(
+                    "Migrated ke_go_mappings table: added suggestion_score column"
+                )
+        except Exception as e:
+            logger.error("Error migrating ke_go_mappings suggestion_score: %s", e)
+            raise
+
+    def _migrate_go_mappings_go_namespace(self, conn):
+        """
+        Add go_namespace column to ke_go_mappings table if it does not exist.
+
+        go_namespace (TEXT, NOT NULL, DEFAULT 'biological_process') — the ontology
+        namespace for the GO term. All current GO mappings are Biological Process;
+        the column is present for extensibility when MF/CC mappings are added.
+        Existing rows receive 'biological_process' via the DEFAULT.
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "go_namespace" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN "
+                    "go_namespace TEXT NOT NULL DEFAULT 'biological_process'"
+                )
+                logger.info(
+                    "Migrated ke_go_mappings table: added go_namespace column"
+                )
+        except Exception as e:
+            logger.error("Error migrating ke_go_mappings go_namespace: %s", e)
+            raise
+
 
 class MappingModel:
     def __init__(self, db: Database):
@@ -546,6 +615,69 @@ class MappingModel:
                 (ke_id,)
             )
             return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_mappings_paginated(
+        self,
+        page: int = 1,
+        per_page: int = 50,
+        ke_id: str = None,
+        pathway_id: str = None,
+        confidence_level: str = None,
+        ke_ids: list = None,
+    ) -> tuple:
+        """
+        Return (List[Dict], total_count) for approved KE-WP mappings.
+
+        Filters (all optional, combinable):
+          ke_id            — exact match on mappings.ke_id
+          pathway_id       — exact match on mappings.wp_id
+          confidence_level — case-insensitive match on mappings.confidence_level
+          ke_ids           — IN filter used when aop_id has been resolved to KE IDs;
+                             pass [] to return ([], 0) immediately (valid AOP, no KEs mapped)
+
+        Returns rows with columns:
+          uuid, ke_id, ke_title, wp_id, wp_title, confidence_level,
+          approved_by_curator, approved_at_curator, suggestion_score
+        Ordered by created_at DESC.
+        """
+        conditions = []
+        params = []
+
+        if ke_id:
+            conditions.append("ke_id = ?")
+            params.append(ke_id)
+        if pathway_id:
+            conditions.append("wp_id = ?")
+            params.append(pathway_id)
+        if confidence_level:
+            conditions.append("LOWER(confidence_level) = LOWER(?)")
+            params.append(confidence_level)
+        if ke_ids is not None:
+            if not ke_ids:
+                return [], 0
+            placeholders = ",".join("?" * len(ke_ids))
+            conditions.append(f"ke_id IN ({placeholders})")
+            params.extend(ke_ids)
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        offset = (page - 1) * per_page
+
+        conn = self.db.get_connection()
+        try:
+            total = conn.execute(
+                f"SELECT COUNT(*) FROM mappings {where}", params
+            ).fetchone()[0]
+            rows = conn.execute(
+                f"""SELECT uuid, ke_id, ke_title, wp_id, wp_title, confidence_level,
+                           approved_by_curator, approved_at_curator, suggestion_score
+                    FROM mappings {where}
+                    ORDER BY created_at DESC
+                    LIMIT ? OFFSET ?""",
+                params + [per_page, offset],
+            ).fetchall()
+            return [dict(r) for r in rows], total
         finally:
             conn.close()
 
@@ -1279,6 +1411,60 @@ class GoMappingModel:
             )
             row = cursor.fetchone()
             return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def get_go_mappings_paginated(
+        self,
+        page: int = 1,
+        per_page: int = 50,
+        ke_id: str = None,
+        go_term_id: str = None,
+        confidence_level: str = None,
+    ) -> tuple:
+        """
+        Return (List[Dict], total_count) for approved KE-GO mappings.
+
+        Filters (all optional, combinable):
+          ke_id            — exact match on ke_go_mappings.ke_id
+          go_term_id       — exact match on ke_go_mappings.go_id
+          confidence_level — case-insensitive match on ke_go_mappings.confidence_level
+
+        Returns rows with columns:
+          uuid, ke_id, ke_title, go_id, go_name, go_namespace,
+          confidence_level, approved_by_curator, approved_at_curator, suggestion_score
+        Ordered by created_at DESC.
+        """
+        conditions = []
+        params = []
+
+        if ke_id:
+            conditions.append("ke_id = ?")
+            params.append(ke_id)
+        if go_term_id:
+            conditions.append("go_id = ?")
+            params.append(go_term_id)
+        if confidence_level:
+            conditions.append("LOWER(confidence_level) = LOWER(?)")
+            params.append(confidence_level)
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        offset = (page - 1) * per_page
+
+        conn = self.db.get_connection()
+        try:
+            total = conn.execute(
+                f"SELECT COUNT(*) FROM ke_go_mappings {where}", params
+            ).fetchone()[0]
+            rows = conn.execute(
+                f"""SELECT uuid, ke_id, ke_title, go_id, go_name, go_namespace,
+                           confidence_level, approved_by_curator, approved_at_curator, suggestion_score
+                    FROM ke_go_mappings {where}
+                    ORDER BY created_at DESC
+                    LIMIT ? OFFSET ?""",
+                params + [per_page, offset],
+            ).fetchall()
+            return [dict(r) for r in rows], total
         finally:
             conn.close()
 
