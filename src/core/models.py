@@ -832,6 +832,7 @@ class MappingModel:
         updated_by: str = None,
         approved_by_curator: str = None,
         approved_at_curator: str = None,
+        suggestion_score: float = None,
     ) -> bool:
         """
         Update an existing mapping
@@ -843,6 +844,7 @@ class MappingModel:
             updated_by: Username of person making the update
             approved_by_curator: GitHub username of curator who approved (optional)
             approved_at_curator: ISO timestamp of curator approval (optional)
+            suggestion_score: BioBERT hybrid score from the approved proposal (optional)
 
         Returns:
             True if successful, False otherwise
@@ -854,6 +856,7 @@ class MappingModel:
             "updated_by": "updated_by",
             "approved_by_curator": "approved_by_curator",
             "approved_at_curator": "approved_at_curator",
+            "suggestion_score": "suggestion_score",
         }
 
         conn = self.db.get_connection()
@@ -868,6 +871,7 @@ class MappingModel:
                 "updated_by": updated_by,
                 "approved_by_curator": approved_by_curator,
                 "approved_at_curator": approved_at_curator,
+                "suggestion_score": suggestion_score,
             }
 
             for field_name, field_value in update_data.items():

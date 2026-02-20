@@ -270,6 +270,7 @@ def approve_proposal(proposal_id: int):
         else:
             # Update the mapping with provenance
             approved_at = datetime.utcnow().isoformat()
+            proposal_score = proposal.get("suggestion_score")   # REAL or None
             success = mapping_model.update_mapping(
                 mapping_id=mapping_id,
                 connection_type=proposal["proposed_connection_type"],
@@ -277,6 +278,7 @@ def approve_proposal(proposal_id: int):
                 updated_by=admin_username,
                 approved_by_curator=admin_username,
                 approved_at_curator=approved_at,
+                suggestion_score=proposal_score,       # carry score from proposal
             )
             action = "updated"
 
