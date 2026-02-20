@@ -41,6 +41,7 @@ Progress: [████████░░] 58%
 | Phase 02-data-model-and-audit-trail P01 | 3 | 2 tasks | 1 file |
 | Phase 02-data-model-and-audit-trail P02 | 6 | 2 tasks | 3 files |
 | Phase 02-data-model-and-audit-trail P04 | 14 | 2 tasks | 5 files |
+| Phase 02-data-model-and-audit-trail P03 | 9 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent decisions affecting current work:
 - [02-02]: GO proposal admin approval flow not yet implemented — admin.py has no GO proposal approval route; GoMappingModel provenance update deferred until that route is added
 - [Phase 02-data-model-and-audit-trail]: UUID shown in mapping_detail.html (permanent detail page) but NOT in curator explore table — admin/API only per locked decision
 - [Phase 02-data-model-and-audit-trail]: mapping_detail.html uses standalone HTML with navigation include — no base template inheritance; all templates in this project are standalone
+- [Phase 02-data-model-and-audit-trail]: checkForDuplicatePair() fires inside setTimeout after pathway selection to ensure wp_id hidden field is updated before AJAX call
+- [Phase 02-data-model-and-audit-trail]: data-score attribute added to suggestion-item HTML using scores.final_score; avoids extra AJAX round-trip for suggestion score capture
+- [Phase 02-data-model-and-audit-trail]: mapping_type='wp' vs mapping_type='go' on flag-stale buttons routes /flag_proposal_stale to correct proposal model
 
 ### Pending Todos
 
@@ -83,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-20T13:56:47.858Z
-**Stopped at:** Completed 02-04-PLAN.md (provenance columns in explore table, /mappings/<uuid> route, admin suggestion_score display)
-**Resume file:** .planning/phases/03-public-api/03-01-PLAN.md
+**Last session:** 2026-02-20T14:09:11.860Z
+**Stopped at:** Completed 02-03-PLAN.md (live duplicate check, confidence select-button step, suggestion score capture)
+**Resume file:** None

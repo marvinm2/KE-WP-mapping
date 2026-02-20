@@ -13,7 +13,7 @@ This roadmap takes a functional prototype to a production-quality, citable bioin
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Deployment Hardening** - Make production-safe before any external user submits data (completed 2026-02-19)
-- [ ] **Phase 2: Data Model and Audit Trail** - Add provenance, stable IDs, and quality fields before the API freezes the schema
+- [x] **Phase 2: Data Model and Audit Trail** - Add provenance, stable IDs, and quality fields before the API freezes the schema (completed 2026-02-20)
 - [ ] **Phase 3: Stable Public REST API** - Versioned, publicly accessible read API for downstream bioinformaticians
 - [ ] **Phase 4: Curator UX and Explore** - Duplicate detection, filtering, coverage gaps, and dataset metrics
 - [ ] **Phase 5: Exports and Dataset Publication** - GMT exports and Zenodo DOI for paper citation
@@ -107,7 +107,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Deployment Hardening | 4/4 | Complete   | 2026-02-19 |
-| 2. Data Model and Audit Trail | 3/4 | In Progress|  |
+| 2. Data Model and Audit Trail | 4/4 | Complete   | 2026-02-20 |
 | 3. Stable Public REST API | 0/TBD | Not started | - |
 | 4. Curator UX and Explore | 0/TBD | Not started | - |
 | 5. Exports and Dataset Publication | 0/TBD | Not started | - |
