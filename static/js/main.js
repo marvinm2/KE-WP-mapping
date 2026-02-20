@@ -192,6 +192,15 @@ class KEWPApp {
 
         // Step 2 sub-tab switching (#96)
         this.setupStep2SubTabs();
+
+        // Confidence select-button group wiring
+        $(document).on('click', '#confidence-select-group .btn-option', (e) => {
+            $('#confidence-select-group .btn-option').removeClass('selected');
+            $(e.currentTarget).addClass('selected');
+            const level = $(e.currentTarget).data('value');
+            $('#confidence_level').val(level);
+            $('#confidence-select-error').hide();
+        });
     }
 
     setupStep2SubTabs() {
@@ -442,8 +451,15 @@ class KEWPApp {
             return;
         }
 
+        // Confidence level is required — enforce via the select-button group UI
+        if (!formData.confidence_level) {
+            $('#confidence-select-error').show();
+            $('#confidence-confirm')[0] && $('#confidence-confirm')[0].scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+
         // Single pathway submission
-        if (!formData.connection_type || !formData.confidence_level) {
+        if (!formData.connection_type) {
             this.showMessage("Please complete the confidence assessment for all selected pathways before submitting.", "error");
             return;
         }
@@ -1253,21 +1269,26 @@ class KEWPApp {
         const $select = $(event.target);
         const $group = $select.closest('.pathway-selection-group');
         const $pathwayInfo = $group.find('.pathway-info');
-        
+
         const selectedOption = $select.find('option:selected');
         const title = selectedOption.data('title') || '';
         const description = selectedOption.data('description') || '';
         const svgUrl = selectedOption.data('svg-url') || '';
         const pathwayId = selectedOption.val();
-        
+
         // Show pathway information within the group
         if (title) {
             this.showPathwayInfoInGroup($pathwayInfo, pathwayId, title, description, svgUrl);
         } else {
             $pathwayInfo.hide();
         }
-        
-        // Pathway selected
+
+        // Fire live duplicate check when a pathway is selected from the browse panel
+        if (pathwayId) {
+            // Browse panel selections have no suggestion score
+            $('#suggestion_score').val('');
+            setTimeout(() => this.checkForDuplicatePair(), 100);
+        }
     }
 
     showPathwayInfoInGroup($container, pathwayId, title, description, svgUrl) {
@@ -1809,6 +1830,14 @@ This helps identify gaps in existing pathways for future development.">❓</span
             $('#confidence_level').val(result.confidence);
             $('#connection_type').val(result.connection_type);
 
+            // Show confidence confirm section with the recommended level pre-selected
+            const recommended = result.confidence.toLowerCase();
+            $('#confidence-recommendation').text(result.confidence.charAt(0).toUpperCase() + result.confidence.slice(1));
+            $('#confidence-select-group .btn-option').removeClass('selected');
+            $(`#confidence-select-group .btn-option[data-value="${recommended}"]`).addClass('selected');
+            $('#confidence-confirm').show();
+            $('#confidence-select-error').hide();
+
             console.log('Updated pathway display:', {
                 confidence: $('#auto-confidence').text(),
                 connection: $('#auto-connection').text()
@@ -1933,6 +1962,12 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $("#auto-connection").text("—");
         $("#confidence_level").val("");
         $("#connection_type").val("");
+        // Hide confidence confirm section and reset its state
+        $("#confidence-confirm").hide();
+        $("#confidence-select-group .btn-option").removeClass("selected");
+        $("#confidence-select-error").hide();
+        // Hide duplicate warning
+        $("#duplicate-warning").hide().empty();
         this.stepAnswers = {};
     }
 
@@ -1964,6 +1999,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         // Clear existing entries
         $("#existing-entries").html("");
+
+        // Clear suggestion score and duplicate warning
+        $("#suggestion_score").val("");
+        $("#duplicate-warning").hide().empty();
 
         this.hideKEPreview();
         this.hidePathwayPreview();
@@ -2178,7 +2217,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                     : '';
 
                 suggestionsHtml += `
-                    <div class="suggestion-item ${hiddenClass}" data-pathway-id="${this.escapeHtml(suggestion.pathwayID)}" data-pathway-title="${this.escapeHtml(suggestion.pathwayTitle)}" data-pathway-svg="${this.escapeHtml(suggestion.pathwaySvgUrl || '')}" data-matching-genes="${this.escapeHtml((suggestion.matching_genes || []).join(','))}" data-gene-score="${Math.round((suggestion.gene_overlap_ratio || 0) * 100)}"
+                    <div class="suggestion-item ${hiddenClass}" data-pathway-id="${this.escapeHtml(suggestion.pathwayID)}" data-pathway-title="${this.escapeHtml(suggestion.pathwayTitle)}" data-pathway-svg="${this.escapeHtml(suggestion.pathwaySvgUrl || '')}" data-matching-genes="${this.escapeHtml((suggestion.matching_genes || []).join(','))}" data-gene-score="${Math.round((suggestion.gene_overlap_ratio || 0) * 100)}" data-score="${(suggestion.scores && suggestion.scores.final_score !== undefined) ? suggestion.scores.final_score : (suggestion.confidence_score || '')}"
                          style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border-left: 4px solid ${borderColor}; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
                         <div style="display: flex; gap: 12px; align-items: flex-start;">
                             <div style="flex: 1;">
@@ -2681,6 +2720,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const $option = $dropdown.find(`option[value="${pathwayId}"]`);
 
         if ($option.length > 0) {
+            // Capture suggestion score from the suggestion item before selecting
+            const $suggItem = $(`.suggestion-item[data-pathway-id="${pathwayId}"]`);
+            const score = $suggItem.data('score') !== undefined ? $suggItem.data('score') : '';
+            $('#suggestion_score').val(score);
+
             // Select the pathway
             $dropdown.val(pathwayId).trigger('change');
 
@@ -2697,6 +2741,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 this.updateSelectedPathways();
                 this.toggleAssessmentSection();
 
+                // Fire live duplicate check now that both ke_id and wp_id are set
+                this.checkForDuplicatePair();
+
                 // Auto-scroll to Step 3 if visible
                 if ($('#confidence-guide').is(':visible')) {
                     $('html, body').animate({
@@ -2708,6 +2755,124 @@ This helps identify gaps in existing pathways for future development.">❓</span
             console.error(`Pathway option not found in dropdown: ${pathwayId}`);
             this.showMessage(`Selected pathway is not available in the dropdown. Please try refreshing the page or selecting a different pathway.`, "warning");
         }
+    }
+
+    checkForDuplicatePair() {
+        const keId = $('#ke_id').val();
+        const wpId = $('#wp_id').val();
+        if (!keId || !wpId) return;
+
+        $('#duplicate-warning').hide().empty();
+
+        $.post('/check', { ke_id: keId, wp_id: wpId }, (result) => {
+            if (result.pair_exists && result.blocking_type) {
+                this.renderDuplicateWarning(result);
+            }
+        });
+    }
+
+    renderDuplicateWarning(result) {
+        const ex = result.existing;
+        let html = '<div class="alert alert-warning" style="border: 2px solid var(--color-warning, #f0ad4e); padding: 16px; border-radius: 6px; margin: 12px 0;">';
+
+        if (result.blocking_type === 'approved_mapping') {
+            html += '<h4 style="margin-top:0;">This pair already has an approved mapping</h4>';
+            html += '<dl style="margin: 8px 0;">';
+            html += '<dt>KE</dt><dd>' + (ex.ke_id || '') + ' — ' + (ex.ke_title || '') + '</dd>';
+            html += '<dt>Pathway</dt><dd>' + (ex.wp_id || '') + ' — ' + (ex.wp_title || '') + '</dd>';
+            html += '<dt>Confidence</dt><dd>' + (ex.confidence_level || '') + '</dd>';
+            html += '<dt>Curator</dt><dd>' + (ex.approved_by_curator || 'unknown') + '</dd>';
+            html += '</dl>';
+            html += '<button type="button" class="btn-submit-revision" data-mapping-id="' + ex.id + '" style="margin-top:8px;">Submit Revision Proposal</button>';
+        } else if (result.blocking_type === 'pending_proposal') {
+            html += '<h4 style="margin-top:0;">A pending proposal already exists for this pair</h4>';
+            html += '<dl style="margin: 8px 0;">';
+            html += '<dt>KE</dt><dd>' + (ex.ke_id || '') + ' — ' + (ex.ke_title || '') + '</dd>';
+            html += '<dt>Pathway</dt><dd>' + (ex.wp_id || '') + ' — ' + (ex.wp_title || '') + '</dd>';
+            html += '<dt>Submitted by</dt><dd>' + (ex.submitted_by || 'unknown') + '</dd>';
+            html += '<dt>Submitted</dt><dd>' + (ex.submitted_at || '') + '</dd>';
+            html += '</dl>';
+            html += '<button type="button" class="btn-flag-stale" data-proposal-id="' + ex.proposal_id + '" data-mapping-type="wp" style="margin-top:8px;">Flag as Stale for Admin Review</button>';
+        }
+
+        html += '</div>';
+        $('#duplicate-warning').html(html).show();
+
+        $('#duplicate-warning').off('click', '.btn-flag-stale').on('click', '.btn-flag-stale', function() {
+            const btn = $(this);
+            const proposalId = btn.data('proposal-id');
+            const mappingType = btn.data('mapping-type');
+            btn.prop('disabled', true).text('Flagging...');
+            $.post('/flag_proposal_stale', { proposal_id: proposalId, mapping_type: mappingType }, function() {
+                btn.text('Flagged — admin has been notified');
+            }).fail(function() {
+                btn.prop('disabled', false).text('Flag as Stale for Admin Review');
+                alert('Failed to flag proposal. Please try again.');
+            });
+        });
+
+        $('#duplicate-warning').off('click', '.btn-submit-revision').on('click', '.btn-submit-revision', function() {
+            alert('To submit a revision, go to the Explore page, find this mapping, and use the Propose Change button.');
+        });
+    }
+
+    checkForDuplicatePair_go() {
+        const keId = $('#ke_id').val();
+        const goId = this.selectedGoTerm ? this.selectedGoTerm.goId : '';
+        if (!keId || !goId) return;
+
+        $('#duplicate-warning-go').hide().empty();
+
+        $.post('/check_go_entry', { ke_id: keId, go_id: goId }, (result) => {
+            if (result.pair_exists && result.blocking_type) {
+                this.renderDuplicateWarning_go(result);
+            }
+        });
+    }
+
+    renderDuplicateWarning_go(result) {
+        const ex = result.existing;
+        let html = '<div class="alert alert-warning" style="border: 2px solid var(--color-warning, #f0ad4e); padding: 16px; border-radius: 6px; margin: 12px 0;">';
+
+        if (result.blocking_type === 'approved_mapping') {
+            html += '<h4 style="margin-top:0;">This pair already has an approved GO mapping</h4>';
+            html += '<dl style="margin: 8px 0;">';
+            html += '<dt>KE</dt><dd>' + (ex.ke_id || '') + ' — ' + (ex.ke_title || '') + '</dd>';
+            html += '<dt>GO Term</dt><dd>' + (ex.go_id || '') + ' — ' + (ex.go_name || '') + '</dd>';
+            html += '<dt>Confidence</dt><dd>' + (ex.confidence_level || '') + '</dd>';
+            html += '<dt>Curator</dt><dd>' + (ex.approved_by_curator || 'unknown') + '</dd>';
+            html += '</dl>';
+            html += '<button type="button" class="btn-submit-revision" data-mapping-id="' + ex.id + '" style="margin-top:8px;">Submit Revision Proposal</button>';
+        } else if (result.blocking_type === 'pending_proposal') {
+            html += '<h4 style="margin-top:0;">A pending proposal already exists for this GO pair</h4>';
+            html += '<dl style="margin: 8px 0;">';
+            html += '<dt>KE</dt><dd>' + (ex.ke_id || '') + ' — ' + (ex.ke_title || '') + '</dd>';
+            html += '<dt>GO Term</dt><dd>' + (ex.go_id || '') + ' — ' + (ex.go_name || '') + '</dd>';
+            html += '<dt>Submitted by</dt><dd>' + (ex.submitted_by || 'unknown') + '</dd>';
+            html += '<dt>Submitted</dt><dd>' + (ex.submitted_at || '') + '</dd>';
+            html += '</dl>';
+            html += '<button type="button" class="btn-flag-stale" data-proposal-id="' + ex.proposal_id + '" data-mapping-type="go" style="margin-top:8px;">Flag as Stale for Admin Review</button>';
+        }
+
+        html += '</div>';
+        $('#duplicate-warning-go').html(html).show();
+
+        $('#duplicate-warning-go').off('click', '.btn-flag-stale').on('click', '.btn-flag-stale', function() {
+            const btn = $(this);
+            const proposalId = btn.data('proposal-id');
+            const mappingType = btn.data('mapping-type');
+            btn.prop('disabled', true).text('Flagging...');
+            $.post('/flag_proposal_stale', { proposal_id: proposalId, mapping_type: mappingType }, function() {
+                btn.text('Flagged — admin has been notified');
+            }).fail(function() {
+                btn.prop('disabled', false).text('Flag as Stale for Admin Review');
+                alert('Failed to flag proposal. Please try again.');
+            });
+        });
+
+        $('#duplicate-warning-go').off('click', '.btn-submit-revision').on('click', '.btn-submit-revision', function() {
+            alert('To submit a revision, go to the Explore page, find this GO mapping, and use the Propose Change button.');
+        });
     }
 
     hidePathwaySuggestions() {
@@ -2907,6 +3072,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $("#pathway-search").val('');
         $("#search-results").hide();
 
+        // Search/browse selections have no suggestion score — clear the field
+        $('#suggestion_score').val('');
+
         // Find the first available pathway dropdown (select[name='wp_id'])
         const $dropdown = $("select[name='wp_id']").first();
         const $option = $dropdown.find(`option[value="${pathwayId}"]`);
@@ -2927,8 +3095,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
             // Select the newly added pathway
             $dropdown.val(pathwayId).trigger('change');
 
-            this.showMessage(`✅ Added and selected pathway: ${pathwayTitle}`, "success");
+            this.showMessage(`Added and selected pathway: ${pathwayTitle}`, "success");
         }
+
+        // Fire live duplicate check now that pathway is selected
+        setTimeout(() => this.checkForDuplicatePair(), 100);
     }
 
     highlightSearchTerms(text, query) {
@@ -3668,6 +3839,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $('.go-suggestion-item').css({ 'border-left-color': '', 'background': '#ffffff' });
         $(`.go-suggestion-item[data-go-id="${goId}"]`).css({ 'border-left-color': '#307BBF', 'background': '#f0f7ff' });
 
+        // Fire live duplicate check for the KE-GO pair
+        this.checkForDuplicatePair_go();
+
         // Show GO confidence assessment
         this.showGoAssessmentForm(goId, goName);
     }
@@ -4375,6 +4549,13 @@ function evaluateConfidence() {
     $("#ca-result").text(detailMessage);
 
     app.showMessage("Confidence assessment completed successfully", "success");
+
+    // Show confidence confirm section with the recommended level pre-selected
+    $('#confidence-recommendation').text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
+    $('#confidence-select-group .btn-option').removeClass('selected');
+    $(`#confidence-select-group .btn-option[data-value="${confidence}"]`).addClass('selected');
+    $('#confidence-confirm').show();
+    $('#confidence-select-error').hide();
 
     // Show Step 4 and enable submit for single pathway workflow
     $("#step-3-result").show();
