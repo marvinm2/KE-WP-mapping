@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Curators can efficiently produce a high-quality, reusable KE-pathway/GO mapping database that external tools can consume for toxicological pathway analysis.
-**Current focus:** Phase 3 — Stable Public REST API
+**Current focus:** Phase 3 — Stable Public REST API (COMPLETE) → Phase 4 next
 
 ## Current Position
 
 Phase: 3 of 6 (Stable Public REST API)
-Plan: 2 of 3 in current phase (COMPLETE)
-Status: Phase 3 in progress
-Last activity: 2026-02-20 — Completed 03-02 (v1_api_bp blueprint, six public endpoints, CORS, CSV/JSON content negotiation, AOP SPARQL filter)
+Plan: 3 of 3 in current phase (COMPLETE)
+Status: Phase 3 COMPLETE
+Last activity: 2026-02-20 — Completed 03-03 (v1 API pytest test suite, 19 tests, all green)
 
-Progress: [█████████░] 67%
+Progress: [██████████] 100% (Phase 3 complete)
 
 ## Performance Metrics
 
@@ -29,11 +29,11 @@ Progress: [█████████░] 67%
 |-------|-------|-------|----------|
 | 01-deployment-hardening | 4 | 20 min | 5 min |
 | 02-data-model-and-audit-trail | 4 (complete) | 26 min | 6.5 min |
-| 03-stable-public-rest-api | 2 of 3 | 12 min | 6 min |
+| 03-stable-public-rest-api | 3 (complete) | 22 min | 7.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (3 min), 02-04 (14 min), 03-01 (5 min), 03-02 (7 min)
-- Trend: Phase 3 progressing — v1 API blueprint complete, integration tests remaining
+- Last 5 plans: 02-04 (14 min), 03-01 (5 min), 03-02 (7 min), 03-03 (10 min)
+- Trend: Phase 3 complete — v1 API blueprint and integration tests delivered
 
 *Updated after each plan completion*
 | Phase 01-deployment-hardening P01 | 12 | 2 tasks | 3 files |
@@ -45,6 +45,7 @@ Progress: [█████████░] 67%
 | Phase 02-data-model-and-audit-trail P03 | 9 | 2 tasks | 2 files |
 | Phase 03-stable-public-rest-api P01 | 5 | 2 tasks | 2 files |
 | Phase 03-stable-public-rest-api P02 | 7 | 2 tasks | 3 files |
+| Phase 03-stable-public-rest-api P03 | 10 | 1 task | 1 file |
 
 ## Accumulated Context
 
@@ -84,6 +85,8 @@ Recent decisions affecting current work:
 - [03-02]: csrf.exempt(v1_api_bp) must be called before app.register_blueprint(v1_api_bp) — order matters for CSRF exemption
 - [03-02]: AOP SPARQL resolution raises ValueError on any failure, mapped to 400 — prevents 500 on upstream SPARQL unavailability
 - [03-02]: total_pages=0 when total=0 — math.ceil(0/50)=0 correctly represents empty result set
+- [03-03]: v1_client fixture calls v1_mod.set_models() with fresh temp-file DB — required because TestingConfig uses :memory: which creates separate DB per sqlite3.connect() call, making routes fail with 'no such table'
+- [03-03]: Seed helpers take model instances as arguments rather than flask_app.service_container — cleaner isolation, avoids cross-test contamination
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-20T22:10:00Z
-**Stopped at:** Completed 03-02-PLAN.md
-**Resume file:** .planning/phases/03-stable-public-rest-api/03-03-PLAN.md
+**Last session:** 2026-02-20T22:22:49Z
+**Stopped at:** Completed 03-03-PLAN.md (Phase 3 complete)
+**Resume file:** .planning/phases/ (start Phase 4)
