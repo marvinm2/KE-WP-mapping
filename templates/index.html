@@ -134,6 +134,10 @@
             <p>For detailed pathway information, visit the <a href="/pw-details" target="_blank">pathway details page</a>.</p>
             </div>
         </section>
+
+        <!-- Duplicate warning card for KE-WP form (shown when a selected pair already exists) -->
+        <div id="duplicate-warning" style="display: none;"></div>
+
         <section id="confidence-guide" style="display: none;">
             <h2>Step 3: Assess Confidence of Mappings</h2>
             <p>
@@ -170,6 +174,7 @@
             <!-- Hidden form fields to pass values on submit -->
             <input type="hidden" id="confidence_level" name="confidence_level" value="">
             <input type="hidden" id="connection_type" name="connection_type" value="">
+            <input type="hidden" id="suggestion_score" name="suggestion_score" value="">
 
             <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
                 {% if session.get('user') %}
@@ -184,6 +189,18 @@
             </div>
         </section>
 
+        <section id="confidence-confirm" style="display: none;">
+            <h2>Confirm Confidence Level</h2>
+            <p>The assessment recommends: <strong><span id="confidence-recommendation">—</span></strong></p>
+            <p>Select the confidence level for this mapping: <span style="color: var(--color-danger, #dc3545);">*</span></p>
+            <div class="btn-group" id="confidence-select-group" data-step="confidence">
+                <button type="button" class="btn-option" data-value="high">High</button>
+                <button type="button" class="btn-option" data-value="medium">Medium</button>
+                <button type="button" class="btn-option" data-value="low">Low</button>
+            </div>
+            <p id="confidence-select-error" style="color: var(--color-danger, #dc3545); display: none;">Please select a confidence level before submitting.</p>
+        </section>
+
         <div id="existing-entries"></div>
         <p id="message"></p>
         </div><!-- end wp-tab-content -->
@@ -196,6 +213,9 @@
                 <p style="color: #666; font-style: italic;">Select a Key Event above to see GO Biological Process term suggestions.</p>
             </div>
         </section>
+
+        <!-- Duplicate warning card for KE-GO form (shown when a selected pair already exists) -->
+        <div id="duplicate-warning-go" style="display: none;"></div>
 
         <section id="go-confidence-guide" style="display: none;">
             <h2>Step 3: Assess Confidence</h2>
