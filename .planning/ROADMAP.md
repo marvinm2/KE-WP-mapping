@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Deployment Hardening** - Make production-safe before any external user submits data (completed 2026-02-19)
 - [x] **Phase 2: Data Model and Audit Trail** - Add provenance, stable IDs, and quality fields before the API freezes the schema (completed 2026-02-20)
-- [ ] **Phase 3: Stable Public REST API** - Versioned, publicly accessible read API for downstream bioinformaticians
+- [x] **Phase 3: Stable Public REST API** - Versioned, publicly accessible read API for downstream bioinformaticians (completed 2026-02-21)
 - [ ] **Phase 4: Curator UX and Explore** - Duplicate detection, filtering, coverage gaps, and dataset metrics
 - [ ] **Phase 5: Exports and Dataset Publication** - GMT exports and Zenodo DOI for paper citation
 - [ ] **Phase 6: API Documentation** - Lock in contracts with OpenAPI spec and consumer code examples
@@ -114,7 +114,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Deployment Hardening | 4/4 | Complete   | 2026-02-19 |
 | 2. Data Model and Audit Trail | 4/4 | Complete   | 2026-02-20 |
-| 3. Stable Public REST API | 3/4 | In Progress|  |
+| 3. Stable Public REST API | 4/4 | Complete   | 2026-02-21 |
 | 4. Curator UX and Explore | 0/TBD | Not started | - |
 | 5. Exports and Dataset Publication | 0/TBD | Not started | - |
 | 6. API Documentation | 0/TBD | Not started | - |
