@@ -10,6 +10,7 @@
             <ul class="nav-tabs">
                 <li><a href="/" class="nav-link {{ 'active' if request.path == '/' else '' }}">Mapping</a></li>
                 <li><a href="/explore" class="nav-link {{ 'active' if request.path == '/explore' else '' }}">Explore</a></li>
+                <li><a href="/stats" class="nav-link {{ 'active' if request.path == '/stats' else '' }}">Stats</a></li>
                 <li><a href="/documentation" class="nav-link {{ 'active' if request.path.startswith('/documentation') else '' }}">Documentation</a></li>
                 {% if is_admin %}
                 <li><a href="/admin/proposals" class="nav-link {{ 'active' if request.path == '/admin/proposals' else '' }}">Admin</a></li>

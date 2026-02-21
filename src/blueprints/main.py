@@ -32,6 +32,47 @@ def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None):
     go_mapping_model = go_mapping
 
 
+def get_mapping_stats():
+    """
+    Compute aggregate mapping statistics from both mapping tables.
+    Returns a dict with wp_total, go_total, total, wp_by_confidence, go_by_confidence.
+    """
+    stats = {
+        "wp_total": 0,
+        "go_total": 0,
+        "total": 0,
+        "wp_by_confidence": {},
+        "go_by_confidence": {},
+    }
+    try:
+        conn = mapping_model.db.get_connection()
+        try:
+            stats["wp_total"] = conn.execute("SELECT COUNT(*) FROM mappings").fetchone()[0]
+            for row in conn.execute(
+                "SELECT LOWER(confidence_level), COUNT(*) FROM mappings GROUP BY LOWER(confidence_level)"
+            ).fetchall():
+                stats["wp_by_confidence"][row[0]] = row[1]
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.warning("Failed to query mapping stats: %s", e)
+    try:
+        if go_mapping_model:
+            conn = go_mapping_model.db.get_connection()
+            try:
+                stats["go_total"] = conn.execute("SELECT COUNT(*) FROM ke_go_mappings").fetchone()[0]
+                for row in conn.execute(
+                    "SELECT LOWER(confidence_level), COUNT(*) FROM ke_go_mappings GROUP BY LOWER(confidence_level)"
+                ).fetchall():
+                    stats["go_by_confidence"][row[0]] = row[1]
+            finally:
+                conn.close()
+    except Exception as e:
+        logger.warning("Failed to query GO mapping stats: %s", e)
+    stats["total"] = stats["wp_total"] + stats["go_total"]
+    return stats
+
+
 def is_admin(username: str = None) -> bool:
     """
     Check if a user has admin privileges
@@ -461,6 +502,16 @@ def mapping_detail(mapping_uuid):
     if not mapping:
         abort(404)
     return render_template("mapping_detail.html", mapping=mapping)
+
+
+@main_bp.route("/stats")
+def stats():
+    """Public dataset metrics dashboard — no login required."""
+    mapping_stats = get_mapping_stats() if mapping_model else {
+        "wp_total": 0, "go_total": 0, "total": 0,
+        "wp_by_confidence": {}, "go_by_confidence": {}
+    }
+    return render_template("stats.html", stats=mapping_stats)
 
 
 @main_bp.route("/documentation")
