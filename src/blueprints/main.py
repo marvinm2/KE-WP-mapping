@@ -2,9 +2,13 @@
 Main Blueprint
 Handles core application routes and page rendering
 """
+import datetime
+import json as json_lib
 import logging
 import os
+import shutil
 from datetime import datetime
+from pathlib import Path
 
 from flask import Blueprint, abort, make_response, render_template, send_file, session, request, jsonify
 
@@ -21,15 +25,19 @@ mapping_model = None
 go_mapping_model = None
 export_manager = None
 metadata_manager = None
+cache_model_ref = None
+
+EXPORT_CACHE_DIR = Path("static/exports")
 
 
-def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None):
+def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None, cache_model=None):
     """Set the model instances"""
-    global mapping_model, export_manager, metadata_manager, go_mapping_model
+    global mapping_model, export_manager, metadata_manager, go_mapping_model, cache_model_ref
     mapping_model = mapping
     export_manager = export_mgr
     metadata_manager = metadata_mgr
     go_mapping_model = go_mapping
+    cache_model_ref = cache_model
 
 
 def get_mapping_stats():
@@ -511,6 +519,92 @@ def stats():
         "wp_by_confidence": {}, "go_by_confidence": {}
     }
     return render_template("stats.html", stats=mapping_stats)
+
+
+@main_bp.route("/downloads")
+def downloads():
+    """Public downloads page — no login required."""
+    meta_path = Path("data/zenodo_meta.json")
+    zenodo_meta = {}
+    try:
+        if meta_path.exists():
+            zenodo_meta = json_lib.loads(meta_path.read_text())
+    except Exception:
+        pass
+    return render_template("downloads.html", zenodo_meta=zenodo_meta)
+
+
+def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
+    """Return (path, filename) for GMT file, generating it if not cached."""
+    from src.exporters.gmt_exporter import generate_ke_wp_gmt, generate_ke_go_gmt
+    today = datetime.date.today().isoformat()
+    tier = min_confidence.capitalize() if min_confidence else "All"
+    filename = f"KE-{mapping_type.upper()}_{today}_{tier}.gmt"
+    cache_path = EXPORT_CACHE_DIR / filename
+    if not cache_path.exists():
+        EXPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        if mapping_type == "wp":
+            mappings = mapping_model.get_all_mappings() if mapping_model else []
+            content = generate_ke_wp_gmt(mappings, cache_model=cache_model_ref, min_confidence=min_confidence)
+        else:
+            mappings = go_mapping_model.get_all_mappings() if go_mapping_model else []
+            content = generate_ke_go_gmt(mappings, min_confidence=min_confidence)
+        if content:
+            cache_path.write_text(content, encoding="utf-8")
+        else:
+            # Write empty placeholder so next request doesn't re-query
+            cache_path.write_text("", encoding="utf-8")
+    return cache_path, filename
+
+
+@main_bp.route("/exports/gmt/ke-wp")
+def download_ke_wp_gmt():
+    """Download KE-WP GMT file. ?min_confidence=High|Medium|Low for filtered versions."""
+    min_conf = request.args.get("min_confidence", "").lower() or None
+    cache_path, filename = _get_or_generate_gmt("wp", min_conf)
+    if not cache_path.exists() or cache_path.stat().st_size == 0:
+        return jsonify({"error": "No KE-WP mappings available or WikiPathways SPARQL unavailable"}), 503
+    return send_file(str(cache_path), as_attachment=True, download_name=filename, mimetype="text/plain")
+
+
+@main_bp.route("/exports/gmt/ke-go")
+def download_ke_go_gmt():
+    """Download KE-GO GMT file. ?min_confidence=High|Medium|Low for filtered versions."""
+    min_conf = request.args.get("min_confidence", "").lower() or None
+    cache_path, filename = _get_or_generate_gmt("go", min_conf)
+    if not cache_path.exists() or cache_path.stat().st_size == 0:
+        return jsonify({"error": "No KE-GO mappings available"}), 503
+    return send_file(str(cache_path), as_attachment=True, download_name=filename, mimetype="text/plain")
+
+
+@main_bp.route("/exports/rdf/ke-wp")
+def download_ke_wp_rdf():
+    """Download KE-WP RDF/Turtle file."""
+    from src.exporters.rdf_exporter import generate_ke_wp_turtle
+    cache_path = EXPORT_CACHE_DIR / "ke-wp-mappings.ttl"
+    if not cache_path.exists():
+        EXPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        mappings = mapping_model.get_all_mappings() if mapping_model else []
+        content = generate_ke_wp_turtle(mappings)
+        cache_path.write_text(content or "", encoding="utf-8")
+    if not cache_path.exists() or cache_path.stat().st_size == 0:
+        return jsonify({"error": "No KE-WP mappings available for RDF export"}), 503
+    return send_file(str(cache_path), as_attachment=True, download_name="ke-wp-mappings.ttl", mimetype="text/turtle")
+
+
+@main_bp.route("/exports/rdf/ke-go")
+def download_ke_go_rdf():
+    """Download KE-GO RDF/Turtle file."""
+    from src.exporters.rdf_exporter import generate_ke_go_turtle
+    cache_path = EXPORT_CACHE_DIR / "ke-go-mappings.ttl"
+    if not cache_path.exists():
+        EXPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        mappings = go_mapping_model.get_all_mappings() if go_mapping_model else []
+        content = generate_ke_go_turtle(mappings)
+        cache_path.write_text(content or "", encoding="utf-8")
+    if not cache_path.exists() or cache_path.stat().st_size == 0:
+        return jsonify({"error": "No KE-GO mappings available for RDF export"}), 503
+    return send_file(str(cache_path), as_attachment=True, download_name="ke-go-mappings.ttl", mimetype="text/turtle")
 
 
 @main_bp.route("/documentation")
