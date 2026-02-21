@@ -45,7 +45,7 @@ Requirements for v1.0 release. Each maps to a roadmap phase.
 - [x] **EXPRT-01**: GMT format export for KE-WP mappings, directly loadable by clusterProfiler/fgsea without preprocessing
 - [x] **EXPRT-02**: GMT format export for KE-GO mappings
 - [x] **EXPRT-03**: RDF/Turtle export of the full curated mapping database
-- [ ] **EXPRT-04**: Dataset published on Zenodo with a DOI for use as a publication citation
+- [x] **EXPRT-04**: Dataset published on Zenodo with a DOI for use as a publication citation
 
 ### API Documentation
 
@@ -125,7 +125,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXPRT-01 | Phase 5 | Complete |
 | EXPRT-02 | Phase 5 | Complete |
 | EXPRT-03 | Phase 5 | Complete |
-| EXPRT-04 | Phase 5 | Pending |
+| EXPRT-04 | Phase 5 | Complete |
 | DOCS-01 | Phase 6 | Pending |
 | DOCS-02 | Phase 6 | Pending |
 | DOCS-03 | Phase 6 | Pending |

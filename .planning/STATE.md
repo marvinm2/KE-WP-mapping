@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 5 of 6 (Exports and Dataset Publication) — IN PROGRESS
-Plan: 1 of 3 in current phase (05-01 complete — GMT and RDF exporter modules)
-Status: Phase 5 Plan 1 Complete (standalone GMT + rdflib Turtle exporters)
-Last activity: 2026-02-21 — Completed 05-01 (gmt_exporter.py + rdf_exporter.py rewritten)
+Plan: 2 of 4 in current phase (05-02 complete — Zenodo uploader + admin export routes)
+Status: Phase 5 Plan 2 Complete (zenodo_uploader.py + /admin/exports/regenerate + /admin/exports/publish-zenodo)
+Last activity: 2026-02-21 — Completed 05-02 (Zenodo uploader module and admin routes)
 
-Progress: [████████░░] 83% (Phase 5 started — 1/3 plans done in Phase 5)
+Progress: [████████░░] 85% (Phase 5 — 2/4 plans done)
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [████████░░] 83% (Phase 5 started — 1/3 plans do
 | Phase 04-curator-ux-and-explore P02 | 15 | 2 tasks | 2 files |
 | Phase 04-curator-ux-and-explore P05 | 13 | 1 task | 0 files |
 | Phase 05-exports-and-dataset-publication P01 | 3 | 2 tasks | 4 files |
+| Phase 05-exports-and-dataset-publication P02 | 3 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,9 @@ Recent decisions affecting current work:
 - [05-01]: Batch SPARQL VALUES query for all WP IDs in one round-trip — avoids N+1 HTTP calls to WikiPathways endpoint
 - [05-01]: rdflib Graph.serialize(format='turtle') returns str in rdflib >= 6.0 — no decode needed; KEWP and MAPPING namespaces bound per Graph
 - [05-01]: Exporter functions accept pre-fetched mapping dicts — no DB access inside exporter modules
+- [Phase 05-exports-and-dataset-publication]: data/zenodo_meta.json unignored from .gitignore — persistent state file not a large pre-computed file
+- [Phase 05-exports-and-dataset-publication]: Zenodo bucket PUT API used (not deprecated /files POST) for file uploads
+- [Phase 05-exports-and-dataset-publication]: publish_zenodo returns 503 with clear message when ZENODO_API_TOKEN missing
 
 ### Pending Todos
 
@@ -127,6 +131,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-21T19:14:12Z
-**Stopped at:** Completed 05-01-PLAN.md (GMT + RDF exporter modules)
-**Resume file:** .planning/phases/05-exports-and-dataset-publication/05-01-SUMMARY.md
+**Last session:** 2026-02-21T19:21:55.346Z
+**Stopped at:** Completed 05-02-PLAN.md (Zenodo uploader + admin export routes)
+**Resume file:** None

@@ -129,5 +129,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Data Model and Audit Trail | 4/4 | Complete   | 2026-02-20 |
 | 3. Stable Public REST API | 4/4 | Complete   | 2026-02-21 |
 | 4. Curator UX and Explore | 5/5 | Complete    | 2026-02-21 |
-| 5. Exports and Dataset Publication | 1/4 | In Progress|  |
+| 5. Exports and Dataset Publication | 2/4 | In Progress|  |
 | 6. API Documentation | 0/TBD | Not started | - |
