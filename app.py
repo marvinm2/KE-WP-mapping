@@ -140,6 +140,19 @@ def create_app(config_name: str = None):
 
         return dict(is_admin=is_admin, is_guest=is_guest)
 
+    @app.context_processor
+    def inject_zenodo_meta():
+        """Inject Zenodo DOI metadata globally so navbar can display citation."""
+        import json as _json
+        from pathlib import Path as _Path
+        try:
+            meta_path = _Path("data/zenodo_meta.json")
+            if meta_path.exists():
+                return {"zenodo_meta": _json.loads(meta_path.read_text())}
+        except Exception:
+            pass
+        return {"zenodo_meta": {}}
+
     # Register blueprints
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)

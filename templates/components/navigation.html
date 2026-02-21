@@ -3,6 +3,11 @@
         <!-- Title Section -->
         <div style="text-align: center; padding: 20px;">
             <h1 style="margin: 0; color: white; font-size: 2em; font-weight: 300;">Map Key Events to WikiPathways</h1>
+            {% if zenodo_meta and zenodo_meta.doi %}
+            <div style="margin-top:6px;font-size:13px;color:rgba(255,255,255,0.85);">
+                Cite: <a href="https://doi.org/{{ zenodo_meta.doi }}" style="color:white;font-weight:600;" target="_blank" rel="noopener">{{ zenodo_meta.concept_doi or zenodo_meta.doi }}</a>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Navigation Tabs -->
@@ -11,6 +16,7 @@
                 <li><a href="/" class="nav-link {{ 'active' if request.path == '/' else '' }}">Mapping</a></li>
                 <li><a href="/explore" class="nav-link {{ 'active' if request.path == '/explore' else '' }}">Explore</a></li>
                 <li><a href="/stats" class="nav-link {{ 'active' if request.path == '/stats' else '' }}">Stats</a></li>
+                <li><a href="/downloads" class="nav-link {{ 'active' if request.path == '/downloads' else '' }}">Downloads</a></li>
                 <li><a href="/documentation" class="nav-link {{ 'active' if request.path.startswith('/documentation') else '' }}">Documentation</a></li>
                 {% if is_admin %}
                 <li><a href="/admin/proposals" class="nav-link {{ 'active' if request.path == '/admin/proposals' else '' }}">Admin</a></li>

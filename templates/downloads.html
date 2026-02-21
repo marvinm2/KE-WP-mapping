@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Downloads — KE-WP Mapping</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+{% include 'components/navigation.html' %}
+<div class="container">
+    <h1>Downloads</h1>
+    <p style="color:#666;margin-bottom:24px;">Export the curated KE-WP and KE-GO mapping database in bioinformatics-ready formats.</p>
+
+    {% if zenodo_meta and zenodo_meta.doi %}
+    <div style="background:#f0f6ff;border:1px solid #307BBF;border-radius:8px;padding:16px;margin-bottom:28px;font-size:14px;color:#29235C;">
+        <strong>Cite this dataset:</strong>
+        <a href="https://doi.org/{{ zenodo_meta.doi }}" style="color:#307BBF;font-weight:600;" target="_blank" rel="noopener">{{ zenodo_meta.doi }}</a>
+    </div>
+    {% endif %}
+
+    <!-- Export format cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:32px;">
+
+        <!-- Card 1: KE-WP GMT -->
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;border-top:4px solid #307BBF;padding:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+                <h2 style="font-size:16px;margin:0;color:#29235C;">KE-WP GMT</h2>
+                <span style="background:#e8f0fb;color:#307BBF;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;">.gmt</span>
+            </div>
+            <p style="font-size:13px;color:#555;line-height:1.6;margin-bottom:16px;">
+                Key Event to WikiPathways mappings in GMT format. One row per KE-pathway pair.
+                Gene symbols from WikiPathways (HGNC). Directly loadable by clusterProfiler
+                <code>enricher()</code> and fgsea <code>gmtPathways()</code>.
+            </p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                <a href="/exports/gmt/ke-wp"
+                   style="background:#307BBF;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;display:inline-block;">
+                    All mappings
+                </a>
+                <a href="/exports/gmt/ke-wp?min_confidence=High"
+                   style="background:#307BBF;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;display:inline-block;">
+                    High confidence only
+                </a>
+            </div>
+        </div>
+
+        <!-- Card 2: KE-GO GMT -->
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;border-top:4px solid #45A6B2;padding:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+                <h2 style="font-size:16px;margin:0;color:#29235C;">KE-GO GMT</h2>
+                <span style="background:#e5f5f6;color:#45A6B2;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;">.gmt</span>
+            </div>
+            <p style="font-size:13px;color:#555;line-height:1.6;margin-bottom:16px;">
+                Key Event to GO Biological Process mappings in GMT format. Gene symbols from
+                GO biological process annotations (HGNC). Directly loadable by clusterProfiler
+                and fgsea.
+            </p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                <a href="/exports/gmt/ke-go"
+                   style="background:#45A6B2;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;display:inline-block;">
+                    All mappings
+                </a>
+                <a href="/exports/gmt/ke-go?min_confidence=High"
+                   style="background:#45A6B2;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;display:inline-block;">
+                    High confidence only
+                </a>
+            </div>
+        </div>
+
+        <!-- Card 3: KE-WP RDF/Turtle -->
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;border-top:4px solid #29235C;padding:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+                <h2 style="font-size:16px;margin:0;color:#29235C;">KE-WP RDF/Turtle</h2>
+                <span style="background:#edeaf5;color:#29235C;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;">.ttl</span>
+            </div>
+            <p style="font-size:13px;color:#555;line-height:1.6;margin-bottom:16px;">
+                Full KE-WP provenance in RDF/Turtle format. Includes curator GitHub username,
+                approval timestamp, confidence level, suggestion score, and UUID per mapping.
+                Parseable by rdflib, Protégé, and any Turtle-compatible tool.
+            </p>
+            <div>
+                <a href="/exports/rdf/ke-wp"
+                   style="background:#29235C;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;display:inline-block;">
+                    Download ke-wp-mappings.ttl
+                </a>
+            </div>
+        </div>
+
+        <!-- Card 4: KE-GO RDF/Turtle -->
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;border-top:4px solid #29235C;padding:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+                <h2 style="font-size:16px;margin:0;color:#29235C;">KE-GO RDF/Turtle</h2>
+                <span style="background:#edeaf5;color:#29235C;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;">.ttl</span>
+            </div>
+            <p style="font-size:13px;color:#555;line-height:1.6;margin-bottom:16px;">
+                Full KE-GO provenance in RDF/Turtle format. Same provenance fields as KE-WP
+                Turtle.
+            </p>
+            <div>
+                <a href="/exports/rdf/ke-go"
+                   style="background:#29235C;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;display:inline-block;">
+                    Download ke-go-mappings.ttl
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Note section -->
+    <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#78350f;">
+        <strong>Note:</strong> GMT files are generated on demand and cached. First download may take up to 60 seconds
+        while WikiPathways gene lists are fetched. Subsequent downloads are immediate.
+    </div>
+
+    <!-- Data Sources section -->
+    <div style="font-size:13px;color:#666;margin-bottom:32px;">
+        <strong>Data Sources:</strong>
+        Gene lists sourced from WikiPathways SPARQL
+        (<a href="https://sparql.wikipathways.org/sparql" style="color:#307BBF;" target="_blank" rel="noopener">https://sparql.wikipathways.org/sparql</a>).
+        GO gene annotations from <code>go_bp_gene_annotations.json</code> (pre-computed).
+        License: CC0.
+    </div>
+</div>
+
+<footer><p>&copy; 2025 KE-WP Mapping Service</p></footer>
+</body>
+</html>
