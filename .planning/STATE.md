@@ -104,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-21T09:33:56Z
-**Stopped at:** Completed 03-04-PLAN.md (Phase 3 gap closure — proposal-first submit flow)
-**Resume file:** .planning/phases/ (start Phase 4)
+**Last session:** 2026-02-21T12:56:53.894Z
+**Stopped at:** Phase 4 context gathered
+**Resume file:** .planning/phases/04-curator-ux-and-explore/04-CONTEXT.md
