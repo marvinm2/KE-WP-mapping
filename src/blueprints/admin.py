@@ -26,14 +26,18 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 proposal_model = None
 mapping_model = None
 guest_code_model = None
+go_mapping_model = None
+cache_model_ref = None
 
 
-def set_models(proposal, mapping, guest_code=None):
+def set_models(proposal, mapping, guest_code=None, go_mapping=None, cache_model=None):
     """Set the model instances"""
-    global proposal_model, mapping_model, guest_code_model
+    global proposal_model, mapping_model, guest_code_model, go_mapping_model, cache_model_ref
     proposal_model = proposal
     mapping_model = mapping
     guest_code_model = guest_code
+    go_mapping_model = go_mapping
+    cache_model_ref = cache_model
 
 
 def login_required(f):
@@ -496,3 +500,135 @@ def revoke_guest_code(code_id: int):
     except Exception as e:
         logger.error("Error revoking guest code %d: %s", code_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to revoke guest code."}), 500
+
+
+@admin_bp.route("/exports/regenerate", methods=["POST"])
+@admin_required
+def regenerate_exports():
+    """Clear and rebuild all cached export files (GMT + Turtle)."""
+    import shutil
+    from pathlib import Path
+    from src.exporters.gmt_exporter import generate_ke_wp_gmt, generate_ke_go_gmt
+    from src.exporters.rdf_exporter import generate_ke_wp_turtle, generate_ke_go_turtle
+
+    cache_dir = Path("static/exports")
+    try:
+        if cache_dir.exists():
+            shutil.rmtree(cache_dir)
+        cache_dir.mkdir(parents=True)
+
+        wp_mappings = mapping_model.get_all_mappings() if mapping_model else []
+        go_mappings = go_mapping_model.get_all_mappings() if go_mapping_model else []
+
+        import datetime
+        today = datetime.date.today().isoformat()
+
+        files_written = []
+        for conf_label, conf_filter in [("All", None), ("High", "high"), ("Medium", "medium"), ("Low", "low")]:
+            # KE-WP GMT
+            gmt_wp = generate_ke_wp_gmt(wp_mappings, cache_model=cache_model_ref, min_confidence=conf_filter)
+            if gmt_wp:
+                p = cache_dir / f"KE-WP_{today}_{conf_label}.gmt"
+                p.write_text(gmt_wp, encoding="utf-8")
+                files_written.append(p.name)
+            # KE-GO GMT
+            gmt_go = generate_ke_go_gmt(go_mappings, min_confidence=conf_filter)
+            if gmt_go:
+                p = cache_dir / f"KE-GO_{today}_{conf_label}.gmt"
+                p.write_text(gmt_go, encoding="utf-8")
+                files_written.append(p.name)
+
+        # Turtle exports (no confidence filtering for RDF — include all)
+        ttl_wp = generate_ke_wp_turtle(wp_mappings)
+        if ttl_wp:
+            p = cache_dir / "ke-wp-mappings.ttl"
+            p.write_text(ttl_wp, encoding="utf-8")
+            files_written.append(p.name)
+
+        ttl_go = generate_ke_go_turtle(go_mappings)
+        if ttl_go:
+            p = cache_dir / "ke-go-mappings.ttl"
+            p.write_text(ttl_go, encoding="utf-8")
+            files_written.append(p.name)
+
+        logger.info("Export cache rebuilt: %s", files_written)
+        return jsonify({"status": "ok", "files": files_written, "message": f"Rebuilt {len(files_written)} export file(s). Note: KE-WP GMT generation requires WikiPathways SPARQL — may be slow on first run."})
+    except Exception as e:
+        logger.error("Export regeneration failed: %s", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@admin_bp.route("/exports/publish-zenodo", methods=["POST"])
+@admin_required
+def publish_zenodo():
+    """Publish current cached exports to Zenodo and store returned DOI."""
+    import json as json_lib
+    import os
+    from pathlib import Path
+    from src.exporters.zenodo_uploader import zenodo_publish, _build_zenodo_metadata
+
+    if not os.environ.get("ZENODO_API_TOKEN"):
+        return jsonify({"status": "error", "message": "ZENODO_API_TOKEN not configured"}), 503
+
+    meta_path = Path("data/zenodo_meta.json")
+    try:
+        zenodo_meta = json_lib.loads(meta_path.read_text()) if meta_path.exists() else {}
+    except Exception:
+        zenodo_meta = {}
+
+    existing_id = zenodo_meta.get("deposition_id")
+
+    # Collect export files from cache
+    cache_dir = Path("static/exports")
+    upload_files = {}
+    if cache_dir.exists():
+        for f in sorted(cache_dir.iterdir()):
+            if f.suffix in (".gmt", ".ttl"):
+                upload_files[f.name] = f.read_text(encoding="utf-8")
+
+    if not upload_files:
+        return jsonify({"status": "error", "message": "No cached export files found. Run Regenerate Exports first."}), 400
+
+    # Build README content
+    import datetime
+    today = datetime.date.today().isoformat()
+    readme_content = f"""# KE-WP and KE-GO Mapping Database
+
+Published: {today}
+
+## Files
+
+- KE-WP_*.gmt — Key Event to WikiPathways mappings in GMT format (HGNC gene symbols)
+- KE-GO_*.gmt — Key Event to GO Biological Process mappings in GMT format (HGNC gene symbols)
+- ke-wp-mappings.ttl — Full KE-WP provenance in RDF/Turtle format
+- ke-go-mappings.ttl — Full KE-GO provenance in RDF/Turtle format
+
+## Usage
+
+GMT files are directly loadable by clusterProfiler (enricher()) and fgsea (gmtPathways()).
+Gene identifiers are HGNC symbols.
+
+## License
+
+CC0 1.0 Universal
+"""
+    upload_files["README.md"] = readme_content
+
+    metadata = _build_zenodo_metadata(today)
+
+    try:
+        result = zenodo_publish(upload_files, metadata, existing_deposition_id=existing_id)
+        zenodo_meta.update({
+            "deposition_id": result["deposition_id"],
+            "doi": result["doi"],
+            "concept_doi": result.get("concept_doi", result["doi"]),
+            "published_at": today,
+        })
+        meta_path.write_text(json_lib.dumps(zenodo_meta, indent=2))
+        logger.info("Zenodo publish complete: DOI=%s", result["doi"])
+        return jsonify({"status": "ok", "doi": result["doi"], "concept_doi": result.get("concept_doi")})
+    except EnvironmentError as e:
+        return jsonify({"status": "error", "message": str(e)}), 503
+    except Exception as e:
+        logger.error("Zenodo publish failed: %s", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
