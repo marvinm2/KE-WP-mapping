@@ -46,15 +46,16 @@ go_mapping_model = None
 go_proposal_model = None
 ke_metadata = None
 pathway_metadata = None
+ke_aop_membership = None
 
 
 def set_models(mapping, proposal, cache, suggestion_service=None,
                go_suggestion_svc=None, go_mapping=None, go_proposal=None,
-               ke_meta=None, pathway_meta=None):
+               ke_meta=None, pathway_meta=None, ke_aop_membership_data=None):
     """Set the model instances"""
     global mapping_model, proposal_model, cache_model, pathway_suggestion_service
     global go_suggestion_service, go_mapping_model, go_proposal_model
-    global ke_metadata, pathway_metadata
+    global ke_metadata, pathway_metadata, ke_aop_membership
     mapping_model = mapping
     proposal_model = proposal
     cache_model = cache
@@ -64,6 +65,7 @@ def set_models(mapping, proposal, cache, suggestion_service=None,
     go_proposal_model = go_proposal
     ke_metadata = ke_meta
     pathway_metadata = pathway_meta
+    ke_aop_membership = ke_aop_membership_data
 
 
 def login_required(f):
@@ -266,6 +268,40 @@ def get_ke_options():
     except Exception as e:
         logger.error("Error fetching KE options: %s", e)
         return jsonify({"error": "Failed to fetch KE options"}), 500
+
+
+@api_bp.route("/api/ke_detail/<path:ke_id>", methods=["GET"])
+@general_rate_limit
+def get_ke_detail(ke_id):
+    """
+    Get KE detail from pre-fetched local data.
+    Returns: title, description, biolevel, ke_page, and aop_membership.
+    No live SPARQL — reads ke_metadata.json + ke_aop_membership.json.
+    """
+    if not ke_id or not ke_id.strip():
+        return jsonify({"error": "Invalid Key Event ID"}), 400
+
+    if not ke_metadata:
+        return jsonify({"error": "KE metadata not available"}), 503
+
+    # Linear scan — fast enough for ~1561 entries, no extra index required
+    ke_data = next(
+        (ke for ke in ke_metadata if ke.get("KElabel") == ke_id),
+        None,
+    )
+    if not ke_data:
+        return jsonify({"error": f"KE not found: {ke_id}"}), 404
+
+    aop_list = ke_aop_membership.get(ke_id, []) if ke_aop_membership else []
+
+    return jsonify({
+        "ke_id": ke_id,
+        "ke_title": ke_data.get("KEtitle", ""),
+        "ke_description": ke_data.get("KEdescription", ""),
+        "biolevel": ke_data.get("biolevel", ""),
+        "ke_page": ke_data.get("KEpage", ""),
+        "aop_membership": aop_list,
+    })
 
 
 @api_bp.route("/get_pathway_options", methods=["GET"])

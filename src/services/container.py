@@ -47,6 +47,8 @@ class ServiceContainer:
         self._embedding_service = None
         self._ke_metadata = None
         self._pathway_metadata = None
+        self._ke_aop_membership = None
+        self._ke_metadata_index = None
 
         logger.info("Service container initialized")
 
@@ -138,6 +140,36 @@ class ServiceContainer:
                 except Exception as e:
                     logger.warning("Failed to load pathway_metadata.json: %s", e)
         return self._pathway_metadata
+
+    @property
+    def ke_aop_membership(self):
+        """Load and cache KE AOP membership from pre-computed JSON file"""
+        if self._ke_aop_membership is None:
+            path = os.path.join(PROJECT_ROOT, 'data', 'ke_aop_membership.json')
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        self._ke_aop_membership = json.load(f)
+                    logger.info(
+                        "Loaded KE AOP membership for %d KEs from %s",
+                        len(self._ke_aop_membership), path,
+                    )
+                except Exception as e:
+                    logger.warning("Failed to load ke_aop_membership.json: %s", e)
+        return self._ke_aop_membership
+
+    @property
+    def ke_metadata_index(self):
+        """Build and cache a dict-index of KE metadata keyed by KElabel for O(1) lookup"""
+        if self._ke_metadata_index is None:
+            meta = self.ke_metadata
+            self._ke_metadata_index = (
+                {ke["KElabel"]: ke for ke in meta} if meta else {}
+            )
+            logger.info(
+                "Built KE metadata index with %d entries", len(self._ke_metadata_index)
+            )
+        return self._ke_metadata_index
 
     @property
     def pathway_suggestion_service(self) -> PathwaySuggestionService:
