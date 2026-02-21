@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Curators can efficiently produce a high-quality, reusable KE-pathway/GO mapping database that external tools can consume for toxicological pathway analysis.
-**Current focus:** Phase 3 — Stable Public REST API (COMPLETE, gap closure done) → Phase 4 next
+**Current focus:** Phase 4 — Curator UX and Explore (In Progress)
 
 ## Current Position
 
-Phase: 3 of 6 (Stable Public REST API)
-Plan: 4 of 4 in current phase (COMPLETE — gap closure)
-Status: Phase 3 COMPLETE (including UAT gap closure)
-Last activity: 2026-02-21 — Completed 03-04 (proposal-first /submit, new-pair approve, JOIN alias fix)
+Phase: 4 of 6 (Curator UX and Explore)
+Plan: 4 of 5 in current phase (04-04 complete — public stats page + CSV export)
+Status: Phase 4 In Progress (1 of 5 plans complete)
+Last activity: 2026-02-21 — Completed 04-04 (/stats public page, ?format=csv on /api/v1/mappings)
 
-Progress: [██████████] 100% (Phase 3 complete + gap closure)
+Progress: [████░░░░░░] 20% (Phase 4: 1/5 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 6 min
-- Total execution time: 0.68 hours
+- Total execution time: 0.75 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [██████████] 100% (Phase 3 complete + gap closure)
 | 01-deployment-hardening | 4 | 20 min | 5 min |
 | 02-data-model-and-audit-trail | 4 (complete) | 26 min | 6.5 min |
 | 03-stable-public-rest-api | 4 (complete) | 30 min | 7.5 min |
+| 04-curator-ux-and-explore | 1 (in progress) | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (5 min), 03-02 (7 min), 03-03 (10 min), 03-04 (8 min)
-- Trend: Phase 3 complete with gap closure — proposal-first submit flow, full provenance at approval
+- Last 5 plans: 03-02 (7 min), 03-03 (10 min), 03-04 (8 min), 04-04 (4 min)
+- Trend: Phase 4 in progress — public stats page and CSV export param added
 
 *Updated after each plan completion*
 | Phase 01-deployment-hardening P01 | 12 | 2 tasks | 3 files |
@@ -47,6 +48,7 @@ Progress: [██████████] 100% (Phase 3 complete + gap closure)
 | Phase 03-stable-public-rest-api P02 | 7 | 2 tasks | 3 files |
 | Phase 03-stable-public-rest-api P03 | 10 | 1 task | 1 file |
 | Phase 03-stable-public-rest-api P04 | 8 | 2 tasks | 4 files |
+| Phase 04-curator-ux-and-explore P04 | 4 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -91,6 +93,8 @@ Recent decisions affecting current work:
 - [03-04]: All /submit submissions create pending proposals regardless of submitter role — closes UAT Test 7; mapping created only at admin approval
 - [03-04]: JOIN alias pattern (m.ke_id AS mapping_ke_id) prevents sqlite3.Row dict() NULL-clobbering of p.ke_id on new-pair proposals with mapping_id=NULL
 - [03-04]: submit_client test fixture directly replaces api_mod.proposal_model/mapping_model attributes using temp-file DB — same :memory: isolation workaround as v1_client
+- [Phase 04-curator-ux-and-explore]: ?format=csv param checked before Accept header in _respond_collection — allows download-button anchor hrefs to trigger CSV without setting Accept headers
+- [Phase 04-curator-ux-and-explore]: Content-Disposition: attachment added to CSV responses — needed for browser download trigger from anchor href
 
 ### Pending Todos
 
@@ -104,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-21T12:56:53.894Z
-**Stopped at:** Phase 4 context gathered
-**Resume file:** .planning/phases/04-curator-ux-and-explore/04-CONTEXT.md
+**Last session:** 2026-02-21T13:44:24.538Z
+**Stopped at:** Completed 04-04-PLAN.md (public stats page + CSV export param)
+**Resume file:** None

@@ -33,8 +33,8 @@ Requirements for v1.0 release. Each maps to a roadmap phase.
 - [ ] **EXPLO-02**: Explore page filterable by confidence level (High/Medium/Low)
 - [ ] **EXPLO-03**: Coverage gap view — shows which KEs in a selected AOP have no approved mappings yet
 - [x] **EXPLO-04**: All API and explore-page responses include stable, permanent mapping IDs
-- [ ] **EXPLO-05**: Dataset metrics dashboard showing mapping counts and coverage statistics (closes #116)
-- [ ] **EXPLO-06**: Custom download interface — user filters dataset then exports the matching subset (closes #116)
+- [x] **EXPLO-05**: Dataset metrics dashboard showing mapping counts and coverage statistics (closes #116)
+- [x] **EXPLO-06**: Custom download interface — user filters dataset then exports the matching subset (closes #116)
 
 ### KE Selection UX
 
@@ -119,8 +119,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXPLO-01 | Phase 4 | Pending |
 | EXPLO-02 | Phase 4 | Pending |
 | EXPLO-03 | Phase 4 | Pending |
-| EXPLO-05 | Phase 4 | Pending |
-| EXPLO-06 | Phase 4 | Pending |
+| EXPLO-05 | Phase 4 | Complete |
+| EXPLO-06 | Phase 4 | Complete |
 | KE-01 | Phase 4 | Pending |
 | EXPRT-01 | Phase 5 | Pending |
 | EXPRT-02 | Phase 5 | Pending |
