@@ -111,6 +111,16 @@ class KEWPApp {
     init() {
         this.setupCSRF();
         this.setupEventListeners();
+
+        // URL param pre-fill: read ?ke_id= and store for after dropdown populates
+        const urlParams = new URLSearchParams(window.location.search);
+        this.preselectedKE = urlParams.get('ke_id') || null;
+        if (this.preselectedKE && window.history.replaceState) {
+            // Clean URL without triggering navigation
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, '', cleanUrl);
+        }
+
         this.loadDropdownOptions();
         this.loadDataVersions();
 
@@ -352,6 +362,16 @@ class KEWPApp {
             width: '100%',
             matcher: this.customMatcher
         });
+
+        // Apply URL param pre-fill if set
+        if (this.preselectedKE) {
+            const keToSelect = this.preselectedKE;
+            this.preselectedKE = null;
+            // Small delay to ensure Select2 is ready
+            setTimeout(() => {
+                $('#ke_id').val(keToSelect).trigger('change');
+            }, 100);
+        }
     }
 
     loadKEOptions() {
@@ -1077,15 +1097,13 @@ class KEWPApp {
         const selectedOption = $(event.target).find('option:selected');
         const keId = selectedOption.val();
         const title = selectedOption.data('title') || '';
-        const description = selectedOption.data('description') || '';
         const biolevel = selectedOption.data('biolevel') || '';
-        const kepage = selectedOption.data('kepage') || '';
 
-        // Show/hide KE preview
-        if (title) {
-            this.showKEPreview(title, description, biolevel, kepage);
+        // Load unified KE context panel (replaces showKEPreview + loadKEContext)
+        if (keId) {
+            this.loadKEDetail(keId);
         } else {
-            this.hideKEPreview();
+            this.removeKEContextPanel();
         }
 
         // Store biological level for later use in assessment
@@ -1093,13 +1111,6 @@ class KEWPApp {
 
         // Store selected KE info for assessment info cards (#103)
         this.selectedKEInfo = keId ? { keId, title, biolevel } : null;
-
-        // Load KE context panel (#99)
-        if (keId) {
-            this.loadKEContext(keId);
-        } else {
-            $('#ke-context-panel').remove();
-        }
 
         // Load suggestions for the active tab
         if (keId && title) {
@@ -1116,141 +1127,71 @@ class KEWPApp {
         }
     }
 
-    loadKEContext(keId) {
-        // Remove previous context panel
-        $('#ke-context-panel').remove();
-
+    loadKEDetail(keId) {
+        this.removeKEContextPanel();
         const encodedKeId = encodeURIComponent(keId);
-        $.getJSON(`/api/ke_context/${encodedKeId}`)
+        $.getJSON(`/api/ke_detail/${encodedKeId}`)
             .done((data) => {
-                this.displayKEContext(data);
+                this.renderKEContextPanel(data);
             })
             .fail((xhr, status, error) => {
-                console.warn('Failed to load KE context:', error);
+                console.warn('Failed to load KE detail:', error);
             });
     }
 
-    displayKEContext(data) {
-        // Remove previous
+    removeKEContextPanel() {
         $('#ke-context-panel').remove();
+        $('#ke-preview').remove();
+    }
 
-        const s = data.summary || {};
-        const aopCount = s.aop_count || 0;
-        const wpCount = s.wp_mapping_count || 0;
-        const goCount = s.go_mapping_count || 0;
+    renderKEContextPanel(data) {
+        this.removeKEContextPanel();
 
-        if (aopCount === 0 && wpCount === 0 && goCount === 0) {
-            // Show minimal panel
-            const html = `
-                <div id="ke-context-panel" class="ke-context-panel">
-                    <div class="context-summary">
-                        <span class="context-badge"><strong>0</strong> AOPs</span>
-                        <span class="context-badge"><strong>0</strong> WP mappings</span>
-                        <span class="context-badge"><strong>0</strong> GO mappings</span>
-                    </div>
-                    <div style="font-size: 12px; color: #888; font-style: italic;">No existing context found for this Key Event.</div>
-                </div>
-            `;
-            if ($("#ke-preview").length) {
-                $("#ke-preview").after(html);
-            } else {
-                $("#ke_id").parent().after(html);
-            }
-            return;
-        }
+        const biolevelBadge = data.biolevel
+            ? `<span class="ke-biolevel-badge" style="background-color: ${this.getBiolevelColor(data.biolevel)};">${this.escapeHtml(data.biolevel)}</span>`
+            : '';
 
-        let html = `<div id="ke-context-panel" class="ke-context-panel">`;
+        const aopWikiLink = data.ke_page
+            ? `<a href="${this.escapeHtml(data.ke_page)}" target="_blank" rel="noopener noreferrer" style="color: #307BBF; font-size: 13px;">View on AOP-Wiki &rarr;</a>`
+            : '';
 
-        // Summary badges
-        html += `<div class="context-summary">`;
-        html += `<span class="context-badge"><strong>${aopCount}</strong> AOP${aopCount !== 1 ? 's' : ''}</span>`;
-        html += `<span class="context-badge"><strong>${wpCount}</strong> WP mapping${wpCount !== 1 ? 's' : ''}</span>`;
-        html += `<span class="context-badge"><strong>${goCount}</strong> GO mapping${goCount !== 1 ? 's' : ''}</span>`;
-        html += `</div>`;
+        // Description with collapsible truncation
+        const descriptionHTML = data.ke_description
+            ? this.createCollapsibleDescription(data.ke_description, 'ke-context-description')
+            : '<em style="color:#888;">No description available</em>';
 
-        // AOP membership details
-        if (aopCount > 0) {
-            html += `<details><summary>AOP Membership (${aopCount})</summary>`;
-            html += `<table class="context-table"><thead><tr><th>AOP</th><th>Title</th></tr></thead><tbody>`;
+        // AOP membership list
+        let aopSection = '';
+        if (data.aop_membership && data.aop_membership.length > 0) {
+            aopSection = `<details style="margin-top:8px;"><summary style="font-size:13px;font-weight:600;color:#555;">AOP Membership (${data.aop_membership.length})</summary>
+            <table class="context-table"><thead><tr><th>AOP</th><th>Title</th></tr></thead><tbody>`;
             data.aop_membership.forEach(aop => {
                 const aopNum = aop.aop_id.replace('AOP ', '');
-                html += `<tr>
-                    <td><a href="https://aopwiki.org/aops/${aopNum}" target="_blank" style="color: #307BBF;">${this.escapeHtml(aop.aop_id)}</a></td>
+                aopSection += `<tr>
+                    <td><a href="https://aopwiki.org/aops/${aopNum}" target="_blank" style="color:#307BBF;">${this.escapeHtml(aop.aop_id)}</a></td>
                     <td>${this.escapeHtml(aop.aop_title)}</td>
                 </tr>`;
             });
-            html += `</tbody></table></details>`;
-        }
-
-        // WP mappings details
-        if (wpCount > 0) {
-            html += `<details><summary>Existing WP Mappings (${wpCount})</summary>`;
-            html += `<table class="context-table"><thead><tr><th>Pathway</th><th>Title</th><th>Confidence</th></tr></thead><tbody>`;
-            data.wp_mappings.forEach(m => {
-                html += `<tr>
-                    <td><a href="https://www.wikipathways.org/pathways/${m.wp_id}" target="_blank" style="color: #307BBF;">${this.escapeHtml(m.wp_id)}</a></td>
-                    <td>${this.escapeHtml(m.wp_title)}</td>
-                    <td>${this.escapeHtml(m.confidence_level)}</td>
-                </tr>`;
-            });
-            html += `</tbody></table></details>`;
-        }
-
-        // GO mappings details
-        if (goCount > 0) {
-            html += `<details><summary>Existing GO Mappings (${goCount})</summary>`;
-            html += `<table class="context-table"><thead><tr><th>GO Term</th><th>Name</th><th>Confidence</th></tr></thead><tbody>`;
-            data.go_mappings.forEach(m => {
-                html += `<tr>
-                    <td><a href="https://www.ebi.ac.uk/QuickGO/term/${m.go_id}" target="_blank" style="color: #307BBF;">${this.escapeHtml(m.go_id)}</a></td>
-                    <td>${this.escapeHtml(m.go_name)}</td>
-                    <td>${this.escapeHtml(m.confidence_level)}</td>
-                </tr>`;
-            });
-            html += `</tbody></table></details>`;
-        }
-
-        html += `</div>`;
-
-        // Insert after KE preview or KE dropdown
-        if ($("#ke-preview").length) {
-            $("#ke-preview").after(html);
+            aopSection += `</tbody></table></details>`;
         } else {
-            $("#ke_id").parent().after(html);
+            aopSection = `<p style="font-size:13px;color:#888;margin:4px 0;">No AOP membership found for this KE.</p>`;
         }
-    }
 
-    showKEPreview(title, description, biolevel, kepage) {
-        // Remove existing preview
-        $("#ke-preview").remove();
-
-        // Create collapsible description HTML
-        const descriptionHTML = this.createCollapsibleDescription(description, 'ke-description');
-
-        // Biological level badge
-        const biolevelBadge = biolevel
-            ? `<span class="ke-biolevel-badge" style="background-color: ${this.getBiolevelColor(biolevel)};">${this.escapeHtml(biolevel)}</span>`
-            : '';
-
-        // AOP-Wiki link
-        const aopWikiLink = kepage
-            ? `<div style="margin-top: 10px; font-size: 13px;">
-                   <a href="${this.escapeHtml(kepage)}" target="_blank" rel="noopener noreferrer" style="color: #307BBF;">View on AOP-Wiki &rarr;</a>
-               </div>`
-            : '';
-
-        // Create preview HTML
-        const previewHTML = `
-            <div id="ke-preview" style="margin-top: 10px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
-                <h4 style="margin: 0 0 8px 0; color: #29235C;">Key Event Details: ${biolevelBadge}</h4>
-                <p style="margin: 0 0 8px 0;"><strong>Title:</strong> ${title}</p>
-                ${description ? `<div><strong>Description:</strong><br/>${descriptionHTML}</div>` : '<p style="margin: 0; color: #666; font-style: italic;">No description available</p>'}
-                ${aopWikiLink}
-            </div>
+        const html = `
+            <details id="ke-context-panel" class="ke-context-panel" open>
+                <summary class="ke-context-title">
+                    <strong>${this.escapeHtml(data.ke_title)}</strong> ${biolevelBadge}
+                </summary>
+                <div style="margin-top:10px;">
+                    <div style="margin-bottom:8px;">${descriptionHTML}</div>
+                    ${aopSection}
+                    ${aopWikiLink ? `<div style="margin-top:10px;">${aopWikiLink}</div>` : ''}
+                </div>
+            </details>
         `;
 
-        // Insert after KE dropdown
-        $("#ke_id").parent().after(previewHTML);
+        // Insert after KE dropdown container
+        $('#ke_id').closest('.form-group, .field-group, div').first().after(html);
     }
 
     getBiolevelColor(level) {
@@ -1521,7 +1462,7 @@ class KEWPApp {
     }
 
     hideKEPreview() {
-        $("#ke-preview").remove();
+        this.removeKEContextPanel();
         this.selectedBiolevel = '';
     }
 
