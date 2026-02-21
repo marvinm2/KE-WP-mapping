@@ -29,9 +29,9 @@ Requirements for v1.0 release. Each maps to a roadmap phase.
 
 ### Explore & Browse
 
-- [ ] **EXPLO-01**: Explore page filterable by AOP — shows all approved KE mappings belonging to a selected AOP
-- [ ] **EXPLO-02**: Explore page filterable by confidence level (High/Medium/Low)
-- [ ] **EXPLO-03**: Coverage gap view — shows which KEs in a selected AOP have no approved mappings yet
+- [x] **EXPLO-01**: Explore page filterable by AOP — shows all approved KE mappings belonging to a selected AOP
+- [x] **EXPLO-02**: Explore page filterable by confidence level (High/Medium/Low)
+- [x] **EXPLO-03**: Coverage gap view — shows which KEs in a selected AOP have no approved mappings yet
 - [x] **EXPLO-04**: All API and explore-page responses include stable, permanent mapping IDs
 - [x] **EXPLO-05**: Dataset metrics dashboard showing mapping counts and coverage statistics (closes #116)
 - [x] **EXPLO-06**: Custom download interface — user filters dataset then exports the matching subset (closes #116)
@@ -116,9 +116,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-02 | Phase 3 | Complete |
 | API-03 | Phase 3 | Complete |
 | API-04 | Phase 3 | Complete |
-| EXPLO-01 | Phase 4 | Pending |
-| EXPLO-02 | Phase 4 | Pending |
-| EXPLO-03 | Phase 4 | Pending |
+| EXPLO-01 | Phase 4 | Complete |
+| EXPLO-02 | Phase 4 | Complete |
+| EXPLO-03 | Phase 4 | Complete |
 | EXPLO-05 | Phase 4 | Complete |
 | EXPLO-06 | Phase 4 | Complete |
 | KE-01 | Phase 4 | Complete |
