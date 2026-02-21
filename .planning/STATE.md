@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 5 of 6 (Exports and Dataset Publication) — IN PROGRESS
-Plan: 2 of 4 in current phase (05-02 complete — Zenodo uploader + admin export routes)
-Status: Phase 5 Plan 2 Complete (zenodo_uploader.py + /admin/exports/regenerate + /admin/exports/publish-zenodo)
-Last activity: 2026-02-21 — Completed 05-02 (Zenodo uploader module and admin routes)
+Plan: 3 of 4 in current phase (05-03 complete — /downloads page, export routes, DOI badge, stats export links)
+Status: Phase 5 Plan 3 Complete (/downloads + /exports/* routes + downloads.html + inject_zenodo_meta context processor)
+Last activity: 2026-02-21 — Completed 05-03 (Public download routes and downloads page)
 
-Progress: [████████░░] 85% (Phase 5 — 2/4 plans done)
+Progress: [█████████░] 90% (Phase 5 — 3/4 plans done)
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [████████░░] 85% (Phase 5 — 2/4 plans done)
 | Phase 04-curator-ux-and-explore P05 | 13 | 1 task | 0 files |
 | Phase 05-exports-and-dataset-publication P01 | 3 | 2 tasks | 4 files |
 | Phase 05-exports-and-dataset-publication P02 | 3 | 2 tasks | 6 files |
+| Phase 05-exports-and-dataset-publication P03 | 5 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,9 @@ Recent decisions affecting current work:
 - [Phase 05-exports-and-dataset-publication]: data/zenodo_meta.json unignored from .gitignore — persistent state file not a large pre-computed file
 - [Phase 05-exports-and-dataset-publication]: Zenodo bucket PUT API used (not deprecated /files POST) for file uploads
 - [Phase 05-exports-and-dataset-publication]: publish_zenodo returns 503 with clear message when ZENODO_API_TOKEN missing
+- [05-03]: inject_zenodo_meta() global context processor reads data/zenodo_meta.json once per request — DOI badge in navbar works on every page with zero per-route changes
+- [05-03]: GMT filenames include ISO date (KE-WP_YYYY-MM-DD_All.gmt) — natural daily cache invalidation without explicit TTL logic
+- [05-03]: EXPORT_CACHE_DIR = Path('static/exports') module constant shared by all four download routes and _get_or_generate_gmt() helper
 
 ### Pending Todos
 
@@ -131,6 +135,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-21T19:21:55.346Z
-**Stopped at:** Completed 05-02-PLAN.md (Zenodo uploader + admin export routes)
+**Last session:** 2026-02-21T19:28:05Z
+**Stopped at:** Completed 05-03-PLAN.md (public download routes, /downloads page, DOI badge, stats export links)
 **Resume file:** None
