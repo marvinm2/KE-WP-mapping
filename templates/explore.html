@@ -13,15 +13,70 @@
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/buttons.html5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/buttons.print.min.js"></script>
-    
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <!-- CSRF Token for AJAX requests -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
- 
-</head>
-<body 
-    data-is-logged-in="{{ 'true' if user_info else 'false' }}" 
-    data-user-info='{{ user_info|tojson|safe }}'>
 
+    <style>
+    .conf-filter-btn {
+        padding: 6px 14px;
+        border: 1px solid #307BBF;
+        background: white;
+        color: #307BBF;
+        cursor: pointer;
+        font-size: 13px;
+        border-radius: 4px;
+    }
+    .conf-filter-btn.active {
+        background: #307BBF;
+        color: white;
+    }
+    /* Filter chip styles - canonical definitions are in main.css (added by 04-02).
+       Duplicated here because 04-03 and 04-02 run in the same wave. */
+    .filter-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+        min-height: 0;
+    }
+    .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 10px;
+        background: #e8f0fb;
+        border: 1px solid #307BBF;
+        border-radius: 12px;
+        font-size: 13px;
+        color: #29235C;
+    }
+    .filter-chip-remove {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 15px;
+        line-height: 1;
+        color: #307BBF;
+        padding: 0 2px;
+    }
+    .filter-chips-clear {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        color: #307BBF;
+        text-decoration: underline;
+        padding: 3px 6px;
+        align-self: center;
+    }
+    </style>
+</head>
+<body
+    data-is-logged-in="{{ 'true' if user_info else 'false' }}"
+    data-user-info='{{ user_info|tojson|safe }}'>
 
     {% include 'components/navigation.html' %}
     <div class="container">
@@ -29,16 +84,43 @@
         <div id="explore-tab-switcher" style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 3px solid #307BBF;">
             <button type="button" class="explore-tab active" data-tab="wp"
                     style="padding: 12px 24px; border: 1px solid #307BBF; border-bottom: none; background: #307BBF; color: white; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0; margin-right: 4px;">
-                KE-WP Mappings ({{ dataset|length }})
+                KE-WP Mappings
             </button>
             <button type="button" class="explore-tab" data-tab="go"
-                    style="padding: 12px 24px; border: 1px solid #ccc; border-bottom: none; background: #f0f0f0; color: #666; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0;">
+                    style="padding: 12px 24px; border: 1px solid #ccc; border-bottom: none; background: #f0f0f0; color: #666; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0; margin-right: 4px;">
                 KE-GO Mappings ({{ go_dataset|length }})
+            </button>
+            <button type="button" class="explore-tab" data-tab="gaps"
+                    style="padding: 12px 24px; border: 1px solid #ccc; border-bottom: none; background: #f0f0f0; color: #666; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0;">
+                Coverage Gaps
             </button>
         </div>
 
         <!-- KE-WP Mappings Table -->
         <div id="wp-explore-content">
+            <!-- Filter controls row -->
+            <div style="display:flex; gap:16px; align-items:flex-end; margin-bottom:12px; flex-wrap:wrap;">
+                <!-- AOP filter (Select2) -->
+                <div style="flex:1; min-width:200px; max-width:360px;">
+                    <label for="aop-filter-select" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Filter by AOP</label>
+                    <select id="aop-filter-select" style="width:100%;">
+                        <option value="">All AOPs</option>
+                    </select>
+                </div>
+                <!-- Confidence filter (toggle buttons) -->
+                <div>
+                    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Confidence</label>
+                    <div id="confidence-filter-btns" style="display:flex;gap:4px;">
+                        <button type="button" class="conf-filter-btn active" data-conf="">All</button>
+                        <button type="button" class="conf-filter-btn" data-conf="High">High</button>
+                        <button type="button" class="conf-filter-btn" data-conf="Medium">Medium</button>
+                        <button type="button" class="conf-filter-btn" data-conf="Low">Low</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Active filter chips -->
+            <div id="active-filter-chips" class="filter-chips"></div>
+            <!-- DataTable (AJAX-driven, no server-rendered rows) -->
             <table id="datasetTable" class="display" width="100%">
                 <thead>
                     <tr>
@@ -46,30 +128,13 @@
                         <th>KE Title</th>
                         <th>WP ID</th>
                         <th>WP Title</th>
-                        <th>Connection Type</th>
                         <th>Confidence Level</th>
                         <th>Curator</th>
                         <th>Approved</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for row in dataset %}
-                    <tr>
-                        <td>{{ row['ke_id'] or row['KE_ID'] }}</td>
-                        <td>{{ row['ke_title'] or row['KE_Title'] }}</td>
-                        <td>{{ row['wp_id'] or row['WP_ID'] }}</td>
-                        <td>{{ row['wp_title'] or row['WP_Title'] }}</td>
-                        <td>{{ row['connection_type'] or row['Connection_Type'] }}</td>
-                        <td>{{ row['confidence_level'] or row['Confidence_Level'] }}</td>
-                        <td>{{ row['approved_by_curator'] or row['created_by'] or '—' }}</td>
-                        <td>{{ (row['approved_at_curator'] or row['created_at'] or '').split('T')[0].split(' ')[0] }}</td>
-                        <td>
-                            <button class="propose-change" data-entry="{{ row }}">Propose Change</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
 
@@ -102,7 +167,36 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Coverage Gaps Tab -->
+        <div id="gaps-explore-content" style="display:none;">
+            <div style="margin-bottom:16px;">
+                <label for="gaps-aop-select" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Select AOP to view coverage gaps</label>
+                <select id="gaps-aop-select" style="width:100%;max-width:400px;">
+                    <option value="">-- Select an AOP --</option>
+                </select>
+            </div>
+            <div id="gaps-placeholder" style="color:#888;font-style:italic;padding:20px 0;">
+                Select an AOP above to see which KEs have no approved KE-WP mapping.
+            </div>
+            <div id="gaps-content" style="display:none;">
+                <p id="gaps-summary" style="font-size:14px;margin-bottom:12px;"></p>
+                <table id="gapsTable" class="display" width="100%" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>KE ID</th>
+                            <th>KE Title</th>
+                            <th>Biological Level</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <p id="gaps-all-mapped" style="display:none;color:#2e7d32;font-weight:600;">All KEs in this AOP have at least one approved KE-WP mapping.</p>
+            </div>
+        </div>
     </div>
+
     <!-- Proposal Modal -->
     <div id="proposalModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; border: 1px solid #ccc; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); width: 500px;">
         {% if session.get('user') %}
@@ -111,17 +205,17 @@
             <h3>Propose Changes to Mapping Entry</h3>
             <label for="entryDetails">Selected Entry Details:</label>
             <textarea id="entryDetails" readonly></textarea>
-    
+
             <h4>Contact Information</h4>
             <label for="userName">Your Name:</label>
             <input type="text" id="userName" name="userName" placeholder="Enter your full name" required>
-    
+
             <label for="userEmail">Email Address:</label>
             <input type="email" id="userEmail" name="userEmail" placeholder="Enter your email address" required>
-    
+
             <label for="userAffiliation">Institution/Organization:</label>
             <input type="text" id="userAffiliation" name="userAffiliation" placeholder="Enter your affiliation" required>
-    
+
             <h4>Suggested Changes</h4>
             <div>
                 <input type="checkbox" id="deleteEntry" name="proposedChange" value="delete">
@@ -145,7 +239,7 @@
                 <input type="radio" id="typeUndefined" name="changeType" value="undefined">
                 <label for="typeUndefined">Undefined relationship</label>
             </div>
-    
+
             <div style="text-align: right;">
                 <button type="button" onclick="closeModal()">Cancel</button>
                 <button type="submit">Submit Change Proposal</button>
@@ -156,7 +250,7 @@
             <button id="loginButton" data-url="{{ url_for('auth.login') }}" style="display: block; margin: 0 auto;">Login with GitHub to Continue</button>
         {% endif %}
     </div>
-    
+
     <!-- Overlay for Modal -->
     <div id="modalOverlay" style="display: none;" onclick="closeModal()"></div>
     <footer>
@@ -167,31 +261,240 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
         $(document).ready(function () {
-            // Setup KE-WP DataTable
-            $('#datasetTable').DataTable(
-                DataTableConfig.merge('withFullExport', {
-                    order: [[7, 'desc']],
-                    columnDefs: [
-                        { width: '8%',  targets: 0, className: 'dt-center' },
-                        { width: '18%', targets: 1, className: 'dt-center' },
-                        { width: '8%',  targets: 2, className: 'dt-center' },
-                        { width: '18%', targets: 3, className: 'dt-center' },
-                        { width: '13%', targets: 4, className: 'dt-center' },
-                        { width: '13%', targets: 5, className: 'dt-center' },
-                        { width: '10%', targets: 6, className: 'dt-center' },
-                        { width: '10%', targets: 7, className: 'dt-center' }
-                    ]
-                })
-            );
 
-            // Setup KE-GO DataTable
+            // Filter state for KE-WP tab
+            var wpState = { aopId: null, aopLabel: null, confidence: null };
+
+            // KE-WP AJAX DataTable (serverSide: true - no Jinja2 rows)
+            var wpTable = $('#datasetTable').DataTable({
+                serverSide: true,
+                processing: true,
+                ajax: function(data, callback) {
+                    var params = new URLSearchParams({
+                        page: Math.floor(data.start / data.length) + 1,
+                        per_page: data.length
+                    });
+                    if (wpState.aopId) params.set('aop_id', wpState.aopId);
+                    if (wpState.confidence) params.set('confidence_level', wpState.confidence);
+                    fetch('/api/v1/mappings?' + params.toString(), { headers: { 'Accept': 'application/json' } })
+                        .then(function(r) { return r.json(); })
+                        .then(function(json) {
+                            callback({
+                                draw: data.draw,
+                                recordsTotal: json.pagination ? json.pagination.total : 0,
+                                recordsFiltered: json.pagination ? json.pagination.total : 0,
+                                data: json.data || []
+                            });
+                        })
+                        .catch(function() {
+                            callback({ draw: data.draw, recordsTotal: 0, recordsFiltered: 0, data: [] });
+                        });
+                },
+                columns: [
+                    { data: 'ke_id' },
+                    { data: 'ke_name' },
+                    { data: 'pathway_id' },
+                    { data: 'pathway_title' },
+                    { data: 'confidence_level' },
+                    { data: 'provenance.approved_by', defaultContent: '-' },
+                    { data: 'provenance.approved_at', defaultContent: '-',
+                      render: function(d) { return d ? d.split('T')[0] : '-'; } },
+                    { data: null, orderable: false, defaultContent: '<button class="propose-change btn-sm">Propose Change</button>' }
+                ],
+                order: [[6, 'desc']],
+                columnDefs: [
+                    { width: '8%',  targets: 0, className: 'dt-center' },
+                    { width: '18%', targets: 1, className: 'dt-center' },
+                    { width: '8%',  targets: 2, className: 'dt-center' },
+                    { width: '18%', targets: 3, className: 'dt-center' },
+                    { width: '12%', targets: 4, className: 'dt-center' },
+                    { width: '12%', targets: 5, className: 'dt-center' },
+                    { width: '12%', targets: 6, className: 'dt-center' },
+                    { width: '12%', targets: 7, className: 'dt-center' }
+                ]
+            });
+
+            // Filter chip rendering
+            function renderFilterChips() {
+                var chips = [];
+                if (wpState.aopId) {
+                    chips.push('<span class="filter-chip">AOP: ' + $('#aop-filter-select option:selected').text() +
+                        ' <button class="filter-chip-remove" onclick="clearAopFilter()">&times;</button></span>');
+                }
+                if (wpState.confidence) {
+                    chips.push('<span class="filter-chip">Confidence: ' + wpState.confidence +
+                        ' <button class="filter-chip-remove" onclick="clearConfidenceFilter()">&times;</button></span>');
+                }
+                if (chips.length > 0) {
+                    chips.push('<button class="filter-chips-clear" onclick="clearAllFilters()">Clear all</button>');
+                }
+                $('#active-filter-chips').html(chips.join(''));
+            }
+
+            window.clearAopFilter = function() {
+                wpState.aopId = null;
+                wpState.aopLabel = null;
+                $('#aop-filter-select').val('').trigger('change.select2');
+                applyWpFilters();
+            };
+
+            window.clearConfidenceFilter = function() {
+                wpState.confidence = null;
+                $('#confidence-filter-btns .conf-filter-btn').removeClass('active');
+                $('#confidence-filter-btns .conf-filter-btn[data-conf=""]').addClass('active');
+                applyWpFilters();
+            };
+
+            window.clearAllFilters = function() {
+                clearAopFilter();
+                clearConfidenceFilter();
+            };
+
+            function applyWpFilters() {
+                wpTable.ajax.reload();
+                renderFilterChips();
+            }
+
+            // Load AOP options into both Select2 dropdowns from /get_aop_options
+            // Response shape: [{aopId: "AOP 1", aopTitle: "..."}, ...]
+            $.getJSON('/get_aop_options').done(function(options) {
+                options.forEach(function(opt) {
+                    var id = opt.aopId || '';
+                    var label = opt.aopTitle || opt.aopLabel || id;
+                    if (id) {
+                        $('#aop-filter-select').append(new Option(label, id, false, false));
+                        $('#gaps-aop-select').append(new Option(label, id, false, false));
+                    }
+                });
+                $('#aop-filter-select').select2({
+                    placeholder: 'Search AOP by name or ID...',
+                    allowClear: true,
+                    width: '100%'
+                });
+                $('#gaps-aop-select').select2({
+                    placeholder: '-- Select an AOP --',
+                    allowClear: false,
+                    width: '100%'
+                });
+            });
+
+            $('#aop-filter-select').on('change', function() {
+                var val = $(this).val();
+                wpState.aopId = val || null;
+                wpState.aopLabel = val ? $(this).find('option:selected').text() : null;
+                applyWpFilters();
+            });
+
+            // Confidence toggle buttons
+            $('#confidence-filter-btns .conf-filter-btn').on('click', function() {
+                $('#confidence-filter-btns .conf-filter-btn').removeClass('active');
+                $(this).addClass('active');
+                wpState.confidence = $(this).data('conf') || null;
+                applyWpFilters();
+            });
+
+            // Coverage Gaps tab: AOP selection handler
+            $('#gaps-aop-select').on('change', function() {
+                var aopId = $(this).val();
+                if (!aopId) {
+                    $('#gaps-placeholder').show();
+                    $('#gaps-content').hide();
+                    return;
+                }
+                $('#gaps-placeholder').hide();
+                $('#gaps-content').show();
+                $('#gaps-summary').text('Loading...');
+                loadCoverageGaps(aopId);
+            });
+
+            function loadCoverageGaps(aopId) {
+                // /get_aop_kes returns [{KElabel, KEtitle, biolevel, KEpage}, ...]
+                var encodedAopId = encodeURIComponent(aopId);
+                $.getJSON('/get_aop_kes/' + encodedAopId)
+                    .done(function(aopKes) {
+                        // Get all mapped KE IDs for this AOP from v1 API
+                        $.getJSON('/api/v1/mappings?aop_id=' + encodedAopId + '&per_page=200')
+                            .done(function(response) {
+                                var mappedKeIds = {};
+                                (response.data || []).forEach(function(m) {
+                                    mappedKeIds[m.ke_id] = true;
+                                });
+                                var gapKes = aopKes.filter(function(ke) {
+                                    var keId = ke.KElabel || ke.ke_id || ke.keId || '';
+                                    return !mappedKeIds[keId];
+                                });
+                                renderGapsTable(gapKes, aopKes.length, Object.keys(mappedKeIds).length);
+                            })
+                            .fail(function() {
+                                $('#gaps-summary').text('Error loading mapped KEs. Please try again.');
+                            });
+                    })
+                    .fail(function() {
+                        $('#gaps-summary').text('Error loading KEs for this AOP. Please try again.');
+                    });
+            }
+
+            function renderGapsTable(gapKes, totalKes, mappedCount) {
+                var gapCount = gapKes.length;
+                var gapColor = gapCount > 0 ? '#c62828' : '#2e7d32';
+                var gapLabel = gapCount + ' KE' + (gapCount !== 1 ? 's' : '');
+                var gapWord = gapCount > 0 ? 'have no mapping yet.' : 'all mapped!';
+
+                $('#gaps-summary').html(
+                    '<strong>' + mappedCount + '</strong> of <strong>' + totalKes + '</strong> KEs in this AOP have approved KE-WP mappings. ' +
+                    '<strong style="color:' + gapColor + ';">' + gapLabel + '</strong> ' + gapWord
+                );
+
+                if (gapCount === 0) {
+                    $('#gapsTable').hide();
+                    $('#gaps-all-mapped').show();
+                    return;
+                }
+
+                $('#gaps-all-mapped').hide();
+
+                // Destroy existing DataTable if already initialized
+                if ($.fn.DataTable.isDataTable('#gapsTable')) {
+                    $('#gapsTable').DataTable().destroy();
+                    $('#gapsTable tbody').empty();
+                }
+
+                // /get_aop_kes uses KElabel, KEtitle, biolevel field names
+                gapKes.forEach(function(ke) {
+                    var keId = ke.KElabel || ke.ke_id || ke.keId || '';
+                    var keTitle = ke.KEtitle || ke.ke_title || ke.keTitle || '';
+                    var biolevel = ke.biolevel || '';
+                    var encodedKe = encodeURIComponent(keId);
+                    $('#gapsTable tbody').append(
+                        '<tr>' +
+                        '<td>' + keId + '</td>' +
+                        '<td>' + keTitle + '</td>' +
+                        '<td>' + biolevel + '</td>' +
+                        '<td><a href="/?ke_id=' + encodedKe + '" ' +
+                        'style="padding:4px 10px;background:#307BBF;color:white;border-radius:4px;text-decoration:none;font-size:13px;">Map</a></td>' +
+                        '</tr>'
+                    );
+                });
+
+                $('#gapsTable').show().DataTable({
+                    order: [[0, 'asc']],
+                    pageLength: 25,
+                    columnDefs: [
+                        { width: '10%', targets: 0, className: 'dt-center' },
+                        { width: '50%', targets: 1 },
+                        { width: '20%', targets: 2, className: 'dt-center' },
+                        { width: '20%', targets: 3, className: 'dt-center' }
+                    ]
+                });
+            }
+
+            // KE-GO DataTable (lazy init, server-rendered rows)
             var goTableInitialized = false;
 
-            // Tab switching for explore page
+            // Tab switching (3 tabs: wp, go, gaps)
             $('.explore-tab').on('click', function() {
                 var tab = $(this).data('tab');
 
-                // Update button styles
                 $('.explore-tab').each(function() {
                     var isActive = $(this).data('tab') === tab;
                     $(this).css({
@@ -199,18 +502,19 @@
                         color: isActive ? 'white' : '#666',
                         borderColor: isActive ? '#307BBF' : '#ccc'
                     });
-                    if (isActive) $(this).addClass('active');
-                    else $(this).removeClass('active');
+                    if (isActive) { $(this).addClass('active'); }
+                    else { $(this).removeClass('active'); }
                 });
 
                 if (tab === 'wp') {
                     $('#wp-explore-content').show();
                     $('#go-explore-content').hide();
-                } else {
+                    $('#gaps-explore-content').hide();
+                } else if (tab === 'go') {
                     $('#wp-explore-content').hide();
                     $('#go-explore-content').show();
+                    $('#gaps-explore-content').hide();
 
-                    // Initialize GO DataTable on first view (lazy init for proper sizing)
                     if (!goTableInitialized) {
                         $('#goDatasetTable').DataTable(
                             DataTableConfig.merge('withFullExport', {
@@ -228,133 +532,67 @@
                         );
                         goTableInitialized = true;
                     }
+                } else if (tab === 'gaps') {
+                    $('#wp-explore-content').hide();
+                    $('#go-explore-content').hide();
+                    $('#gaps-explore-content').show();
                 }
             });
-    
-            // Handle Modal Actions
-            $(".propose-change").click(function () {
-                const entry = $(this).data("entry");
+
+            // Propose Change modal - event delegation for AJAX-rendered rows
+            $('#datasetTable').on('click', '.propose-change', function() {
+                var rowData = wpTable.row($(this).closest('tr')).data();
+                var entry = rowData || {};
                 $("#entryDetails").val(JSON.stringify(entry, null, 2));
-                $("#proposalModal").show();
-                $("#modalOverlay").show();
-            });
-        });
-    
-        function closeModal() {
-            $("#proposalModal").hide();
-            $("#modalOverlay").hide();
-        }
-    
-        document.addEventListener('DOMContentLoaded', function () {
-            
-            // Function to autofill user data when modal is opened
-            function autofillUserData() {
-                // Retrieve user info and login status from attributes
-                const userInfoAttr = document.body.getAttribute('data-user-info');
-                const userInfo = userInfoAttr ? JSON.parse(userInfoAttr) : null;
-                const isLoggedIn = document.body.getAttribute('data-is-logged-in') === 'true';
 
-                console.log("User Info:", userInfo); // Log user info
-                console.log("Is Logged In:", isLoggedIn); // Log login status
-
-                // Autofill user details if logged in
-                if (isLoggedIn && userInfo) {
-                    const userNameField = document.getElementById('userName');
-                    const userEmailField = document.getElementById('userEmail');
-
-                    console.log("userNameField:", userNameField); // Log field access
-                    console.log("userEmailField:", userEmailField); // Log field access
-
-                    if (userNameField && userInfo.username) {
-                        userNameField.value = userInfo.username;
-                    }
-                    if (userEmailField && userInfo.email) {
-                        userEmailField.value = userInfo.email;
-                    }
-                } else {
-                    console.warn("User is not logged in or user info is missing.");
-                }
-            }
-      
-    
-            // Handle the "Propose Change" button click
-            $(".propose-change").click(function () {
-                const entry = $(this).data("entry");
-                
-                // Check login status
-                const isLoggedIn = document.body.getAttribute('data-is-logged-in') === 'true';
-    
-                // Store entry data for form submission
+                var isLoggedIn = document.body.getAttribute('data-is-logged-in') === 'true';
                 $("#proposalForm").data("entry", entry);
-    
-                // Populate entry details in the modal
-                $("#entryDetails").val(JSON.stringify(entry, null, 2));
-    
+
                 if (!isLoggedIn) {
-                    // Disable submit and show login prompt if not logged in
                     if (!$("#proposalModal .login-prompt").length) {
-                        const loginPrompt = `<p class="login-prompt" style="color: red;">You need to log in to submit a proposal.</p>`;
-                        $("#proposalModal").prepend(loginPrompt);
+                        $("#proposalModal").prepend('<p class="login-prompt" style="color: red;">You need to log in to submit a proposal.</p>');
                     }
                     $("#proposalForm button[type='submit']").prop('disabled', true);
                 } else {
                     $("#proposalForm button[type='submit']").prop('disabled', false);
-                    $("#proposalModal .login-prompt").remove(); // Remove login prompt if present
-                    // Autofill user data when modal opens and user is logged in
+                    $("#proposalModal .login-prompt").remove();
                     setTimeout(autofillUserData, 100);
                 }
-    
-                // Show modal
+
                 $("#proposalModal").show();
                 $("#modalOverlay").show();
             });
-    
-            // Close modal
+
             $("#modalOverlay").on("click", closeModal);
-    
-            // Handle login button click
-            const loginButton = document.getElementById('loginButton');
+
+            var loginButton = document.getElementById('loginButton');
             if (loginButton) {
-                loginButton.addEventListener('click', function () {
-                    const loginUrl = this.getAttribute('data-url');
-                    window.location.href = loginUrl;
+                loginButton.addEventListener('click', function() {
+                    window.location.href = this.getAttribute('data-url');
                 });
             }
 
-            // Handle proposal form submission
             $("#proposalForm").on('submit', function(e) {
                 e.preventDefault();
-                
-                const form = $(this);
-                const entryData = form.data("entry");
-                
+
+                var form = $(this);
+                var entryData = form.data("entry");
+
                 if (!entryData) {
                     alert("Error: No entry data found");
                     return;
                 }
-                
-                // Prepare form data
-                const formData = new FormData();
+
+                var formData = new FormData();
                 formData.append('entry', JSON.stringify(entryData));
                 formData.append('userName', $('#userName').val());
                 formData.append('userEmail', $('#userEmail').val());
                 formData.append('userAffiliation', $('#userAffiliation').val());
-                
-                // Add CSRF token
                 formData.append('csrf_token', $('input[name="csrf_token"]').val());
-                
-                // Handle checkbox and radio button values
                 formData.append('deleteEntry', $('#deleteEntry').is(':checked') ? 'on' : '');
                 formData.append('changeConfidence', $('input[name="changeConfidence"]:checked').val() || '');
                 formData.append('changeType', $('input[name="changeType"]:checked').val() || '');
-                
-                // Debug form data
-                console.log('Form data being sent:');
-                for (let [key, value] of formData.entries()) {
-                    console.log(key + ': ' + value);
-                }
-                
-                // Submit the proposal
+
                 $.ajax({
                     url: '/submit_proposal',
                     method: 'POST',
@@ -364,18 +602,36 @@
                     success: function(response) {
                         alert('Success: ' + response.message);
                         closeModal();
-                        // Reset form
                         document.getElementById('proposalForm').reset();
                     },
                     error: function(xhr) {
-                        const errorMsg = xhr.responseJSON?.error || 'Failed to submit proposal';
+                        var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ?
+                            xhr.responseJSON.error : 'Failed to submit proposal';
                         alert('Error: ' + errorMsg);
                     }
                 });
             });
-        });
-    </script>
-    
-</body>
 
+        }); // end document.ready
+
+        function closeModal() {
+            $("#proposalModal").hide();
+            $("#modalOverlay").hide();
+        }
+
+        function autofillUserData() {
+            var userInfoAttr = document.body.getAttribute('data-user-info');
+            var userInfo = userInfoAttr ? JSON.parse(userInfoAttr) : null;
+            var isLoggedIn = document.body.getAttribute('data-is-logged-in') === 'true';
+
+            if (isLoggedIn && userInfo) {
+                var userNameField = document.getElementById('userName');
+                var userEmailField = document.getElementById('userEmail');
+                if (userNameField && userInfo.username) { userNameField.value = userInfo.username; }
+                if (userEmailField && userInfo.email) { userEmailField.value = userInfo.email; }
+            }
+        }
+    </script>
+
+</body>
 </html>

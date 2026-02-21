@@ -105,18 +105,17 @@ def explore():
     """Dataset exploration page"""
     try:
         user_info = session.get("user", {})
-        data = mapping_model.get_all_mappings()
         go_data = []
         if go_mapping_model:
             try:
                 go_data = go_mapping_model.get_all_mappings()
             except Exception as e:
                 logger.warning("Failed to load GO mappings: %s", e)
-        return render_template("explore.html", dataset=data, go_dataset=go_data, user_info=user_info)
+        return render_template("explore.html", go_dataset=go_data, user_info=user_info)
     except Exception as e:
         logger.error("Error loading dataset: %s", e)
         return render_template(
-            "explore.html", dataset=[], go_dataset=[], user_info={}, error="Failed to load dataset"
+            "explore.html", go_dataset=[], user_info={}, error="Failed to load dataset"
         )
 
 
