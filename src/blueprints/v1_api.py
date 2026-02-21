@@ -142,14 +142,20 @@ def _flatten_for_csv(obj):
 
 def _respond_collection(serialized_rows, pagination, csv_fields):
     """
-    Return JSON or CSV based on Accept header.
+    Return JSON or CSV based on Accept header or ?format=csv query param.
     JSON: {"data": [...], "pagination": {...}}
     CSV:  header row + data rows (provenance flattened)
     """
-    best = request.accept_mimetypes.best_match(
-        ["application/json", "text/csv"], default="application/json"
-    )
-    if best == "text/csv":
+    format_param = request.args.get("format", "").lower()
+    if format_param == "csv":
+        use_csv = True
+    else:
+        best = request.accept_mimetypes.best_match(
+            ["application/json", "text/csv"], default="application/json"
+        )
+        use_csv = best == "text/csv"
+
+    if use_csv:
         flat_rows = [_flatten_for_csv(r) for r in serialized_rows]
         output = io.StringIO()
         writer = csv.DictWriter(
@@ -160,6 +166,7 @@ def _respond_collection(serialized_rows, pagination, csv_fields):
         output.seek(0)
         response = make_response(output.getvalue())
         response.headers["Content-Type"] = "text/csv; charset=utf-8"
+        response.headers["Content-Disposition"] = "attachment; filename=ke_wp_mappings.csv"
         return response
     return jsonify({"data": serialized_rows, "pagination": pagination})
 
