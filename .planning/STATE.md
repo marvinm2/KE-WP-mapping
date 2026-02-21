@@ -122,6 +122,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-21T17:09:28Z
-**Stopped at:** Completed 04-05-PLAN.md — Phase 4 COMPLETE
-**Resume file:** None
+**Last session:** 2026-02-21T17:57:36.986Z
+**Stopped at:** Phase 5 context gathered
+**Resume file:** .planning/phases/05-exports-and-dataset-publication/05-CONTEXT.md
