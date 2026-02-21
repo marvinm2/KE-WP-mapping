@@ -38,7 +38,7 @@ Requirements for v1.0 release. Each maps to a roadmap phase.
 
 ### KE Selection UX
 
-- [ ] **KE-01**: KE context panel visible during mapping workflow — shows KE description, AOP context, and biological level (closes #114)
+- [x] **KE-01**: KE context panel visible during mapping workflow — shows KE description, AOP context, and biological level (closes #114)
 
 ### Exports & Dataset Publication
 
@@ -121,7 +121,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXPLO-03 | Phase 4 | Pending |
 | EXPLO-05 | Phase 4 | Complete |
 | EXPLO-06 | Phase 4 | Complete |
-| KE-01 | Phase 4 | Pending |
+| KE-01 | Phase 4 | Complete |
 | EXPRT-01 | Phase 5 | Pending |
 | EXPRT-02 | Phase 5 | Pending |
 | EXPRT-03 | Phase 5 | Pending |
