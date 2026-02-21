@@ -3,13 +3,11 @@ Data export handlers for multiple formats
 Supports JSON, RDF, Excel, Parquet, and other research data formats
 """
 from .json_exporter import JSONExporter
-from .rdf_exporter import RDFExporter
 from .excel_exporter import ExcelExporter
 from .parquet_exporter import ParquetExporter
 
 __all__ = [
     'JSONExporter',
-    'RDFExporter', 
     'ExcelExporter',
     'ParquetExporter'
 ]
@@ -17,15 +15,13 @@ __all__ = [
 
 class ExportManager:
     """Central manager for all export operations"""
-    
+
     def __init__(self, database, metadata_manager):
         self.db = database
         self.metadata = metadata_manager
         self.exporters = {
             'json': JSONExporter(database, metadata_manager),
             'jsonld': JSONExporter(database, metadata_manager),
-            'rdf': RDFExporter(database, metadata_manager),
-            'turtle': RDFExporter(database, metadata_manager),
             'excel': ExcelExporter(database, metadata_manager),
             'parquet': ParquetExporter(database, metadata_manager)
         }
