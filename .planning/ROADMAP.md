@@ -89,7 +89,7 @@ Plans:
 - [ ] 04-02-PLAN.md — Unified collapsible KE context panel in main.js + CSS additions (KE-01)
 - [ ] 04-03-PLAN.md — Explore AJAX DataTable with AOP+confidence filters, filter chips, Coverage Gaps tab (EXPLO-01, EXPLO-02, EXPLO-03)
 - [ ] 04-04-PLAN.md — Public /stats page with metrics, filtered export, ?format=csv support (EXPLO-05, EXPLO-06)
-- [ ] 04-05-PLAN.md — Human verification checkpoint for all Phase 4 features
+- [x] 04-05-PLAN.md — Human verification checkpoint for all Phase 4 features (completed 2026-02-21)
 
 ### Phase 5: Exports and Dataset Publication
 **Goal**: The curated database is downloadable in formats that bioinformatics tools consume directly, and it is registered with a permanent DOI that researchers can cite in publications
@@ -122,6 +122,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Deployment Hardening | 4/4 | Complete   | 2026-02-19 |
 | 2. Data Model and Audit Trail | 4/4 | Complete   | 2026-02-20 |
 | 3. Stable Public REST API | 4/4 | Complete   | 2026-02-21 |
-| 4. Curator UX and Explore | 5/5 | Complete   | 2026-02-21 |
+| 4. Curator UX and Explore | 5/5 | Complete    | 2026-02-21 |
 | 5. Exports and Dataset Publication | 0/TBD | Not started | - |
 | 6. API Documentation | 0/TBD | Not started | - |
