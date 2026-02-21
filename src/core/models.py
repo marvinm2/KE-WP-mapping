@@ -197,6 +197,9 @@ class Database:
             self._migrate_go_mappings_suggestion_score(conn)
             self._migrate_go_mappings_go_namespace(conn)
 
+            # Migrate proposals table to add new-pair fields (Phase 3 gap closure)
+            self._migrate_proposals_new_pair_fields(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -524,6 +527,53 @@ class Database:
                 )
         except Exception as e:
             logger.error("Error migrating ke_go_mappings go_namespace: %s", e)
+            raise
+
+    def _migrate_proposals_new_pair_fields(self, conn):
+        """
+        Add new-pair columns to proposals table if they don't exist.
+
+        New-pair proposals (mapping_id=NULL) need to store the pair data that would
+        normally come from the joined mappings row.
+
+        Columns added:
+            - ke_id TEXT — Key Event ID for new-pair proposals
+            - ke_title TEXT — Key Event title for new-pair proposals
+            - wp_id TEXT — WikiPathways ID for new-pair proposals
+            - wp_title TEXT — WikiPathways title for new-pair proposals
+            - new_pair_connection_type TEXT — connection type for new-pair proposals
+            - new_pair_confidence_level TEXT — confidence level for new-pair proposals
+
+        Args:
+            conn: Database connection
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            fields_to_add = [
+                ("ke_id", "TEXT"),
+                ("ke_title", "TEXT"),
+                ("wp_id", "TEXT"),
+                ("wp_title", "TEXT"),
+                ("new_pair_connection_type", "TEXT"),
+                ("new_pair_confidence_level", "TEXT"),
+            ]
+            for field_name, field_type in fields_to_add:
+                if field_name not in columns:
+                    conn.execute(
+                        f"ALTER TABLE proposals ADD COLUMN {field_name} {field_type}"
+                    )
+                    new_columns.append(field_name)
+
+            if new_columns:
+                logger.info(
+                    "Migrated proposals table with new-pair fields: %s", new_columns
+                )
+
+        except Exception as e:
+            logger.error("Error migrating proposals new-pair fields: %s", e)
             raise
 
 
@@ -993,6 +1043,86 @@ class ProposalModel:
             return cursor.lastrowid
         except Exception as e:
             logger.error("Error creating proposal: %s", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def create_new_pair_proposal(
+        self,
+        ke_id: str,
+        ke_title: str,
+        wp_id: str,
+        wp_title: str,
+        connection_type: str,
+        confidence_level: str,
+        github_username: str = None,
+        suggestion_score: float = None,
+    ) -> Optional[int]:
+        """
+        Create a new-pair proposal where no existing mapping_id exists yet.
+
+        The mapping is created only after an admin explicitly approves this proposal.
+        mapping_id is left NULL so approve_proposal() knows to call create_mapping()
+        rather than update_mapping() at approval time.
+
+        Args:
+            ke_id: Key Event ID
+            ke_title: Key Event title
+            wp_id: WikiPathways ID
+            wp_title: WikiPathways title
+            connection_type: Proposed connection type
+            confidence_level: Proposed confidence level
+            github_username: GitHub username of submitting curator
+            suggestion_score: BioBERT hybrid score captured at suggestion time
+
+        Returns:
+            New proposal row ID on success, None on exception
+        """
+        proposal_uuid = str(uuid_lib.uuid4())
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO proposals (
+                    mapping_id, user_name, user_email, user_affiliation,
+                    github_username, proposed_delete, proposed_confidence,
+                    proposed_connection_type, uuid, suggestion_score,
+                    ke_id, ke_title, wp_id, wp_title,
+                    new_pair_connection_type, new_pair_confidence_level
+                )
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    github_username or "curator",
+                    "",
+                    "",
+                    github_username,
+                    False,
+                    confidence_level,
+                    connection_type,
+                    proposal_uuid,
+                    suggestion_score,
+                    ke_id,
+                    ke_title,
+                    wp_id,
+                    wp_title,
+                    connection_type,
+                    confidence_level,
+                ),
+            )
+
+            conn.commit()
+            logger.info(
+                "Created new-pair proposal for %s -> %s by %s, UUID=%s",
+                ke_id,
+                wp_id,
+                github_username,
+                proposal_uuid,
+            )
+            return cursor.lastrowid
+        except Exception as e:
+            logger.error("Error creating new-pair proposal: %s", e)
             conn.rollback()
             return None
         finally:
