@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Curators can efficiently produce a high-quality, reusable KE-pathway/GO mapping database that external tools can consume for toxicological pathway analysis.
-**Current focus:** Phase 5 — Enhanced Data Export (Next)
+**Current focus:** Phase 5 — Enhanced Data Export (In Progress)
 
 ## Current Position
 
-Phase: 4 of 6 (Curator UX and Explore) — COMPLETE
-Plan: 5 of 5 in current phase (04-05 complete — Phase 4 UAT all 9 tests verified)
-Status: Phase 4 Complete (5/5 plans done: 04-01 + 04-04 + 04-03 + 04-02 + 04-05)
-Last activity: 2026-02-21 — Completed 04-05 UAT (all 5 roadmap success criteria human-verified)
+Phase: 5 of 6 (Exports and Dataset Publication) — IN PROGRESS
+Plan: 1 of 3 in current phase (05-01 complete — GMT and RDF exporter modules)
+Status: Phase 5 Plan 1 Complete (standalone GMT + rdflib Turtle exporters)
+Last activity: 2026-02-21 — Completed 05-01 (gmt_exporter.py + rdf_exporter.py rewritten)
 
-Progress: [████████░░] 80% (Phase 4 complete — 4/6 phases done)
+Progress: [████████░░] 83% (Phase 5 started — 1/3 plans done in Phase 5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 6.5 min
-- Total execution time: 1.5 hours
+- Total plans completed: 15
+- Average duration: 6.3 min
+- Total execution time: ~1.6 hours
 
 **By Phase:**
 
@@ -53,6 +53,7 @@ Progress: [████████░░] 80% (Phase 4 complete — 4/6 phases 
 | Phase 04-curator-ux-and-explore P03 | 9 | 2 tasks | 2 files |
 | Phase 04-curator-ux-and-explore P02 | 15 | 2 tasks | 2 files |
 | Phase 04-curator-ux-and-explore P05 | 13 | 1 task | 0 files |
+| Phase 05-exports-and-dataset-publication P01 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,10 @@ Recent decisions affecting current work:
 - [Phase 04-curator-ux-and-explore]: loadKEDetail() replaces showKEPreview+loadKEContext+displayKEContext — one call to /api/ke_detail/ per KE selection, no live SPARQL
 - [Phase 04-curator-ux-and-explore]: KE context panel is <details id=ke-context-panel> element — collapsibility via native HTML, .ke-context-panel CSS applies directly
 - [Phase 04-curator-ux-and-explore]: ?ke_id= URL param cleaned from URL via history.replaceState immediately after read; applied after Select2 init via 100ms setTimeout
+- [05-01]: GMT term name format KE{N}_{Title_Slug}_{Target_ID} locked by user; numeric part extracted with re.sub(r'\D', '', ke_id), title normalised via unicodedata NFKD + ASCII encode
+- [05-01]: Batch SPARQL VALUES query for all WP IDs in one round-trip — avoids N+1 HTTP calls to WikiPathways endpoint
+- [05-01]: rdflib Graph.serialize(format='turtle') returns str in rdflib >= 6.0 — no decode needed; KEWP and MAPPING namespaces bound per Graph
+- [05-01]: Exporter functions accept pre-fetched mapping dicts — no DB access inside exporter modules
 
 ### Pending Todos
 
@@ -122,6 +127,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-21T17:57:36.986Z
-**Stopped at:** Phase 5 context gathered
-**Resume file:** .planning/phases/05-exports-and-dataset-publication/05-CONTEXT.md
+**Last session:** 2026-02-21T19:14:12Z
+**Stopped at:** Completed 05-01-PLAN.md (GMT + RDF exporter modules)
+**Resume file:** .planning/phases/05-exports-and-dataset-publication/05-01-SUMMARY.md
