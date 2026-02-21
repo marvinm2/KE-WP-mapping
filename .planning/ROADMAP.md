@@ -100,7 +100,13 @@ Plans:
   2. A GMT file for KE-GO mappings is downloadable in the same way
   3. An RDF/Turtle export of the full curated mapping database is downloadable and parseable by rdflib
   4. The dataset has a registered Zenodo DOI that resolves to a versioned dataset landing page suitable for use as a paper citation
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — GMT exporter (batch WikiPathways SPARQL + GO annotations) and rdflib-based RDF/Turtle exporter with full provenance (EXPRT-01, EXPRT-02, EXPRT-03)
+- [ ] 05-02-PLAN.md — Zenodo uploader module, admin regenerate + publish-zenodo routes, zenodo_meta.json init, .env.example update (EXPRT-04)
+- [ ] 05-03-PLAN.md — Public /downloads page, four export download routes in main.py, navbar DOI badge, stats.html download buttons (EXPRT-01, EXPRT-02, EXPRT-03)
+- [ ] 05-04-PLAN.md — Human verification checkpoint for all Phase 5 export and publication features (EXPRT-01, EXPRT-02, EXPRT-03, EXPRT-04)
 
 ### Phase 6: API Documentation
 **Goal**: The public API is fully documented with an interactive spec, consumer code examples in R and Python, and a published rate limit policy — locking in the stable contract before external researchers depend on it
