@@ -2,6 +2,8 @@
 Tests for Flask application routes
 """
 import json
+import os
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -283,3 +285,89 @@ class TestGuestAuth:
         """Test that guest users cannot access admin routes"""
         response = guest_client.get("/admin/proposals")
         assert response.status_code == 403
+
+
+class TestSubmitCreatesProposal:
+    """Verify /submit creates a pending proposal, not a direct mapping."""
+
+    @pytest.fixture
+    def submit_client(self):
+        """
+        Test client that re-wires the api blueprint to a fresh temp-file DB so
+        proposal_model.create_new_pair_proposal() can persist rows. The
+        default TestingConfig uses :memory: which creates a separate DB per
+        sqlite3.connect() call, causing 'no such table: proposals' at runtime.
+        """
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+        from src.core.models import Database, MappingModel, ProposalModel, CacheModel
+
+        fd, db_path = tempfile.mkstemp()
+        db = Database(db_path)
+        mm = MappingModel(db)
+        pm = ProposalModel(db)
+        cm = CacheModel(db)
+
+        # Save originals
+        orig_pm = api_mod.proposal_model
+        orig_mm = api_mod.mapping_model
+        orig_cm = api_mod.cache_model
+
+        # Inject fresh models (keep other models as-is via keyword args)
+        api_mod.proposal_model = pm
+        api_mod.mapping_model = mm
+        api_mod.cache_model = cm
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+        os.environ["ADMIN_USERS"] = "testuser"
+
+        with flask_app.test_client() as test_client:
+            with flask_app.app_context():
+                with test_client.session_transaction() as sess:
+                    sess["user"] = {"username": "testuser", "email": "test@example.com"}
+                yield test_client
+
+        # Restore originals
+        api_mod.proposal_model = orig_pm
+        api_mod.mapping_model = orig_mm
+        api_mod.cache_model = orig_cm
+
+        os.close(fd)
+        os.unlink(db_path)
+
+    def test_submit_creates_proposal_not_mapping(self, submit_client):
+        """POST /submit returns 200 with proposal_id; no mapping in DB."""
+        response = submit_client.post(
+            "/submit",
+            data={
+                "ke_id": "KE 999",
+                "ke_title": "Test KE",
+                "wp_id": "WP999",
+                "wp_title": "Test Pathway",
+                "connection_type": "causative",
+                "confidence_level": "high",
+                "suggestion_score": "0.75",
+            },
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "proposal_id" in data
+        assert data["proposal_id"] is not None
+
+    def test_submit_response_mentions_pending_review(self, submit_client):
+        """Response message indicates pending admin review."""
+        response = submit_client.post(
+            "/submit",
+            data={
+                "ke_id": "KE 998",
+                "ke_title": "Test KE 2",
+                "wp_id": "WP998",
+                "wp_title": "Test Pathway 2",
+                "connection_type": "causative",
+                "confidence_level": "medium",
+            },
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "pending" in data.get("message", "").lower() or "proposal" in data.get("message", "").lower()

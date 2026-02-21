@@ -151,25 +151,35 @@ def submit():
             logger.error("Invalid username format: %s", created_by)
             return jsonify({"error": "Authentication error"}), 401
 
-        # Create mapping
-        mapping_id = mapping_model.create_mapping(
+        # Capture suggestion score from form (stored on proposal; written to mapping at approval)
+        suggestion_score_raw = request.form.get("suggestion_score")
+        try:
+            suggestion_score = float(suggestion_score_raw) if suggestion_score_raw else None
+        except (ValueError, TypeError):
+            suggestion_score = None
+
+        # Create proposal record (status=pending) — mapping is created only after admin approval
+        proposal_id = proposal_model.create_new_pair_proposal(
             ke_id=ke_id,
             ke_title=ke_title,
             wp_id=wp_id,
             wp_title=wp_title,
             connection_type=connection_type,
             confidence_level=confidence_level,
-            created_by=created_by,
+            github_username=created_by,
+            suggestion_score=suggestion_score,
         )
-
-        if mapping_id:
-            logger.info("New mapping created: %s -> %s by %s", ke_id, wp_id, created_by)
-            return jsonify({"message": "Entry added successfully."}), 200
-        else:
-            return (
-                jsonify({"error": "The KE-WP pair already exists in the dataset."}),
-                400,
+        if proposal_id:
+            logger.info(
+                "New-pair proposal created: %s -> %s by %s (proposal_id=%s)",
+                ke_id, wp_id, created_by, proposal_id,
             )
+            return jsonify({
+                "message": "Proposal submitted successfully and is pending admin review.",
+                "proposal_id": proposal_id,
+            }), 200
+        else:
+            return jsonify({"error": "Failed to create proposal"}), 500
     except Exception as e:
         logger.error("Error adding entry: %s", e)
         return jsonify({"error": "Failed to add entry"}), 500

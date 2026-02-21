@@ -1141,7 +1141,8 @@ class ProposalModel:
         conn = self.db.get_connection()
         try:
             query = """
-                SELECT p.*, m.ke_id, m.ke_title, m.wp_id, m.wp_title, 
+                SELECT p.*, m.ke_id as mapping_ke_id, m.ke_title as mapping_ke_title,
+                       m.wp_id as mapping_wp_id, m.wp_title as mapping_wp_title,
                        m.connection_type as current_connection_type,
                        m.confidence_level as current_confidence_level
                 FROM proposals p
@@ -1174,7 +1175,8 @@ class ProposalModel:
         try:
             cursor = conn.execute(
                 """
-                SELECT p.*, m.ke_id, m.ke_title, m.wp_id, m.wp_title,
+                SELECT p.*, m.ke_id as mapping_ke_id, m.ke_title as mapping_ke_title,
+                       m.wp_id as mapping_wp_id, m.wp_title as mapping_wp_title,
                        m.connection_type as current_connection_type,
                        m.confidence_level as current_confidence_level
                 FROM proposals p

@@ -267,8 +267,31 @@ def approve_proposal(proposal_id: int):
             # Delete the mapping
             success = mapping_model.delete_mapping(mapping_id, admin_username)
             action = "deleted"
+        elif mapping_id is None:
+            # New-pair proposal: create the mapping then write provenance
+            approved_at = datetime.utcnow().isoformat()
+            proposal_score = proposal.get("suggestion_score")
+            new_mapping_id = mapping_model.create_mapping(
+                ke_id=proposal["ke_id"],
+                ke_title=proposal["ke_title"],
+                wp_id=proposal["wp_id"],
+                wp_title=proposal["wp_title"],
+                connection_type=proposal.get("new_pair_connection_type") or proposal.get("proposed_connection_type"),
+                confidence_level=proposal.get("new_pair_confidence_level") or proposal.get("proposed_confidence"),
+                created_by=proposal.get("github_username") or admin_username,
+            )
+            if new_mapping_id:
+                success = mapping_model.update_mapping(
+                    mapping_id=new_mapping_id,
+                    approved_by_curator=admin_username,
+                    approved_at_curator=approved_at,
+                    suggestion_score=proposal_score,
+                )
+            else:
+                success = False
+            action = "created"
         else:
-            # Update the mapping with provenance
+            # Existing mapping revision proposal: update the mapping with provenance
             approved_at = datetime.utcnow().isoformat()
             proposal_score = proposal.get("suggestion_score")   # REAL or None
             success = mapping_model.update_mapping(
