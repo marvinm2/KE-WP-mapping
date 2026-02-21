@@ -1,9 +1,9 @@
 ---
-status: complete
+status: resolved
 phase: 03-stable-public-rest-api
 source: [03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md]
 started: 2026-02-21T00:00:00Z
-updated: 2026-02-21T11:00:00Z
+updated: 2026-02-21T12:00:00Z
 ---
 
 ## Current Test
@@ -88,11 +88,18 @@ skipped: 0
 ## Gaps
 
 - truth: "Admin submitting via the curator proposal form creates a proposal requiring a separate admin approval step; the mapping does not appear until explicitly approved, and approved_by/approved_at/suggestion_score are written at approval time"
-  status: failed
+  status: resolved
   reason: "User reported: Used curator proposal form as admin — mapping appeared directly in the table without a separate admin approval step, and the mapping has null provenance (approved_by, approved_at, suggestion_score all null)"
   severity: major
   test: 7
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "The /submit endpoint in src/blueprints/api.py (lines 154-163) calls mapping_model.create_mapping() directly for ALL authenticated users with no proposal creation and no provenance parameters — admin approval via approve_proposal() is therefore never reachable for new-pair submissions"
+  artifacts:
+    - path: "src/blueprints/api.py"
+      issue: "/submit calls create_mapping() directly, bypassing proposal creation and provenance; /submit_proposal 404s on new pairs"
+    - path: "src/core/models.py"
+      issue: "MappingModel.create_mapping() has no provenance parameters (approved_by_curator, approved_at_curator, suggestion_score)"
+  missing:
+    - "/submit must create a proposal record (status=pending) instead of calling create_mapping() directly"
+    - "ProposalModel.create_proposal() or a new method must handle new-pair submissions (currently /submit_proposal returns 404 if no existing mapping found)"
+    - "approve_proposal() in admin.py remains the sole path that populates provenance — no changes needed there"
+  debug_session: ".planning/debug/admin-bypass-curator-proposal.md"
