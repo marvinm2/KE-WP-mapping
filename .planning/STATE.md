@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 ## Current Position
 
-Phase: 5 of 6 (Exports and Dataset Publication) — IN PROGRESS
-Plan: 3 of 4 in current phase (05-03 complete — /downloads page, export routes, DOI badge, stats export links)
-Status: Phase 5 Plan 3 Complete (/downloads + /exports/* routes + downloads.html + inject_zenodo_meta context processor)
-Last activity: 2026-02-21 — Completed 05-03 (Public download routes and downloads page)
+Phase: 5 of 6 (Exports and Dataset Publication) — AWAITING VERIFICATION
+Plan: 4 of 4 in current phase (05-04 checkpoint — Phase 5 UAT awaiting human browser verification)
+Status: Phase 5 Plan 4 Checkpoint (all code complete; human verification of exports/downloads/DOI badge pending)
+Last activity: 2026-02-21 — Started 05-04 UAT checkpoint; dev server running at http://localhost:5000
 
-Progress: [█████████░] 90% (Phase 5 — 3/4 plans done)
+Progress: [██████████] 95% (Phase 5 — 4/4 plans started, awaiting UAT sign-off)
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [█████████░] 90% (Phase 5 — 3/4 plans done)
 | Phase 05-exports-and-dataset-publication P01 | 3 | 2 tasks | 4 files |
 | Phase 05-exports-and-dataset-publication P02 | 3 | 2 tasks | 6 files |
 | Phase 05-exports-and-dataset-publication P03 | 5 | 2 tasks | 6 files |
+| Phase 05-exports-and-dataset-publication P04 | 0 | 1 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -135,6 +136,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-21T19:28:05Z
-**Stopped at:** Completed 05-03-PLAN.md (public download routes, /downloads page, DOI badge, stats export links)
+**Last session:** 2026-02-21T19:34:30.560Z
+**Stopped at:** Checkpoint: 05-04 Phase 5 UAT — awaiting human verification at http://localhost:5000
 **Resume file:** None
