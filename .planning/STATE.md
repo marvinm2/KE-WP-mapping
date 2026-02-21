@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 4 of 6 (Curator UX and Explore)
-Plan: 2 of 5 in current phase (04-01 complete — KE AOP membership data infrastructure)
-Status: Phase 4 In Progress (2 of 5 plans complete: 04-01 + 04-04)
-Last activity: 2026-02-21 — Completed 04-01 (precompute_ke_aop_membership.py, ke_aop_membership ServiceContainer props, /api/ke_detail endpoint)
+Plan: 3 of 5 in current phase (04-02 complete — unified KE context panel + URL param pre-fill)
+Status: Phase 4 In Progress (3 of 5 plans complete: 04-01 + 04-02 + 04-04)
+Last activity: 2026-02-21 — Completed 04-02 (loadKEDetail(), renderKEContextPanel(), URL pre-fill, filter chip CSS)
 
-Progress: [████░░░░░░] 40% (Phase 4: 2/5 plans done)
+Progress: [██████░░░░] 60% (Phase 4: 3/5 plans done)
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [████░░░░░░] 40% (Phase 4: 2/5 plans done)
 | Phase 04-curator-ux-and-explore P04 | 4 | 2 tasks | 4 files |
 | Phase 04-curator-ux-and-explore P01 | 4 | 2 tasks | 4 files |
 | Phase 04-curator-ux-and-explore P03 | 9 | 2 tasks | 2 files |
+| Phase 04-curator-ux-and-explore P02 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,9 @@ Recent decisions affecting current work:
 - [Phase 04-curator-ux-and-explore]: explore() route drops dataset= server render entirely - KE-WP DataTable is AJAX-only via /api/v1/mappings
 - [Phase 04-curator-ux-and-explore]: Filter chip CSS duplicated inline in explore.html (not only main.css) because 04-03 and 04-02 execute in the same wave
 - [Phase 04-curator-ux-and-explore]: Coverage Gaps uses /get_aop_kes + /api/v1/mappings?aop_id client-side diff - avoids new dedicated endpoint
+- [Phase 04-curator-ux-and-explore]: loadKEDetail() replaces showKEPreview+loadKEContext+displayKEContext — one call to /api/ke_detail/ per KE selection, no live SPARQL
+- [Phase 04-curator-ux-and-explore]: KE context panel is <details id=ke-context-panel> element — collapsibility via native HTML, .ke-context-panel CSS applies directly
+- [Phase 04-curator-ux-and-explore]: ?ke_id= URL param cleaned from URL via history.replaceState immediately after read; applied after Select2 init via 100ms setTimeout
 
 ### Pending Todos
 
@@ -117,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-21T13:48:53.198Z
-**Stopped at:** Completed 04-03-PLAN.md
+**Last session:** 2026-02-21T15:52:45.132Z
+**Stopped at:** Completed 04-02-PLAN.md
 **Resume file:** None
