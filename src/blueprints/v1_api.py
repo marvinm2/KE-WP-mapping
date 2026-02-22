@@ -13,7 +13,6 @@ import math
 import requests as requests_lib
 from flask import Blueprint, jsonify, make_response, request
 
-from src.services.rate_limiter import general_rate_limit
 from src.utils.text import sanitize_log
 
 logger = logging.getLogger(__name__)
@@ -252,7 +251,6 @@ def _resolve_aop_ke_ids(aop_id):
 # ---------------------------------------------------------------------------
 
 @v1_api_bp.route("/mappings", methods=["GET"])
-@general_rate_limit
 def list_mappings():
     """
     GET /api/v1/mappings
@@ -319,7 +317,6 @@ def list_mappings():
 
 
 @v1_api_bp.route("/mappings/<uuid>", methods=["GET"])
-@general_rate_limit
 def get_mapping(uuid):
     """
     GET /api/v1/mappings/<uuid>
@@ -344,7 +341,6 @@ def get_mapping(uuid):
 # ---------------------------------------------------------------------------
 
 @v1_api_bp.route("/go-mappings", methods=["GET"])
-@general_rate_limit
 def list_go_mappings():
     """
     GET /api/v1/go-mappings
@@ -396,7 +392,6 @@ def list_go_mappings():
 
 
 @v1_api_bp.route("/go-mappings/<uuid>", methods=["GET"])
-@general_rate_limit
 def get_go_mapping(uuid):
     """
     GET /api/v1/go-mappings/<uuid>
