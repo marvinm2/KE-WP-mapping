@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_limiter.errors import RateLimitExceeded
 
 from src.utils.timezone import format_admin_timestamp
 from src.utils.text import sanitize_log
@@ -47,6 +50,12 @@ for var in required_vars:
         "%s: %s (%s)", var, 'SET' if value else 'NOT SET', '*' * min(len(value) if value else 0, 5) if value else 'None'
     )
 
+# Flask-Limiter instance — initialized against app in create_app() via init_app pattern.
+# storage_uri defaults to in-memory. With Gunicorn 2 workers (gunicorn.conf.py),
+# each worker tracks limits independently, giving an effective 200 req/hour/IP under load.
+# Redis-backed storage is a post-v1.0 upgrade path.
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
+
 
 def create_app(config_name: str = None):
     """
@@ -82,6 +91,12 @@ def create_app(config_name: str = None):
     csrf = CSRFProtect(app)
     csrf.exempt(v1_api_bp)
 
+    # Flask-Limiter — init must occur after csrf.exempt and before blueprint registration
+    app.config["RATELIMIT_HEADERS_ENABLED"] = True
+    app.config["RATELIMIT_HEADER_RETRY_AFTER_VALUE"] = "delta-seconds"
+    limiter.init_app(app)
+    limiter.limit("100 per hour")(v1_api_bp)
+
     # Register error handlers
     register_error_handlers(app)
 
@@ -97,6 +112,14 @@ def create_app(config_name: str = None):
             ),
             400,
         )
+
+    @app.errorhandler(RateLimitExceeded)
+    def handle_rate_limit_exceeded(e):
+        from flask import jsonify as _jsonify
+        return _jsonify({
+            "error": "Rate limit exceeded. Retry after the number of seconds in the Retry-After header.",
+            "limit": "100 requests per hour per IP",
+        }), 429
 
     # Initialize OAuth
     oauth = services.init_oauth(app)
