@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 ## Current Position
 
-Phase: 5 of 6 (Exports and Dataset Publication) — AWAITING VERIFICATION
-Plan: 4 of 4 in current phase (05-04 checkpoint — Phase 5 UAT awaiting human browser verification)
-Status: Phase 5 Plan 4 Checkpoint (all code complete; human verification of exports/downloads/DOI badge pending)
-Last activity: 2026-02-21 — Started 05-04 UAT checkpoint; dev server running at http://localhost:5000
+Phase: 5 of 6 (Exports and Dataset Publication) — COMPLETE
+Plan: 4 of 4 in current phase (05-04 complete — Phase 5 UAT human-approved 2026-02-22)
+Status: Phase 5 Complete — all four plans executed and human-verified; ready for Phase 6
+Last activity: 2026-02-22 — Phase 5 UAT approved by human; all export/publication features verified
 
-Progress: [██████████] 95% (Phase 5 — 4/4 plans started, awaiting UAT sign-off)
+Progress: [██████████] 100% (Phase 5 — 4/4 plans complete, human-verified)
 
 ## Performance Metrics
 
@@ -123,6 +123,8 @@ Recent decisions affecting current work:
 - [05-03]: inject_zenodo_meta() global context processor reads data/zenodo_meta.json once per request — DOI badge in navbar works on every page with zero per-route changes
 - [05-03]: GMT filenames include ISO date (KE-WP_YYYY-MM-DD_All.gmt) — natural daily cache invalidation without explicit TTL logic
 - [05-03]: EXPORT_CACHE_DIR = Path('static/exports') module constant shared by all four download routes and _get_or_generate_gmt() helper
+- [05-04]: RDF schema to be improved in a later phase — current Turtle output is structurally valid but schema refinement is deferred per human UAT feedback
+- [05-04]: GMT file format improvements planned as follow-up — current format human-verified as functional
 
 ### Pending Todos
 
@@ -136,6 +138,6 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-02-21T19:34:30.560Z
-**Stopped at:** Checkpoint: 05-04 Phase 5 UAT — awaiting human verification at http://localhost:5000
+**Last session:** 2026-02-22T14:55:01Z
+**Stopped at:** Completed 05-04-PLAN.md — Phase 5 UAT human-approved; all export and publication features verified
 **Resume file:** None

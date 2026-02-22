@@ -106,7 +106,7 @@ Plans:
 - [ ] 05-01-PLAN.md — GMT exporter (batch WikiPathways SPARQL + GO annotations) and rdflib-based RDF/Turtle exporter with full provenance (EXPRT-01, EXPRT-02, EXPRT-03)
 - [ ] 05-02-PLAN.md — Zenodo uploader module, admin regenerate + publish-zenodo routes, zenodo_meta.json init, .env.example update (EXPRT-04)
 - [ ] 05-03-PLAN.md — Public /downloads page, four export download routes in main.py, navbar DOI badge, stats.html download buttons (EXPRT-01, EXPRT-02, EXPRT-03)
-- [ ] 05-04-PLAN.md — Human verification checkpoint for all Phase 5 export and publication features (EXPRT-01, EXPRT-02, EXPRT-03, EXPRT-04)
+- [x] 05-04-PLAN.md — Human verification checkpoint for all Phase 5 export and publication features (EXPRT-01, EXPRT-02, EXPRT-03, EXPRT-04) (completed 2026-02-22)
 
 ### Phase 6: API Documentation
 **Goal**: The public API is fully documented with an interactive spec, consumer code examples in R and Python, and a published rate limit policy — locking in the stable contract before external researchers depend on it
@@ -129,5 +129,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Data Model and Audit Trail | 4/4 | Complete   | 2026-02-20 |
 | 3. Stable Public REST API | 4/4 | Complete   | 2026-02-21 |
 | 4. Curator UX and Explore | 5/5 | Complete    | 2026-02-21 |
-| 5. Exports and Dataset Publication | 4/4 | Complete   | 2026-02-21 |
+| 5. Exports and Dataset Publication | 4/4 | Complete   | 2026-02-22 |
 | 6. API Documentation | 0/TBD | Not started | - |
