@@ -660,3 +660,9 @@ def openapi_spec():
     resp = send_from_directory(static_openapi_dir, "openapi.yaml", mimetype="application/x-yaml")
     resp.headers["Access-Control-Allow-Origin"] = "*"
     return resp
+
+
+@main_bp.route("/docs")
+def api_consumer_docs():
+    """Public API consumer guide — Python and R code examples, rate limit policy."""
+    return render_template("docs_api.html")
