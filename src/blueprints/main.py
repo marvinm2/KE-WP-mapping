@@ -10,7 +10,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from flask import Blueprint, abort, make_response, render_template, send_file, session, request, jsonify
+from flask import Blueprint, abort, current_app, make_response, render_template, send_file, send_from_directory, session, request, jsonify
 
 from src.core.models import MappingModel
 from src.services.monitoring import monitor_performance
@@ -640,3 +640,23 @@ def documentation(section='overview'):
         current_section=section,
         sections=sections
     )
+
+
+@main_bp.route("/api/docs")
+def swagger_ui():
+    """Interactive Swagger UI — publicly accessible, no login required."""
+    spec_url = "/api/v1/spec"
+    return render_template("swagger_ui.html", spec_url=spec_url)
+
+
+@main_bp.route("/api/v1/spec")
+def openapi_spec():
+    """Serve the static OpenAPI 3.0 spec YAML — no rate limiting, CORS-enabled."""
+    import os as _os
+    static_openapi_dir = _os.path.join(
+        _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))),
+        "static", "openapi"
+    )
+    resp = send_from_directory(static_openapi_dir, "openapi.yaml", mimetype="application/x-yaml")
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KE-WP Mapping API — Interactive Documentation</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.31.2/swagger-ui.css" />
+  <style>
+    body { margin: 0; padding: 0; }
+    .swagger-ui .topbar { background-color: #307BBF; }
+    .swagger-ui .topbar .download-url-wrapper { display: none; }
+    .back-link { font-family: sans-serif; font-size: 13px; padding: 8px 16px; background: #f8f9fa; border-bottom: 1px solid #e2e8f0; }
+    .back-link a { color: #307BBF; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="back-link"><a href="/docs">&larr; Back to API Guide</a> &nbsp;|&nbsp; <a href="/">Home</a></div>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.31.2/swagger-ui-bundle.js" crossorigin></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: "{{ spec_url }}",
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+        layout: 'BaseLayout',
+      });
+    };
+  </script>
+</body>
+</html>
