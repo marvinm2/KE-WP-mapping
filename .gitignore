@@ -18,6 +18,7 @@ flask_app*.log
 CLAUDE.md
 /.claude
 .env.template
+.planning/
 
 # Cache and temporary files
 __pycache__/
