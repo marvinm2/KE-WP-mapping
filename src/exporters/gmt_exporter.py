@@ -50,9 +50,7 @@ def _fetch_pathway_genes_batch(wp_ids: list, cache_model=None) -> dict:
     import hashlib
     import requests
 
-    values_clause = " ".join(
-        [f'<https://identifiers.org/wikipathways/{wid}>' for wid in wp_ids]
-    )
+    values_clause = " ".join([f'"{wid}"' for wid in wp_ids])
     query = f"""
 PREFIX wp: <http://vocabularies.wikipathways.org/wp#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
@@ -60,8 +58,9 @@ SELECT DISTINCT ?pathwayID ?geneSymbol WHERE {{
   ?pathway a wp:Pathway ;
            dcterms:identifier ?pathwayID .
   ?geneProduct dcterms:isPartOf ?pathway ;
-               wp:bdbHgncSymbol ?geneSymbol .
-  VALUES ?pathway {{ {values_clause} }}
+               wp:bdbHgncSymbol ?geneSymbolIRI .
+  BIND(STRAFTER(STR(?geneSymbolIRI), "hgnc.symbol/") AS ?geneSymbol)
+  VALUES ?pathwayID {{ {values_clause} }}
 }}
 """
     query_hash = hashlib.md5(query.encode()).hexdigest()

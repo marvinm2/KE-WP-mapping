@@ -537,7 +537,7 @@ def downloads():
 def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
     """Return (path, filename) for GMT file, generating it if not cached."""
     from src.exporters.gmt_exporter import generate_ke_wp_gmt, generate_ke_go_gmt
-    today = datetime.date.today().isoformat()
+    today = datetime.today().date().isoformat()
     tier = min_confidence.capitalize() if min_confidence else "All"
     filename = f"KE-{mapping_type.upper()}_{today}_{tier}.gmt"
     cache_path = EXPORT_CACHE_DIR / filename
