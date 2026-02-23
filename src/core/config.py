@@ -30,8 +30,13 @@ class Config:
         return os.getenv("GITHUB_CLIENT_SECRET")
 
     # Database
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/ke_wp_mapping.db")
-    DATABASE_PATH = os.getenv("DATABASE_PATH", "/app/data/ke_wp_mapping.db")
+    @property
+    def DATABASE_URL(self):
+        return os.getenv("DATABASE_URL", "sqlite:////app/data/ke_wp_mapping.db")
+
+    @property
+    def DATABASE_PATH(self):
+        return os.getenv("DATABASE_PATH", "/app/data/ke_wp_mapping.db")
 
     # Admin Configuration
     ADMIN_USERS = [
