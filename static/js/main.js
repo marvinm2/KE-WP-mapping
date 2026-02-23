@@ -4059,6 +4059,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
             go_name: this.selectedGoTerm.goName,
             connection_type: this.goMappingResult.connection_type,
             confidence_level: this.goMappingResult.confidence,
+            suggestion_score: this.goMappingResult.score || '',
             csrf_token: this.csrfToken
         };
 
