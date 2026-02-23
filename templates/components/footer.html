@@ -1,0 +1,22 @@
+<!-- FOOTER: Document flow, not fixed position -->
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__brand">
+      <span class="site-footer__org">VHP4Safety</span>
+      <span class="site-footer__sep">&middot;</span>
+      <span class="site-footer__org">Maastricht University</span>
+    </div>
+    <div class="site-footer__links">
+      <a href="/documentation" class="site-footer__link">Documentation</a>
+      <a href="/api/docs" class="site-footer__link">API</a>
+      <a href="/downloads" class="site-footer__link">Downloads</a>
+    </div>
+    <div class="site-footer__meta">
+      {% if zenodo_meta and zenodo_meta.doi %}
+      <span class="site-footer__doi">DOI: <a href="https://doi.org/{{ zenodo_meta.doi }}" target="_blank" rel="noopener">{{ zenodo_meta.concept_doi or zenodo_meta.doi }}</a></span>
+      <span class="site-footer__sep">&middot;</span>
+      {% endif %}
+      <span class="site-footer__version">&copy; {{ now().year if now is defined else '2026' }} Molecular AOP Builder</span>
+    </div>
+  </div>
+</footer>

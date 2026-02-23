@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Explore Dataset</title>
+    <title>Explore - Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css">
@@ -18,61 +20,6 @@
 
     <!-- CSRF Token for AJAX requests -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
-
-    <style>
-    .conf-filter-btn {
-        padding: 6px 14px;
-        border: 1px solid #307BBF;
-        background: white;
-        color: #307BBF;
-        cursor: pointer;
-        font-size: 13px;
-        border-radius: 4px;
-    }
-    .conf-filter-btn.active {
-        background: #307BBF;
-        color: white;
-    }
-    /* Filter chip styles - canonical definitions are in main.css (added by 04-02).
-       Duplicated here because 04-03 and 04-02 run in the same wave. */
-    .filter-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 10px;
-        min-height: 0;
-    }
-    .filter-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 10px;
-        background: #e8f0fb;
-        border: 1px solid #307BBF;
-        border-radius: 12px;
-        font-size: 13px;
-        color: #29235C;
-    }
-    .filter-chip-remove {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 15px;
-        line-height: 1;
-        color: #307BBF;
-        padding: 0 2px;
-    }
-    .filter-chips-clear {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 13px;
-        color: #307BBF;
-        text-decoration: underline;
-        padding: 3px 6px;
-        align-self: center;
-    }
-    </style>
 </head>
 <body
     data-is-logged-in="{{ 'true' if user_info else 'false' }}"
@@ -81,17 +28,14 @@
     {% include 'components/navigation.html' %}
     <div class="container">
         <!-- Tab Switcher -->
-        <div id="explore-tab-switcher" style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 3px solid #307BBF;">
-            <button type="button" class="explore-tab active" data-tab="wp"
-                    style="padding: 12px 24px; border: 1px solid #307BBF; border-bottom: none; background: #307BBF; color: white; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0; margin-right: 4px;">
+        <div id="explore-tab-switcher" class="tab-switcher">
+            <button type="button" class="explore-tab tab-btn active" data-tab="wp">
                 KE-WP Mappings
             </button>
-            <button type="button" class="explore-tab" data-tab="go"
-                    style="padding: 12px 24px; border: 1px solid #ccc; border-bottom: none; background: #f0f0f0; color: #666; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0; margin-right: 4px;">
+            <button type="button" class="explore-tab tab-btn" data-tab="go">
                 KE-GO Mappings ({{ go_dataset|length }})
             </button>
-            <button type="button" class="explore-tab" data-tab="gaps"
-                    style="padding: 12px 24px; border: 1px solid #ccc; border-bottom: none; background: #f0f0f0; color: #666; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0;">
+            <button type="button" class="explore-tab tab-btn" data-tab="gaps">
                 Coverage Gaps
             </button>
         </div>
@@ -102,14 +46,14 @@
             <div style="display:flex; gap:16px; align-items:flex-end; margin-bottom:12px; flex-wrap:wrap;">
                 <!-- AOP filter (Select2) -->
                 <div style="flex:1; min-width:200px; max-width:360px;">
-                    <label for="aop-filter-select" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Filter by AOP</label>
+                    <label for="aop-filter-select" class="form-label" style="font-size:13px;">Filter by AOP</label>
                     <select id="aop-filter-select" style="width:100%;">
                         <option value="">All AOPs</option>
                     </select>
                 </div>
                 <!-- Confidence filter (toggle buttons) -->
                 <div>
-                    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Confidence</label>
+                    <label class="form-label" style="font-size:13px;">Confidence</label>
                     <div id="confidence-filter-btns" style="display:flex;gap:4px;">
                         <button type="button" class="conf-filter-btn active" data-conf="">All</button>
                         <button type="button" class="conf-filter-btn" data-conf="High">High</button>
@@ -171,12 +115,12 @@
         <!-- Coverage Gaps Tab -->
         <div id="gaps-explore-content" style="display:none;">
             <div style="margin-bottom:16px;">
-                <label for="gaps-aop-select" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Select AOP to view coverage gaps</label>
+                <label for="gaps-aop-select" class="form-label" style="font-size:13px;">Select AOP to view coverage gaps</label>
                 <select id="gaps-aop-select" style="width:100%;max-width:400px;">
                     <option value="">-- Select an AOP --</option>
                 </select>
             </div>
-            <div id="gaps-placeholder" style="color:#888;font-style:italic;padding:20px 0;">
+            <div id="gaps-placeholder" class="text-muted-italic" style="padding:20px 0;">
                 Select an AOP above to see which KEs have no approved KE-WP mapping.
             </div>
             <div id="gaps-content" style="display:none;">
@@ -192,13 +136,13 @@
                     </thead>
                     <tbody></tbody>
                 </table>
-                <p id="gaps-all-mapped" style="display:none;color:#2e7d32;font-weight:600;">All KEs in this AOP have at least one approved KE-WP mapping.</p>
+                <p id="gaps-all-mapped" style="display:none;" class="confidence-high">All KEs in this AOP have at least one approved KE-WP mapping.</p>
             </div>
         </div>
     </div>
 
     <!-- Proposal Modal -->
-    <div id="proposalModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; border: 1px solid #ccc; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); width: 500px;">
+    <div id="proposalModal" class="modal-panel" style="display: none; width: 500px; max-height: 80vh; overflow-y: auto;">
         {% if session.get('user') %}
         <form id="proposalForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -246,16 +190,14 @@
             </div>
         </form>
         {% else %}
-            <p style="text-align: center; color: #666; margin: 20px 0;">You must be logged in to propose changes to mapping entries.</p>
+            <p class="text-muted" style="text-align: center; margin: 20px 0;">You must be logged in to propose changes to mapping entries.</p>
             <button id="loginButton" data-url="{{ url_for('auth.login') }}" style="display: block; margin: 0 auto;">Login with GitHub to Continue</button>
         {% endif %}
     </div>
 
     <!-- Overlay for Modal -->
-    <div id="modalOverlay" style="display: none;" onclick="closeModal()"></div>
-    <footer>
-        <p>&copy; 2025 KE-WP Mapping Service</p>
-    </footer>
+    <div id="modalOverlay" class="modal-overlay" style="display: none;" onclick="closeModal()"></div>
+    {% include 'components/footer.html' %}
 
     <script src="{{ url_for('static', filename='js/datatable-config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
@@ -436,13 +378,13 @@
 
             function renderGapsTable(gapKes, totalKes, mappedCount) {
                 var gapCount = gapKes.length;
-                var gapColor = gapCount > 0 ? '#c62828' : '#2e7d32';
+                var gapClass = gapCount > 0 ? 'confidence-low' : 'confidence-high';
                 var gapLabel = gapCount + ' KE' + (gapCount !== 1 ? 's' : '');
                 var gapWord = gapCount > 0 ? 'have no mapping yet.' : 'all mapped!';
 
                 $('#gaps-summary').html(
                     '<strong>' + mappedCount + '</strong> of <strong>' + totalKes + '</strong> KEs in this AOP have approved KE-WP mappings. ' +
-                    '<strong style="color:' + gapColor + ';">' + gapLabel + '</strong> ' + gapWord
+                    '<strong class="' + gapClass + '">' + gapLabel + '</strong> ' + gapWord
                 );
 
                 if (gapCount === 0) {
@@ -470,8 +412,7 @@
                         '<td>' + keId + '</td>' +
                         '<td>' + keTitle + '</td>' +
                         '<td>' + biolevel + '</td>' +
-                        '<td><a href="/?ke_id=' + encodedKe + '" ' +
-                        'style="padding:4px 10px;background:#307BBF;color:white;border-radius:4px;text-decoration:none;font-size:13px;">Map</a></td>' +
+                        '<td><a href="/?ke_id=' + encodedKe + '" class="btn-map-link">Map</a></td>' +
                         '</tr>'
                     );
                 });
@@ -497,11 +438,6 @@
 
                 $('.explore-tab').each(function() {
                     var isActive = $(this).data('tab') === tab;
-                    $(this).css({
-                        background: isActive ? '#307BBF' : '#f0f0f0',
-                        color: isActive ? 'white' : '#666',
-                        borderColor: isActive ? '#307BBF' : '#ccc'
-                    });
                     if (isActive) { $(this).addClass('active'); }
                     else { $(this).removeClass('active'); }
                 });
@@ -550,7 +486,7 @@
 
                 if (!isLoggedIn) {
                     if (!$("#proposalModal .login-prompt").length) {
-                        $("#proposalModal").prepend('<p class="login-prompt" style="color: red;">You need to log in to submit a proposal.</p>');
+                        $("#proposalModal").prepend('<p class="login-prompt login-warning">You need to log in to submit a proposal.</p>');
                     }
                     $("#proposalForm button[type='submit']").prop('disabled', true);
                 } else {

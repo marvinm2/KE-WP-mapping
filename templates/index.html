@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KE-WP Mapping</title>
+    <title>Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css">
@@ -13,7 +15,7 @@
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    
+
     <!-- CSRF Token for AJAX requests -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
@@ -22,13 +24,11 @@
     {% include 'components/navigation.html' %}
     <div class="container">
         <!-- Tab Switcher -->
-        <div id="mapping-tab-switcher" style="display: flex; gap: 0; margin-bottom: 20px; border-bottom: 3px solid #307BBF;">
-            <button type="button" class="mapping-tab active" data-tab="wp"
-                    style="padding: 12px 24px; border: 1px solid #307BBF; border-bottom: none; background: #307BBF; color: white; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0; margin-right: 4px;">
+        <div id="mapping-tab-switcher" class="tab-switcher">
+            <button type="button" class="mapping-tab tab-btn active" data-tab="wp">
                 KE-WP Mapping
             </button>
-            <button type="button" class="mapping-tab" data-tab="go"
-                    style="padding: 12px 24px; border: 1px solid #ccc; border-bottom: none; background: #f0f0f0; color: #666; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 8px 8px 0 0;">
+            <button type="button" class="mapping-tab tab-btn" data-tab="go">
                 KE-GO Mapping
             </button>
         </div>
@@ -39,27 +39,27 @@
             <div id="step1-content">
             <!-- AOP Filter (optional) -->
             <div class="filter-container" style="margin-bottom: 15px;">
-                <label for="aop_filter" style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
+                <label for="aop_filter" class="form-label">
                     Filter by AOP (optional):
                 </label>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <select id="aop_filter" name="aop_filter" style="flex: 1;">
                         <option value="">All Key Events</option>
                     </select>
-                    <button type="button" id="clear_aop_filter"
-                            style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; display: none;"
+                    <button type="button" id="clear_aop_filter" class="btn-clear"
+                            style="display: none;"
                             title="Clear AOP filter">
                         Clear
                     </button>
                 </div>
-                <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                <div class="form-hint">
                     <em>Select an AOP to show only its Key Events, or leave empty to browse all KEs</em>
                 </div>
             </div>
 
             <!-- KE Dropdown -->
             <div class="dropdown-container">
-                <label for="ke_id" style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
+                <label for="ke_id" class="form-label">
                     Select Key Event:
                 </label>
                 <select id="ke_id" name="ke_id" required>
@@ -86,23 +86,22 @@
             <!-- Suggested panel -->
             <div class="step2-panel" id="step2-panel-suggested">
                 <div id="pathway-suggestions">
-                    <p style="color: #666; font-style: italic; text-align: center; padding: 20px;">Select a Key Event in Step 1 to see pathway suggestions.</p>
+                    <p class="text-muted-italic" style="text-align: center; padding: 20px;">Select a Key Event in Step 1 to see pathway suggestions.</p>
                 </div>
             </div>
 
             <!-- Search panel -->
             <div class="step2-panel" id="step2-panel-search" style="display: none;">
                 <div class="search-container" style="margin-bottom: 15px;">
-                    <label for="pathway-search" style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
+                    <label for="pathway-search" class="form-label">
                         Search Pathways:
                     </label>
                     <div style="position: relative;">
-                        <input type="text" id="pathway-search" placeholder="Type to search pathways by name or description..."
-                               style="width: 100%; padding: 10px 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; box-sizing: border-box;">
-                        <div id="search-results" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; max-height: 200px; overflow-y: auto; z-index: 1000; display: none;">
+                        <input type="text" id="pathway-search" placeholder="Type to search pathways by name or description...">
+                        <div id="search-results" class="search-results-dropdown">
                         </div>
                     </div>
-                    <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    <div class="form-hint">
                         <em>Try searching for keywords like "immune", "metabolism", "signaling", or specific gene names</em>
                     </div>
                 </div>
@@ -111,11 +110,11 @@
             <!-- Browse All panel -->
             <div class="step2-panel" id="step2-panel-browse" style="display: none;">
                 <div class="dropdown-container">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #29235C;">
+                    <label class="form-label">
                         Browse all pathways:
                     </label>
                     <div id="pathway-selections">
-                        <div class="pathway-selection-group" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc;">
+                        <div class="pathway-selection-group panel-outlined">
                             <select name="wp_id" required style="width: 100%; margin-bottom: 15px;">
                                 <option value="" disabled selected>Select a Pathway</option>
                             </select>
@@ -141,17 +140,17 @@
         <section id="confidence-guide" style="display: none;">
             <h2>Step 3: Assess Confidence of Mappings</h2>
             <p>
-                Use the guided assessment below to evaluate the biological relevance and determine the confidence level for each pathway mapping. 
+                Use the guided assessment below to evaluate the biological relevance and determine the confidence level for each pathway mapping.
                 Your answers will automatically populate the confidence level and connection type fields for each individual mapping.
             </p>
-            
+
             <div id="pathway-assessments">
                 <!-- Individual pathway assessments will be inserted here -->
             </div>
 
             <div id="assessment-completion" style="text-align: center; margin: 20px 0; display: none;">
-                <button id="complete-all-assessments" type="button" 
-                        style="background: #28a745; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 16px; cursor: pointer;">
+                <button id="complete-all-assessments" type="button" class="btn-primary"
+                        style="padding: 15px 30px; font-size: 16px;">
                     Complete All Assessments
                 </button>
                 <p id="assessment-status" style="margin-top: 10px; font-weight: bold;"></p>
@@ -161,10 +160,10 @@
 
         <section id="step-3-result" style="display: none;">
             <h2>Step 4: Results & Submit</h2>
-            <p><strong>Recommended Confidence Level:</strong> <span id="auto-confidence">—</span></p>
-            <p><strong>Connection Type:</strong> <span id="auto-connection">—</span></p>
+            <p><strong>Recommended Confidence Level:</strong> <span id="auto-confidence">--</span></p>
+            <p><strong>Connection Type:</strong> <span id="auto-connection">--</span></p>
             <details style="margin-top: 15px;">
-                <summary style="cursor: pointer; font-weight: bold;">Understanding Confidence Levels</summary>
+                <summary>Understanding Confidence Levels</summary>
                 <p><strong>High Confidence:</strong> Strong experimental evidence with direct pathway relationship and complete/partial coverage. Molecular-level Key Events receive additional confidence weighting.</p>
                 <p><strong>Medium Confidence:</strong> Moderate experimental evidence with partial pathway relationship, or strong evidence with limited coverage. Some biological complexity or indirect connections.</p>
                 <p><strong>Low Confidence:</strong> No direct experimental evidence, weak pathway relationships, or limited coverage. Computational/literature-based mappings or highly phenotypic Key Events.</p>
@@ -176,14 +175,14 @@
             <input type="hidden" id="connection_type" name="connection_type" value="">
             <input type="hidden" id="suggestion_score" name="suggestion_score" value="">
 
-            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--color-border-light);">
                 {% if session.get('user') %}
                     <form id="mapping-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" disabled>Complete Assessment First</button>
                     </form>
                 {% else %}
-                    <p style="color: red; font-weight: bold;">Please <a href="{{ url_for('auth.login') }}">log in with GitHub</a> or use a <a href="{{ url_for('auth.guest_login') }}">workshop access code</a> to submit your mapping.</p>
+                    <p class="login-warning">Please <a href="{{ url_for('auth.login') }}">log in with GitHub</a> or use a <a href="{{ url_for('auth.guest_login') }}">workshop access code</a> to submit your mapping.</p>
                     <button disabled>Submit KE-WP Mapping</button>
                 {% endif %}
             </div>
@@ -191,14 +190,14 @@
 
         <section id="confidence-confirm" style="display: none;">
             <h2>Confirm Confidence Level</h2>
-            <p>The assessment recommends: <strong><span id="confidence-recommendation">—</span></strong></p>
-            <p>Select the confidence level for this mapping: <span style="color: var(--color-danger, #dc3545);">*</span></p>
+            <p>The assessment recommends: <strong><span id="confidence-recommendation">--</span></strong></p>
+            <p>Select the confidence level for this mapping: <span style="color: var(--color-status-low);">*</span></p>
             <div class="btn-group" id="confidence-select-group" data-step="confidence">
                 <button type="button" class="btn-option" data-value="high">High</button>
                 <button type="button" class="btn-option" data-value="medium">Medium</button>
                 <button type="button" class="btn-option" data-value="low">Low</button>
             </div>
-            <p id="confidence-select-error" style="color: var(--color-danger, #dc3545); display: none;">Please select a confidence level before submitting.</p>
+            <p id="confidence-select-error" style="color: var(--color-status-low); display: none;">Please select a confidence level before submitting.</p>
         </section>
 
         <div id="existing-entries"></div>
@@ -210,7 +209,7 @@
         <section>
             <h2>Step 2: Browse GO Term Suggestions</h2>
             <div id="go-suggestions-container">
-                <p style="color: #666; font-style: italic;">Select a Key Event above to see GO Biological Process term suggestions.</p>
+                <p class="text-muted-italic">Select a Key Event above to see GO Biological Process term suggestions.</p>
             </div>
         </section>
 
@@ -239,7 +238,7 @@
                     <button type="submit" disabled>Complete GO Assessment First</button>
                 </form>
             {% else %}
-                <p style="color: red; font-weight: bold;">Please <a href="{{ url_for('auth.login') }}">log in with GitHub</a> or use a <a href="{{ url_for('auth.guest_login') }}">workshop access code</a> to submit your mapping.</p>
+                <p class="login-warning">Please <a href="{{ url_for('auth.login') }}">log in with GitHub</a> or use a <a href="{{ url_for('auth.guest_login') }}">workshop access code</a> to submit your mapping.</p>
                 <button disabled>Submit KE-GO Mapping</button>
             {% endif %}
         </section>
@@ -249,40 +248,30 @@
         </div><!-- end go-tab-content -->
 
     </div>
-    <footer>
-        <p>&copy; 2025 KE-WP Mapping Service</p>
-        <div id="data-sources-info" style="margin-top: 10px; font-size: 12px; color: #666;">
-            <div style="margin-bottom: 5px;">
-                <strong>Data Sources:</strong>
-            </div>
-            <div id="version-info" style="line-height: 1.4;">
-                Loading version information...
-            </div>
-        </div>
-    </footer>
+    {% include 'components/footer.html' %}
 
     <!-- Thank You Modal -->
-    <div id="thankYouModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2000; justify-content: center; align-items: center;">
-        <div style="background: white; border-radius: 12px; padding: 40px; max-width: 500px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); text-align: center; position: relative;">
-            <button id="closeThankYouModal" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #666; line-height: 1;">&times;</button>
+    <div id="thankYouModal" class="thank-you-overlay">
+        <div class="thank-you-panel">
+            <button id="closeThankYouModal" class="thank-you-close">&times;</button>
 
-            <div style="font-size: 60px; color: #28a745; margin-bottom: 20px;">&#10004;</div>
+            <div class="thank-you-check">&#10004;</div>
 
-            <h2 style="color: #29235C; margin-bottom: 15px;">Thank You!</h2>
+            <h2 class="thank-you-title">Thank You!</h2>
 
-            <p style="color: #666; font-size: 16px; margin-bottom: 25px;">
+            <p class="thank-you-message">
                 Your mapping has been successfully submitted.
             </p>
 
-            <div id="submissionSummary" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px; text-align: left;">
+            <div id="submissionSummary" class="thank-you-summary">
                 <!-- Summary will be populated by JavaScript -->
             </div>
 
-            <div style="display: flex; gap: 15px; justify-content: center;">
-                <button onclick="location.reload()" style="background: #307BBF; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">
+            <div class="thank-you-actions">
+                <button onclick="location.reload()" class="btn-primary">
                     Submit Another
                 </button>
-                <button onclick="location.href='/explore'" style="background: #93D5F6; color: #29235C; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">
+                <button onclick="location.href='/explore'" class="btn-link-blue" style="padding: 12px 24px;">
                     View Dataset
                 </button>
             </div>
