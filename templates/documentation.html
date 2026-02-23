@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documentation - KE-WP Mapping</title>
+    <title>Documentation - Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/docs.css') }}">
 </head>
@@ -43,12 +45,7 @@
         </main>
     </div>
 
-    <footer style="background-color: #307BBF; color: white; text-align: center; padding: 20px; margin-top: 40px;">
-        <p style="margin: 0;">KE-WP Mapping Service | Part of VHP4Safety</p>
-        <p style="margin: 5px 0 0 0; font-size: 14px;">
-            <a href="https://github.com/marvinm2/KE-WP-mapping" target="_blank" style="color: #93D5F6; text-decoration: none;">View on GitHub</a>
-        </p>
-    </footer>
+    {% include 'components/footer.html' %}
 </div>
 </body>
 </html>

@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin: Guest Access Codes</title>
+    <title>Admin: Guest Access Codes - Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
@@ -11,141 +13,17 @@
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
-
-    <style>
-        .create-form {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 25px;
-        }
-        .create-form h3 {
-            margin-top: 0;
-            color: #29235C;
-        }
-        .form-row {
-            display: flex;
-            gap: 15px;
-            align-items: flex-end;
-            flex-wrap: wrap;
-            margin-bottom: 10px;
-        }
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        .form-group label {
-            font-weight: bold;
-            font-size: 13px;
-            color: #29235C;
-        }
-        .form-group input, .form-group select {
-            padding: 8px 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .btn-create {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 9px 20px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .btn-create:hover { background: #218838; }
-        .btn-revoke {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        .btn-revoke:hover { background: #c82333; }
-        .status-active { color: #28a745; font-weight: bold; }
-        .status-expired { color: #6c757d; font-weight: bold; }
-        .status-revoked { color: #dc3545; font-weight: bold; }
-        .status-exhausted { color: #fd7e14; font-weight: bold; }
-        .code-display {
-            font-family: monospace;
-            font-size: 13px;
-            color: #666;
-        }
-        .code-reveal-modal {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
-            background: white;
-            border: 1px solid #ccc;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-            width: 450px;
-            text-align: center;
-        }
-        .code-reveal-modal .generated-code {
-            font-family: monospace;
-            font-size: 24px;
-            font-weight: bold;
-            color: #307BBF;
-            background: #f0f7ff;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            letter-spacing: 2px;
-            user-select: all;
-        }
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-        }
-        .btn-copy {
-            background: #307BBF;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .btn-copy:hover { background: #2568a0; }
-        .btn-close-modal {
-            background: #6c757d;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-left: 10px;
-        }
-    </style>
 </head>
 <body>
 <div class="page-container">
     {% include 'components/navigation.html' %}
-    <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #EB5B25 0%, #29235C 100%); color: white;">
-        <h2 style="margin: 0;">Admin: Guest Access Codes</h2>
+    <div class="admin-header-banner">
+        <h2>Admin: Guest Access Codes</h2>
     </div>
 
     <div class="container">
         {% if error %}
-            <div style="color: red; font-weight: bold; margin: 20px 0;">
+            <div class="login-warning" style="margin: 20px 0;">
                 Error: {{ error }}
             </div>
         {% endif %}
@@ -207,9 +85,9 @@
                             {% if code.status == 'active' %}
                                 <button class="btn-revoke" onclick="revokeCode({{ code.id }})">Revoke</button>
                             {% elif code.status == 'revoked' %}
-                                <span style="color: #999; font-size: 12px;">Revoked by {{ code.revoked_by }}</span>
+                                <span class="text-muted" style="font-size: 12px;">Revoked by {{ code.revoked_by }}</span>
                             {% else %}
-                                <span style="color: #999; font-size: 12px;">{{ code.status|title }}</span>
+                                <span class="text-muted" style="font-size: 12px;">{{ code.status|title }}</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -221,9 +99,9 @@
 
     <!-- Code Reveal Modal -->
     <div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
-    <div class="code-reveal-modal" id="codeModal">
-        <h3 style="margin-top: 0; color: #29235C;">Access Code Created</h3>
-        <p style="color: #666;">Share this code with workshop participants. It will only be shown once.</p>
+    <div class="code-reveal-modal modal-panel" id="codeModal" style="display: none; width: 450px; text-align: center;">
+        <h3 style="margin-top: 0;">Access Code Created</h3>
+        <p class="text-muted">Share this code with workshop participants. It will only be shown once.</p>
         <div class="generated-code" id="generatedCode"></div>
         <div style="margin-top: 20px;">
             <button class="btn-copy" onclick="copyCode()">Copy Code</button>
@@ -231,9 +109,7 @@
         </div>
     </div>
 
-    <footer>
-        <p>&copy; 2025 KE-WP Mapping Service - Admin Panel</p>
-    </footer>
+    {% include 'components/footer.html' %}
 
     <script src="{{ url_for('static', filename='js/datatable-config.js') }}"></script>
     <script>

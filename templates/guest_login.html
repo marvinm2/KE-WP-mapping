@@ -3,81 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workshop Login - KE-WP Mapping</title>
+    <title>Workshop Login - Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <style>
-        .guest-login-container {
-            max-width: 420px;
-            margin: 80px auto;
-            padding: 40px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-        .guest-login-container h2 {
-            color: #29235C;
-            margin-bottom: 10px;
-        }
-        .guest-login-container p {
-            color: #666;
-            margin-bottom: 25px;
-            font-size: 14px;
-        }
-        .guest-login-container input[type="text"] {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #ccc;
-            border-radius: 6px;
-            font-size: 16px;
-            box-sizing: border-box;
-            margin-bottom: 15px;
-            text-align: center;
-            letter-spacing: 2px;
-        }
-        .guest-login-container input[type="text"]:focus {
-            border-color: #307BBF;
-            outline: none;
-        }
-        .guest-login-container button[type="submit"] {
-            width: 100%;
-            padding: 12px;
-            background: #307BBF;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .guest-login-container button[type="submit"]:hover {
-            background: #2568a0;
-        }
-        .error-message {
-            color: #dc3545;
-            font-weight: bold;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: #fdf0f0;
-            border-radius: 6px;
-        }
-        .alt-login {
-            margin-top: 25px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            font-size: 14px;
-            color: #666;
-        }
-        .alt-login a {
-            color: #307BBF;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .alt-login a:hover {
-            text-decoration: underline;
-        }
-    </style>
 </head>
 <body>
 <div class="page-container">
@@ -101,9 +31,7 @@
         </div>
     </div>
 
-    <footer>
-        <p>&copy; 2025 KE-WP Mapping Service</p>
-    </footer>
+    {% include 'components/footer.html' %}
 </div>
 </body>
 </html>

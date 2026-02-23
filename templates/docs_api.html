@@ -3,64 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Consumer Guide — KE-WP Mapping</title>
+    <title>API Consumer Guide - Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
 {% include 'components/navigation.html' %}
 <div class="container" style="max-width:900px; margin:0 auto; padding:32px 20px;">
 
-    <h1 style="color:#29235C; margin-bottom:8px;">API Consumer Guide</h1>
-    <p style="color:#666; margin-bottom:32px; font-size:15px;">
+    <h1 style="margin-bottom:8px;">API Consumer Guide</h1>
+    <p class="text-muted" style="margin-bottom:32px; font-size:15px;">
         This guide shows how to retrieve KE-WP and KE-GO mappings programmatically.
         The base URL is <code>/api/v1</code>. All endpoints are read-only and require no
-        authentication. See the <a href="/api/docs" style="color:#307BBF;">Interactive API Docs</a>
+        authentication. See the <a href="/api/docs">Interactive API Docs</a>
         for an in-browser explorer.
     </p>
 
     <!-- Endpoints Overview -->
-    <h2 style="color:#29235C; border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-top:32px;">Endpoints Overview</h2>
+    <h2 style="border-bottom:2px solid var(--color-border-light); padding-bottom:8px; margin-top:32px;">Endpoints Overview</h2>
     <table style="width:100%; border-collapse:collapse; font-size:14px; margin-bottom:32px;">
         <thead>
-            <tr style="background:#f4f6f8;">
-                <th style="text-align:left; padding:10px 12px; border:1px solid #e2e8f0; color:#29235C; font-weight:600;">Endpoint</th>
-                <th style="text-align:left; padding:10px 12px; border:1px solid #e2e8f0; color:#29235C; font-weight:600;">Description</th>
+            <tr style="background:var(--color-bg-light);">
+                <th style="text-align:left; padding:10px 12px; border:1px solid var(--color-border-light); font-weight:600;">Endpoint</th>
+                <th style="text-align:left; padding:10px 12px; border:1px solid var(--color-border-light); font-weight:600;">Description</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td style="padding:10px 12px; border:1px solid #e2e8f0; font-family:monospace; color:#307BBF;">GET /api/v1/mappings</td>
-                <td style="padding:10px 12px; border:1px solid #e2e8f0; color:#555;">List KE-WP mappings (filterable, paginated)</td>
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light); font-family:monospace;">GET /api/v1/mappings</td>
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light);">List KE-WP mappings (filterable, paginated)</td>
             </tr>
-            <tr style="background:#fafafa;">
-                <td style="padding:10px 12px; border:1px solid #e2e8f0; font-family:monospace; color:#307BBF;">GET /api/v1/mappings/{uuid}</td>
-                <td style="padding:10px 12px; border:1px solid #e2e8f0; color:#555;">Single KE-WP mapping by UUID</td>
+            <tr style="background:var(--color-bg-lighter);">
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light); font-family:monospace;">GET /api/v1/mappings/{uuid}</td>
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light);">Single KE-WP mapping by UUID</td>
             </tr>
             <tr>
-                <td style="padding:10px 12px; border:1px solid #e2e8f0; font-family:monospace; color:#307BBF;">GET /api/v1/go-mappings</td>
-                <td style="padding:10px 12px; border:1px solid #e2e8f0; color:#555;">List KE-GO mappings (filterable, paginated)</td>
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light); font-family:monospace;">GET /api/v1/go-mappings</td>
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light);">List KE-GO mappings (filterable, paginated)</td>
             </tr>
-            <tr style="background:#fafafa;">
-                <td style="padding:10px 12px; border:1px solid #e2e8f0; font-family:monospace; color:#307BBF;">GET /api/v1/go-mappings/{uuid}</td>
-                <td style="padding:10px 12px; border:1px solid #e2e8f0; color:#555;">Single KE-GO mapping by UUID</td>
+            <tr style="background:var(--color-bg-lighter);">
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light); font-family:monospace;">GET /api/v1/go-mappings/{uuid}</td>
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light);">Single KE-GO mapping by UUID</td>
             </tr>
         </tbody>
     </table>
 
     <!-- Python Examples -->
-    <h2 style="color:#29235C; border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-top:32px;">Python (requests) Examples</h2>
-    <p style="color:#666; font-size:14px; margin-bottom:16px;">Install: <code>pip install requests</code></p>
+    <h2 style="border-bottom:2px solid var(--color-border-light); padding-bottom:8px; margin-top:32px;">Python (requests) Examples</h2>
+    <p class="text-muted" style="font-size:14px; margin-bottom:16px;">Install: <code>pip install requests</code></p>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">1. Basic retrieval — high confidence KE-WP mappings</h3>
-    <pre><code class="language-python" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">base = "https://your-server.org/api/v1"
+    <h3 style="font-size:15px; margin-top:20px;">1. Basic retrieval -- high confidence KE-WP mappings</h3>
+    <pre><code class="language-python" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">base = "https://your-server.org/api/v1"
 resp = requests.get(f"{base}/mappings", params={"confidence_level": "High", "per_page": 50})
 mappings = resp.json()["data"]</code></pre>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">2. Filter by KE ID</h3>
-    <pre><code class="language-python" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp = requests.get(f"{base}/mappings", params={"ke_id": "KE 55"})</code></pre>
+    <h3 style="font-size:15px; margin-top:20px;">2. Filter by KE ID</h3>
+    <pre><code class="language-python" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp = requests.get(f"{base}/mappings", params={"ke_id": "KE 55"})</code></pre>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">3. Paginate all results</h3>
-    <pre><code class="language-python" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">url, params = f"{base}/mappings", {"confidence_level": "High"}
+    <h3 style="font-size:15px; margin-top:20px;">3. Paginate all results</h3>
+    <pre><code class="language-python" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">url, params = f"{base}/mappings", {"confidence_level": "High"}
 while url:
     resp = requests.get(url, params=params)
     data = resp.json()
@@ -68,36 +70,36 @@ while url:
     url = data["pagination"]["next"]
     params = {}</code></pre>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">4. CSV download</h3>
-    <pre><code class="language-python" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp = requests.get(f"{base}/mappings", params={"format": "csv"})
+    <h3 style="font-size:15px; margin-top:20px;">4. CSV download</h3>
+    <pre><code class="language-python" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp = requests.get(f"{base}/mappings", params={"format": "csv"})
 with open("ke_wp_mappings.csv", "wb") as f:
     f.write(resp.content)</code></pre>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">5. KE-GO mappings</h3>
-    <pre><code class="language-python" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp = requests.get(f"{base}/go-mappings", params={"ke_id": "KE 55", "confidence_level": "High"})
+    <h3 style="font-size:15px; margin-top:20px;">5. KE-GO mappings</h3>
+    <pre><code class="language-python" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp = requests.get(f"{base}/go-mappings", params={"ke_id": "KE 55", "confidence_level": "High"})
 go_mappings = resp.json()["data"]</code></pre>
 
     <!-- R Examples -->
-    <h2 style="color:#29235C; border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-top:40px;">R (httr2) Examples</h2>
-    <p style="color:#666; font-size:14px; margin-bottom:16px;">Install: <code>install.packages("httr2")</code></p>
+    <h2 style="border-bottom:2px solid var(--color-border-light); padding-bottom:8px; margin-top:40px;">R (httr2) Examples</h2>
+    <p class="text-muted" style="font-size:14px; margin-bottom:16px;">Install: <code>install.packages("httr2")</code></p>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">1. Basic retrieval — high confidence KE-WP mappings</h3>
-    <pre><code class="language-r" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">library(httr2)
+    <h3 style="font-size:15px; margin-top:20px;">1. Basic retrieval -- high confidence KE-WP mappings</h3>
+    <pre><code class="language-r" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">library(httr2)
 resp &lt;- request("https://your-server.org/api/v1/mappings") |&gt;
   req_url_query(confidence_level = "High", per_page = 50) |&gt;
   req_perform() |&gt;
   resp_body_json()
 mappings &lt;- resp$data</code></pre>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">2. Filter by KE ID</h3>
-    <pre><code class="language-r" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">library(httr2)
+    <h3 style="font-size:15px; margin-top:20px;">2. Filter by KE ID</h3>
+    <pre><code class="language-r" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">library(httr2)
 resp &lt;- request("https://your-server.org/api/v1/mappings") |&gt;
   req_url_query(ke_id = "KE 55") |&gt;
   req_perform() |&gt;
   resp_body_json()</code></pre>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">3. Paginate all results using req_perform_iterative</h3>
-    <pre><code class="language-r" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">library(httr2)
+    <h3 style="font-size:15px; margin-top:20px;">3. Paginate all results using req_perform_iterative</h3>
+    <pre><code class="language-r" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">library(httr2)
 req &lt;- request("https://your-server.org/api/v1/mappings") |&gt;
   req_url_query(per_page = 200)
 all_resps &lt;- req_perform_iterative(req, function(resp, req) {
@@ -107,32 +109,32 @@ all_resps &lt;- req_perform_iterative(req, function(resp, req) {
 })
 all_data &lt;- lapply(all_resps, \(r) resp_body_json(r)$data) |&gt; do.call(c, args = _)</code></pre>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">4. CSV download</h3>
-    <pre><code class="language-r" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp &lt;- request("https://your-server.org/api/v1/mappings") |&gt;
+    <h3 style="font-size:15px; margin-top:20px;">4. CSV download</h3>
+    <pre><code class="language-r" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp &lt;- request("https://your-server.org/api/v1/mappings") |&gt;
   req_url_query(format = "csv") |&gt;
   req_perform()
 df &lt;- readr::read_csv(rawToChar(resp_body_raw(resp)))</code></pre>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">5. KE-GO mappings</h3>
-    <pre><code class="language-r" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp &lt;- request("https://your-server.org/api/v1/go-mappings") |&gt;
+    <h3 style="font-size:15px; margin-top:20px;">5. KE-GO mappings</h3>
+    <pre><code class="language-r" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp &lt;- request("https://your-server.org/api/v1/go-mappings") |&gt;
   req_url_query(ke_id = "KE 55", confidence_level = "High") |&gt;
   req_perform() |&gt;
   resp_body_json()
 go_mappings &lt;- resp$data</code></pre>
 
     <!-- Rate Limit Policy -->
-    <h2 style="color:#29235C; border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-top:40px;">Rate Limit Policy</h2>
-    <div style="background:#fffbeb; border:1px solid #f59e0b; border-radius:6px; padding:14px 18px; margin-bottom:20px; font-size:14px; color:#78350f;">
+    <h2 style="border-bottom:2px solid var(--color-border-light); padding-bottom:8px; margin-top:40px;">Rate Limit Policy</h2>
+    <div class="warning-banner">
         <strong>Limit:</strong> 100 requests per hour per IP address.
     </div>
-    <ul style="font-size:14px; color:#555; line-height:1.8; margin-bottom:16px;">
+    <ul style="font-size:14px; line-height:1.8; margin-bottom:16px;">
         <li>When the limit is exceeded the API returns <strong>HTTP 429 Too Many Requests</strong>.</li>
         <li>The response includes a <strong>Retry-After</strong> header containing an integer value (seconds) to wait before retrying.</li>
         <li>In multi-process deployments (e.g. multiple Gunicorn workers) the in-memory rate limiter is per-worker; effective per-IP limit may be higher than 100 req/hour.</li>
     </ul>
 
-    <h3 style="color:#29235C; font-size:15px; margin-top:20px;">Python — handling rate limits politely</h3>
-    <pre><code class="language-python" style="background:#f4f6f8; display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">import time
+    <h3 style="font-size:15px; margin-top:20px;">Python -- handling rate limits politely</h3>
+    <pre><code class="language-python" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">import time
 
 resp = requests.get(url, params=params)
 if resp.status_code == 429:
@@ -142,12 +144,12 @@ if resp.status_code == 429:
 time.sleep(0.05)  # ~20 requests/second courtesy pause between requests</code></pre>
 
     <!-- Interactive Docs -->
-    <h2 style="color:#29235C; border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-top:40px;">Interactive Docs</h2>
-    <p style="font-size:14px; color:#555; margin-bottom:32px;">
-        Browse and test all endpoints interactively at <a href="/api/docs" style="color:#307BBF;">/api/docs</a>.
+    <h2 style="border-bottom:2px solid var(--color-border-light); padding-bottom:8px; margin-top:40px;">Interactive Docs</h2>
+    <p style="font-size:14px; margin-bottom:32px;">
+        Browse and test all endpoints interactively at <a href="/api/docs">/api/docs</a>.
     </p>
 
 </div>
-<footer><p>&copy; 2025 KE-WP Mapping Service</p></footer>
+{% include 'components/footer.html' %}
 </body>
 </html>

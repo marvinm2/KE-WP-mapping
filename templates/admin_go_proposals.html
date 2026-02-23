@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin: GO Proposal Management</title>
+    <title>Admin: GO Proposal Management - Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
@@ -12,32 +14,17 @@
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <style>
-        .proposal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-        .proposal-actions button { padding: 6px 12px; font-size: 12px; min-width: 80px; }
-        .btn-approve { background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-approve:hover { background-color: #218838; }
-        .btn-reject { background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-reject:hover { background-color: #c82333; }
-        .btn-view { background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-view:hover { background-color: #138496; }
-        .status-pending { color: #fd7e14; font-weight: bold; }
-        .status-approved { color: #28a745; font-weight: bold; }
-        .status-rejected { color: #dc3545; font-weight: bold; }
-        .proposal-detail { font-size: 13px; color: #666; }
-        .filter-section { margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; }
-    </style>
 </head>
 <body>
 <div class="page-container">
     {% include 'components/navigation.html' %}
-    <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #EB5B25 0%, #29235C 100%); color: white;">
-        <h2 style="margin: 0;">Admin: KE-GO Proposal Management</h2>
+    <div class="admin-header-banner">
+        <h2>Admin: KE-GO Proposal Management</h2>
     </div>
 
     <div class="container">
         {% if error %}
-            <div style="color: red; font-weight: bold; margin: 20px 0;">Error: {{ error }}</div>
+            <div class="login-warning" style="margin: 20px 0;">Error: {{ error }}</div>
         {% endif %}
 
         <div class="filter-section">
@@ -50,8 +37,8 @@
                     <option value="approved" {{ 'selected' if status_filter == 'approved' else '' }}>Approved</option>
                     <option value="rejected" {{ 'selected' if status_filter == 'rejected' else '' }}>Rejected</option>
                 </select>
-                <a href="/admin/proposals" style="margin-left: 20px; color: #307BBF;">View KE-WP Proposals</a>
-                <span style="font-weight: bold; color: #307BBF;">{{ proposals|length }} proposal(s) found</span>
+                <a href="/admin/proposals" style="margin-left: 20px;">View KE-WP Proposals</a>
+                <span style="font-weight: bold;">{{ proposals|length }} proposal(s) found</span>
             </div>
         </div>
 
@@ -115,23 +102,21 @@
     </div>
 
     <!-- Detail Modal -->
-    <div id="goProposalModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; border: 1px solid #ccc; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.2); width: 600px; max-height: 80vh; overflow-y: auto;">
+    <div id="goProposalModal" class="modal-panel" style="display: none; width: 600px; max-height: 80vh; overflow-y: auto;">
         <h3>GO Proposal Details</h3>
         <div id="goModalContent"></div>
         <div style="margin-top: 20px;">
-            <textarea id="goAdminNotes" placeholder="Add admin notes (optional)" style="width: 100%; height: 80px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"></textarea>
+            <textarea id="goAdminNotes" placeholder="Add admin notes (optional)" style="width: 100%; height: 80px; margin-bottom: 15px;"></textarea>
         </div>
         <div style="text-align: right;">
-            <button onclick="closeGoModal()" style="background:#6c757d; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; margin-right:8px;">Close</button>
+            <button onclick="closeGoModal()" class="btn-clear" style="margin-right: 8px;">Close</button>
             <button id="goModalApproveBtn" onclick="confirmGoApprove()" class="btn-approve" style="display: none; padding:8px 16px;">Approve Proposal</button>
             <button id="goModalRejectBtn" onclick="confirmGoReject()" class="btn-reject" style="display: none; padding:8px 16px;">Reject Proposal</button>
         </div>
     </div>
-    <div id="goModalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;" onclick="closeGoModal()"></div>
+    <div id="goModalOverlay" class="modal-overlay" style="display: none;" onclick="closeGoModal()"></div>
 
-    <footer>
-        <p>&copy; 2025 KE-WP Mapping Service - Admin Panel</p>
-    </footer>
+    {% include 'components/footer.html' %}
 
     <script src="{{ url_for('static', filename='js/datatable-config.js') }}"></script>
     <script>

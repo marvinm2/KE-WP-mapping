@@ -1887,3 +1887,135 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
     color: var(--color-status-low);
     font-weight: bold;
 }
+
+/* ============================================================
+   Admin Panel Classes (proposals, guest codes)
+   ============================================================ */
+
+/* Proposal Actions */
+.proposal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.proposal-actions button { padding: 6px 12px; font-size: 12px; min-width: 80px; }
+
+.btn-approve { background-color: var(--color-status-high); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; }
+.btn-approve:hover { opacity: 0.85; }
+.btn-reject { background-color: var(--color-status-low); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; }
+.btn-reject:hover { opacity: 0.85; }
+.btn-view { background-color: var(--color-teal-accent); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; }
+.btn-view:hover { opacity: 0.85; }
+
+/* Proposal Status */
+.status-pending { color: var(--color-secondary-orange); font-weight: bold; }
+.status-approved { color: var(--color-status-high); font-weight: bold; }
+.status-rejected { color: var(--color-status-low); font-weight: bold; }
+.status-active { color: var(--color-status-high); font-weight: bold; }
+.status-expired { color: var(--color-text-gray); font-weight: bold; }
+.status-revoked { color: var(--color-status-low); font-weight: bold; }
+.status-exhausted { color: var(--color-secondary-orange); font-weight: bold; }
+
+.proposal-detail { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
+/* Filter Section */
+.filter-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--color-bg-light);
+    border-radius: var(--radius-lg);
+}
+
+/* Guest Code Admin */
+.create-form {
+    background: var(--color-bg-light);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 25px;
+}
+.create-form h3 { margin-top: 0; color: var(--color-primary-dark); }
+
+.form-row { display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-weight: bold; font-size: var(--font-size-xs); color: var(--color-primary-dark); }
+.form-group input, .form-group select { padding: 8px 12px; border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); font-size: var(--font-size-sm); }
+
+.btn-create { background: var(--color-status-high); color: white; border: none; padding: 9px 20px; border-radius: var(--radius-sm); font-size: var(--font-size-sm); font-weight: bold; cursor: pointer; }
+.btn-create:hover { opacity: 0.85; }
+
+.btn-revoke { background: var(--color-status-low); color: white; border: none; padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; min-width: auto; }
+.btn-revoke:hover { opacity: 0.85; }
+
+.code-display { font-family: monospace; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
+.code-reveal-modal .generated-code {
+    font-family: monospace;
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--color-primary-blue);
+    background: #e8f0fb;
+    padding: 15px;
+    border-radius: var(--radius-lg);
+    margin: 15px 0;
+    letter-spacing: 2px;
+    user-select: all;
+}
+
+.btn-copy { background: var(--color-primary-blue); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--font-size-sm); min-width: auto; }
+.btn-copy:hover { opacity: 0.85; }
+.btn-close-modal { background: var(--color-text-gray); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--font-size-sm); margin-left: 10px; min-width: auto; }
+.btn-close-modal:hover { opacity: 0.85; }
+
+/* Detail Table (mapping_detail) */
+.detail-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.detail-table__th { text-align: left; padding: 8px 12px; background: var(--color-bg-light); width: 220px; border: 1px solid var(--color-border-light); font-weight: 600; }
+.detail-table__td { padding: 8px 12px; border: 1px solid var(--color-border-light); }
+
+/* Guest Login */
+.guest-login-container {
+    max-width: 420px;
+    margin: 80px auto;
+    padding: 40px;
+    background: white;
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+}
+.guest-login-container h2 { color: var(--color-primary-dark); margin-bottom: 10px; }
+.guest-login-container p { color: var(--color-text-muted); margin-bottom: 25px; font-size: var(--font-size-sm); }
+.guest-login-container input[type="text"] { text-align: center; letter-spacing: 2px; }
+.guest-login-container input[type="text"]:focus { border-color: var(--color-primary-blue); }
+.guest-login-container button[type="submit"] {
+    width: 100%;
+    padding: 12px;
+    background: var(--color-primary-blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.guest-login-container button[type="submit"]:hover { opacity: 0.9; }
+.guest-login-container .error-message {
+    color: var(--color-status-low);
+    font-weight: bold;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #fdf0f0;
+    border-radius: var(--radius-md);
+}
+.alt-login { margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--color-border-light); font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.alt-login a { color: var(--color-primary-blue); text-decoration: none; font-weight: bold; }
+.alt-login a:hover { text-decoration: underline; }
+
+/* Error Page */
+.error-page-container {
+    max-width: 600px;
+    margin: 50px auto;
+    padding: 40px;
+    background-color: white;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+}
+.error-page-icon { font-size: 64px; color: var(--color-status-low); margin-bottom: 20px; }
+.error-page-message { font-size: 18px; color: var(--color-primary-dark); margin-bottom: 30px; line-height: 1.6; }
+.error-page-actions { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
