@@ -371,3 +371,113 @@ class TestSubmitCreatesProposal:
         assert response.status_code == 200
         data = response.get_json()
         assert "pending" in data.get("message", "").lower() or "proposal" in data.get("message", "").lower()
+
+
+class TestSubmitGoCreatesProposal:
+    """Verify /submit_go_mapping creates a pending proposal, not a direct mapping."""
+
+    @pytest.fixture
+    def submit_go_client(self):
+        """
+        Test client that re-wires the api blueprint to a fresh temp-file DB so
+        go_proposal_model.create_new_pair_go_proposal() can persist rows. The
+        default TestingConfig uses :memory: which creates a separate DB per
+        sqlite3.connect() call, causing 'no such table' at runtime.
+        """
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+        from src.core.models import Database, GoMappingModel, GoProposalModel, CacheModel
+
+        fd, db_path = tempfile.mkstemp()
+        db = Database(db_path)
+        gm = GoMappingModel(db)
+        gpm = GoProposalModel(db)
+        cm = CacheModel(db)
+
+        # Save originals
+        orig_gm = api_mod.go_mapping_model
+        orig_gpm = api_mod.go_proposal_model
+        orig_cm = api_mod.cache_model
+
+        # Inject fresh models
+        api_mod.go_mapping_model = gm
+        api_mod.go_proposal_model = gpm
+        api_mod.cache_model = cm
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+        os.environ["ADMIN_USERS"] = "testuser"
+
+        with flask_app.test_client() as test_client:
+            with flask_app.app_context():
+                with test_client.session_transaction() as sess:
+                    sess["user"] = {"username": "testuser", "email": "test@example.com"}
+                yield test_client
+
+        # Restore originals
+        api_mod.go_mapping_model = orig_gm
+        api_mod.go_proposal_model = orig_gpm
+        api_mod.cache_model = orig_cm
+
+        os.close(fd)
+        os.unlink(db_path)
+
+    def test_submit_go_creates_proposal_not_mapping(self, submit_go_client):
+        """POST /submit_go_mapping returns 200 with proposal_id; no live mapping in DB."""
+        response = submit_go_client.post(
+            "/submit_go_mapping",
+            data={
+                "ke_id": "KE 999",
+                "ke_title": "Test KE for GO",
+                "go_id": "GO:0099999",
+                "go_name": "test biological process",
+                "connection_type": "describes",
+                "confidence_level": "high",
+                "suggestion_score": "0.80",
+            },
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "proposal_id" in data, f"Expected proposal_id in response, got: {data}"
+        assert data["proposal_id"] is not None
+
+    def test_submit_go_response_mentions_pending_review(self, submit_go_client):
+        """Response message indicates pending admin review, not immediate creation."""
+        response = submit_go_client.post(
+            "/submit_go_mapping",
+            data={
+                "ke_id": "KE 998",
+                "ke_title": "Test KE 2 for GO",
+                "go_id": "GO:0098888",
+                "go_name": "another test process",
+                "connection_type": "involves",
+                "confidence_level": "medium",
+            },
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        msg = data.get("message", "").lower()
+        assert "pending" in msg or "proposal" in msg, (
+            f"Expected 'pending' or 'proposal' in message, got: {data.get('message')}"
+        )
+
+    def test_submit_go_no_live_mapping_created(self, submit_go_client):
+        """After submit, ke_go_mappings table must remain empty (proposal only)."""
+        import src.blueprints.api as api_mod
+        response = submit_go_client.post(
+            "/submit_go_mapping",
+            data={
+                "ke_id": "KE 997",
+                "ke_title": "Test KE 3 for GO",
+                "go_id": "GO:0097777",
+                "go_name": "third test process",
+                "connection_type": "related",
+                "confidence_level": "low",
+            },
+        )
+        assert response.status_code == 200
+        # Verify no row was inserted into ke_go_mappings
+        conn = api_mod.go_mapping_model.db.get_connection()
+        count = conn.execute("SELECT COUNT(*) FROM ke_go_mappings").fetchone()[0]
+        conn.close()
+        assert count == 0, f"Expected 0 live mappings after submit, found {count}"
