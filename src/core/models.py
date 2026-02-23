@@ -1495,6 +1495,38 @@ class GoMappingModel:
         """
         conn = self.db.get_connection()
         try:
+            # 0. Check for pending new-pair proposal (mapping_id IS NULL)
+            # New-pair proposals are not linked to a mapping row yet, so the JOIN
+            # below cannot detect them. Query ke_go_proposals directly by ke_id/go_id.
+            cursor = conn.execute(
+                """
+                SELECT id, proposed_confidence, proposed_connection_type,
+                       github_username, created_at, ke_id, go_id, ke_title, go_name
+                FROM ke_go_proposals
+                WHERE ke_id = ? AND go_id = ? AND mapping_id IS NULL AND status = 'pending'
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (ke_id, go_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "pair_exists": True,
+                    "blocking_type": "pending_proposal",
+                    "existing": {
+                        "proposal_id": row["id"],
+                        "ke_id": row["ke_id"],
+                        "go_id": row["go_id"],
+                        "ke_title": row["ke_title"],
+                        "go_name": row["go_name"],
+                        "proposed_confidence": row["proposed_confidence"],
+                        "proposed_connection_type": row["proposed_connection_type"],
+                        "submitted_by": row["github_username"],
+                        "submitted_at": row["created_at"],
+                    },
+                    "actions": ["flag_stale"],
+                }
+
             # 1. Check for pending proposal on the KE-GO pair (highest priority blocking)
             cursor = conn.execute(
                 """
@@ -1594,6 +1626,69 @@ class GoMappingModel:
             )
             row = cursor.fetchone()
             return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def update_go_mapping(
+        self,
+        mapping_id: int,
+        connection_type: str = None,
+        confidence_level: str = None,
+        updated_by: str = None,
+        approved_by_curator: str = None,
+        approved_at_curator: str = None,
+        suggestion_score: float = None,
+    ) -> bool:
+        """
+        Update an existing KE-GO mapping.
+
+        Uses a whitelist to prevent SQL injection.
+        Called at GO proposal approval time to write provenance fields.
+        """
+        ALLOWED_FIELDS = {
+            "connection_type": "connection_type",
+            "confidence_level": "confidence_level",
+            "updated_by": "updated_by",
+            "approved_by_curator": "approved_by_curator",
+            "approved_at_curator": "approved_at_curator",
+            "suggestion_score": "suggestion_score",
+        }
+
+        conn = self.db.get_connection()
+        try:
+            update_clauses = []
+            params = []
+
+            update_data = {
+                "connection_type": connection_type,
+                "confidence_level": confidence_level,
+                "updated_by": updated_by,
+                "approved_by_curator": approved_by_curator,
+                "approved_at_curator": approved_at_curator,
+                "suggestion_score": suggestion_score,
+            }
+
+            for field_name, field_value in update_data.items():
+                if field_value is not None and field_name in ALLOWED_FIELDS:
+                    update_clauses.append(f"{ALLOWED_FIELDS[field_name]} = ?")
+                    params.append(field_value)
+
+            update_clauses.append("updated_at = CURRENT_TIMESTAMP")
+
+            if len(update_clauses) <= 1:  # only the timestamp clause
+                return False
+
+            query = f"UPDATE ke_go_mappings SET {', '.join(update_clauses)} WHERE id = ?"
+            params.append(mapping_id)
+
+            conn.execute(query, params)
+            conn.commit()
+            logger.info("Updated GO mapping %s by %s", mapping_id, updated_by)
+            return True
+        except Exception as e:
+            logger.error("Error updating GO mapping: %s", e)
+            conn.rollback()
+            return False
         finally:
             conn.close()
 
