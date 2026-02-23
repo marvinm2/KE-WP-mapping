@@ -1314,28 +1314,42 @@ def submit_go_mapping():
         if created_by != "anonymous" and not SecurityValidation.validate_username(created_by):
             return jsonify({"error": "Authentication error"}), 401
 
-        if not go_mapping_model:
+        if not go_proposal_model:
             return jsonify({"error": "GO mapping service unavailable"}), 503
 
-        mapping_id = go_mapping_model.create_mapping(
+        # Capture suggestion_score from form (same pattern as /submit at api.py)
+        suggestion_score_raw = request.form.get("suggestion_score")
+        try:
+            suggestion_score = float(suggestion_score_raw) if suggestion_score_raw else None
+        except (ValueError, TypeError):
+            suggestion_score = None
+
+        proposal_id = go_proposal_model.create_new_pair_go_proposal(
             ke_id=ke_id,
             ke_title=ke_title,
             go_id=go_id,
             go_name=go_name,
             connection_type=connection_type,
             confidence_level=confidence_level,
-            created_by=created_by,
+            github_username=created_by,
+            suggestion_score=suggestion_score,
         )
 
-        if mapping_id:
-            logger.info("New GO mapping created: %s -> %s by %s", ke_id, go_id, created_by)
-            return jsonify({"message": "GO mapping added successfully."}), 200
+        if proposal_id:
+            logger.info(
+                "New GO mapping proposal created: %s -> %s by %s (proposal #%s)",
+                ke_id, go_id, created_by, proposal_id,
+            )
+            return jsonify({
+                "message": "GO mapping proposal submitted and is pending admin review.",
+                "proposal_id": proposal_id,
+            }), 200
         else:
-            return jsonify({"error": "The KE-GO pair already exists in the dataset."}), 400
+            return jsonify({"error": "Failed to create GO mapping proposal"}), 500
 
     except Exception as e:
-        logger.error("Error adding GO mapping: %s", e)
-        return jsonify({"error": "Failed to add GO mapping"}), 500
+        logger.error("Error submitting GO mapping proposal: %s", e)
+        return jsonify({"error": "Failed to submit GO mapping proposal"}), 500
 
 
 @api_bp.route("/check_go_entry", methods=["POST"])
