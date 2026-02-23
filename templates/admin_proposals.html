@@ -108,6 +108,7 @@
                     <option value="approved" {{ 'selected' if status_filter == 'approved' else '' }}>Approved</option>
                     <option value="rejected" {{ 'selected' if status_filter == 'rejected' else '' }}>Rejected</option>
                 </select>
+                <a href="/admin/go-proposals" style="margin-left: 20px; color: #307BBF;">View GO Proposals</a>
                 <span id="proposalCount" style="font-weight: bold; color: #307BBF;">
                     {{ proposals|length }} proposal(s) found
                 </span>

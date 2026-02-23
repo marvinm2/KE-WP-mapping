@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin: GO Proposal Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        .proposal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .proposal-actions button { padding: 6px 12px; font-size: 12px; min-width: 80px; }
+        .btn-approve { background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-approve:hover { background-color: #218838; }
+        .btn-reject { background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-reject:hover { background-color: #c82333; }
+        .btn-view { background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-view:hover { background-color: #138496; }
+        .status-pending { color: #fd7e14; font-weight: bold; }
+        .status-approved { color: #28a745; font-weight: bold; }
+        .status-rejected { color: #dc3545; font-weight: bold; }
+        .proposal-detail { font-size: 13px; color: #666; }
+        .filter-section { margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; }
+    </style>
+</head>
+<body>
+<div class="page-container">
+    {% include 'components/navigation.html' %}
+    <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #EB5B25 0%, #29235C 100%); color: white;">
+        <h2 style="margin: 0;">Admin: KE-GO Proposal Management</h2>
+    </div>
+
+    <div class="container">
+        {% if error %}
+            <div style="color: red; font-weight: bold; margin: 20px 0;">Error: {{ error }}</div>
+        {% endif %}
+
+        <div class="filter-section">
+            <h3>Filter Proposals</h3>
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <label>Status Filter:</label>
+                <select id="statusFilter" onchange="filterGoProposals()">
+                    <option value="all" {{ 'selected' if status_filter == 'all' else '' }}>All Proposals</option>
+                    <option value="pending" {{ 'selected' if status_filter == 'pending' else '' }}>Pending Review</option>
+                    <option value="approved" {{ 'selected' if status_filter == 'approved' else '' }}>Approved</option>
+                    <option value="rejected" {{ 'selected' if status_filter == 'rejected' else '' }}>Rejected</option>
+                </select>
+                <a href="/admin/proposals" style="margin-left: 20px; color: #307BBF;">View KE-WP Proposals</a>
+                <span style="font-weight: bold; color: #307BBF;">{{ proposals|length }} proposal(s) found</span>
+            </div>
+        </div>
+
+        <div class="existing-entries-container">
+            <h2>KE-GO Proposal Dashboard</h2>
+            <p>Review and approve or reject KE-GO mapping proposals submitted by curators.</p>
+
+            <table id="goProposalsTable" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>KE &rarr; GO Pair</th>
+                        <th>Proposed Values</th>
+                        <th>Submitted By</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for proposal in proposals %}
+                    <tr>
+                        <td>{{ proposal.id }}</td>
+                        <td>
+                            <strong>{{ proposal.ke_id }}</strong> &rarr; <strong>{{ proposal.go_id }}</strong><br>
+                            <div class="proposal-detail">
+                                {{ proposal.ke_title }}<br>
+                                &rarr; {{ proposal.go_name }}
+                            </div>
+                        </td>
+                        <td>
+                            <div>Connection: <strong>{{ proposal.new_pair_connection_type or proposal.proposed_connection_type }}</strong></div>
+                            <div>Confidence: <strong>{{ proposal.new_pair_confidence_level or proposal.proposed_confidence }}</strong></div>
+                        </td>
+                        <td>
+                            <div><strong>{{ proposal.github_username or proposal.user_name }}</strong></div>
+                        </td>
+                        <td>{{ "%.3f"|format(proposal.suggestion_score) if proposal.suggestion_score else '&mdash;' }}</td>
+                        <td>
+                            <span class="status-{{ proposal.status }}">{{ proposal.status|title }}</span>
+                            {% if proposal.admin_notes %}
+                                <div class="proposal-detail">{{ proposal.admin_notes }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ proposal.created_at_formatted if proposal.created_at_formatted else 'Unknown' }}</td>
+                        <td>
+                            <div class="proposal-actions">
+                                {% if proposal.status == 'pending' %}
+                                    <button class="btn-approve" onclick="approveGoProposal({{ proposal.id }})">Approve</button>
+                                    <button class="btn-reject" onclick="rejectGoProposal({{ proposal.id }})">Reject</button>
+                                {% endif %}
+                                <button class="btn-view" onclick="viewGoProposal({{ proposal.id }})">Details</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="goProposalModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; border: 1px solid #ccc; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.2); width: 600px; max-height: 80vh; overflow-y: auto;">
+        <h3>GO Proposal Details</h3>
+        <div id="goModalContent"></div>
+        <div style="margin-top: 20px;">
+            <textarea id="goAdminNotes" placeholder="Add admin notes (optional)" style="width: 100%; height: 80px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"></textarea>
+        </div>
+        <div style="text-align: right;">
+            <button onclick="closeGoModal()" style="background:#6c757d; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; margin-right:8px;">Close</button>
+            <button id="goModalApproveBtn" onclick="confirmGoApprove()" class="btn-approve" style="display: none; padding:8px 16px;">Approve Proposal</button>
+            <button id="goModalRejectBtn" onclick="confirmGoReject()" class="btn-reject" style="display: none; padding:8px 16px;">Reject Proposal</button>
+        </div>
+    </div>
+    <div id="goModalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;" onclick="closeGoModal()"></div>
+
+    <footer>
+        <p>&copy; 2025 KE-WP Mapping Service - Admin Panel</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/datatable-config.js') }}"></script>
+    <script>
+        let currentGoProposalId = null;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        $(document).ready(function() {
+            $('#goProposalsTable').DataTable(
+                DataTableConfig.merge('base', {
+                    order: [[0, 'desc']],
+                    pageLength: 25,
+                    responsive: true,
+                    columnDefs: [
+                        { width: '5%', targets: 0 },
+                        { width: '25%', targets: 1 },
+                        { width: '18%', targets: 2 },
+                        { width: '12%', targets: 3 },
+                        { width: '8%', targets: 4 },
+                        { width: '8%', targets: 5 },
+                        { width: '10%', targets: 6 },
+                        { width: '14%', targets: 7, orderable: false }
+                    ]
+                })
+            );
+        });
+
+        function filterGoProposals() {
+            const status = document.getElementById('statusFilter').value;
+            const currentUrl = new URL(window.location);
+            currentUrl.searchParams.set('status', status);
+            window.location = currentUrl.toString();
+        }
+
+        function viewGoProposal(proposalId) {
+            currentGoProposalId = proposalId;
+            $.get(`/admin/go-proposals/${proposalId}`)
+                .done(function(proposal) { showGoProposalModal(proposal); })
+                .fail(function(xhr) { alert('Error loading GO proposal: ' + (xhr.responseJSON?.error || 'Unknown error')); });
+        }
+
+        function showGoProposalModal(proposal) {
+            const modal = document.getElementById('goProposalModal');
+            const overlay = document.getElementById('goModalOverlay');
+            const content = document.getElementById('goModalContent');
+            const approveBtn = document.getElementById('goModalApproveBtn');
+            const rejectBtn = document.getElementById('goModalRejectBtn');
+
+            content.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h4>Mapping Information</h4>
+                    <div><strong>KE ID:</strong> ${proposal.ke_id || '&mdash;'}</div>
+                    <div><strong>KE Title:</strong> ${proposal.ke_title || '&mdash;'}</div>
+                    <div><strong>GO ID:</strong> ${proposal.go_id || '&mdash;'}</div>
+                    <div><strong>GO Name:</strong> ${proposal.go_name || '&mdash;'}</div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <h4>Proposed Values</h4>
+                    <div><strong>Connection Type:</strong> ${proposal.new_pair_connection_type || proposal.proposed_connection_type || '&mdash;'}</div>
+                    <div><strong>Confidence Level:</strong> ${proposal.new_pair_confidence_level || proposal.proposed_confidence || '&mdash;'}</div>
+                    <div><strong>BioBERT Score:</strong> ${proposal.suggestion_score !== null && proposal.suggestion_score !== undefined ? Number(proposal.suggestion_score).toFixed(3) : '&mdash;'}</div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <h4>Submission Details</h4>
+                    <div><strong>Submitted By:</strong> ${proposal.github_username || proposal.user_name || '&mdash;'}</div>
+                    <div><strong>Submitted At:</strong> ${proposal.created_at_formatted || proposal.created_at || '&mdash;'}</div>
+                    <div><strong>Status:</strong> <span class="status-${proposal.status}">${proposal.status}</span></div>
+                    ${proposal.admin_notes ? `<div><strong>Admin Notes:</strong> ${proposal.admin_notes}</div>` : ''}
+                    ${proposal.approved_at_formatted ? `<div><strong>Reviewed At:</strong> ${proposal.approved_at_formatted}</div>` : ''}
+                </div>
+            `;
+
+            if (proposal.status === 'pending') {
+                approveBtn.style.display = 'inline-block';
+                rejectBtn.style.display = 'inline-block';
+            } else {
+                approveBtn.style.display = 'none';
+                rejectBtn.style.display = 'none';
+            }
+
+            modal.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+
+        function closeGoModal() {
+            document.getElementById('goProposalModal').style.display = 'none';
+            document.getElementById('goModalOverlay').style.display = 'none';
+            currentGoProposalId = null;
+        }
+
+        function approveGoProposal(proposalId) {
+            currentGoProposalId = proposalId;
+            if (!confirm('Approve this KE-GO proposal? This will create a live mapping.')) return;
+            $.post(`/admin/go-proposals/${proposalId}/approve`, { admin_notes: '', csrf_token: csrfToken })
+                .done(function(response) {
+                    alert(response.message || 'GO proposal approved.');
+                    location.reload();
+                })
+                .fail(function(xhr) {
+                    alert('Error: ' + (xhr.responseJSON?.error || 'Failed to approve GO proposal'));
+                });
+        }
+
+        function rejectGoProposal(proposalId) {
+            currentGoProposalId = proposalId;
+            const reason = prompt('Reason for rejection (optional):') || '';
+            $.post(`/admin/go-proposals/${proposalId}/reject`, { admin_notes: reason, csrf_token: csrfToken })
+                .done(function(response) {
+                    alert(response.message || 'GO proposal rejected.');
+                    location.reload();
+                })
+                .fail(function(xhr) {
+                    alert('Error: ' + (xhr.responseJSON?.error || 'Failed to reject GO proposal'));
+                });
+        }
+
+        function confirmGoApprove() {
+            if (currentGoProposalId) {
+                const notes = document.getElementById('goAdminNotes').value;
+                $.post(`/admin/go-proposals/${currentGoProposalId}/approve`, { admin_notes: notes, csrf_token: csrfToken })
+                    .done(function(response) {
+                        alert(response.message || 'GO proposal approved.');
+                        closeGoModal();
+                        location.reload();
+                    })
+                    .fail(function(xhr) {
+                        alert('Error: ' + (xhr.responseJSON?.error || 'Failed to approve GO proposal'));
+                    });
+            }
+        }
+
+        function confirmGoReject() {
+            if (currentGoProposalId) {
+                const notes = document.getElementById('goAdminNotes').value;
+                $.post(`/admin/go-proposals/${currentGoProposalId}/reject`, { admin_notes: notes, csrf_token: csrfToken })
+                    .done(function(response) {
+                        alert(response.message || 'GO proposal rejected.');
+                        closeGoModal();
+                        location.reload();
+                    })
+                    .fail(function(xhr) {
+                        alert('Error: ' + (xhr.responseJSON?.error || 'Failed to reject GO proposal'));
+                    });
+            }
+        }
+    </script>
+</body>
+</html>
