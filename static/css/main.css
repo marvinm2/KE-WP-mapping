@@ -26,8 +26,31 @@
     --color-text-muted: #666666;
     --color-border-gray: #dddddd;
 
+    /* Page Layout */
+    --color-bg-page: #f5f5f7;
+    --layout-max-width: 1100px;
+
+    /* Semantic Status Colors (BRAND-03) */
+    --color-status-high: #28a745;
+    --color-status-medium: #f59e0b;
+    --color-status-low: #dc3545;
+
+    /* Z-Index Scale (BRAND-04) */
+    --z-footer: 500;
+    --z-dropdown: 1000;
+    --z-modal: 1000;
+    --z-modal-overlay: 999;
+    --z-graph-panel: 10000;
+    --z-tooltip: 10;
+
+    /* Method Badge Colors (VHP4Safety secondary palette) */
+    --color-method-gene: #45A6B2;
+    --color-method-semantic: #64358C;
+    --color-method-text: #EB5B25;
+    --color-method-ontology: #B81178;
+
     /* Typography */
-    --font-family-base: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-family-base: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --font-size-base: 16px;
     --font-size-sm: 14px;
     --font-size-xs: 13px;
@@ -65,8 +88,8 @@ html, body {
     height: 100%;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--color-secondary-light-blue);
+    font-family: var(--font-family-base);
+    background-color: var(--color-bg-page);
     color: var(--color-primary-dark);
     line-height: 1.6;
     font-size: 16px;
@@ -81,7 +104,7 @@ html, body {
 
 .container {
     flex: 1;
-    max-width: 1200px;
+    max-width: var(--layout-max-width);
     margin: 30px auto;
     padding: var(--spacing-5xl);
     background-color: var(--color-bg-light);
@@ -1389,3 +1412,70 @@ select:focus:not(:focus-visible),
     vertical-align: middle;
     margin-left: 8px;
 }
+
+/* ============================================================
+   Phase 8 Utility Classes
+   ============================================================ */
+
+/* Status Badges (BRAND-03) */
+.badge-status-high { background-color: var(--color-status-high); color: white; padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 600; font-size: var(--font-size-xs); }
+.badge-status-medium { background-color: var(--color-status-medium); color: #212529; padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 600; font-size: var(--font-size-xs); }
+.badge-status-low { background-color: var(--color-status-low); color: white; padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 600; font-size: var(--font-size-xs); }
+
+/* Method Badges */
+.badge-method-gene,
+.badge-method-semantic,
+.badge-method-text,
+.badge-method-ontology {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: white;
+}
+.badge-method-gene { background-color: var(--color-method-gene); }
+.badge-method-semantic { background-color: var(--color-method-semantic); }
+.badge-method-text { background-color: var(--color-method-text); }
+.badge-method-ontology { background-color: var(--color-method-ontology); }
+
+/* Modal / Overlay */
+.modal-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: var(--z-modal); background: white; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); padding: 25px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: var(--z-modal-overlay); }
+
+/* Outlined Panel */
+.panel-outlined { background: white; border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: var(--spacing-2xl); }
+
+/* Form Element Resets (sharp + minimal) */
+input, select, textarea, button { font-family: var(--font-family-base); }
+input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, select { border: 1px solid var(--color-border-light); border-radius: 0; padding: 8px 10px; font-size: var(--font-size-sm); }
+
+/* Primary CTA Button */
+.btn-primary { background-color: var(--color-primary-pink); color: white; border: none; border-radius: 0; padding: 10px 20px; font-weight: 600; font-size: var(--font-size-sm); cursor: pointer; transition: opacity 0.2s; }
+.btn-primary:hover { opacity: 0.9; }
+
+/* Link Color Override */
+a { color: var(--color-primary-blue); }
+a:hover { color: var(--color-secondary-teal); }
+
+/* Score Bar Fill */
+.score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+
+/* Select2 Overrides (sharp + minimal) */
+.select2-container--default .select2-selection--single { border: 1px solid var(--color-border-light); border-radius: 0; height: 38px; background-color: white; }
+.select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 38px; color: var(--color-primary-dark); padding-left: 10px; }
+.select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
+.select2-container--default.select2-container--focus .select2-selection--single { border-color: var(--color-primary-blue); box-shadow: var(--shadow-focus); }
+.select2-dropdown { border: 1px solid var(--color-border-light); border-radius: 0; z-index: var(--z-dropdown); }
+.select2-container--default .select2-results__option--highlighted[aria-selected] { background-color: var(--color-primary-blue); }
+
+/* DataTable Header Overrides */
+table.dataTable thead th { background-color: var(--color-primary-dark); color: white; font-weight: 600; font-size: var(--font-size-sm); padding: 10px 12px; border-bottom: 2px solid var(--color-primary-dark); }
+table.dataTable tbody tr:nth-child(even) { background-color: var(--color-bg-light); }
+table.dataTable tbody tr:hover { background-color: #e8f0fe; }
+table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); border-bottom: 1px solid var(--color-border-light); }
+
+/* Text Utility */
+.text-muted-italic { color: var(--color-text-muted); font-style: italic; }
