@@ -13,7 +13,7 @@ from flask import Blueprint, jsonify, render_template, request, session
 from src.utils.timezone import format_local_datetime, utc_to_local
 from src.utils.text import sanitize_log
 
-from src.core.models import MappingModel, ProposalModel
+from src.core.models import GoProposalModel, MappingModel, ProposalModel
 from src.services.monitoring import monitor_performance
 from src.services.rate_limiter import submission_rate_limit
 from src.core.schemas import AdminNotesSchema, SecurityValidation, validate_request_data
@@ -27,16 +27,18 @@ proposal_model = None
 mapping_model = None
 guest_code_model = None
 go_mapping_model = None
+go_proposal_model = None
 cache_model_ref = None
 
 
-def set_models(proposal, mapping, guest_code=None, go_mapping=None, cache_model=None):
+def set_models(proposal, mapping, guest_code=None, go_mapping=None, go_proposal=None, cache_model=None):
     """Set the model instances"""
-    global proposal_model, mapping_model, guest_code_model, go_mapping_model, cache_model_ref
+    global proposal_model, mapping_model, guest_code_model, go_mapping_model, go_proposal_model, cache_model_ref
     proposal_model = proposal
     mapping_model = mapping
     guest_code_model = guest_code
     go_mapping_model = go_mapping
+    go_proposal_model = go_proposal
     cache_model_ref = cache_model
 
 
@@ -403,6 +405,218 @@ def reject_proposal(proposal_id: int):
     except Exception as e:
         logger.error("Error rejecting proposal %s: %s", proposal_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to reject proposal"}), 500
+
+
+@admin_bp.route("/go-proposals")
+@admin_required
+@monitor_performance
+def admin_go_proposals():
+    """
+    Admin dashboard for managing KE-GO proposals.
+
+    Displays all GO proposals with filtering and management capabilities.
+    """
+    try:
+        status_filter = request.args.get("status", "pending")
+        if status_filter == "all":
+            status_filter = None
+
+        proposals = go_proposal_model.get_all_go_proposals(status=status_filter)
+
+        # Format timestamps for local timezone
+        for proposal in proposals:
+            if proposal.get("created_at"):
+                try:
+                    utc_dt = datetime.fromisoformat(proposal["created_at"].replace("Z", "+00:00"))
+                    local_dt = utc_to_local(utc_dt)
+                    proposal["created_at_formatted"] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                except (ValueError, TypeError):
+                    proposal["created_at_formatted"] = proposal["created_at"]
+
+        return render_template(
+            "admin_go_proposals.html",
+            proposals=proposals,
+            status_filter=status_filter or "all",
+        )
+
+    except Exception as e:
+        logger.error("Error loading GO proposals dashboard: %s", sanitize_log(str(e)))
+        return render_template(
+            "admin_go_proposals.html",
+            proposals=[],
+            status_filter="pending",
+            error=str(e),
+        )
+
+
+@admin_bp.route("/go-proposals/<int:proposal_id>")
+@admin_required
+@monitor_performance
+def admin_go_proposal_detail(proposal_id: int):
+    """Return JSON details for a specific GO proposal (used by detail modal)."""
+    try:
+        proposal = go_proposal_model.get_go_proposal_by_id(proposal_id)
+        if not proposal:
+            return jsonify({"error": "GO proposal not found"}), 404
+
+        if proposal.get("created_at"):
+            try:
+                utc_dt = datetime.fromisoformat(proposal["created_at"].replace("Z", "+00:00"))
+                local_dt = utc_to_local(utc_dt)
+                proposal["created_at_formatted"] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            except (ValueError, TypeError):
+                proposal["created_at_formatted"] = proposal["created_at"]
+
+        if proposal.get("approved_at"):
+            try:
+                utc_dt = datetime.fromisoformat(proposal["approved_at"].replace("Z", "+00:00"))
+                local_dt = utc_to_local(utc_dt)
+                proposal["approved_at_formatted"] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            except (ValueError, TypeError):
+                proposal["approved_at_formatted"] = proposal["approved_at"]
+
+        if proposal.get("rejected_at"):
+            try:
+                utc_dt = datetime.fromisoformat(proposal["rejected_at"].replace("Z", "+00:00"))
+                local_dt = utc_to_local(utc_dt)
+                proposal["rejected_at_formatted"] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            except (ValueError, TypeError):
+                proposal["rejected_at_formatted"] = proposal["rejected_at"]
+
+        return jsonify(proposal)
+
+    except Exception as e:
+        logger.error("Error getting GO proposal %s: %s", proposal_id, sanitize_log(str(e)))
+        return jsonify({"error": "Failed to load GO proposal"}), 500
+
+
+@admin_bp.route("/go-proposals/<int:proposal_id>/approve", methods=["POST"])
+@admin_required
+@submission_rate_limit
+def approve_go_proposal(proposal_id: int):
+    """
+    Approve a KE-GO proposal: create the live mapping and write provenance.
+
+    Only handles new-pair proposals (mapping_id IS NULL). All GO proposals
+    submitted via /submit_go_mapping are new-pair proposals.
+    """
+    try:
+        admin_data = {"admin_notes": request.form.get("admin_notes", "")}
+
+        is_valid, validated_data, errors = validate_request_data(
+            AdminNotesSchema, admin_data
+        )
+        if not is_valid:
+            logger.warning("Invalid admin notes in GO approve: %s", errors)
+            return jsonify({"error": "Invalid input data", "details": errors}), 400
+
+        admin_notes = SecurityValidation.sanitize_string(
+            validated_data["admin_notes"], max_length=1000
+        )
+        admin_username = session.get("user", {}).get("username")
+
+        if not SecurityValidation.validate_username(admin_username):
+            logger.error("Invalid admin username in GO approve: %s", admin_username)
+            return jsonify({"error": "Authentication error"}), 401
+
+        proposal = go_proposal_model.get_go_proposal_by_id(proposal_id)
+        if not proposal:
+            return jsonify({"error": "GO proposal not found"}), 404
+
+        if proposal["status"] != "pending":
+            return jsonify({"error": f"GO proposal is already {proposal['status']}"}), 400
+
+        # All GO proposals are new-pair proposals (mapping_id IS NULL)
+        # Revision/delete branches are not yet supported for GO mappings.
+        approved_at = datetime.utcnow().isoformat()
+        proposal_score = proposal.get("suggestion_score")
+
+        new_mapping_id = go_mapping_model.create_mapping(
+            ke_id=proposal["ke_id"],
+            ke_title=proposal["ke_title"],
+            go_id=proposal["go_id"],
+            go_name=proposal["go_name"],
+            connection_type=proposal.get("new_pair_connection_type") or proposal.get("proposed_connection_type"),
+            confidence_level=proposal.get("new_pair_confidence_level") or proposal.get("proposed_confidence"),
+            created_by=proposal.get("github_username") or admin_username,
+        )
+
+        if new_mapping_id:
+            go_mapping_model.update_go_mapping(
+                mapping_id=new_mapping_id,
+                approved_by_curator=admin_username,
+                approved_at_curator=approved_at,
+                suggestion_score=proposal_score,
+            )
+            go_proposal_model.update_go_proposal_status(
+                proposal_id=proposal_id,
+                status="approved",
+                admin_username=admin_username,
+                admin_notes=admin_notes,
+            )
+            logger.info(
+                "GO proposal %s approved by %s, mapping %s created",
+                proposal_id, sanitize_log(admin_username), new_mapping_id,
+            )
+            return jsonify({
+                "message": "GO proposal approved successfully. Mapping created.",
+                "action": "created",
+            }), 200
+        else:
+            return jsonify({"error": "Failed to create GO mapping (pair may already exist)"}), 500
+
+    except Exception as e:
+        logger.error("Error approving GO proposal %s: %s", proposal_id, sanitize_log(str(e)))
+        return jsonify({"error": "Failed to approve GO proposal"}), 500
+
+
+@admin_bp.route("/go-proposals/<int:proposal_id>/reject", methods=["POST"])
+@admin_required
+@submission_rate_limit
+def reject_go_proposal(proposal_id: int):
+    """Reject a KE-GO proposal with optional admin notes."""
+    try:
+        admin_data = {"admin_notes": request.form.get("admin_notes", "")}
+
+        is_valid, validated_data, errors = validate_request_data(
+            AdminNotesSchema, admin_data
+        )
+        if not is_valid:
+            logger.warning("Invalid admin notes in GO reject: %s", errors)
+            return jsonify({"error": "Invalid input data", "details": errors}), 400
+
+        admin_notes = SecurityValidation.sanitize_string(
+            validated_data["admin_notes"], max_length=1000
+        )
+        admin_username = session.get("user", {}).get("username")
+
+        if not SecurityValidation.validate_username(admin_username):
+            logger.error("Invalid admin username in GO reject: %s", admin_username)
+            return jsonify({"error": "Authentication error"}), 401
+
+        proposal = go_proposal_model.get_go_proposal_by_id(proposal_id)
+        if not proposal:
+            return jsonify({"error": "GO proposal not found"}), 404
+
+        if proposal["status"] != "pending":
+            return jsonify({"error": f"GO proposal is already {proposal['status']}"}), 400
+
+        success = go_proposal_model.update_go_proposal_status(
+            proposal_id=proposal_id,
+            status="rejected",
+            admin_username=admin_username,
+            admin_notes=admin_notes or "No reason provided",
+        )
+
+        if success:
+            logger.info("GO proposal %s rejected by %s", proposal_id, sanitize_log(admin_username))
+            return jsonify({"message": "GO proposal rejected successfully."}), 200
+        else:
+            return jsonify({"error": "Failed to reject GO proposal"}), 500
+
+    except Exception as e:
+        logger.error("Error rejecting GO proposal %s: %s", proposal_id, sanitize_log(str(e)))
+        return jsonify({"error": "Failed to reject GO proposal"}), 500
 
 
 @admin_bp.route("/guest-codes")
