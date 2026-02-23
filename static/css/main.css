@@ -113,124 +113,188 @@ html, body {
     overflow: visible;
 }
 
-/* Header */
-header {
-    background-color: var(--color-primary-blue);
-    padding: var(--spacing-3xl) var(--spacing-2xl);
-    text-align: center;
+/* ==========================================
+   Site Header — Single-bar navigation
+   ========================================== */
+.site-header {
+    background-color: var(--color-primary-dark);
+    padding: 0;
+    margin: 0;
+    position: sticky;
+    top: 0;
+    z-index: var(--z-dropdown);
+}
+
+.site-header__inner {
+    max-width: var(--layout-max-width);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    height: 56px;
+}
+
+.site-header__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 20px 0 16px;
+    flex-shrink: 0;
+}
+
+.site-header__vhp-logo {
     color: white;
-    position: relative;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
 }
 
-header h1 {
-    margin: 0 0 10px 0;
-    font-size: 2.2em;
-    font-weight: 300;
+.site-header__divider {
+    width: 1px;
+    height: 24px;
+    background-color: rgba(255,255,255,0.3);
 }
 
-/* Navigation tabs */
-.nav-tabs {
+.site-header__app-name {
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+}
+
+.site-nav {
+    flex: 1;
+}
+
+.site-nav__list {
     display: flex;
     list-style: none;
     margin: 0;
     padding: 0;
-    gap: 0;
+    height: 56px;
+}
+
+.site-nav__link {
+    display: flex;
     align-items: center;
-}
-
-.nav-tabs li {
-    margin: 0;
-}
-
-.nav-link {
-    display: block;
-    padding: var(--spacing-2xl) var(--spacing-3xl);
-    color: white;
+    padding: 0 16px;
+    color: rgba(255,255,255,0.85);
     text-decoration: none;
-    border-bottom: 3px solid transparent;
-    transition: all 0.3s ease;
+    font-size: var(--font-size-sm);
     font-weight: 500;
-    font-size: 14px;
+    height: 100%;
+    transition: background-color 0.2s;
 }
 
-.nav-link:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-bottom-color: var(--color-secondary-light-blue);
+.site-nav__link:hover {
+    background-color: rgba(255,255,255,0.08);
+    color: white;
 }
 
-.nav-link.active {
-    background-color: white;
-    color: var(--color-primary-blue);
-    border-bottom-color: var(--color-primary-pink);
+.site-nav__link.active {
+    background-color: rgba(255,255,255,0.15);
+    color: white;
     font-weight: 600;
 }
 
-@media (max-width: 768px) {
-    header h1 {
-        font-size: 1.4em !important;
-    }
-
-    .nav-tabs {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-
-    .nav-link {
-        padding: var(--spacing-md) var(--spacing-xl);
-        font-size: 13px;
-    }
-
-    nav {
-        flex-direction: column;
-        align-items: center !important;
-    }
-
-    nav > div {
-        margin-left: 0 !important;
-        margin-top: 10px;
-    }
-}
-
-/* Legacy nav styles for pages not yet migrated */
-nav button {
-    background-color: var(--color-primary-pink);
-    color: white;
-    padding: 12px 24px;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    min-width: 140px;
-}
-
-nav button:hover {
-    background-color: var(--color-secondary-teal);
-}
-
-/* GitHub login styling */
-.github-login {
+.site-header__user {
+    padding: 0 16px;
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
+    color: rgba(255,255,255,0.85);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
-.github-login p {
-    margin: 0;
-    color: white;
+.site-header__username {
     font-weight: 500;
+    color: white;
 }
 
-.github-login a {
+.site-header__role {
+    font-weight: 700;
+    font-size: var(--font-size-xs);
+}
+
+.site-header__role--admin {
+    color: var(--color-secondary-orange);
+}
+
+.site-header__role--guest {
+    color: var(--color-secondary-light-blue);
+}
+
+.site-header__auth-link {
     color: white;
     text-decoration: none;
     font-weight: 500;
-    transition: opacity 0.3s ease;
 }
 
-.github-login a:hover {
-    opacity: 0.8;
+.site-header__auth-link:hover {
     text-decoration: underline;
+    color: white;
+}
+
+.site-header__auth-link--guest {
+    color: var(--color-secondary-light-blue);
+}
+
+.site-header__auth-sep {
+    color: rgba(255,255,255,0.3);
+    margin: 0 4px;
+}
+
+/* ==========================================
+   Site Footer — Document flow
+   ========================================== */
+.site-footer {
+    background-color: var(--color-bg-lighter);
+    border-top: 1px solid var(--color-border-light);
+    padding: 16px 0;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: auto;
+}
+
+.site-footer__inner {
+    max-width: var(--layout-max-width);
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 0 16px;
+}
+
+.site-footer__org {
+    font-weight: 600;
+    color: var(--color-text-gray);
+}
+
+.site-footer__sep {
+    color: var(--color-border-light);
+}
+
+.site-footer__link {
+    color: var(--color-primary-blue);
+    text-decoration: none;
+}
+
+.site-footer__link:hover {
+    text-decoration: underline;
+}
+
+.site-footer__doi a {
+    color: var(--color-primary-blue);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.site-footer__version {
+    color: var(--color-text-muted);
 }
 
 /* DataTables specific */
@@ -632,46 +696,12 @@ summary:hover {
     color: var(--color-primary-blue);
 }
 
-/* Footer */
-footer {
-    background-color: var(--color-primary-blue);
-    padding: 10px;
-    text-align: center;
-    color: white;
-    position: relative;
-    width: 100%;
-    bottom: 0;
-}
-
-footer p {
-    margin: 0;
-    font-weight: 300;
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
     .container {
         margin: 15px;
         padding: var(--spacing-2xl);
         border-radius: var(--radius-xl);
-    }
-
-    header {
-        padding: var(--spacing-2xl) 15px;
-    }
-
-    header h1 {
-        font-size: 1.8em;
-    }
-
-    nav {
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    nav button {
-        min-width: 100%;
-        padding: 14px 20px;
     }
 
     section {
@@ -724,10 +754,6 @@ footer p {
         padding: var(--spacing-xl);
     }
 
-    header h1 {
-        font-size: 1.6em;
-    }
-
     section h2 {
         font-size: 1.3em;
     }
@@ -737,7 +763,7 @@ footer p {
         font-size: 12px;
     }
 
-    nav button, button, .btn {
+    button, .btn {
         padding: 10px 16px;
         font-size: 13px;
         min-width: 100px;

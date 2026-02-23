@@ -1,58 +1,65 @@
-<header style="background-color: #307BBF; padding: 0; margin: 0;">
-    <div style="max-width: 1400px; margin: 0 auto;">
-        <!-- Title Section -->
-        <div style="text-align: center; padding: 20px;">
-            <h1 style="margin: 0; color: white; font-size: 2em; font-weight: 300;">Map Key Events to WikiPathways</h1>
-            {% if zenodo_meta and zenodo_meta.doi %}
-            <div style="margin-top:6px;font-size:13px;color:rgba(255,255,255,0.85);">
-                Cite: <a href="https://doi.org/{{ zenodo_meta.doi }}" style="color:white;font-weight:600;" target="_blank" rel="noopener">{{ zenodo_meta.concept_doi or zenodo_meta.doi }}</a>
-            </div>
-            {% endif %}
-        </div>
+{# NOTE: Pages must include Google Fonts Inter in their <head>:
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+#}
 
-        <!-- Navigation Tabs -->
-        <nav style="display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap;">
-            <ul class="nav-tabs">
-                <li><a href="/" class="nav-link {{ 'active' if request.path == '/' else '' }}">Mapping</a></li>
-                <li><a href="/explore" class="nav-link {{ 'active' if request.path == '/explore' else '' }}">Explore</a></li>
-                <li><a href="/stats" class="nav-link {{ 'active' if request.path == '/stats' else '' }}">Stats</a></li>
-                <li><a href="/downloads" class="nav-link {{ 'active' if request.path == '/downloads' else '' }}">Downloads</a></li>
-                <li><a href="/documentation" class="nav-link {{ 'active' if request.path.startswith('/documentation') else '' }}">Documentation</a></li>
-                {% if is_admin %}
-                <li><a href="/admin/proposals" class="nav-link {{ 'active' if request.path == '/admin/proposals' else '' }}">Admin</a></li>
-                <li><a href="/admin/guest-codes" class="nav-link {{ 'active' if request.path == '/admin/guest-codes' else '' }}">Guest Codes</a></li>
-                {% endif %}
-            </ul>
-
-            <!-- GitHub Login Section -->
-            <div style="padding: 15px 20px; margin-left: 20px;">
-                <div class="github-login">
-                    {% if session.get('user') %}
-                        <p style="margin: 0; color: white; font-weight: 500;">
-                            Welcome, {{ session['user']['username'] }}
-                            {% if is_admin %}
-                                <span style="color: #EB5B25; font-weight: bold;">(Admin)</span>
-                            {% elif is_guest %}
-                                <span style="color: #93D5F6; font-weight: bold;">(Guest)</span>
-                            {% endif %}
-                        </p>
-                        <a href="{{ url_for('auth.logout') }}" style="color: white; margin-left: 10px;">Logout</a>
-                    {% else %}
-                        <a href="{{ url_for('auth.login') }}" style="color: white;">Login with GitHub</a>
-                        <span style="color: rgba(255,255,255,0.5); margin: 0 8px;">|</span>
-                        <a href="{{ url_for('auth.guest_login') }}" style="color: #93D5F6;">Workshop Login</a>
-                    {% endif %}
-                </div>
-            </div>
-        </nav>
+<!-- HEADER: Single horizontal bar -->
+<header class="site-header">
+  <div class="site-header__inner">
+    <div class="site-header__brand">
+      <span class="site-header__vhp-logo">VHP4Safety</span>
+      <span class="site-header__divider"></span>
+      <span class="site-header__app-name">Molecular AOP Builder</span>
     </div>
+    <nav class="site-nav">
+      <ul class="site-nav__list">
+        <li><a href="/" class="site-nav__link {{ 'active' if request.path == '/' else '' }}">Map</a></li>
+        <li><a href="/explore" class="site-nav__link {{ 'active' if request.path == '/explore' else '' }}">Explore</a></li>
+        <li><a href="/stats" class="site-nav__link {{ 'active' if request.path == '/stats' else '' }}">Stats</a></li>
+        <li><a href="/downloads" class="site-nav__link {{ 'active' if request.path == '/downloads' else '' }}">Downloads</a></li>
+        <li><a href="/documentation" class="site-nav__link {{ 'active' if request.path.startswith('/documentation') else '' }}">Docs</a></li>
+        {% if is_admin %}
+        <li><a href="/admin/proposals" class="site-nav__link {{ 'active' if request.path.startswith('/admin') else '' }}">Admin</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    <div class="site-header__user">
+      {% if session.get('user') %}
+        <span class="site-header__username">{{ session['user']['username'] }}</span>
+        {% if is_admin %}
+          <span class="site-header__role site-header__role--admin">Admin</span>
+        {% elif is_guest %}
+          <span class="site-header__role site-header__role--guest">Guest</span>
+        {% endif %}
+        <a href="{{ url_for('auth.logout') }}" class="site-header__auth-link">Logout</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}" class="site-header__auth-link">Login with GitHub</a>
+        <span class="site-header__auth-sep">|</span>
+        <a href="{{ url_for('auth.guest_login') }}" class="site-header__auth-link site-header__auth-link--guest">Workshop Login</a>
+      {% endif %}
+    </div>
+  </div>
 </header>
-<footer style="background-color: #f8f9fa; border-top: 1px solid #e2e8f0; padding: 12px 0; text-align: center; font-size: 12px; color: #666; position: fixed; bottom: 0; left: 0; right: 0; z-index: 500;">
-    <div style="max-width: 1400px; margin: 0 auto; display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;">
-        <a href="/docs" style="color: #307BBF; text-decoration: none;">API Guide</a>
-        <a href="/api/docs" style="color: #307BBF; text-decoration: none;">Interactive API Docs</a>
-        <a href="/documentation" style="color: #307BBF; text-decoration: none;">Documentation</a>
-        <span style="color: #ccc;">|</span>
-        <span>&copy; 2025 KE-WP Mapping Service</span>
+
+<!-- FOOTER: Document flow, not fixed position -->
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__brand">
+      <span class="site-footer__org">VHP4Safety</span>
+      <span class="site-footer__sep">&middot;</span>
+      <span class="site-footer__org">Maastricht University</span>
     </div>
+    <div class="site-footer__links">
+      <a href="/documentation" class="site-footer__link">Documentation</a>
+      <a href="/api/docs" class="site-footer__link">API</a>
+      <a href="/downloads" class="site-footer__link">Downloads</a>
+    </div>
+    <div class="site-footer__meta">
+      {% if zenodo_meta and zenodo_meta.doi %}
+      <span class="site-footer__doi">DOI: <a href="https://doi.org/{{ zenodo_meta.doi }}" target="_blank" rel="noopener">{{ zenodo_meta.concept_doi or zenodo_meta.doi }}</a></span>
+      <span class="site-footer__sep">&middot;</span>
+      {% endif %}
+      <span class="site-footer__version">&copy; {{ now().year if now is defined else '2026' }} Molecular AOP Builder</span>
+    </div>
+  </div>
 </footer>
