@@ -295,6 +295,36 @@ class TestListGoMappings:
         data = response.get_json()
         assert "error" in data
 
+    def test_go_mapping_approved_by_non_null_after_approval(self, v1_client):
+        """
+        Verifies CURAT-01: a GO mapping created via the approval workflow
+        (simulated by _seed_go_mapping with provenance) returns non-null
+        approved_by and approved_at fields in GET /api/v1/go-mappings.
+        """
+        test_client, mm, gm = v1_client
+        _seed_go_mapping(
+            gm,
+            ke_id="KE PROV1",
+            go_id="GO:0001111",
+            go_name="provenance test process",
+        )
+
+        response = test_client.get("/api/v1/go-mappings")
+        assert response.status_code == 200
+        data = response.get_json()
+        items = data.get("data", [])
+        assert len(items) == 1
+
+        item = items[0]
+        prov = item.get("provenance", {})
+        assert prov.get("approved_by") is not None, (
+            f"Expected non-null provenance.approved_by, got: {prov.get('approved_by')}"
+        )
+        assert prov.get("approved_at") is not None, (
+            f"Expected non-null provenance.approved_at, got: {prov.get('approved_at')}"
+        )
+        assert prov["approved_by"] == "test_curator"
+
 
 class TestCors:
     def test_cors_header_present(self, v1_client):
