@@ -200,6 +200,9 @@ class Database:
             # Migrate proposals table to add new-pair fields (Phase 3 gap closure)
             self._migrate_proposals_new_pair_fields(conn)
 
+            # Migrate ke_go_proposals table to add new-pair fields (Phase 7)
+            self._migrate_go_proposals_new_pair_fields(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -574,6 +577,50 @@ class Database:
 
         except Exception as e:
             logger.error("Error migrating proposals new-pair fields: %s", e)
+            raise
+
+    def _migrate_go_proposals_new_pair_fields(self, conn):
+        """
+        Add new-pair columns to ke_go_proposals table if they don't exist.
+
+        New-pair proposals (mapping_id=NULL) need to store the pair data that would
+        normally come from the joined ke_go_mappings row.
+
+        Columns added:
+            - ke_id TEXT
+            - ke_title TEXT
+            - go_id TEXT
+            - go_name TEXT
+            - new_pair_connection_type TEXT
+            - new_pair_confidence_level TEXT
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            fields_to_add = [
+                ("ke_id", "TEXT"),
+                ("ke_title", "TEXT"),
+                ("go_id", "TEXT"),
+                ("go_name", "TEXT"),
+                ("new_pair_connection_type", "TEXT"),
+                ("new_pair_confidence_level", "TEXT"),
+            ]
+            for field_name, field_type in fields_to_add:
+                if field_name not in columns:
+                    conn.execute(
+                        f"ALTER TABLE ke_go_proposals ADD COLUMN {field_name} {field_type}"
+                    )
+                    new_columns.append(field_name)
+
+            if new_columns:
+                logger.info(
+                    "Migrated ke_go_proposals table with new-pair fields: %s", new_columns
+                )
+
+        except Exception as e:
+            logger.error("Error migrating ke_go_proposals new-pair fields: %s", e)
             raise
 
 
@@ -1656,6 +1703,156 @@ class GoProposalModel:
             logger.error("Error creating GO proposal: %s", e)
             conn.rollback()
             return None
+        finally:
+            conn.close()
+
+    def create_new_pair_go_proposal(
+        self,
+        ke_id: str,
+        ke_title: str,
+        go_id: str,
+        go_name: str,
+        connection_type: str,
+        confidence_level: str,
+        github_username: str = None,
+        suggestion_score: float = None,
+    ) -> Optional[int]:
+        """
+        Create a new-pair GO proposal where no existing mapping_id exists yet.
+
+        The mapping is created only after an admin explicitly approves this proposal.
+        mapping_id is left NULL so approve_go_proposal() knows to call create_mapping()
+        at approval time.
+        """
+        proposal_uuid = str(uuid_lib.uuid4())
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO ke_go_proposals (
+                    mapping_id, user_name, user_email, user_affiliation,
+                    github_username, proposed_delete, proposed_confidence,
+                    proposed_connection_type, uuid, suggestion_score,
+                    ke_id, ke_title, go_id, go_name,
+                    new_pair_connection_type, new_pair_confidence_level
+                )
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    github_username or "curator",
+                    "",
+                    "",
+                    github_username,
+                    False,
+                    confidence_level,
+                    connection_type,
+                    proposal_uuid,
+                    suggestion_score,
+                    ke_id,
+                    ke_title,
+                    go_id,
+                    go_name,
+                    connection_type,
+                    confidence_level,
+                ),
+            )
+            conn.commit()
+            logger.info(
+                "Created new-pair GO proposal for %s -> %s by %s, UUID=%s",
+                ke_id,
+                go_id,
+                github_username,
+                proposal_uuid,
+            )
+            return cursor.lastrowid
+        except Exception as e:
+            logger.error("Error creating new-pair GO proposal: %s", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def get_all_go_proposals(self, status: str = None) -> List[Dict]:
+        """Get all GO proposals, optionally filtered by status."""
+        conn = self.db.get_connection()
+        try:
+            query = """
+                SELECT p.*,
+                       m.ke_id as mapping_ke_id, m.ke_title as mapping_ke_title,
+                       m.go_id as mapping_go_id, m.go_name as mapping_go_name,
+                       m.connection_type as current_connection_type,
+                       m.confidence_level as current_confidence_level
+                FROM ke_go_proposals p
+                LEFT JOIN ke_go_mappings m ON p.mapping_id = m.id
+            """
+            params = ()
+            if status:
+                query += " WHERE p.status = ?"
+                params = (status,)
+            query += " ORDER BY p.created_at DESC"
+            cursor = conn.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_go_proposal_by_id(self, proposal_id: int) -> Optional[Dict]:
+        """Get a specific GO proposal by ID with mapping details."""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT p.*,
+                       m.ke_id as mapping_ke_id, m.ke_title as mapping_ke_title,
+                       m.go_id as mapping_go_id, m.go_name as mapping_go_name,
+                       m.connection_type as current_connection_type,
+                       m.confidence_level as current_confidence_level
+                FROM ke_go_proposals p
+                LEFT JOIN ke_go_mappings m ON p.mapping_id = m.id
+                WHERE p.id = ?
+                """,
+                (proposal_id,),
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def update_go_proposal_status(
+        self,
+        proposal_id: int,
+        status: str,
+        admin_username: str = None,
+        admin_notes: str = None,
+    ) -> bool:
+        """Update GO proposal status and admin information."""
+        if status not in ["approved", "rejected"]:
+            logger.error("Invalid GO proposal status: %s", status)
+            return False
+
+        conn = self.db.get_connection()
+        try:
+            if status == "approved":
+                query = """
+                    UPDATE ke_go_proposals
+                    SET status = ?, approved_by = ?, admin_notes = ?, approved_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """
+            else:
+                query = """
+                    UPDATE ke_go_proposals
+                    SET status = ?, rejected_by = ?, admin_notes = ?, rejected_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """
+            conn.execute(query, (status, admin_username, admin_notes, proposal_id))
+            conn.commit()
+            logger.info(
+                "Updated GO proposal %s to %s by %s", proposal_id, status, admin_username
+            )
+            return True
+        except Exception as e:
+            logger.error("Error updating GO proposal %s: %s", proposal_id, e)
+            conn.rollback()
+            return False
         finally:
             conn.close()
 
