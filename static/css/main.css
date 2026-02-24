@@ -2212,15 +2212,15 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
 
 /* GO match badge (small inline) */
 .badge-match--semantic {
-    background: #f3e5f5;
-    color: #6a1b9a;
+    background: var(--color-method-semantic);
+    color: white;
     padding: 2px 6px;
     border-radius: 3px;
     font-size: 10px;
 }
 .badge-match--gene {
-    background: #d4edda;
-    color: #155724;
+    background: var(--color-method-gene);
+    color: white;
     padding: 2px 6px;
     border-radius: 3px;
     font-size: 10px;
@@ -2230,9 +2230,9 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
 .ontology-tag-chip {
     font-size: 10px;
     padding: 2px 6px;
-    background: #e8f5e9;
-    color: #2e7d32;
-    border: 1px solid #a5d6a7;
+    background: var(--color-bg-light);
+    color: var(--color-method-gene);
+    border: 1px solid var(--color-border-light);
     border-radius: 3px;
     white-space: nowrap;
 }
