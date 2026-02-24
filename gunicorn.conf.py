@@ -2,12 +2,12 @@
 # Gunicorn configuration for KE-WP Mapping application.
 # Source: https://gunicorn.org/reference/settings
 #
-# Worker count: start with 2 (conservative for BioBERT ~440MB model).
-# After deployment, measure with `docker stats ke-wp-mapping-web-1`.
-# Increase to 3 or 4 if total RAM stays under 4GB.
+# Worker count: 1 worker to ensure in-memory session consistency
+# (CSRF tokens, OAuth state). With preload_app=True the BioBERT model
+# is loaded once in the master process anyway.
 
 bind = "0.0.0.0:5000"
-workers = 2          # Each marginal worker adds ~80MB overhead (model shared via fork COW)
+workers = 1          # Single worker to ensure session consistency (CSRF, OAuth state)
 worker_class = "sync"
 timeout = 120        # BioBERT inference can be slow on first request
 keepalive = 5
