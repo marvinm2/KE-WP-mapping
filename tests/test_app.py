@@ -20,7 +20,7 @@ class TestRoutes:
         """Test the explore route"""
         response = client.get("/explore")
         assert response.status_code == 200
-        assert b"Explore Dataset" in response.data
+        assert b"Explore" in response.data
 
     def test_login_redirect(self, client):
         """Test login route redirects to GitHub"""

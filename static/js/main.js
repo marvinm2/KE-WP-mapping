@@ -584,10 +584,10 @@ class KEWPApp {
                         <h4 class="preview-header-ke">Key Event Information</h4>
                         <p><strong>KE ID:</strong> ${formData.ke_id}</p>
                         <p><strong>KE Title:</strong> ${formData.ke_title}</p>
-                        <p><strong>Biological Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${biolevel || 'Not specified'}</span></p>
+                        <p><strong>Biological Level:</strong> <span class="biolevel-chip">${biolevel || 'Not specified'}</span></p>
                         <div><strong>Description:</strong><br/>${keDescHtml}</div>
                     </div>
-                    
+
                     <div class="preview-section wp-section preview-section-wp">
                         <h4 class="preview-header-wp">Pathway Information</h4>
                         <p><strong>WP ID:</strong> ${formData.wp_id}</p>
@@ -595,19 +595,19 @@ class KEWPApp {
                         <div><strong>Description:</strong><br/>${pwDescHtml}</div>
                     </div>
                 </div>
-                
+
                 <div class="preview-section preview-section-metadata">
                     <h4 class="preview-header-metadata">Mapping Metadata</h4>
                     <div class="grid-two-column">
                         <div>
-                            <p><strong>Connection Type:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
-                            <p><strong>Confidence Level:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span></p>
+                            <p><strong>Connection Type:</strong> <span class="metadata-chip">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
+                            <p><strong>Confidence Level:</strong> <span class="metadata-chip">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span></p>
                         </div>
                         <div>
                             <p><strong>Submitted by:</strong> ${userInfo}</p>
                             <p><strong>Submission time:</strong> ${currentDate}</p>
-                            <p><strong>Entry status:</strong> <span style="color: #28a745; font-weight: 600;">New mapping</span></p>
-                            <p><strong>Data sources:</strong> <span style="font-size: 12px; color: #666;">AOP-Wiki, WikiPathways</span></p>
+                            <p><strong>Entry status:</strong> <span class="entry-status-new">New mapping</span></p>
+                            <p><strong>Data sources:</strong> <span class="text-muted" style="font-size: 12px;">AOP-Wiki, WikiPathways</span></p>
                         </div>
                     </div>
                 </div>
@@ -674,10 +674,10 @@ class KEWPApp {
                         <h4 class="preview-header-ke">Key Event Information</h4>
                         <p><strong>KE ID:</strong> ${formData.ke_id}</p>
                         <p><strong>KE Title:</strong> ${formData.ke_title}</p>
-                        <p><strong>Biological Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${biolevel || 'Not specified'}</span></p>
+                        <p><strong>Biological Level:</strong> <span class="biolevel-chip">${biolevel || 'Not specified'}</span></p>
                         <div><strong>Description:</strong><br/>${keDescHtml}</div>
                     </div>
-                    
+
                     <div class="preview-section wp-section preview-section-wp">
                         <h4 class="preview-header-wp">Pathway Information</h4>
                         <p><strong>WP ID:</strong> ${formData.wp_id}</p>
@@ -685,19 +685,19 @@ class KEWPApp {
                         <div><strong>Description:</strong><br/>${pwDescHtml}</div>
                     </div>
                 </div>
-                
+
                 <div class="preview-section preview-section-metadata">
                     <h4 class="preview-header-metadata">Mapping Metadata</h4>
                     <div class="grid-two-column">
                         <div>
-                            <p><strong>Connection Type:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
-                            <p><strong>Confidence Level:</strong> <span style="background-color: #ffd7b5; padding: 2px 8px; border-radius: 3px; font-weight: 600;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span></p>
+                            <p><strong>Connection Type:</strong> <span class="metadata-chip">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span></p>
+                            <p><strong>Confidence Level:</strong> <span class="metadata-chip">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span></p>
                         </div>
                         <div>
                             <p><strong>Submitted by:</strong> ${userInfo}</p>
                             <p><strong>Submission time:</strong> ${currentDate}</p>
-                            <p><strong>Entry status:</strong> <span style="color: #28a745; font-weight: 600;">New mapping</span></p>
-                            <p><strong>Data sources:</strong> <span style="font-size: 12px; color: #666;">AOP-Wiki, WikiPathways</span></p>
+                            <p><strong>Entry status:</strong> <span class="entry-status-new">New mapping</span></p>
+                            <p><strong>Data sources:</strong> <span class="text-muted" style="font-size: 12px;">AOP-Wiki, WikiPathways</span></p>
                         </div>
                     </div>
                 </div>
@@ -792,7 +792,7 @@ class KEWPApp {
                 <div class="loading-subtitle">
                     Processing ${pathwayIds.length} pathway mapping(s)...
                 </div>
-                <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <div class="spinner spinner--lg"></div>
                 <div id="submission-progress" class="loading-progress">
                     Preparing submissions...
                 </div>
@@ -1148,33 +1148,33 @@ class KEWPApp {
         this.removeKEContextPanel();
 
         const biolevelBadge = data.biolevel
-            ? `<span class="ke-biolevel-badge" style="background-color: ${this.getBiolevelColor(data.biolevel)};">${this.escapeHtml(data.biolevel)}</span>`
+            ? `<span class="ke-biolevel-badge ke-biolevel-badge--${this.escapeHtml(data.biolevel.toLowerCase())}">${this.escapeHtml(data.biolevel)}</span>`
             : '';
 
         const aopWikiLink = data.ke_page
-            ? `<a href="${this.escapeHtml(data.ke_page)}" target="_blank" rel="noopener noreferrer" style="color: #307BBF; font-size: 13px;">View on AOP-Wiki &rarr;</a>`
+            ? `<a href="${this.escapeHtml(data.ke_page)}" target="_blank" rel="noopener noreferrer" style="font-size: 13px;">View on AOP-Wiki &rarr;</a>`
             : '';
 
         // Description with collapsible truncation
         const descriptionHTML = data.ke_description
             ? this.createCollapsibleDescription(data.ke_description, 'ke-context-description')
-            : '<em style="color:#888;">No description available</em>';
+            : '<em class="text-muted-italic">No description available</em>';
 
         // AOP membership list
         let aopSection = '';
         if (data.aop_membership && data.aop_membership.length > 0) {
-            aopSection = `<details style="margin-top:8px;"><summary style="font-size:13px;font-weight:600;color:#555;">AOP Membership (${data.aop_membership.length})</summary>
+            aopSection = `<details style="margin-top:8px;"><summary style="font-size:13px;font-weight:600;">AOP Membership (${data.aop_membership.length})</summary>
             <table class="context-table"><thead><tr><th>AOP</th><th>Title</th></tr></thead><tbody>`;
             data.aop_membership.forEach(aop => {
                 const aopNum = aop.aop_id.replace('AOP ', '');
                 aopSection += `<tr>
-                    <td><a href="https://aopwiki.org/aops/${aopNum}" target="_blank" style="color:#307BBF;">${this.escapeHtml(aop.aop_id)}</a></td>
+                    <td><a href="https://aopwiki.org/aops/${aopNum}" target="_blank">${this.escapeHtml(aop.aop_id)}</a></td>
                     <td>${this.escapeHtml(aop.aop_title)}</td>
                 </tr>`;
             });
             aopSection += `</tbody></table></details>`;
         } else {
-            aopSection = `<p style="font-size:13px;color:#888;margin:4px 0;">No AOP membership found for this KE.</p>`;
+            aopSection = `<p style="font-size:13px;margin:4px 0;" class="text-muted">No AOP membership found for this KE.</p>`;
         }
 
         const html = `
@@ -1195,15 +1195,17 @@ class KEWPApp {
     }
 
     getBiolevelColor(level) {
-        const colors = {
-            'molecular': '#307BBF',
-            'cellular': '#45A6B2',
-            'tissue': '#005A6C',
-            'organ': '#64358C',
-            'individual': '#EB5B25',
-            'population': '#B81178'
+        const root = getComputedStyle(document.documentElement);
+        const colorMap = {
+            'molecular': '--color-primary-blue',
+            'cellular': '--color-teal-accent',
+            'tissue': '--color-secondary-teal',
+            'organ': '--color-secondary-purple',
+            'individual': '--color-secondary-orange',
+            'population': '--color-secondary-magenta'
         };
-        return colors[level.toLowerCase()] || '#6b7280';
+        const token = colorMap[level.toLowerCase()] || '--color-text-gray';
+        return root.getPropertyValue(token).trim();
     }
     
     handlePathwaySelection(event) {
@@ -1238,17 +1240,17 @@ class KEWPApp {
 
         // Create figure preview HTML (larger for side-by-side display)
         const figureHTML = svgUrl ? `
-            <div style="border: 1px solid #ddd; border-radius: 6px; padding: 8px; background: white;">
+            <div class="panel-outlined" style="padding: 8px;">
                 <img src="${svgUrl}"
                      style="width: 100%; height: auto; max-height: 300px; object-fit: contain; cursor: pointer; display: block;"
                      onclick="window.KEWPApp.showPathwayPreview('${this.escapeHtml(pathwayId)}', '${this.escapeHtml(title)}', '${svgUrl}')"
                      onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
                      onload="this.style.display='block'; this.nextElementSibling.style.display='none'"
                      alt="Pathway diagram">
-                <div style="display: none; color: #666; font-style: italic; padding: 15px; font-size: 12px; text-align: center;">
+                <div style="display: none;" class="text-muted-italic" style="padding: 15px; font-size: 12px; text-align: center;">
                     Diagram not available
                 </div>
-                <div style="margin-top: 5px; font-size: 11px; color: #666; text-align: center;">
+                <div class="text-xsmall-muted" style="margin-top: 5px; text-align: center;">
                     Click to enlarge
                 </div>
             </div>
@@ -1258,23 +1260,23 @@ class KEWPApp {
         const infoHTML = `
             <div style="padding: 10px;">
                 <p style="margin: 5px 0;"><strong>Pathway:</strong> ${this.escapeHtml(title)}</p>
-                <p style="margin: 5px 0; font-size: 13px; color: #666;">
+                <p class="text-muted" style="margin: 5px 0; font-size: 13px;">
                     <strong>ID:</strong> ${pathwayId} |
-                    <a href="https://www.wikipathways.org/pathways/${pathwayId}" target="_blank" style="color: #307BBF;">View on WikiPathways</a>
+                    <a href="https://www.wikipathways.org/pathways/${pathwayId}" target="_blank">View on WikiPathways</a>
                 </p>
 
                 <!-- Side-by-side container -->
                 <div style="display: flex; gap: 15px; margin-top: 10px; align-items: flex-start;">
                     <!-- Description column (left) - 60% width -->
                     <div style="flex: 3; min-width: 0;">
-                        <div style="font-size: 13px; color: #555; line-height: 1.5;">
-                            ${description ? descriptionHTML : '<div style="color: #999; font-style: italic;">No description available</div>'}
+                        <div class="text-subtle" style="font-size: 13px; line-height: 1.5;">
+                            ${description ? descriptionHTML : '<div class="text-muted-italic">No description available</div>'}
                         </div>
                     </div>
 
                     <!-- Figure column (right) - 40% width -->
                     <div style="flex: 2; min-width: 0;">
-                        ${figureHTML || '<div style="color: #999; font-style: italic; font-size: 12px;">No diagram available</div>'}
+                        ${figureHTML || '<div class="text-muted-italic" style="font-size: 12px;">No diagram available</div>'}
                     </div>
                 </div>
             </div>
@@ -1294,18 +1296,18 @@ class KEWPApp {
         const figureHTML = svgUrl ? `
             <div style="margin: 10px 0;">
                 <strong>Pathway Diagram Preview:</strong>
-                <div style="margin-top: 8px; text-align: center; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: white;">
-                    <img src="${svgUrl}" 
-                         style="max-width: 300px; max-height: 200px; object-fit: contain; cursor: pointer;" 
+                <div class="panel-outlined" style="margin-top: 8px; text-align: center; padding: 10px;">
+                    <img src="${svgUrl}"
+                         style="max-width: 300px; max-height: 200px; object-fit: contain; cursor: pointer;"
                          onclick="window.KEWPApp.showPathwayPreview($('#wp_id').val(), '${this.escapeHtml(title)}', '${svgUrl}')"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
                          onload="this.style.display='block'; this.nextElementSibling.style.display='none'"
                          alt="Pathway diagram">
-                    <div style="display: none; color: #666; font-style: italic; padding: 20px;">
+                    <div style="display: none;" class="text-muted-italic" style="padding: 20px;">
                         Pathway diagram not available
                     </div>
                 </div>
-                <div style="margin-top: 5px; font-size: 11px; color: #666;">
+                <div class="text-xsmall-muted" style="margin-top: 5px;">
                     Click diagram to view full size
                 </div>
             </div>
@@ -1313,10 +1315,10 @@ class KEWPApp {
 
         // Create preview HTML
         const previewHTML = `
-            <div id="pathway-preview" style="margin-top: 10px; padding: 15px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;">
-                <h4 style="margin: 0 0 8px 0; color: #29235C;">Pathway Details:</h4>
+            <div id="pathway-preview" class="panel-outlined" style="margin-top: 10px; padding: 15px;">
+                <h4 class="text-dark-heading" style="margin: 0 0 8px 0;">Pathway Details:</h4>
                 <p style="margin: 0 0 8px 0;"><strong>Title:</strong> ${this.escapeHtml(title)}</p>
-                ${description ? `<div style="margin-bottom: 10px;"><strong>Description:</strong><br/>${descriptionHTML}</div>` : '<p style="margin: 0 0 10px 0; color: #666; font-style: italic;">No description available</p>'}
+                ${description ? `<div style="margin-bottom: 10px;"><strong>Description:</strong><br/>${descriptionHTML}</div>` : '<p class="text-muted-italic" style="margin: 0 0 10px 0;">No description available</p>'}
                 ${figureHTML}
             </div>
         `;
@@ -1342,7 +1344,7 @@ class KEWPApp {
             })
             .fail((xhr, status, error) => {
                 console.warn("Failed to load version information:", error);
-                $("#version-info").html('<span style="color: #999;">Version information unavailable</span>');
+                $("#version-info").html('<span class="text-muted">Version information unavailable</span>');
             });
     }
 
@@ -1370,7 +1372,7 @@ class KEWPApp {
         if (versionHtml) {
             $("#version-info").html(versionHtml);
         } else {
-            $("#version-info").html('<span style="color: #999;">Version information not available</span>');
+            $("#version-info").html('<span class="text-muted">Version information not available</span>');
         }
     }
 
@@ -1422,7 +1424,7 @@ class KEWPApp {
     }
 
     createCollapsibleDescription(description, id) {
-        if (!description) return '<span style="color: #666; font-style: italic;">No description available</span>';
+        if (!description) return '<span class="text-muted-italic">No description available</span>';
         
         const maxLength = 300;
         const isLong = description.length > maxLength;
@@ -1437,11 +1439,11 @@ class KEWPApp {
             <div id="${id}" style="max-width: 100%; word-wrap: break-word; line-height: 1.4;">
                 <div class="description-short">
                     ${shortText}
-                    <br/><a href="#" onclick="KEWPApp.toggleDescription('${id}'); return false;" style="color: #307BBF; font-weight: bold;">Show full description</a>
+                    <br/><a href="#" onclick="KEWPApp.toggleDescription('${id}'); return false;" class="text-link-blue" style="font-weight: bold;">Show full description</a>
                 </div>
                 <div class="description-full" style="display: none;">
                     ${description}
-                    <br/><a href="#" onclick="KEWPApp.toggleDescription('${id}'); return false;" style="color: #307BBF; font-weight: bold;">Show less</a>
+                    <br/><a href="#" onclick="KEWPApp.toggleDescription('${id}'); return false;" class="text-link-blue" style="font-weight: bold;">Show less</a>
                 </div>
             </div>
         `;
@@ -1509,8 +1511,8 @@ class KEWPApp {
             // Show loading state in the pathway assessments area
             $("#pathway-assessments").html(`
                 <div style="text-align: center; padding: 20px;">
-                    <div style="margin-bottom: 10px; color: #666;">Generating confidence assessments...</div>
-                    <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <div class="text-muted" style="margin-bottom: 10px;">Generating confidence assessments...</div>
+                    <div class="spinner spinner--sm"></div>
                 </div>
             `);
 
@@ -1573,20 +1575,20 @@ class KEWPApp {
         let geneOverlapHtml = '';
         if ($suggItem.length > 0 && matchingGenes.length > 0) {
             geneOverlapHtml = `
-                <div class="assessment-gene-overlap" style="margin-top: 10px; padding: 8px 12px; background: #d4edda; border: 1px solid #a5d6a7; border-radius: 6px; font-size: 13px;">
+                <div class="assessment-gene-overlap gene-overlap-found">
                     <strong>Gene Overlap:</strong> ${matchingGenes.length} shared gene${matchingGenes.length !== 1 ? 's' : ''} (${geneScore}%)
-                    <details style="margin-top: 4px;"><summary style="cursor: pointer; font-size: 12px; color: #155724;">View genes</summary>
-                        <span style="font-size: 11px; color: #333; word-break: break-word;">${this.escapeHtml(matchingGenes.join(', '))}</span>
+                    <details style="margin-top: 4px;"><summary style="cursor: pointer; font-size: 12px;">View genes</summary>
+                        <span style="font-size: 11px; word-break: break-word;">${this.escapeHtml(matchingGenes.join(', '))}</span>
                     </details>
                 </div>`;
         } else if ($suggItem.length > 0) {
             geneOverlapHtml = `
-                <div class="assessment-gene-overlap" style="margin-top: 10px; padding: 8px 12px; background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #666;">
+                <div class="assessment-gene-overlap gene-overlap-empty">
                     <strong>Gene Overlap:</strong> No shared genes detected
                 </div>`;
         } else {
             geneOverlapHtml = `
-                <div class="assessment-gene-overlap" style="margin-top: 10px; padding: 8px 12px; background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #888; font-style: italic;">
+                <div class="assessment-gene-overlap gene-overlap-loading">
                     Gene overlap data not available (pathway selected manually)
                 </div>`;
         }
@@ -1594,22 +1596,22 @@ class KEWPApp {
         // Pathway diagram HTML
         const diagramHtml = pathway.svgUrl ? `
             <details open style="margin-top: 10px;">
-                <summary style="cursor: pointer; font-weight: bold; font-size: 13px; color: #29235C;">Pathway Diagram</summary>
-                <div style="margin-top: 6px; border: 1px solid #ddd; border-radius: 6px; padding: 6px; background: white; text-align: center;">
+                <summary class="text-dark-heading" style="cursor: pointer; font-weight: bold; font-size: 13px;">Pathway Diagram</summary>
+                <div class="panel-outlined" style="margin-top: 6px; padding: 6px; text-align: center;">
                     <img src="${this.escapeHtml(pathway.svgUrl)}"
                          style="max-width: 100%; max-height: 200px; object-fit: contain; cursor: pointer;"
                          onclick="window.KEWPApp.showPathwayPreview('${this.escapeHtml(pathway.id)}', '${this.escapeHtml(pathway.title)}', '${this.escapeHtml(pathway.svgUrl)}')"
-                         onerror="this.parentElement.innerHTML='<div style=\\'color:#666;font-style:italic;padding:10px;font-size:12px;\\'>Diagram not available</div>'"
+                         onerror="this.parentElement.innerHTML='<div class=\\'text-muted-italic\\'  style=\\'padding:10px;font-size:12px;\\'>Diagram not available</div>'"
                          alt="Pathway diagram">
-                    <div style="font-size: 11px; color: #666; margin-top: 4px;">Click to enlarge</div>
+                    <div class="text-xsmall-muted" style="margin-top: 4px;">Click to enlarge</div>
                 </div>
             </details>` : '';
 
         // Pathway description HTML
         const descriptionHtml = pathway.description ? `
             <details style="margin-top: 10px;">
-                <summary style="cursor: pointer; font-weight: bold; font-size: 13px; color: #29235C;">Pathway Description</summary>
-                <div style="margin-top: 6px; font-size: 13px; line-height: 1.5; color: #333; max-height: 150px; overflow-y: auto;">
+                <summary class="text-dark-heading" style="cursor: pointer; font-weight: bold; font-size: 13px;">Pathway Description</summary>
+                <div class="text-subtle" style="margin-top: 6px; font-size: 13px; line-height: 1.5; max-height: 150px; overflow-y: auto;">
                     ${this.escapeHtml(pathway.description)}
                 </div>
             </details>` : '';
@@ -1622,7 +1624,7 @@ class KEWPApp {
                     <div class="assessment-info-card ke-card">
                         <h4>Key Event</h4>
                         <p><strong>${this.escapeHtml(keId)} — ${this.escapeHtml(keTitle)}</strong></p>
-                        ${keBiolevel ? `<p style="font-size: 12px; color: #666;">Level: ${this.escapeHtml(keBiolevel)}</p>` : ''}
+                        ${keBiolevel ? `<p class="text-muted" style="font-size: 12px;">Level: ${this.escapeHtml(keBiolevel)}</p>` : ''}
                         <a href="/ke-details?ke_id=${encodeURIComponent(keId)}" target="_blank">View details &rarr;</a>
                     </div>
                     <div class="assessment-info-card pw-card">
@@ -1635,9 +1637,9 @@ class KEWPApp {
                 </div>
                 ${geneOverlapHtml}
 
-                <h3 style="margin: 0 0 15px 0; color: #29235C; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                <h3 style="margin: 0 0 15px 0; border-bottom: 1px solid var(--color-border-light); padding-bottom: 8px;" class="text-dark-heading">
                     Assessment for: ${pathway.title}
-                    <span style="font-size: 14px; color: #666; font-weight: normal;">(${pathway.id})</span>
+                    <span class="text-muted" style="font-size: 14px; font-weight: normal;">(${pathway.id})</span>
                 </h3>
                 
                 <div class="assessment-steps" data-assessment-id="${assessmentId}">
@@ -1710,7 +1712,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 <div class="assessment-result">
                     <p><strong>Result:</strong> <span class="confidence-result">—</span></p>
                     <p><strong>Connection:</strong> <span class="connection-result">—</span></p>
-                    <p class="score-details" style="font-size: 12px; color: #666; margin: 5px 0 0 0;">—</p>
+                    <p class="score-details text-muted" style="font-size: 12px; margin: 5px 0 0 0;">—</p>
                 </div>
             </div>
         `;
@@ -1724,9 +1726,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $('#assessment-status').text(statusText);
         
         if (completedAssessments === totalAssessments && totalAssessments > 0) {
-            $('#complete-all-assessments').text('Proceed to Submission').css('background', '#28a745');
+            $('#complete-all-assessments').text('Proceed to Submission').addClass('btn-create').removeClass('btn-secondary-custom');
         } else {
-            $('#complete-all-assessments').text('Complete All Assessments').css('background', '#6c757d');
+            $('#complete-all-assessments').text('Complete All Assessments').addClass('btn-secondary-custom').removeClass('btn-create');
         }
     }
 
@@ -1826,9 +1828,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const keId = $("#ke_id").val();
         
         let confirmationHTML = `
-            <div class="confirmation-dialog" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
-                <div style="background: white; border-radius: 8px; padding: 30px; max-width: 800px; max-height: 80vh; overflow-y: auto;">
-                    <h2 style="margin-top: 0; color: #29235C;">Confirm Multiple Pathway Mappings</h2>
+            <div class="confirmation-dialog">
+                <div class="confirmation-dialog__panel">
+                    <h2 style="margin-top: 0;" class="text-dark-heading">Confirm Multiple Pathway Mappings</h2>
                     <p><strong>Key Event:</strong> ${keTitle}</p>
                     <div style="margin: 20px 0;">
         `;
@@ -1842,15 +1844,15 @@ This helps identify gaps in existing pathways for future development.">❓</span
             
             if (!result || result.skipped) {
                 confirmationHTML += `
-                    <div style="border: 1px solid #f8d7da; background: #f8d7da; padding: 15px; margin: 10px 0; border-radius: 4px;">
-                        <h4 style="margin: 0 0 8px 0; color: #721c24;">${pathwayTitle} (${pathwayId})</h4>
-                        <p style="margin: 0; color: #721c24;"><strong>Status:</strong> Skipped (not biologically relevant)</p>
+                    <div class="confirmation-dialog__skipped">
+                        <h4>${pathwayTitle} (${pathwayId})</h4>
+                        <p><strong>Status:</strong> Skipped (not biologically relevant)</p>
                     </div>
                 `;
             } else {
                 confirmationHTML += `
                     <div class="suggestion-panel-container">
-                        <h4 style="margin: 0 0 8px 0; color: #29235C;">${pathwayTitle} (${pathwayId})</h4>
+                        <h4 style="margin: 0 0 8px 0;" class="text-dark-heading">${pathwayTitle} (${pathwayId})</h4>
                         <p style="margin: 5px 0;"><strong>Confidence:</strong> ${result.confidence}</p>
                         <p style="margin: 5px 0;"><strong>Connection Type:</strong> ${result.connection_type}</p>
                         <p style="margin: 5px 0;"><strong>Score:</strong> ${result.score.toFixed(1)}</p>
@@ -1862,10 +1864,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
         confirmationHTML += `
                     </div>
                     <div style="text-align: center; margin-top: 25px;">
-                        <button id="confirm-multi-submit" style="background: #28a745; color: white; border: none; padding: 15px 30px; border-radius: 6px; margin-right: 10px; cursor: pointer;">
+                        <button id="confirm-multi-submit" class="btn-create" style="padding: 15px 30px; border-radius: 6px; margin-right: 10px;">
                             Submit All Mappings
                         </button>
-                        <button id="cancel-multi-submit" style="background: #6c757d; color: white; border: none; padding: 15px 30px; border-radius: 6px; cursor: pointer;">
+                        <button id="cancel-multi-submit" class="btn-clear" style="padding: 15px 30px; border-radius: 6px;">
                             Cancel
                         </button>
                     </div>
@@ -1953,8 +1955,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     showMessage(message, type = "info") {
-        const color = type === "error" ? "red" : type === "success" ? "green" : "blue";
-        $("#message").text(message).css("color", color).show();
+        const colorClass = type === "error" ? "login-warning" : type === "success" ? "entry-status-new" : "text-link-blue";
+        $("#message").text(message).removeClass("login-warning entry-status-new text-link-blue").addClass(colorClass).show();
         
         // Auto-hide success messages after 5 seconds
         if (type === "success") {
@@ -1969,25 +1971,25 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const summaryHtml = `
             <div style="margin-bottom: 15px;">
                 <div style="margin-bottom: 10px;">
-                    <strong style="color: #29235C;">Key Event:</strong><br>
-                    <span style="font-family: monospace; font-size: 13px; color: #666;">${formData.ke_id}</span><br>
+                    <strong class="text-dark-heading">Key Event:</strong><br>
+                    <span class="text-muted" style="font-family: monospace; font-size: 13px;">${formData.ke_id}</span><br>
                     <span style="font-size: 14px;">${formData.ke_title}</span>
                 </div>
-                <div style="text-align: center; margin: 10px 0; color: #307BBF; font-size: 20px;">↓</div>
+                <div style="text-align: center; margin: 10px 0; font-size: 20px;" class="text-link-blue">&#8595;</div>
                 <div style="margin-bottom: 10px;">
-                    <strong style="color: #29235C;">WikiPathway:</strong><br>
-                    <span style="font-family: monospace; font-size: 13px; color: #666;">${formData.wp_id}</span><br>
+                    <strong class="text-dark-heading">WikiPathway:</strong><br>
+                    <span class="text-muted" style="font-family: monospace; font-size: 13px;">${formData.wp_id}</span><br>
                     <span style="font-size: 14px;">${formData.wp_title}</span>
                 </div>
             </div>
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-around; font-size: 14px;">
+            <div style="border-top: 1px solid var(--color-border-light); padding-top: 15px; display: flex; justify-content: space-around; font-size: 14px;">
                 <div>
-                    <strong style="color: #29235C;">Connection:</strong><br>
-                    <span style="color: #666;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span>
+                    <strong class="text-dark-heading">Connection:</strong><br>
+                    <span class="text-muted">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span>
                 </div>
                 <div>
-                    <strong style="color: #29235C;">Confidence:</strong><br>
-                    <span style="color: #666;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span>
+                    <strong class="text-dark-heading">Confidence:</strong><br>
+                    <span class="text-muted">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span>
                 </div>
             </div>
         `;
@@ -2054,8 +2056,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
     showPathwaySuggestionsLoading() {
         $("#pathway-suggestions").html(`
             <div style="padding: 20px; text-align: center;">
-                <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                <p style="margin-top: 10px; color: #666;">Loading pathway suggestions...</p>
+                <div class="spinner spinner--md"></div>
+                <p class="text-muted" style="margin-top: 10px;">Loading pathway suggestions...</p>
             </div>
         `);
 
@@ -2077,38 +2079,35 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
 
         let suggestionsHtml = `
-                <h3 style="margin: 0 0 15px 0; color: #29235C;">Suggested Pathways for Selected KE</h3>
+                <h3 style="margin: 0 0 15px 0;" class="text-dark-heading">Suggested Pathways for Selected KE</h3>
 
                 <!-- Method Filter Toggle -->
-                <div id="methodFilterContainer" style="margin: 0 0 15px 0; padding: 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
-                    <label style="font-weight: bold; margin-right: 10px; color: #29235C; display: block; margin-bottom: 8px;">View Results By:</label>
+                <div id="methodFilterContainer" style="margin: 0 0 15px 0; padding: 12px; background: var(--color-white); border: 1px solid var(--color-border-light); border-radius: 6px;">
+                    <label style="font-weight: bold; margin-right: 10px; display: block; margin-bottom: 8px;" class="text-dark-heading">View Results By:</label>
                     <div class="btn-group" role="group" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" class="method-filter-btn active" data-method="all"
-                                style="padding: 8px 16px; border: 2px solid #307BBF; background: #307BBF; color: white; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                        <button type="button" class="method-filter-btn method-filter-btn--active active" data-method="all">
                             All Methods (Combined)
                         </button>
-                        <button type="button" class="method-filter-btn" data-method="gene"
-                                style="padding: 8px 16px; border: 2px solid #307BBF; background: white; color: #307BBF; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                        <button type="button" class="method-filter-btn method-filter-btn--inactive" data-method="gene">
                             Gene-based Only
                         </button>
-                        <button type="button" class="method-filter-btn" data-method="semantic"
-                                style="padding: 8px 16px; border: 2px solid #307BBF; background: white; color: #307BBF; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                        <button type="button" class="method-filter-btn method-filter-btn--inactive" data-method="semantic">
                             Semantic-based Only
                         </button>
                     </div>
-                    <div id="filterInfo" style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;"></div>
+                    <div id="filterInfo" class="text-muted" style="margin-top: 8px; font-size: 12px; font-style: italic;"></div>
                 </div>
 
                 <!-- Scoring Information Box -->
-                <details style="margin: 0 0 15px 0; padding: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;">
-                    <summary style="cursor: pointer; font-weight: bold; color: #29235C; font-size: 14px;">
+                <details class="panel-outlined" style="margin: 0 0 15px 0; padding: 10px;">
+                    <summary style="cursor: pointer; font-weight: bold; font-size: 14px;" class="text-dark-heading">
                         How are suggestions scored?
                     </summary>
-                    <div style="margin-top: 10px; font-size: 13px; line-height: 1.6; color: #555;">
+                    <div style="margin-top: 10px; font-size: 13px; line-height: 1.6;" class="text-subtle">
                         <p style="margin: 8px 0;"><strong>Gene-based (35%)</strong>: Measures overlap between genes associated with the Key Event and genes in each pathway. Higher overlap = stronger match.</p>
                         <p style="margin: 8px 0;"><strong>Semantic (50%)</strong>: Uses BioBERT embeddings to measure deep semantic similarity between KE and pathway descriptions, capturing meaning beyond keyword matching.</p>
                         <p style="margin: 8px 0;"><strong>Ontology (15%)</strong>: Matches pathway ontology classification tags against KE biological concepts.</p>
-                        <p style="margin: 8px 0; padding-top: 8px; border-top: 1px solid #eee;"><em>The combined score merges all signals. Pathways found by multiple methods receive a bonus. Scores are shown as percentages.</em></p>
+                        <p style="margin: 8px 0; padding-top: 8px; border-top: 1px solid var(--color-border-light);"><em>The combined score merges all signals. Pathways found by multiple methods receive a bonus. Scores are shown as percentages.</em></p>
                     </div>
                 </details>
         `;
@@ -2116,7 +2115,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Show gene information if available
         if (data.genes_found > 0) {
             suggestionsHtml += `
-                <div style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 14px;">
+                <div class="gene-info-panel">
                     <strong>Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
                 </div>
             `;
@@ -2126,14 +2125,14 @@ This helps identify gaps in existing pathways for future development.">❓</span
         if (suggestions && suggestions.length > 0) {
             suggestionsHtml += `
                 <div class="suggestion-section">
-                    <h4 style="margin: 0 0 10px 0; color: #307BBF;">Pathway Suggestions (${suggestions.length})</h4>
+                    <h4 style="margin: 0 0 10px 0;" class="text-link-blue">Pathway Suggestions (${suggestions.length})</h4>
                     <div class="suggestion-list">
             `;
 
             suggestions.forEach((suggestion, index) => {
                 const matchTypeBadges = this.getMatchTypeBadges(suggestion.match_types || []);
                 const scoreDetails = this.getScoreDetails(suggestion.scores || {}, suggestion);
-                const borderColor = this.getBorderColorForMatch(suggestion.match_types || []);
+                const borderClass = this.getBorderClassForMatch(suggestion.match_types || []);
                 const finalScoreBar = this.createFinalScoreBar(suggestion);
                 const primaryEvidence = this.formatPrimaryEvidence(suggestion.primary_evidence);
                 const hiddenClass = index >= 3 ? 'suggestion-item-hidden' : '';
@@ -2142,24 +2141,23 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 const ontologyTagsHtml = suggestion.ontologyTags && suggestion.ontologyTags.length > 0
                     ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">
                         ${suggestion.ontologyTags.map(tag =>
-                            `<span style="font-size: 10px; padding: 2px 6px; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; border-radius: 3px; white-space: nowrap;">${this.escapeHtml(tag)}</span>`
+                            `<span class="ontology-tag-chip">${this.escapeHtml(tag)}</span>`
                         ).join('')}
                        </div>`
                     : '';
 
                 // Prepare publications HTML
                 const publicationsHtml = suggestion.publications && suggestion.publications.length > 0
-                    ? `<div style="margin-top: 6px; font-size: 11px; color: #666;">
-                        📚 <strong>${suggestion.publications.length}</strong> reference${suggestion.publications.length > 1 ? 's' : ''}:
+                    ? `<div class="text-muted" style="margin-top: 6px; font-size: 11px;">
+                        <strong>${suggestion.publications.length}</strong> reference${suggestion.publications.length > 1 ? 's' : ''}:
                         ${suggestion.publications.slice(0, 3).map(pub =>
-                            `<a href="${pub.url}" target="_blank" onclick="event.stopPropagation();" style="color: #307BBF;">PMID:${pub.pmid}</a>`
+                            `<a href="${pub.url}" target="_blank" onclick="event.stopPropagation();">PMID:${pub.pmid}</a>`
                         ).join(', ')}${suggestion.publications.length > 3 ? `, +${suggestion.publications.length - 3} more` : ''}
                        </div>`
                     : '';
 
                 suggestionsHtml += `
-                    <div class="suggestion-item ${hiddenClass}" data-pathway-id="${this.escapeHtml(suggestion.pathwayID)}" data-pathway-title="${this.escapeHtml(suggestion.pathwayTitle)}" data-pathway-svg="${this.escapeHtml(suggestion.pathwaySvgUrl || '')}" data-matching-genes="${this.escapeHtml((suggestion.matching_genes || []).join(','))}" data-gene-score="${Math.round((suggestion.gene_overlap_ratio || 0) * 100)}" data-score="${(suggestion.scores && suggestion.scores.final_score !== undefined) ? suggestion.scores.final_score : (suggestion.confidence_score || '')}"
-                         style="margin-bottom: 15px; padding: 12px; background-color: #ffffff; border-left: 4px solid ${borderColor}; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
+                    <div class="suggestion-item ${borderClass} ${hiddenClass}" data-pathway-id="${this.escapeHtml(suggestion.pathwayID)}" data-pathway-title="${this.escapeHtml(suggestion.pathwayTitle)}" data-pathway-svg="${this.escapeHtml(suggestion.pathwaySvgUrl || '')}" data-matching-genes="${this.escapeHtml((suggestion.matching_genes || []).join(','))}" data-gene-score="${Math.round((suggestion.gene_overlap_ratio || 0) * 100)}" data-score="${(suggestion.scores && suggestion.scores.final_score !== undefined) ? suggestion.scores.final_score : (suggestion.confidence_score || '')}">
                         <div style="display: flex; gap: 12px; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -2170,13 +2168,12 @@ This helps identify gaps in existing pathways for future development.">❓</span
                                     ${finalScoreBar}
                                 </div>
                                 ${ontologyTagsHtml}
-                                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
-                                    ID: ${suggestion.pathwayID} | Primary: ${primaryEvidence} | <a href="https://www.wikipathways.org/pathways/${suggestion.pathwayID}" target="_blank" onclick="event.stopPropagation();" style="color: #307BBF;">View on WikiPathways</a>
+                                <div class="text-muted" style="font-size: 12px; margin-bottom: 8px;">
+                                    ID: ${suggestion.pathwayID} | Primary: ${primaryEvidence} | <a href="https://www.wikipathways.org/pathways/${suggestion.pathwayID}" target="_blank" onclick="event.stopPropagation();">View on WikiPathways</a>
                                 </div>
                                 ${publicationsHtml}
                                 ${scoreDetails}
-                                <button class="pathway-preview-btn"
-                                        style="font-size: 11px; padding: 4px 8px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 3px; color: #307BBF; cursor: pointer; margin-top: 8px;">
+                                <button class="pathway-preview-btn pathway-preview-trigger">
                                     Preview Pathway
                                 </button>
                             </div>
@@ -2199,8 +2196,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
             // Add "Show more" button if there are more than 3 suggestions
             if (suggestions.length > 3) {
                 suggestionsHtml += `
-                    <button class="show-more-suggestions" type="button"
-                            style="width: 100%; padding: 10px; margin-top: 10px; background: #f8fafc; border: 1px solid #307BBF; color: #307BBF; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;">
+                    <button class="show-more-suggestions show-more-btn" type="button">
                         Show ${suggestions.length - 3} more suggestions
                     </button>
                 `;
@@ -2210,7 +2206,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
 
         suggestionsHtml += `
-                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666; text-align: center;">
+                <div class="text-muted" style="margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--color-border-light); font-size: 12px; text-align: center;">
                     Click any suggestion to auto-select it as your pathway
                 </div>
         `;
@@ -2267,8 +2263,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
     setupMethodFilterButtons(currentFilter, totalCount, filteredCount) {
         // Update active button state
-        $('.method-filter-btn').removeClass('active');
-        $(`.method-filter-btn[data-method="${currentFilter}"]`).addClass('active');
+        $('.method-filter-btn').removeClass('active method-filter-btn--active').addClass('method-filter-btn--inactive');
+        $(`.method-filter-btn[data-method="${currentFilter}"]`).removeClass('method-filter-btn--inactive').addClass('active method-filter-btn--active');
 
         // Update filter info text
         let filterInfoText = '';
@@ -2285,8 +2281,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
             const method = $(e.currentTarget).data('method');
 
             // Update button states
-            $('.method-filter-btn').removeClass('active');
-            $(e.currentTarget).addClass('active');
+            $('.method-filter-btn').removeClass('active method-filter-btn--active').addClass('method-filter-btn--inactive');
+            $(e.currentTarget).removeClass('method-filter-btn--inactive').addClass('active method-filter-btn--active');
 
             // Re-fetch suggestions with new filter
             if (this.currentKEContext) {
@@ -2313,26 +2309,23 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
 
         let noSuggestionsHtml = `
-                <h3 style="margin: 0 0 15px 0; color: #29235C;">Suggested Pathways for Selected KE</h3>
+                <h3 style="margin: 0 0 15px 0;" class="text-dark-heading">Suggested Pathways for Selected KE</h3>
 
                 <!-- Method Filter Toggle -->
-                <div id="methodFilterContainer" style="margin: 0 0 15px 0; padding: 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
-                    <label style="font-weight: bold; margin-right: 10px; color: #29235C; display: block; margin-bottom: 8px;">View Results By:</label>
+                <div id="methodFilterContainer" style="margin: 0 0 15px 0; padding: 12px; background: var(--color-white); border: 1px solid var(--color-border-light); border-radius: 6px;">
+                    <label style="font-weight: bold; margin-right: 10px; display: block; margin-bottom: 8px;" class="text-dark-heading">View Results By:</label>
                     <div class="btn-group" role="group" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" class="method-filter-btn ${filter === 'all' ? 'active' : ''}" data-method="all"
-                                style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'all' ? '#307BBF' : 'white'}; color: ${filter === 'all' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                        <button type="button" class="method-filter-btn ${filter === 'all' ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-method="all">
                             All Methods (Combined)
                         </button>
-                        <button type="button" class="method-filter-btn ${filter === 'gene' ? 'active' : ''}" data-method="gene"
-                                style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'gene' ? '#307BBF' : 'white'}; color: ${filter === 'gene' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                        <button type="button" class="method-filter-btn ${filter === 'gene' ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-method="gene">
                             Gene-based Only
                         </button>
-                        <button type="button" class="method-filter-btn ${filter === 'semantic' ? 'active' : ''}" data-method="semantic"
-                                style="padding: 8px 16px; border: 2px solid #307BBF; background: ${filter === 'semantic' ? '#307BBF' : 'white'}; color: ${filter === 'semantic' ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: normal; transition: all 0.2s;">
+                        <button type="button" class="method-filter-btn ${filter === 'semantic' ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-method="semantic">
                             Semantic-based Only
                         </button>
                     </div>
-                    <div id="filterInfo" style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic;">
+                    <div id="filterInfo" class="text-muted" style="margin-top: 8px; font-size: 12px; font-style: italic;">
                         ${filter === 'all' ? 'Showing all results (combined ranking)' : `Showing ${filter}-based suggestions`}
                     </div>
                 </div>
@@ -2341,17 +2334,17 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Show gene information if available
         if (data && data.genes_found > 0) {
             noSuggestionsHtml += `
-                <div style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 14px;">
+                <div class="gene-info-panel">
                     <strong>Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
                 </div>
             `;
         }
 
         noSuggestionsHtml += `
-                <div style="color: #666; text-align: center; padding: 20px; background: #fff; border-radius: 4px; border: 1px solid #e2e8f0;">
+                <div class="text-muted panel-outlined" style="text-align: center; padding: 20px;">
                     <div style="margin-bottom: 8px; font-weight: bold;">${message}</div>
-                    ${details ? `<div style="font-size: 12px; color: #888; margin-bottom: 15px;">${details}</div>` : ''}
-                    <div style="margin-top: 15px; font-size: 12px; color: #307BBF;">
+                    ${details ? `<div style="font-size: 12px; margin-bottom: 15px;">${details}</div>` : ''}
+                    <div style="margin-top: 15px; font-size: 12px;" class="text-link-blue">
                         <em>Try using the Search or Browse All tabs to find pathways manually</em>
                     </div>
                 </div>
@@ -2369,11 +2362,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
     showPathwaySuggestionsError(errorMessage) {
         $("#pathway-suggestions").html(`
-            <h3 style="margin: 0 0 10px 0; color: #29235C;">Pathway Suggestions</h3>
-            <div style="color: #dc3545; text-align: center; padding: 20px;">
-                <div style="font-size: 16px; margin-bottom: 10px; color: #666; font-weight: bold;">Warning</div>
+            <h3 style="margin: 0 0 10px 0;" class="text-dark-heading">Pathway Suggestions</h3>
+            <div class="login-warning" style="text-align: center; padding: 20px;">
+                <div class="text-muted" style="font-size: 16px; margin-bottom: 10px; font-weight: bold;">Warning</div>
                 <div>${errorMessage}</div>
-                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                <div class="text-muted" style="margin-top: 10px; font-size: 12px;">
                     Try using the Search or Browse All tabs to find pathways manually
                 </div>
             </div>
@@ -2385,53 +2378,19 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
     createConfidenceBar(score) {
         const percentage = Math.round(score * 100);
-        let color = '#dc3545'; // red for low
-        let bgColor = '#ffe6e6'; // light red background
-        let textColor = '#dc3545';
-
+        let tier = 'low';
         if (percentage >= 70) {
-            color = '#28a745'; // green for high
-            bgColor = '#e6ffe6'; // light green background
-            textColor = '#28a745';
+            tier = 'high';
         } else if (percentage >= 40) {
-            color = '#ffc107'; // yellow for medium
-            bgColor = '#fffde6'; // light yellow background
-            textColor = '#856404';
+            tier = 'medium';
         }
 
         return `
-            <div style="
-                width: 80px;
-                background-color: ${bgColor};
-                border: 1px solid ${color};
-                border-radius: 8px;
-                padding: 8px;
-                text-align: center;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            ">
-                <div style="
-                    width: 100%;
-                    height: 12px;
-                    background-color: #f0f0f0;
-                    border-radius: 6px;
-                    overflow: hidden;
-                    margin-bottom: 4px;
-                    border: 1px solid #ddd;
-                ">
-                    <div style="
-                        width: ${percentage}%;
-                        height: 100%;
-                        background: linear-gradient(135deg, ${color}, ${color}dd);
-                        transition: width 0.4s ease;
-                        border-radius: 6px;
-                    "></div>
+            <div class="confidence-bar-box confidence-bar-box--${tier}">
+                <div class="confidence-bar-track">
+                    <div class="confidence-bar-fill confidence-bar-fill--${tier}" style="width: ${percentage}%;"></div>
                 </div>
-                <div style="
-                    font-size: 14px;
-                    font-weight: bold;
-                    color: ${textColor};
-                    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
-                ">${percentage}%</div>
+                <div class="confidence-bar-value confidence-bar-value--${tier}">${percentage}%</div>
             </div>
         `;
     }
@@ -2440,11 +2399,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const badges = [];
 
         if (matchTypes.includes('gene')) {
-            badges.push('<span style="background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px;">📊 Gene</span>');
+            badges.push('<span class="badge-match--gene" style="margin-left: 8px;">Gene</span>');
         }
 
         if (matchTypes.includes('embedding')) {
-            badges.push('<span style="background: #f3e5f5; color: #6a1b9a; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px;">🧠 Semantic</span>');
+            badges.push('<span class="badge-match--semantic" style="margin-left: 8px;">Semantic</span>');
         }
 
         return badges.join(' ');
@@ -2485,8 +2444,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 : '';
 
             details.push(`
-                <div style="font-size: 11px; color: #155724; margin-bottom: 4px; padding: 4px; background: #d4edda; border-radius: 3px;">
-                    📊 <strong>Gene Score: ${Math.round(scores.gene_confidence * 100)}%</strong> - ${geneInfo}${pathwayInfo}
+                <div class="method-detail--gene">
+                    <strong>Gene Score: ${Math.round(scores.gene_confidence * 100)}%</strong> - ${geneInfo}${pathwayInfo}
                     ${suggestion.matching_genes ? `<br><span style="font-size: 10px;">Matching genes: ${suggestion.matching_genes.join(', ')}</span>` : ''}
                 </div>
             `);
@@ -2508,10 +2467,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
             const breakdown = `Title: ${titlePct}% | Description: ${descPct}% | Combined: ${combinedPct}%`;
 
             details.push(`
-                <div style="font-size: 11px; color: #6a1b9a; margin-bottom: 4px; padding: 4px; background: #f3e5f5; border-radius: 3px;">
-                    🧠 <strong>Semantic Score: ${combinedPct}%</strong>
-                    <br><span style="font-size: 10px; color: #555;">${breakdown}</span>
-                    <br><span style="font-size: 9px; color: #777; font-style: italic;">BioBERT semantic similarity (directionality-neutral)</span>
+                <div class="method-detail--semantic">
+                    <strong>Semantic Score: ${combinedPct}%</strong>
+                    <br><span style="font-size: 10px;">${breakdown}</span>
+                    <br><span style="font-size: 9px; font-style: italic;">BioBERT semantic similarity (directionality-neutral)</span>
                 </div>
             `);
         }
@@ -2525,7 +2484,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const genes = suggestion.matching_genes || [];
 
         return `
-            <div style="font-size: 11px; color: #155724; margin-top: 8px; padding: 6px; background: #d4edda; border-radius: 3px;">
+            <div class="method-detail--gene-sm">
                 <div><strong>Gene Overlap:</strong> ${Math.round(overlapRatio * 100)}%</div>
                 <div style="margin-top: 4px;"><strong>Matching Genes:</strong> ${genes.length > 0 ? genes.join(', ') : 'None'} (${geneCount} genes)</div>
             </div>
@@ -2538,26 +2497,42 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const embeddingSim = suggestion.embedding_similarity || 0;
 
         return `
-            <div style="font-size: 11px; color: #6a1b9a; margin-top: 8px; padding: 6px; background: #f3e5f5; border-radius: 3px;">
+            <div class="method-detail--semantic-sm">
                 <div><strong>Semantic Similarity:</strong> ${Math.round(embeddingSim * 100)}%</div>
                 <div style="margin-left: 10px; margin-top: 2px;">Title: ${Math.round(titleSim * 100)}%</div>
                 <div style="margin-left: 10px;">Description: ${Math.round(descSim * 100)}%</div>
-                <div style="font-size: 9px; color: #777; font-style: italic; margin-top: 4px;">BioBERT semantic similarity</div>
+                <div style="font-size: 9px; font-style: italic; margin-top: 4px;">BioBERT semantic similarity</div>
             </div>
         `;
     }
 
-    getBorderColorForMatch(matchTypes) {
+    getBorderClassForMatch(matchTypes) {
         if (matchTypes.length >= 3) {
-            return '#9A1C57';  // Purple - all three types
+            return 'suggestion-item--multi-match';
         } else if (matchTypes.includes('gene') && matchTypes.includes('embedding')) {
-            return '#6a1b9a';  // Purple variant - gene + semantic
+            return 'suggestion-item--gene-semantic';
         } else if (matchTypes.includes('gene')) {
-            return '#28a745';  // Green - gene-based
+            return 'suggestion-item--gene';
         } else if (matchTypes.includes('embedding')) {
-            return '#9c27b0';  // Purple - semantic
+            return 'suggestion-item--semantic';
         } else {
-            return '#17a2b8';  // Teal - text-based
+            return 'suggestion-item--other';
+        }
+    }
+
+    /** @deprecated Use getBorderClassForMatch — kept for backwards compat */
+    getBorderColorForMatch(matchTypes) {
+        const root = getComputedStyle(document.documentElement);
+        if (matchTypes.length >= 3) {
+            return root.getPropertyValue('--color-secondary-magenta').trim();
+        } else if (matchTypes.includes('gene') && matchTypes.includes('embedding')) {
+            return root.getPropertyValue('--color-secondary-purple').trim();
+        } else if (matchTypes.includes('gene')) {
+            return root.getPropertyValue('--color-status-high').trim();
+        } else if (matchTypes.includes('embedding')) {
+            return root.getPropertyValue('--color-method-semantic').trim();
+        } else {
+            return root.getPropertyValue('--color-teal-accent').trim();
         }
     }
 
@@ -2585,17 +2560,17 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
 
         const percentage = Math.round(score * 100);
-        const color = this.getConfidenceColor(score);
+        const tier = this.getConfidenceClass(score);
         const qualityBadge = this.getQualityBadge(score);
 
         return `
             <div style="text-align: right;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 2px;">${label}</div>
+                <div class="text-muted" style="font-size: 11px; margin-bottom: 2px;">${label}</div>
                 <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
-                    <div style="width: 60px; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
-                        <div style="width: ${percentage}%; height: 100%; background: ${color}; transition: width 0.3s;"></div>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill score-bar-fill--${tier}" style="width: ${percentage}%;"></div>
                     </div>
-                    <span style="font-weight: bold; color: ${color}; font-size: 13px;">${percentage}%</span>
+                    <span class="confidence-bar-value--${tier}" style="font-weight: bold; font-size: 13px;">${percentage}%</span>
                 </div>
                 ${qualityBadge ? `<div style="margin-top: 4px;">${qualityBadge}</div>` : ''}
             </div>
@@ -2612,9 +2587,16 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     getConfidenceColor(score) {
-        if (score >= 0.8) return '#28a745';      // Green - high
-        if (score >= 0.5) return '#ffc107';      // Yellow - medium
-        return '#dc3545';                        // Red - low
+        const root = getComputedStyle(document.documentElement);
+        if (score >= 0.8) return root.getPropertyValue('--color-status-high').trim();
+        if (score >= 0.5) return root.getPropertyValue('--color-status-medium').trim();
+        return root.getPropertyValue('--color-status-low').trim();
+    }
+
+    getConfidenceClass(score) {
+        if (score >= 0.8) return 'high';
+        if (score >= 0.5) return 'medium';
+        return 'low';
     }
 
     /**
@@ -2714,7 +2696,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
     renderDuplicateWarning(result) {
         const ex = result.existing;
-        let html = '<div class="alert alert-warning" style="border: 2px solid var(--color-warning, #f0ad4e); padding: 16px; border-radius: 6px; margin: 12px 0;">';
+        let html = '<div class="alert alert-warning" style="border: 2px solid var(--color-status-medium); padding: 16px; border-radius: 6px; margin: 12px 0;">';
 
         if (result.blocking_type === 'approved_mapping') {
             html += '<h4 style="margin-top:0;">This pair already has an approved mapping</h4>';
@@ -2773,7 +2755,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
     renderDuplicateWarning_go(result) {
         const ex = result.existing;
-        let html = '<div class="alert alert-warning" style="border: 2px solid var(--color-warning, #f0ad4e); padding: 16px; border-radius: 6px; margin: 12px 0;">';
+        let html = '<div class="alert alert-warning" style="border: 2px solid var(--color-status-medium); padding: 16px; border-radius: 6px; margin: 12px 0;">';
 
         if (result.blocking_type === 'approved_mapping') {
             html += '<h4 style="margin-top:0;">This pair already has an approved GO mapping</h4>';
@@ -2818,7 +2800,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
     hidePathwaySuggestions() {
         $("#pathway-suggestions").html(`
-            <p style="color: #666; font-style: italic; text-align: center; padding: 20px;">Select a Key Event in Step 1 to see pathway suggestions.</p>
+            <p class="text-muted-italic" style="text-align: center; padding: 20px;">Select a Key Event in Step 1 to see pathway suggestions.</p>
         `);
         $('#selected-pathway-banner').hide();
     }
@@ -2916,7 +2898,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $searchResults.html(`
             <div class="search-loading">
                 <div style="margin-bottom: 10px;">Searching pathways...</div>
-                <div style="display: inline-block; width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top: 2px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <div class="spinner spinner--xs"></div>
             </div>
         `).show();
         
@@ -2927,7 +2909,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
             })
             .fail((xhr, status, error) => {
                 console.error('Search failed:', error);
-                $searchResults.html('<div style="padding: 10px; color: #dc3545;">Unable to search pathways. Please check your internet connection and try again.</div>');
+                $searchResults.html('<div class="login-warning" style="padding: 10px;">Unable to search pathways. Please check your internet connection and try again.</div>');
             });
     }
 
@@ -2936,8 +2918,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
         
         if (results.length === 0) {
             $searchResults.html(`
-                <div style="padding: 15px; text-align: center; color: #666;">
-                    <div style="margin-bottom: 8px;">🔍 No pathways found</div>
+                <div class="text-muted" style="padding: 15px; text-align: center;">
+                    <div style="margin-bottom: 8px;">No pathways found</div>
                     <div style="font-size: 12px;">Try different keywords or reduce specificity</div>
                 </div>
             `).show();
@@ -2953,41 +2935,39 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 : 'No description available';
             
             resultsHtml += `
-                <div class="search-result-item" style="padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background-color 0.2s;"
-                     data-pathway-id="${this.escapeHtml(result.pathwayID)}" data-pathway-title="${this.escapeHtml(result.pathwayTitle)}" data-pathway-description="${this.escapeHtml(result.pathwayDescription || '')}"
-                     onmouseover="this.style.backgroundColor='#f8f9fa'"
-                     onmouseout="this.classList.contains('active') || (this.style.backgroundColor='white')">
+                <div class="search-result-item"
+                     data-pathway-id="${this.escapeHtml(result.pathwayID)}" data-pathway-title="${this.escapeHtml(result.pathwayTitle)}" data-pathway-description="${this.escapeHtml(result.pathwayDescription || '')}">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
                         <div style="flex: 1;">
-                            <div style="font-weight: bold; color: #29235C; margin-bottom: 4px;">
+                            <div class="text-dark-heading" style="font-weight: bold; margin-bottom: 4px;">
                                 ${titleHighlighted}
                             </div>
-                            <div style="font-size: 11px; color: #666; margin-bottom: 4px;">
+                            <div class="text-muted" style="font-size: 11px; margin-bottom: 4px;">
                                 ID: ${result.pathwayID}
                             </div>
-                            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                            <div class="text-muted" style="font-size: 12px; margin-bottom: 8px;">
                                 ${descriptionSnippet}
                             </div>
                             <button onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${this.escapeHtml(result.pathwayID)}', '${this.escapeHtml(result.pathwayTitle)}', '${this.escapeHtml(result.pathwaySvgUrl || '')}')"
-                                    style="font-size: 10px; padding: 3px 6px; background: #e3f2fd; border: 1px solid #307BBF; border-radius: 2px; color: #307BBF; cursor: pointer;">
+                                    class="pathway-preview-trigger" style="font-size: 10px; padding: 3px 6px; border-radius: 2px;">
                                 Preview
                             </button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <div class="center-text">
-                                <div style="background-color: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; color: #495057;">
+                                <div class="biolevel-chip" style="font-size: 10px; font-weight: bold;">
                                     ${relevancePercentage}%
                                 </div>
-                                <div style="font-size: 9px; color: #666; margin-top: 2px;">match</div>
+                                <div class="text-muted" style="font-size: 9px; margin-top: 2px;">match</div>
                             </div>
-                            <div style="width: 60px; height: 45px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${this.escapeHtml(result.pathwayID)}', '${this.escapeHtml(result.pathwayTitle)}', '${this.escapeHtml(result.pathwaySvgUrl || '')}')">
-                                <img src="${result.pathwaySvgUrl || ''}" 
-                                     style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;" 
+                            <div class="pathway-thumbnail" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${this.escapeHtml(result.pathwayID)}', '${this.escapeHtml(result.pathwayTitle)}', '${this.escapeHtml(result.pathwaySvgUrl || '')}')">
+                                <img src="${result.pathwaySvgUrl || ''}"
+                                     style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;"
                                      onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
                                      onmouseover="this.style.transform='scale(1.05)'"
                                      onmouseout="this.style.transform='scale(1)'"
                                      alt="Pathway thumbnail">
-                                <div style="display: none; font-size: 10px; color: #999; text-align: center; padding: 5px;">No image</div>
+                                <div style="display: none; font-size: 10px; text-align: center; padding: 5px;" class="text-muted">No image</div>
                             </div>
                         </div>
                     </div>
@@ -3051,7 +3031,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
         
         words.forEach(word => {
             const regex = new RegExp(`(${word})`, 'gi');
-            highlightedText = highlightedText.replace(regex, '<mark style="background-color: #fff3cd; padding: 1px 2px;">$1</mark>');
+            highlightedText = highlightedText.replace(regex, '<mark class="search-highlight">$1</mark>');
         });
         
         return highlightedText;
@@ -3067,64 +3047,33 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $("#pathway-preview-modal").remove();
         
         const modalHtml = `
-            <div id="pathway-preview-modal" style="
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-                background: rgba(0,0,0,0.8); z-index: 10000; 
-                display: flex; align-items: center; justify-content: center;
-                padding: 20px; box-sizing: border-box;">
-                <div style="
-                    background: white; border-radius: 12px; 
-                    width: 95vw; max-width: 1400px; height: 95vh; max-height: 1000px;
-                    display: flex; flex-direction: column;
-                    box-shadow: 0 20px 50px rgba(0,0,0,0.4);">
-                    
+            <div id="pathway-preview-modal" class="pathway-preview-modal">
+                <div class="pathway-preview-modal__panel">
                     <!-- Header -->
-                    <div style="
-                        padding: 15px 20px; border-bottom: 1px solid #eee; 
-                        display: flex; justify-content: space-between; align-items: center;
-                        background: #f8f9fa; border-radius: 8px 8px 0 0;">
+                    <div class="pathway-preview-modal__header">
                         <div>
-                            <h3 style="margin: 0; color: #29235C; font-size: 16px;">${this.escapeHtml(pathwayTitle)}</h3>
-                            <div style="font-size: 12px; color: #666; margin-top: 4px;">ID: ${this.escapeHtml(pathwayID)}</div>
+                            <h3 style="margin: 0; font-size: 16px;" class="text-dark-heading">${this.escapeHtml(pathwayTitle)}</h3>
+                            <div class="text-muted" style="font-size: 12px; margin-top: 4px;">ID: ${this.escapeHtml(pathwayID)}</div>
                         </div>
-                        <button onclick="$('#pathway-preview-modal').remove()" 
-                                style="
-                                    background: none; border: none; font-size: 32px; 
-                                    cursor: pointer; color: #666; padding: 0; width: 30px; height: 30px;
-                                    display: flex; align-items: center; justify-content: center;
-                                    border-radius: 50%; transition: background 0.2s;"
-                                onmouseover="this.style.background='#e9ecef'"
-                                onmouseout="this.style.background='none'">×</button>
+                        <button onclick="$('#pathway-preview-modal').remove()" class="pathway-preview-modal__close">×</button>
                     </div>
-                    
+
                     <!-- Content -->
-                    <div style="
-                        padding: 20px; overflow: auto; flex: 1; max-height: calc(95vh - 120px);
-                        display: flex; flex-direction: column; align-items: center;">
-                        <div id="pathway-svg-container" style="
-                            width: 100%; max-width: 1200px; text-align: center;
-                            border: 1px solid #ddd; border-radius: 8px; 
-                            padding: 20px; background: #fafafa; position: relative;
-                            min-height: 300px; max-height: calc(95vh - 200px);
-                            overflow: hidden;">
-                            <div style="margin-bottom: 15px; color: #666;">Loading pathway diagram...</div>
+                    <div class="pathway-preview-modal__body">
+                        <div id="pathway-svg-container" class="pathway-preview-modal__svg-container">
+                            <div class="text-muted" style="margin-bottom: 15px;">Loading pathway diagram...</div>
                             <div class="loading-spinner" style="display: inline-block; font-size: 32px;">Loading...</div>
                         </div>
-                        
+
                         <!-- Action buttons -->
                         <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
                             <button id="select-pathway-btn" data-pathway-id="${this.escapeHtml(pathwayID)}" data-pathway-title="${this.escapeHtml(pathwayTitle)}"
-                                    style="
-                                        padding: 8px 16px; background: #307BBF; color: white; 
-                                        border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                                    class="btn-link-blue" style="padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; border: none;">
                                 Select This Pathway
                             </button>
-                            <a href="https://www.wikipathways.org/index.php/Pathway:${pathwayID}" 
-                               target="_blank" 
-                               style="
-                                    padding: 8px 16px; background: #f8f9fa; color: #307BBF; 
-                                    border: 1px solid #307BBF; border-radius: 4px; 
-                                    text-decoration: none; font-size: 14px; display: inline-block;">
+                            <a href="https://www.wikipathways.org/index.php/Pathway:${pathwayID}"
+                               target="_blank"
+                               class="btn-link-outline-blue" style="padding: 8px 16px; border-radius: 4px; font-size: 14px;">
                                 View on WikiPathways
                             </a>
                         </div>
@@ -3148,8 +3097,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
             this.loadPathwaySvg(svgUrl, pathwayID);
         } else {
             $("#pathway-svg-container").html(`
-                <div style="color: #666; padding: 40px;">
-                    <div style="font-size: 14px; margin-bottom: 15px; color: #666;">No diagram available</div>
+                <div class="text-muted" style="padding: 40px;">
+                    <div style="font-size: 14px; margin-bottom: 15px;">No diagram available</div>
                     <div>Pathway diagram not available</div>
                     <div style="font-size: 12px; margin-top: 8px;">
                         You can view the pathway on WikiPathways using the link below
@@ -3191,19 +3140,19 @@ This helps identify gaps in existing pathways for future development.">❓</span
             let containerHeight = isTall ? '50vh' : (isWide ? '40vh' : '45vh');
             
             $container.html(`
-                <div style="margin-bottom: 15px; font-weight: bold; color: #29235C; text-align: center;">
+                <div style="margin-bottom: 15px; font-weight: bold; text-align: center;" class="text-dark-heading">
                     ${pathwayID} Pathway Diagram
-                    <div style="font-size: 12px; color: #666; font-weight: normal; margin-top: 4px;">
+                    <div class="text-muted" style="font-size: 12px; font-weight: normal; margin-top: 4px;">
                         Original size: ${this.naturalWidth} × ${this.naturalHeight}px
                     </div>
                 </div>
-                
+
                 <!-- Zoom Controls -->
                 <div style="text-align: center; margin-bottom: 15px;">
-                    <button id="zoom-out" style="padding: 6px 12px; margin: 0 3px; background: #f8f9fa; border: 1px solid #666; border-radius: 4px; cursor: pointer; color: #333;">🔍−</button>
-                    <button id="zoom-reset" style="padding: 6px 12px; margin: 0 3px; background: #f8f9fa; border: 1px solid #666; border-radius: 4px; cursor: pointer; color: #333;">100%</button>
-                    <button id="zoom-in" style="padding: 6px 12px; margin: 0 3px; background: #f8f9fa; border: 1px solid #666; border-radius: 4px; cursor: pointer; color: #333;">🔍+</button>
-                    <button id="fit-width" style="padding: 6px 12px; margin: 0 3px; background: #307BBF; border: 1px solid #307BBF; border-radius: 4px; cursor: pointer; color: white;">Fit Width</button>
+                    <button id="zoom-out" class="btn-clear" style="padding: 6px 12px; margin: 0 3px; border-radius: 4px;">🔍−</button>
+                    <button id="zoom-reset" class="btn-clear" style="padding: 6px 12px; margin: 0 3px; border-radius: 4px;">100%</button>
+                    <button id="zoom-in" class="btn-clear" style="padding: 6px 12px; margin: 0 3px; border-radius: 4px;">🔍+</button>
+                    <button id="fit-width" class="btn-link-blue" style="padding: 6px 12px; margin: 0 3px; border-radius: 4px; border: none; cursor: pointer;">Fit Width</button>
                 </div>
                 
                 <div id="svg-viewport" style="
@@ -3231,9 +3180,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
                          draggable="false">
                 </div>
                 
-                <div style="font-size: 11px; color: #666; margin-top: 12px; text-align: center;">
+                <div class="text-muted" style="font-size: 11px; margin-top: 12px; text-align: center;">
                     Source: WikiPathways.org<br>
-                    Use zoom controls above or scroll wheel to zoom • Click and drag to pan
+                    Use zoom controls above or scroll wheel to zoom &bull; Click and drag to pan
                 </div>
             `);
             
@@ -3246,16 +3195,16 @@ This helps identify gaps in existing pathways for future development.">❓</span
             
             // Fallback: try to load as object/iframe
             $container.html(`
-                <div style="margin-bottom: 10px; font-weight: bold; color: #29235C;">
+                <div style="margin-bottom: 10px; font-weight: bold;" class="text-dark-heading">
                     ${pathwayID} Pathway Diagram
                 </div>
-                <div style="position: relative; border: 1px solid #ddd; border-radius: 4px; background: white;">
-                    <object data="${svgUrl}" 
-                            type="image/svg+xml" 
+                <div style="position: relative; border: 1px solid var(--color-border-gray); border-radius: 4px; background: white;">
+                    <object data="${svgUrl}"
+                            type="image/svg+xml"
                             style="width: 100%; height: 600px; border: none;"
                             onload="/* SVG loaded */">
-                        <div style="padding: 40px; text-align: center; color: #666;">
-                            <div style="font-size: 16px; margin-bottom: 15px; color: #dc3545; font-weight: bold;">Error</div>
+                        <div style="padding: 40px; text-align: center;" class="text-muted">
+                            <div style="font-size: 16px; margin-bottom: 15px; font-weight: bold;" class="login-warning">Error</div>
                             <div>Unable to load pathway diagram</div>
                             <div style="font-size: 12px; margin-top: 8px;">
                                 The diagram may not be available or there might be a connection issue.<br>
@@ -3264,7 +3213,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                         </div>
                     </object>
                 </div>
-                <div style="font-size: 11px; color: #666; margin-top: 8px;">
+                <div class="text-muted" style="font-size: 11px; margin-top: 8px;">
                     Source: WikiPathways.org
                 </div>
             `);
@@ -3445,11 +3394,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Update tab button styles
         $('.mapping-tab').each(function() {
             const isActive = $(this).data('tab') === tab;
-            $(this).css({
-                background: isActive ? '#307BBF' : '#f0f0f0',
-                color: isActive ? 'white' : '#666',
-                borderColor: isActive ? '#307BBF' : '#ccc'
-            });
             if (isActive) {
                 $(this).addClass('active');
             } else {
@@ -3487,8 +3431,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Show loading state
         $container.html(`
             <div style="text-align: center; padding: 20px;">
-                <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #307BBF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                <p style="margin-top: 10px; color: #666;">Loading GO Biological Process suggestions for this Key Event...</p>
+                <div class="spinner spinner--md"></div>
+                <p class="text-muted" style="margin-top: 10px;">Loading GO Biological Process suggestions for this Key Event...</p>
             </div>
         `);
 
@@ -3502,9 +3446,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
             .fail((xhr, status, error) => {
                 console.error('Failed to load GO suggestions:', error);
                 $container.html(`
-                    <div style="color: #dc3545; padding: 15px; text-align: center;">
+                    <div class="login-warning" style="padding: 15px; text-align: center;">
                         <p style="font-weight: bold;">Unable to load GO term suggestions.</p>
-                        <p style="font-size: 13px; color: #666;">The GO suggestion service may not be available. Please try again later.</p>
+                        <p class="text-muted" style="font-size: 13px;">The GO suggestion service may not be available. Please try again later.</p>
                     </div>
                 `);
             });
@@ -3530,11 +3474,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 <div style="padding: 20px; text-align: center;">
                     ${this.buildGoMethodFilterHtml(filter)}
                     ${data.genes_found > 0 ? `
-                        <div style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 14px;">
+                        <div class="gene-info-panel">
                             <strong>Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
                         </div>
                     ` : ''}
-                    <div style="color: #666; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 20px;">
+                    <div class="text-muted panel-outlined" style="padding: 20px;">
                         <p style="font-weight: bold;">No GO term suggestions found for this Key Event.</p>
                         <p style="font-size: 13px;">Try a different method filter or select a different Key Event.</p>
                     </div>
@@ -3561,37 +3505,36 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Gene info
         if (data.genes_found > 0) {
             html += `
-                <div style="margin-bottom: 15px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 14px;">
+                <div class="gene-info-panel">
                     <strong>Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
                 </div>
             `;
         }
 
-        html += `<div style="font-size: 13px; color: #666; margin-bottom: 10px;">Showing ${startIdx + 1}-${endIdx} of ${suggestions.length} suggestions</div>`;
+        html += `<div class="text-muted" style="font-size: 13px; margin-bottom: 10px;">Showing ${startIdx + 1}-${endIdx} of ${suggestions.length} suggestions</div>`;
 
         // Suggestion list (current page only)
         pageSuggestions.forEach((suggestion, index) => {
             const matchBadges = this.getGoMatchBadges(suggestion.match_types || []);
             const scorePercent = Math.round((suggestion.hybrid_score || 0) * 100);
-            const scoreColor = scorePercent >= 60 ? '#28a745' : scorePercent >= 30 ? '#ffc107' : '#dc3545';
+            const scoreTier = scorePercent >= 60 ? 'high' : scorePercent >= 30 ? 'medium' : 'low';
             const rawDefinition = suggestion.go_definition
                 ? (suggestion.go_definition.length > 200 ? suggestion.go_definition.substring(0, 200) + '...' : suggestion.go_definition)
                 : 'No definition available';
             const definition = this.escapeHtml(rawDefinition);
 
             html += `
-                <div class="go-suggestion-item" data-go-id="${suggestion.go_id}" data-go-name="${this.escapeHtml(suggestion.go_name)}"
-                     style="margin-bottom: 12px; padding: 14px; background: #ffffff; border: 1px solid #e0e0e0; border-left: 4px solid ${scoreColor}; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                <div class="go-suggestion-item go-suggestion-item--${scoreTier}" data-go-id="${suggestion.go_id}" data-go-name="${this.escapeHtml(suggestion.go_name)}">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                                <strong style="font-size: 14px; color: #29235C;">${this.escapeHtml(suggestion.go_name)}</strong>
+                                <strong style="font-size: 14px;" class="text-dark-heading">${this.escapeHtml(suggestion.go_name)}</strong>
                                 ${matchBadges}
                             </div>
-                            <div style="font-size: 12px; color: #666; margin-bottom: 6px;">
-                                <a href="${suggestion.quickgo_link}" target="_blank" onclick="event.stopPropagation();" style="color: #307BBF;">${suggestion.go_id}</a>
+                            <div class="text-muted" style="font-size: 12px; margin-bottom: 6px;">
+                                <a href="${suggestion.quickgo_link}" target="_blank" onclick="event.stopPropagation();">${suggestion.go_id}</a>
                             </div>
-                            <div style="font-size: 12px; color: #555; margin-bottom: 8px; line-height: 1.4;">
+                            <div class="text-subtle" style="font-size: 12px; margin-bottom: 8px; line-height: 1.4;">
                                 ${definition}
                             </div>
             `;
@@ -3603,7 +3546,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 .slice(0, 5);
             if (exactSynonyms.length > 0) {
                 html += `
-                    <div style="font-size: 11px; color: #666; margin-bottom: 6px; font-style: italic;">
+                    <div class="text-xsmall-muted" style="margin-bottom: 6px;">
                         Also known as: ${exactSynonyms.map(s => this.escapeHtml(s)).join(', ')}
                     </div>
                 `;
@@ -3613,21 +3556,21 @@ This helps identify gaps in existing pathways for future development.">❓</span
             if (suggestion.name_similarity > 0 || suggestion.definition_similarity > 0) {
                 if (suggestion.name_similarity > 0) {
                     html += `
-                        <div style="font-size: 11px; color: #6a1b9a; padding: 3px 6px; background: #f3e5f5; border-radius: 3px; display: inline-block; margin-right: 6px;">
+                        <div class="score-detail--semantic-inline">
                             Name: ${Math.round(suggestion.name_similarity * 100)}%
                         </div>
                     `;
                 }
                 if (suggestion.definition_similarity > 0) {
                     html += `
-                        <div style="font-size: 11px; color: #7b1fa2; padding: 3px 6px; background: #ede7f6; border-radius: 3px; display: inline-block; margin-right: 6px;">
+                        <div class="score-detail--definition-inline">
                             Definition: ${Math.round(suggestion.definition_similarity * 100)}%
                         </div>
                     `;
                 }
             } else if (suggestion.text_similarity > 0) {
                 html += `
-                    <div style="font-size: 11px; color: #6a1b9a; padding: 3px 6px; background: #f3e5f5; border-radius: 3px; display: inline-block; margin-right: 6px;">
+                    <div class="score-detail--semantic-inline">
                         Semantic: ${Math.round(suggestion.text_similarity * 100)}%
                     </div>
                 `;
@@ -3637,14 +3580,14 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 const goGeneCount = suggestion.go_gene_count || 0;
                 const geneDetail = goGeneCount > 0 ? ` (${matchCount}/${goGeneCount} genes)` : '';
                 html += `
-                    <div style="font-size: 11px; color: #155724; padding: 3px 6px; background: #d4edda; border-radius: 3px; display: inline-block; margin-right: 6px;">
+                    <div class="score-detail--gene-inline">
                         Gene: ${Math.round(suggestion.gene_overlap * 100)}%${geneDetail}
                     </div>
                 `;
             }
             if (suggestion.matching_genes && suggestion.matching_genes.length > 0) {
                 html += `
-                    <div style="font-size: 10px; color: #555; margin-top: 4px;">
+                    <div class="text-subtle" style="font-size: 10px; margin-top: 4px;">
                         Matching genes: ${suggestion.matching_genes.join(', ')}
                     </div>
                 `;
@@ -3653,12 +3596,12 @@ This helps identify gaps in existing pathways for future development.">❓</span
             html += `
                         </div>
                         <div style="text-align: right; min-width: 80px;">
-                            <div style="font-size: 11px; color: #666; margin-bottom: 2px;">Score</div>
+                            <div class="text-muted" style="font-size: 11px; margin-bottom: 2px;">Score</div>
                             <div style="display: flex; align-items: center; gap: 6px; justify-content: flex-end;">
-                                <div style="width: 50px; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
-                                    <div style="width: ${scorePercent}%; height: 100%; background: ${scoreColor}; transition: width 0.3s;"></div>
+                                <div class="score-bar-track--sm">
+                                    <div class="score-bar-fill score-bar-fill--${scoreTier}" style="width: ${scorePercent}%;"></div>
                                 </div>
-                                <span style="font-weight: bold; color: ${scoreColor}; font-size: 13px;">${scorePercent}%</span>
+                                <span class="confidence-bar-value--${scoreTier}" style="font-weight: bold; font-size: 13px;">${scorePercent}%</span>
                             </div>
                         </div>
                     </div>
@@ -3669,14 +3612,12 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Pagination controls (only if more than one page)
         if (totalPages > 1) {
             html += `
-                <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 15px; padding-top: 10px; border-top: 1px solid #dee2e6;">
-                    <button class="go-page-prev" ${page === 0 ? 'disabled' : ''}
-                            style="padding: 6px 14px; border: 1px solid ${page === 0 ? '#ccc' : '#307BBF'}; background: ${page === 0 ? '#f0f0f0' : 'white'}; color: ${page === 0 ? '#999' : '#307BBF'}; border-radius: 4px; cursor: ${page === 0 ? 'default' : 'pointer'}; font-size: 13px;">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--color-border-light);">
+                    <button class="go-page-prev pagination-btn ${page === 0 ? 'pagination-btn--disabled' : 'pagination-btn--active'}" ${page === 0 ? 'disabled' : ''}>
                         Previous
                     </button>
-                    <span style="font-size: 13px; color: #666;">Page ${page + 1} of ${totalPages}</span>
-                    <button class="go-page-next" ${page >= totalPages - 1 ? 'disabled' : ''}
-                            style="padding: 6px 14px; border: 1px solid ${page >= totalPages - 1 ? '#ccc' : '#307BBF'}; background: ${page >= totalPages - 1 ? '#f0f0f0' : 'white'}; color: ${page >= totalPages - 1 ? '#999' : '#307BBF'}; border-radius: 4px; cursor: ${page >= totalPages - 1 ? 'default' : 'pointer'}; font-size: 13px;">
+                    <span class="text-muted" style="font-size: 13px;">Page ${page + 1} of ${totalPages}</span>
+                    <button class="go-page-next pagination-btn ${page >= totalPages - 1 ? 'pagination-btn--disabled' : 'pagination-btn--active'}" ${page >= totalPages - 1 ? 'disabled' : ''}>
                         Next
                     </button>
                 </div>
@@ -3684,7 +3625,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
 
         html += `
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666; text-align: center;">
+            <div class="text-muted" style="margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--color-border-light); font-size: 12px; text-align: center;">
                 Click a GO term to select it for confidence assessment
             </div>
         `;
@@ -3726,16 +3667,15 @@ This helps identify gaps in existing pathways for future development.">❓</span
         ];
 
         let html = `
-            <div style="padding: 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 10px;">
-                <label style="font-weight: bold; margin-right: 10px; color: #29235C; display: block; margin-bottom: 8px;">Filter By Method:</label>
+            <div style="padding: 10px; background: var(--color-white); border: 1px solid var(--color-border-light); border-radius: 6px; margin-bottom: 10px;">
+                <label style="font-weight: bold; margin-right: 10px; display: block; margin-bottom: 8px;" class="text-dark-heading">Filter By Method:</label>
                 <div class="btn-group" role="group" style="display: flex; gap: 8px; flex-wrap: wrap;">
         `;
 
         filters.forEach(f => {
             const isActive = f.value === currentFilter;
             html += `
-                <button type="button" class="go-method-filter-btn ${isActive ? 'active' : ''}" data-method="${f.value}"
-                        style="padding: 8px 16px; border: 2px solid #307BBF; background: ${isActive ? '#307BBF' : 'white'}; color: ${isActive ? 'white' : '#307BBF'}; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s;">
+                <button type="button" class="go-method-filter-btn method-filter-btn ${isActive ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-method="${f.value}">
                     ${f.label}
                 </button>
             `;
@@ -3751,8 +3691,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
     setupGoMethodFilterButtons(currentFilter) {
         $('.go-method-filter-btn').off('click').on('click', (e) => {
             const method = $(e.currentTarget).data('method');
-            $('.go-method-filter-btn').removeClass('active');
-            $(e.currentTarget).addClass('active');
+            $('.go-method-filter-btn').removeClass('active method-filter-btn--active').addClass('method-filter-btn--inactive');
+            $(e.currentTarget).removeClass('method-filter-btn--inactive').addClass('active method-filter-btn--active');
 
             const keId = $('#ke_id').val();
             const keTitle = $('#ke_id option:selected').data('title');
@@ -3765,10 +3705,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
     getGoMatchBadges(matchTypes) {
         const badges = [];
         if (matchTypes.includes('text')) {
-            badges.push('<span style="background: #f3e5f5; color: #6a1b9a; padding: 2px 6px; border-radius: 3px; font-size: 10px;">Semantic</span>');
+            badges.push('<span class="badge-match--semantic">Semantic</span>');
         }
         if (matchTypes.includes('gene')) {
-            badges.push('<span style="background: #d4edda; color: #155724; padding: 2px 6px; border-radius: 3px; font-size: 10px;">Gene</span>');
+            badges.push('<span class="badge-match--gene">Gene</span>');
         }
         return badges.join(' ');
     }
@@ -3777,8 +3717,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
         this.selectedGoTerm = { goId, goName };
 
         // Highlight selected item
-        $('.go-suggestion-item').css({ 'border-left-color': '', 'background': '#ffffff' });
-        $(`.go-suggestion-item[data-go-id="${goId}"]`).css({ 'border-left-color': '#307BBF', 'background': '#f0f7ff' });
+        $('.go-suggestion-item').removeClass('go-suggestion-item--selected');
+        $(`.go-suggestion-item[data-go-id="${goId}"]`).addClass('go-suggestion-item--selected');
 
         // Fire live duplicate check for the KE-GO pair
         this.checkForDuplicatePair_go();
@@ -3798,10 +3738,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const connectionTypes = config.connection_types || ['describes', 'involves', 'related', 'context'];
 
         let html = `
-            <div class="go-assessment" data-go-id="${goId}" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 15px;">
-                <h4 style="margin: 0 0 15px 0; color: #29235C; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+            <div class="go-assessment go-assessment-wrapper" data-go-id="${goId}">
+                <h4 style="margin: 0 0 15px 0; border-bottom: 1px solid var(--color-border-light); padding-bottom: 8px;" class="text-dark-heading">
                     Assessment for: ${this.escapeHtml(goName)}
-                    <span style="font-size: 13px; color: #666; font-weight: normal;">(${goId})</span>
+                    <span class="text-muted" style="font-size: 13px; font-weight: normal;">(${goId})</span>
                 </h4>
 
                 <!-- Step 1: Connection Type -->
@@ -3844,10 +3784,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
                     </div>
                 </div>
 
-                <div class="go-assessment-result" style="display: none; margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 6px; border-left: 4px solid #307BBF;">
+                <div class="go-assessment-result go-assessment-result-panel" style="display: none;">
                     <p style="margin: 5px 0;"><strong>Confidence Level:</strong> <span class="go-confidence-result">--</span></p>
                     <p style="margin: 5px 0;"><strong>Connection Type:</strong> <span class="go-connection-result">--</span></p>
-                    <p style="margin: 5px 0; font-size: 12px; color: #666;" class="go-score-details">--</p>
+                    <p class="go-score-details text-muted" style="margin: 5px 0; font-size: 12px;">--</p>
                 </div>
             </div>
         `;
@@ -4101,30 +4041,30 @@ This helps identify gaps in existing pathways for future development.">❓</span
             <div class="existing-entries-container" style="margin-top: 15px;">
                 <h3>GO Mapping Preview & Confirmation</h3>
                 <div class="mapping-preview" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
-                    <div class="preview-section" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc;">
-                        <h4 style="color: #29235C; margin-top: 0;">Key Event</h4>
+                    <div class="preview-section preview-section-card">
+                        <h4 class="text-dark-heading" style="margin-top: 0;">Key Event</h4>
                         <p><strong>ID:</strong> ${formData.ke_id}</p>
                         <p><strong>Title:</strong> ${formData.ke_title}</p>
-                        <p><strong>Bio Level:</strong> <span style="background-color: #e3f2fd; padding: 2px 6px; border-radius: 3px;">${bioLevel}</span></p>
+                        <p><strong>Bio Level:</strong> <span class="biolevel-chip">${bioLevel}</span></p>
                     </div>
-                    <div class="preview-section" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc;">
-                        <h4 style="color: #29235C; margin-top: 0;">GO Term</h4>
+                    <div class="preview-section preview-section-card">
+                        <h4 class="text-dark-heading" style="margin-top: 0;">GO Term</h4>
                         <p><strong>ID:</strong> <a href="https://www.ebi.ac.uk/QuickGO/term/${formData.go_id}" target="_blank">${formData.go_id}</a></p>
                         <p><strong>Name:</strong> ${formData.go_name}</p>
                     </div>
                 </div>
-                <div class="preview-section" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc; margin-bottom: 15px;">
-                    <h4 style="color: #29235C; margin-top: 0;">Mapping Details</h4>
+                <div class="preview-section preview-section-card" style="margin-bottom: 15px;">
+                    <h4 class="text-dark-heading" style="margin-top: 0;">Mapping Details</h4>
                     <p><strong>Connection:</strong> ${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</p>
                     <p><strong>Confidence:</strong> ${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</p>
                     <p><strong>Submitted by:</strong> ${userInfo}</p>
                 </div>
-                <div class="confirmation-section" style="text-align: center; padding: 15px; background: #fff3cd; border-radius: 6px;">
+                <div class="confirmation-section confirmation-section--warning">
                     <p style="font-weight: bold;">Submit this KE-GO mapping?</p>
-                    <button id="confirm-go-submit" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 10px;">
+                    <button id="confirm-go-submit" class="btn-create" style="padding: 12px 24px; border-radius: 6px; margin-right: 10px;">
                         Yes, Submit Mapping
                     </button>
-                    <button id="cancel-go-submit" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer;">
+                    <button id="cancel-go-submit" class="btn-clear" style="padding: 12px 24px; border-radius: 6px;">
                         Cancel
                     </button>
                 </div>
@@ -4176,25 +4116,25 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const summaryHtml = `
             <div style="margin-bottom: 15px;">
                 <div style="margin-bottom: 10px;">
-                    <strong style="color: #29235C;">Key Event:</strong><br>
-                    <span style="font-family: monospace; font-size: 13px; color: #666;">${formData.ke_id}</span><br>
+                    <strong class="text-dark-heading">Key Event:</strong><br>
+                    <span class="text-muted" style="font-family: monospace; font-size: 13px;">${formData.ke_id}</span><br>
                     <span style="font-size: 14px;">${formData.ke_title}</span>
                 </div>
-                <div style="text-align: center; margin: 10px 0; color: #307BBF; font-size: 20px;">&#8595;</div>
+                <div style="text-align: center; margin: 10px 0; font-size: 20px;" class="text-link-blue">&#8595;</div>
                 <div style="margin-bottom: 10px;">
-                    <strong style="color: #29235C;">GO Term:</strong><br>
-                    <span style="font-family: monospace; font-size: 13px; color: #666;">${formData.go_id}</span><br>
+                    <strong class="text-dark-heading">GO Term:</strong><br>
+                    <span class="text-muted" style="font-family: monospace; font-size: 13px;">${formData.go_id}</span><br>
                     <span style="font-size: 14px;">${formData.go_name}</span>
                 </div>
             </div>
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-around; font-size: 14px;">
+            <div style="border-top: 1px solid var(--color-border-light); padding-top: 15px; display: flex; justify-content: space-around; font-size: 14px;">
                 <div>
-                    <strong style="color: #29235C;">Connection:</strong><br>
-                    <span style="color: #666;">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span>
+                    <strong class="text-dark-heading">Connection:</strong><br>
+                    <span class="text-muted">${formData.connection_type.charAt(0).toUpperCase() + formData.connection_type.slice(1)}</span>
                 </div>
                 <div>
-                    <strong style="color: #29235C;">Confidence:</strong><br>
-                    <span style="color: #666;">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span>
+                    <strong class="text-dark-heading">Confidence:</strong><br>
+                    <span class="text-muted">${formData.confidence_level.charAt(0).toUpperCase() + formData.confidence_level.slice(1)}</span>
                 </div>
             </div>
         `;
@@ -4224,19 +4164,19 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $('#go-message').text('');
 
         // Reset suggestion highlighting
-        $('.go-suggestion-item').css({ 'border-left-color': '', 'background': '#ffffff' });
+        $('.go-suggestion-item').removeClass('go-suggestion-item--selected');
     }
 
     hideGoSuggestions() {
         $('#go-suggestions-container').html(`
-            <p style="color: #666; font-style: italic;">Select a Key Event above to see GO Biological Process term suggestions.</p>
+            <p class="text-muted-italic">Select a Key Event above to see GO Biological Process term suggestions.</p>
         `);
         this.resetGoForm();
     }
 
     showGoMessage(message, type = "info") {
-        const color = type === "error" ? "red" : type === "success" ? "green" : "blue";
-        $("#go-message").text(message).css("color", color).show();
+        const colorClass = type === "error" ? "login-warning" : type === "success" ? "entry-status-new" : "text-link-blue";
+        $("#go-message").text(message).removeClass("login-warning entry-status-new text-link-blue").addClass(colorClass).show();
         if (type === "success") {
             setTimeout(() => { $("#go-message").fadeOut(); }, 5000);
         }
