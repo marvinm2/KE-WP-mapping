@@ -89,6 +89,9 @@ class KEWPApp {
         this.goSuggestionsPage = 0;
         this.goSuggestionsPerPage = 10;
 
+        // Gene pre-fetch cache for mapping modal highlights
+        this._cachedKeGenes = {};
+
         // Load scoring configs, then initialize
         Promise.all([
             this.loadScoringConfig(),
@@ -272,6 +275,24 @@ class KEWPApp {
             const level = $(e.currentTarget).data('value');
             $('#confidence_level').val(level);
             $('#confidence-select-error').hide();
+        });
+
+        // WikiPathways mapping modal close handlers
+        $('#wpMappingModalClose').on('click', () => this.closeMappingModal());
+        $('#wpMappingOverlay').on('click', () => this.closeMappingModal());
+        $(document).on('keydown', (e) => {
+            if (e.key === 'Escape' && $('#wpMappingModal').hasClass('is-visible')) {
+                this.closeMappingModal();
+            }
+        });
+
+        // Expand button: open mapping modal with gene highlighting
+        $('#wp-expand-modal-btn').on('click', () => {
+            var pathwayId = $('#wp_id').val();
+            var pathwayTitle = $('#wp_id option:selected').data('title') || $('#wp_id option:selected').text();
+            if (pathwayId) {
+                this.openMappingModal(pathwayId, pathwayTitle);
+            }
         });
     }
 
@@ -1174,6 +1195,11 @@ class KEWPApp {
         // Store selected KE info for assessment info cards (#103)
         this.selectedKEInfo = keId ? { keId, title, biolevel } : null;
 
+        // Pre-fetch KE genes for mapping modal gene highlighting
+        if (keId) {
+            this.prefetchKeGenes(keId);
+        }
+
         // Load suggestions for the active tab
         if (keId && title) {
             if (this.activeTab === 'wp') {
@@ -1293,6 +1319,7 @@ class KEWPApp {
             // Browse panel selections have no suggestion score
             $('#suggestion_score').val('');
             setTimeout(() => this.checkForDuplicatePair(), 100);
+            this.loadInlineEmbed(pathwayId);
         }
     }
 
@@ -1300,23 +1327,15 @@ class KEWPApp {
         // Create collapsible description HTML
         const descriptionHTML = this.createCollapsibleDescription(description, `pathway-description-${pathwayId}`);
 
-        // Create figure preview HTML (larger for side-by-side display)
-        const figureHTML = svgUrl ? `
-            <div class="panel-outlined" style="padding: 8px;">
-                <img src="${svgUrl}"
-                     style="width: 100%; height: auto; max-height: 300px; object-fit: contain; cursor: pointer; display: block;"
-                     onclick="window.KEWPApp.showPathwayPreview('${this.escapeHtml(pathwayId)}', '${this.escapeHtml(title)}', '${svgUrl}')"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
-                     onload="this.style.display='block'; this.nextElementSibling.style.display='none'"
-                     alt="Pathway diagram">
-                <div style="display: none;" class="text-muted-italic" style="padding: 15px; font-size: 12px; text-align: center;">
-                    Diagram not available
-                </div>
-                <div class="text-xsmall-muted" style="margin-top: 5px; text-align: center;">
-                    Click to enlarge
-                </div>
+        // Create figure preview button (replaces SVG thumbnail — inline embed handles preview)
+        const figureHTML = `
+            <div style="margin-top: 6px;">
+                <button type="button" class="btn-link-blue" style="font-size: 12px; padding: 4px 10px;"
+                        onclick="window.KEWPApp.showPathwayPreview('${this.escapeHtml(pathwayId)}', '${this.escapeHtml(title)}', '')">
+                    Preview pathway
+                </button>
             </div>
-        ` : '';
+        `;
 
         // Create preview HTML with side-by-side layout
         const infoHTML = `
@@ -1354,26 +1373,15 @@ class KEWPApp {
         // Create collapsible description HTML
         const descriptionHTML = this.createCollapsibleDescription(description, 'pathway-description');
         
-        // Create figure preview HTML
-        const figureHTML = svgUrl ? `
+        // Create figure preview button (replaces SVG thumbnail)
+        const figureHTML = `
             <div style="margin: 10px 0;">
-                <strong>Pathway Diagram Preview:</strong>
-                <div class="panel-outlined" style="margin-top: 8px; text-align: center; padding: 10px;">
-                    <img src="${svgUrl}"
-                         style="max-width: 300px; max-height: 200px; object-fit: contain; cursor: pointer;"
-                         onclick="window.KEWPApp.showPathwayPreview($('#wp_id').val(), '${this.escapeHtml(title)}', '${svgUrl}')"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
-                         onload="this.style.display='block'; this.nextElementSibling.style.display='none'"
-                         alt="Pathway diagram">
-                    <div style="display: none;" class="text-muted-italic" style="padding: 20px;">
-                        Pathway diagram not available
-                    </div>
-                </div>
-                <div class="text-xsmall-muted" style="margin-top: 5px;">
-                    Click diagram to view full size
-                </div>
+                <button type="button" class="btn-link-blue" style="font-size: 12px; padding: 4px 10px;"
+                        onclick="window.KEWPApp.showPathwayPreview($('#wp_id').val(), '${this.escapeHtml(title)}', '')">
+                    Preview pathway
+                </button>
             </div>
-        ` : '';
+        `;
 
         // Create preview HTML
         const previewHTML = `
@@ -1655,19 +1663,14 @@ class KEWPApp {
                 </div>`;
         }
 
-        // Pathway diagram HTML
-        const diagramHtml = pathway.svgUrl ? `
-            <details open style="margin-top: 10px;">
-                <summary class="text-dark-heading" style="cursor: pointer; font-weight: bold; font-size: 13px;">Pathway Diagram</summary>
-                <div class="panel-outlined" style="margin-top: 6px; padding: 6px; text-align: center;">
-                    <img src="${this.escapeHtml(pathway.svgUrl)}"
-                         style="max-width: 100%; max-height: 200px; object-fit: contain; cursor: pointer;"
-                         onclick="window.KEWPApp.showPathwayPreview('${this.escapeHtml(pathway.id)}', '${this.escapeHtml(pathway.title)}', '${this.escapeHtml(pathway.svgUrl)}')"
-                         onerror="this.parentElement.innerHTML='<div class=\\'text-muted-italic\\'  style=\\'padding:10px;font-size:12px;\\'>Diagram not available</div>'"
-                         alt="Pathway diagram">
-                    <div class="text-xsmall-muted" style="margin-top: 4px;">Click to enlarge</div>
-                </div>
-            </details>` : '';
+        // Pathway diagram preview button (replaces SVG thumbnail)
+        const diagramHtml = `
+            <div style="margin-top: 6px;">
+                <button type="button" class="btn-link-blue" style="font-size: 12px; padding: 4px 10px;"
+                        onclick="window.KEWPApp.showPathwayPreview('${this.escapeHtml(pathway.id)}', '${this.escapeHtml(pathway.title)}', '')">
+                    Preview pathway
+                </button>
+            </div>`;
 
         // Pathway description HTML
         const descriptionHtml = pathway.description ? `
@@ -2009,6 +2012,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $("#suggestion_score").val("");
         $("#duplicate-warning").hide().empty();
 
+        // Hide inline embed and close mapping modal on reset
+        $('#wp-inline-embed').hide();
+        this.closeMappingModal();
+
         this.hideKEPreview();
         this.hidePathwayPreview();
         this.resetGuide();
@@ -2238,15 +2245,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
                                 <button class="pathway-preview-btn pathway-preview-trigger">
                                     Preview Pathway
                                 </button>
-                            </div>
-                            <div class="pathway-thumbnail pathway-preview-btn">
-                                <img src="${suggestion.pathwaySvgUrl || ''}"
-                                     style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;"
-                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
-                                     onmouseover="this.style.transform='scale(1.05)'"
-                                     onmouseout="this.style.transform='scale(1)'"
-                                     alt="Pathway thumbnail">
-                                <div style="display: none; font-size: 12px; padding: 10px;" class="text-muted center-text">No image</div>
                             </div>
                         </div>
                     </div>
@@ -2719,7 +2717,13 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 <span>Selected: <strong>${this.escapeHtml(pathwayTitle)}</strong> (${this.escapeHtml(pathwayId)})</span>
                 <button type="button" class="banner-dismiss" title="Dismiss">&times;</button>
             `).show();
-            $banner.find('.banner-dismiss').on('click', () => $banner.hide());
+            $banner.find('.banner-dismiss').on('click', () => {
+                $banner.hide();
+                $('#wp-inline-embed').hide();
+            });
+
+            // Load inline pathway embed
+            this.loadInlineEmbed(pathwayId);
 
             // Ensure the assessment section is triggered with a slight delay
             setTimeout(() => {
@@ -2860,11 +2864,64 @@ This helps identify gaps in existing pathways for future development.">❓</span
         });
     }
 
+    prefetchKeGenes(keId) {
+        if (this._cachedKeGenes[keId] !== undefined) return;
+        this._cachedKeGenes[keId] = [];  // mark as in-flight
+        $.getJSON('/api/ke_genes/' + encodeURIComponent(keId))
+            .done((data) => {
+                this._cachedKeGenes[keId] = data.genes || [];
+            })
+            .fail(() => {
+                this._cachedKeGenes[keId] = [];  // empty on failure
+            });
+    }
+
+    loadInlineEmbed(pathwayId) {
+        var $container = $('#wp-inline-embed');
+        var $frame = $('#wp-inline-embed-frame');
+        if (!pathwayId) {
+            $container.hide();
+            return;
+        }
+        $container.show();
+        PathwayEmbed.mountIframe($frame, pathwayId, []);  // No gene highlighting for inline
+    }
+
+    openMappingModal(wpId, wpTitle) {
+        var keId = $('#ke_id').val();
+        var genes = (keId && this._cachedKeGenes[keId]) ? this._cachedKeGenes[keId] : [];
+
+        $('#wpMappingModalTitle').text(wpTitle || wpId);
+        var geneCountText = genes.length > 0 ? genes.length + ' gene' + (genes.length !== 1 ? 's' : '') + ' highlighted' : 'No gene highlighting';
+        $('#wpMappingModalMeta').text('ID: ' + wpId + ' | ' + geneCountText);
+        $('#wpMappingModalExtLink').attr('href', 'https://www.wikipathways.org/pathways/' + wpId);
+
+        // Mount iframe with gene highlighting
+        PathwayEmbed.mountIframe('#wpMappingModalBody', wpId, genes);
+
+        // Gene list footer
+        var $genesDiv = $('#wpMappingModalGenes');
+        if (genes.length > 0) {
+            $genesDiv.html('<strong>Highlighted genes:</strong> <span class="wp-gene-list">' + genes.join(', ') + '</span>').show();
+        } else {
+            $genesDiv.hide();
+        }
+
+        $('#wpMappingModal').addClass('is-visible');
+        $('#wpMappingOverlay').show();
+    }
+
+    closeMappingModal() {
+        $('#wpMappingModal').removeClass('is-visible');
+        $('#wpMappingOverlay').hide();
+    }
+
     hidePathwaySuggestions() {
         $("#pathway-suggestions").html(`
             <p class="text-muted-italic" style="text-align: center; padding: 20px;">Select a Key Event in Step 1 to see pathway suggestions.</p>
         `);
         $('#selected-pathway-banner').hide();
+        $('#wp-inline-embed').hide();
     }
 
     setupPathwaySearch() {
@@ -3022,15 +3079,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
                                 </div>
                                 <div class="text-muted" style="font-size: 9px; margin-top: 2px;">match</div>
                             </div>
-                            <div class="pathway-thumbnail" onclick="event.stopPropagation(); window.KEWPApp.showPathwayPreview('${this.escapeHtml(result.pathwayID)}', '${this.escapeHtml(result.pathwayTitle)}', '${this.escapeHtml(result.pathwaySvgUrl || '')}')">
-                                <img src="${result.pathwaySvgUrl || ''}"
-                                     style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease;"
-                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
-                                     onmouseover="this.style.transform='scale(1.05)'"
-                                     onmouseout="this.style.transform='scale(1)'"
-                                     alt="Pathway thumbnail">
-                                <div style="display: none; font-size: 10px; text-align: center; padding: 5px;" class="text-muted">No image</div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -3105,343 +3153,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     showPathwayPreview(pathwayID, pathwayTitle, svgUrl) {
-        // Remove existing preview
-        $("#pathway-preview-modal").remove();
-        
-        const modalHtml = `
-            <div id="pathway-preview-modal" class="pathway-preview-modal">
-                <div class="pathway-preview-modal__panel">
-                    <!-- Header -->
-                    <div class="pathway-preview-modal__header">
-                        <div>
-                            <h3 style="margin: 0; font-size: 16px;" class="text-dark-heading">${this.escapeHtml(pathwayTitle)}</h3>
-                            <div class="text-muted" style="font-size: 12px; margin-top: 4px;">ID: ${this.escapeHtml(pathwayID)}</div>
-                        </div>
-                        <button onclick="$('#pathway-preview-modal').remove()" class="pathway-preview-modal__close">×</button>
-                    </div>
-
-                    <!-- Content -->
-                    <div class="pathway-preview-modal__body">
-                        <div id="pathway-svg-container" class="pathway-preview-modal__svg-container">
-                            <div class="text-muted" style="margin-bottom: 15px;">Loading pathway diagram...</div>
-                            <div class="loading-spinner" style="display: inline-block; font-size: 32px;">Loading...</div>
-                        </div>
-
-                        <!-- Action buttons -->
-                        <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                            <button id="select-pathway-btn" data-pathway-id="${this.escapeHtml(pathwayID)}" data-pathway-title="${this.escapeHtml(pathwayTitle)}"
-                                    class="btn-link-blue" style="padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; border: none;">
-                                Select This Pathway
-                            </button>
-                            <a href="https://www.wikipathways.org/index.php/Pathway:${pathwayID}"
-                               target="_blank"
-                               class="btn-link-outline-blue" style="padding: 8px 16px; border-radius: 4px; font-size: 14px;">
-                                View on WikiPathways
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        $("body").append(modalHtml);
-        
-        // Add event handler for select button (using delegation since modal is dynamic)
-        $(document).on('click', '#select-pathway-btn', (e) => {
-            const pathwayId = $(e.target).data('pathway-id');
-            const pathwayTitle = $(e.target).data('pathway-title');
-            this.selectSuggestedPathway(pathwayId, pathwayTitle);
-            $("#pathway-preview-modal").remove();
-        });
-        
-        // Load the SVG
-        if (svgUrl) {
-            this.loadPathwaySvg(svgUrl, pathwayID);
-        } else {
-            $("#pathway-svg-container").html(`
-                <div class="text-muted" style="padding: 40px;">
-                    <div style="font-size: 14px; margin-bottom: 15px;">No diagram available</div>
-                    <div>Pathway diagram not available</div>
-                    <div style="font-size: 12px; margin-top: 8px;">
-                        You can view the pathway on WikiPathways using the link below
-                    </div>
-                </div>
-            `);
-        }
-        
-        // Close on background click
-        $("#pathway-preview-modal").on('click', (e) => {
-            if (e.target.id === 'pathway-preview-modal') {
-                $("#pathway-preview-modal").remove();
-            }
-        });
-        
-        // Close on Escape key
-        $(document).on('keydown.pathway-preview', (e) => {
-            if (e.key === 'Escape') {
-                $("#pathway-preview-modal").remove();
-                $(document).off('keydown.pathway-preview');
-            }
-        });
-    }
-
-    loadPathwaySvg(svgUrl, pathwayID) {
-        const $container = $("#pathway-svg-container");
-        
-        // Try to load SVG with error handling
-        const img = new Image();
-        
-        img.onload = function() {
-            // Calculate aspect ratio for responsive scaling
-            const aspectRatio = this.naturalWidth / this.naturalHeight;
-            const isWide = aspectRatio > 1.5;
-            const isTall = aspectRatio < 0.7;
-            
-            // Set container size based on image shape, but limit to available modal space
-            let containerWidth = isWide ? '100%' : (isTall ? '60%' : '80%');
-            let containerHeight = isTall ? '50vh' : (isWide ? '40vh' : '45vh');
-            
-            $container.html(`
-                <div style="margin-bottom: 15px; font-weight: bold; text-align: center;" class="text-dark-heading">
-                    ${pathwayID} Pathway Diagram
-                    <div class="text-muted" style="font-size: 12px; font-weight: normal; margin-top: 4px;">
-                        Original size: ${this.naturalWidth} × ${this.naturalHeight}px
-                    </div>
-                </div>
-
-                <!-- Zoom Controls -->
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <button id="zoom-out" class="btn-clear" style="padding: 6px 12px; margin: 0 3px; border-radius: 4px;">🔍−</button>
-                    <button id="zoom-reset" class="btn-clear" style="padding: 6px 12px; margin: 0 3px; border-radius: 4px;">100%</button>
-                    <button id="zoom-in" class="btn-clear" style="padding: 6px 12px; margin: 0 3px; border-radius: 4px;">🔍+</button>
-                    <button id="fit-width" class="btn-link-blue" style="padding: 6px 12px; margin: 0 3px; border-radius: 4px; border: none; cursor: pointer;">Fit Width</button>
-                </div>
-                
-                <div id="svg-viewport" style="
-                    overflow: auto; 
-                    width: ${containerWidth}; 
-                    height: ${containerHeight};
-                    border: 1px solid #ddd; 
-                    border-radius: 8px; 
-                    background: white;
-                    margin: 0 auto;
-                    position: relative;
-                    cursor: grab;
-                ">
-                    <img id="pathway-svg-img" src="${svgUrl}" 
-                         alt="Pathway ${pathwayID}" 
-                         style="
-                            display: block;
-                            max-width: 100%;
-                            height: auto;
-                            width: auto;
-                            transition: transform 0.3s ease;
-                            user-select: none;
-                            transform-origin: 0 0;
-                         "
-                         draggable="false">
-                </div>
-                
-                <div class="text-muted" style="font-size: 11px; margin-top: 12px; text-align: center;">
-                    Source: WikiPathways.org<br>
-                    Use zoom controls above or scroll wheel to zoom &bull; Click and drag to pan
-                </div>
-            `);
-            
-            // Add zoom and pan functionality
-            window.KEWPApp.setupImageZoomPan('pathway-svg-img', 'svg-viewport');
-        };
-        
-        img.onerror = function() {
-            console.warn(`Failed to load pathway SVG: ${svgUrl}`);
-            
-            // Fallback: try to load as object/iframe
-            $container.html(`
-                <div style="margin-bottom: 10px; font-weight: bold;" class="text-dark-heading">
-                    ${pathwayID} Pathway Diagram
-                </div>
-                <div style="position: relative; border: 1px solid var(--color-border-gray); border-radius: 4px; background: white;">
-                    <object data="${svgUrl}"
-                            type="image/svg+xml"
-                            style="width: 100%; height: 600px; border: none;"
-                            onload="/* SVG loaded */">
-                        <div style="padding: 40px; text-align: center;" class="text-muted">
-                            <div style="font-size: 16px; margin-bottom: 15px; font-weight: bold;" class="login-warning">Error</div>
-                            <div>Unable to load pathway diagram</div>
-                            <div style="font-size: 12px; margin-top: 8px;">
-                                The diagram may not be available or there might be a connection issue.<br>
-                                Try viewing it directly on WikiPathways.
-                            </div>
-                        </div>
-                    </object>
-                </div>
-                <div class="text-muted" style="font-size: 11px; margin-top: 8px;">
-                    Source: WikiPathways.org
-                </div>
-            `);
-        };
-        
-        // Start loading the image
-        img.src = svgUrl;
-    }
-
-    setupImageZoomPan(imgId, viewportId) {
-        const $img = $(`#${imgId}`);
-        const $viewport = $(`#${viewportId}`);
-        
-        let scale = 1;
-        let isPanning = false;
-        let lastX = 0;
-        let lastY = 0;
-        
-        // Initial setup - fit to container width
-        setTimeout(() => {
-            const img = $img[0];
-            const viewport = $viewport[0];
-            
-            if (img && viewport) {
-                const containerWidth = $viewport.width();
-                const imgWidth = img.naturalWidth;
-                
-                if (imgWidth > containerWidth) {
-                    scale = containerWidth / imgWidth * 0.95;
-                    $img.css('transform', `scale(${scale})`);
-                }
-                
-                // Update zoom reset button text and scrollable area
-                $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
-                updateScrollableArea();
-            }
-        }, 100);
-        
-        // Helper function to update scrollable area after zoom
-        const updateScrollableArea = () => {
-            const img = $img[0];
-            if (img && img.naturalWidth && img.naturalHeight) {
-                const scaledWidth = img.naturalWidth * scale;
-                const scaledHeight = img.naturalHeight * scale;
-                
-                // Set the image container size to match scaled image
-                $img.css({
-                    'width': `${scaledWidth}px`,
-                    'height': `${scaledHeight}px`
-                });
-            }
-        };
-        
-        // Zoom controls (using delegation since modal is dynamic)
-        $(document).on('click', '#zoom-in', () => {
-            scale = Math.min(scale * 1.25, 5);
-            $img.css('transform', `scale(${scale})`);
-            $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
-            updateScrollableArea();
-        });
-        
-        $(document).on('click', '#zoom-out', () => {
-            scale = Math.max(scale / 1.25, 0.1);
-            $img.css('transform', `scale(${scale})`);
-            $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
-            updateScrollableArea();
-        });
-        
-        $(document).on('click', '#zoom-reset', () => {
-            scale = 1;
-            $img.css('transform', 'scale(1)');
-            $('#zoom-reset').text('100%');
-            updateScrollableArea();
-            $viewport.scrollLeft(0).scrollTop(0);
-        });
-        
-        $(document).on('click', '#fit-width', () => {
-            const containerWidth = $viewport.width();
-            const imgWidth = $img[0].naturalWidth;
-            scale = containerWidth / imgWidth * 0.95;
-            $img.css('transform', `scale(${scale})`);
-            $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
-            updateScrollableArea();
-            $viewport.scrollLeft(0).scrollTop(0);
-        });
-        
-        // Mouse wheel zoom
-        $viewport.on('wheel', (e) => {
-            e.preventDefault();
-            const delta = e.originalEvent.deltaY;
-            const zoomFactor = delta > 0 ? 0.9 : 1.1;
-            
-            scale = Math.min(Math.max(scale * zoomFactor, 0.1), 5);
-            $img.css('transform', `scale(${scale})`);
-            $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
-            updateScrollableArea();
-        });
-        
-        // Pan functionality
-        $img.on('mousedown', (e) => {
-            isPanning = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
-            $viewport.css('cursor', 'grabbing');
-            e.preventDefault();
-        });
-        
-        $(document).on('mousemove', (e) => {
-            if (isPanning) {
-                const deltaX = e.clientX - lastX;
-                const deltaY = e.clientY - lastY;
-                
-                // Calculate new scroll positions
-                const newScrollLeft = $viewport.scrollLeft() - deltaX;
-                const newScrollTop = $viewport.scrollTop() - deltaY;
-                
-                // Apply scroll changes (browser will constrain to valid bounds)
-                $viewport.scrollLeft(newScrollLeft);
-                $viewport.scrollTop(newScrollTop);
-                
-                lastX = e.clientX;
-                lastY = e.clientY;
-            }
-        });
-        
-        $(document).on('mouseup', () => {
-            if (isPanning) {
-                isPanning = false;
-                $viewport.css('cursor', 'grab');
-            }
-        });
-        
-        // Touch support for mobile
-        let lastTouchDistance = 0;
-        
-        $viewport.on('touchstart', (e) => {
-            if (e.originalEvent.touches.length === 2) {
-                const touch1 = e.originalEvent.touches[0];
-                const touch2 = e.originalEvent.touches[1];
-                lastTouchDistance = Math.sqrt(
-                    Math.pow(touch2.clientX - touch1.clientX, 2) +
-                    Math.pow(touch2.clientY - touch1.clientY, 2)
-                );
-            }
-        });
-        
-        $viewport.on('touchmove', (e) => {
-            if (e.originalEvent.touches.length === 2) {
-                e.preventDefault();
-                const touch1 = e.originalEvent.touches[0];
-                const touch2 = e.originalEvent.touches[1];
-                const currentDistance = Math.sqrt(
-                    Math.pow(touch2.clientX - touch1.clientX, 2) +
-                    Math.pow(touch2.clientY - touch1.clientY, 2)
-                );
-                
-                if (lastTouchDistance > 0) {
-                    const scaleFactor = currentDistance / lastTouchDistance;
-                    scale = Math.min(Math.max(scale * scaleFactor, 0.1), 5);
-                    $img.css('transform', `scale(${scale})`);
-                    $('#zoom-reset').text(`${Math.round(scale * 100)}%`);
-                }
-                
-                lastTouchDistance = currentDistance;
-            }
-        });
+        this.openMappingModal(pathwayID, pathwayTitle);
     }
 
     // =========================================================================
