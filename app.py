@@ -8,6 +8,7 @@ import time
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import CSRFError
 from flask_limiter import Limiter
@@ -69,6 +70,9 @@ def create_app(config_name: str = None):
         Configured Flask application instance
     """
     app = Flask(__name__)
+
+    # Trust proxy headers from Traefik (X-Forwarded-For, X-Forwarded-Proto, etc.)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     # Load configuration
     config = get_config(config_name)
@@ -193,7 +197,7 @@ def create_app(config_name: str = None):
                 {
                     "status": "healthy" if all(health_status.values()) else "degraded",
                     "timestamp": format_admin_timestamp(),
-                    "version": "2.0.0",
+                    "version": "2.5.0",
                     "services": health_status,
                 }
             )

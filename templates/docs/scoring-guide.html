@@ -1,6 +1,6 @@
 <h2>Scoring Systems Guide</h2>
 
-<p>This guide explains how the Molecular AOP Builder calculates pathway suggestions and confidence scores. The system uses a sophisticated multi-signal hybrid approach to identify and rank relevant pathways.</p>
+<p>This guide explains how the Molecular AOP Builder calculates pathway suggestions and confidence scores. The system uses a multi-signal hybrid approach combining gene overlap, semantic embeddings, and ontology tag matching to identify and rank relevant pathways.</p>
 
 <!-- Table of Contents -->
 <nav class="toc">
@@ -8,8 +8,8 @@
     <ol>
         <li><a href="#hybrid-approach">Three-Signal Hybrid Approach</a></li>
         <li><a href="#gene-matching">Gene-Based Matching</a></li>
-        <li><a href="#text-matching">Text-Based Matching</a></li>
         <li><a href="#semantic-matching">Semantic/BioBERT Matching</a></li>
+        <li><a href="#ontology-matching">Ontology Tag Matching</a></li>
         <li><a href="#confidence-assessment">Confidence Assessment Workflow</a></li>
         <li><a href="#tuning">Tuning Parameters</a></li>
     </ol>
@@ -30,14 +30,14 @@
     ┌───────────────┼───────────────┐
     │               │               │
     ▼               ▼               ▼
-┌────────┐   ┌────────┐   ┌────────────┐
-│Gene 35%│   │Text 25%│   │Semantic 40%│
-│Overlap │   │Similarity│  │BioBERT     │
-└───┬────┘   └───┬────┘   └─────┬──────┘
-    │            │              │
-    │            │              │
-    └────────────┼──────────────┘
-                 ▼
+┌────────┐  ┌───────────┐  ┌───────────┐
+│Gene 35%│  │Semantic50%│  │Ontology15%│
+│Overlap │  │BioBERT    │  │Tag Match  │
+└───┬────┘  └─────┬─────┘  └─────┬─────┘
+    │             │              │
+    │             │              │
+    └─────────────┼──────────────┘
+                  ▼
          ┌─────────────────────┐
          │   Hybrid Combiner   │
          │ + multi-evidence    │
@@ -69,26 +69,26 @@
                 <td>KEs with gene associations</td>
             </tr>
             <tr>
-                <td><strong>Text-Based</strong></td>
-                <td>25%</td>
-                <td>Terminology matching</td>
-                <td>Well-named pathways/KEs</td>
-            </tr>
-            <tr>
                 <td><strong>Semantic/BioBERT</strong></td>
-                <td>40%</td>
+                <td>50%</td>
                 <td>Conceptual similarity</td>
                 <td>Related but differently named items</td>
+            </tr>
+            <tr>
+                <td><strong>Ontology Tags</strong></td>
+                <td>15%</td>
+                <td>Classification matching</td>
+                <td>Pathways with biological category tags</td>
             </tr>
         </tbody>
     </table>
 
     <div class="info-box">
-        <strong>Why these weights?</strong> Extended testing across 15 diverse Key Events showed that semantic matching provides the best balance of coverage and accuracy:
+        <strong>Why these weights?</strong> Extended testing across diverse Key Events showed that semantic matching provides the best balance of coverage and accuracy, while ontology tags add biological classification context:
         <ul style="margin-bottom: 0; margin-top: 8px;">
-            <li><strong>Semantic:</strong> 100% coverage with average score of 0.864 - consistently finds relevant pathways</li>
-            <li><strong>Text:</strong> 67% coverage with average score of 0.548 - misses pathways with different terminology</li>
-            <li><strong>Gene:</strong> Provides unique biological validation signal not available from text-based methods</li>
+            <li><strong>Semantic (50%):</strong> Consistently finds relevant pathways even when terminology differs</li>
+            <li><strong>Gene (35%):</strong> Provides mechanistic validation through shared gene associations</li>
+            <li><strong>Ontology (15%):</strong> Matches pathways by biological category (e.g. apoptosis, signaling)</li>
         </ul>
     </div>
 
@@ -160,79 +160,50 @@ confidence = (overlap × 0.4) + (specificity × 0.4) + base_boost
     </div>
 </section>
 
-<!-- Section C: Text-Based Matching -->
-<section id="text-matching">
-    <h3>Text-Based Matching (25% Weight)</h3>
+<!-- Section C: Ontology Tag Matching -->
+<section id="ontology-matching">
+    <h3>Ontology Tag Matching (15% Weight)</h3>
 
-    <p>Text-based matching analyzes terminology overlap between Key Event titles and pathway names/descriptions.</p>
+    <p>Ontology-based matching compares biological keywords extracted from the KE title against pathway classification tags from WikiPathways ontology annotations.</p>
 
-    <h4>Algorithms Used</h4>
-    <ul>
-        <li><strong>Weighted Jaccard Similarity:</strong> Word overlap with 2× weight for biological terms</li>
-        <li><strong>Sequence Matching:</strong> Character-level similarity using difflib</li>
-        <li><strong>Substring Analysis:</strong> Detects embedded phrases and partial matches</li>
-    </ul>
+    <h4>How It Works</h4>
+    <ol>
+        <li><strong>Keyword Extraction:</strong> Biological keywords are extracted from the KE title (e.g. "apoptosis", "CYP2E1", "signaling")</li>
+        <li><strong>Tag Comparison:</strong> Keywords are compared against WikiPathways ontology tags for each pathway</li>
+        <li><strong>Fuzzy Matching:</strong> Both exact and fuzzy string matching are used (fuzzy threshold: 0.85 similarity)</li>
+    </ol>
 
-    <h4>Biological Term Weighting</h4>
-    <p>Domain-specific terms receive double weight (2×) in calculations:</p>
-    <div class="term-list">
-        <span class="term">pathway</span>
-        <span class="term">protein</span>
-        <span class="term">gene</span>
-        <span class="term">receptor</span>
-        <span class="term">enzyme</span>
-        <span class="term">signaling</span>
-        <span class="term">apoptosis</span>
-        <span class="term">metabolism</span>
-        <span class="term">transcription</span>
-        <span class="term">regulation</span>
-    </div>
-
-    <h4>Adaptive Weighting</h4>
-    <p>The system dynamically adjusts algorithm weights based on match quality:</p>
+    <h4>Scoring</h4>
     <table class="scoring-table">
         <thead>
             <tr>
-                <th>Match Quality</th>
-                <th>Jaccard</th>
-                <th>Sequence</th>
-                <th>Substring</th>
+                <th>Match Type</th>
+                <th>Boost per Match</th>
+                <th>Example</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td>High word overlap (&gt;70%)</td>
-                <td>65%</td>
-                <td>25%</td>
-                <td>10%</td>
+                <td><strong>Exact match</strong></td>
+                <td><span class="confidence-high">+0.30</span></td>
+                <td>"apoptosis" in KE matches "apoptosis" tag exactly</td>
             </tr>
             <tr>
-                <td>Good phrase match</td>
-                <td>25%</td>
-                <td>15%</td>
-                <td>60%</td>
-            </tr>
-            <tr>
-                <td>Character similarity</td>
-                <td>30%</td>
-                <td>55%</td>
-                <td>15%</td>
+                <td><strong>Fuzzy match</strong></td>
+                <td><span class="confidence-medium">+0.15</span></td>
+                <td>"signaling" in KE fuzzy-matches "signalling" tag</td>
             </tr>
         </tbody>
     </table>
 
-    <h4>Synonym Dictionary</h4>
-    <p>The system recognizes 50+ biological synonyms:</p>
-    <ul>
-        <li>"Wnt signaling" = "Wnt pathway"</li>
-        <li>"NF-kB" = "NF-kappaB" = "nuclear factor kappa B"</li>
-        <li>"ROS" = "reactive oxygen species" = "oxidative stress"</li>
-    </ul>
+    <div class="info-box">
+        <strong>Score Range:</strong> Ontology scores are clamped between a minimum threshold of 0.20 and a maximum of 0.90. Pathways with no matching tags receive a score of 0 and do not contribute to the hybrid score.
+    </div>
 </section>
 
 <!-- Section D: Semantic/BioBERT Matching -->
 <section id="semantic-matching">
-    <h3>Semantic/BioBERT Matching (40% Weight)</h3>
+    <h3>Semantic/BioBERT Matching (50% Weight)</h3>
 
     <p>BioBERT provides neural network-based semantic understanding, capturing biological meaning beyond simple word matching.</p>
 
@@ -307,29 +278,29 @@ transformed_score = normalized_score ^ power_exponent
             <tr>
                 <th>Raw Cosine</th>
                 <th>Normalized</th>
-                <th>After Transform (^1.5)</th>
+                <th>After Transform (^4.0)</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td>0.90</td>
                 <td>0.95</td>
-                <td><span class="confidence-high">0.82</span></td>
+                <td><span class="confidence-high">0.81</span></td>
             </tr>
             <tr>
                 <td>0.80</td>
                 <td>0.90</td>
-                <td><span class="confidence-medium">0.72</span></td>
+                <td><span class="confidence-medium">0.66</span></td>
             </tr>
             <tr>
                 <td>0.70</td>
                 <td>0.85</td>
-                <td><span class="confidence-medium">0.62</span></td>
+                <td><span class="confidence-low">0.52</span></td>
             </tr>
             <tr>
                 <td>0.50</td>
                 <td>0.75</td>
-                <td><span class="confidence-low">0.43</span></td>
+                <td><span class="confidence-low">0.32</span></td>
             </tr>
         </tbody>
     </table>
@@ -556,7 +527,7 @@ Maximum Score = 7.5 points
     <p>All scoring parameters are configurable via <code>scoring_config.yaml</code>. Changes require a Flask restart to take effect.</p>
 
     <h4>Configuration File Location</h4>
-    <pre><code>/home/marvin/Documents/Services/Ke-gene-mapping/KE-WP-mapping/scoring_config.yaml</code></pre>
+    <pre><code>scoring_config.yaml</code></pre>
 
     <h4>Common Tuning Scenarios</h4>
 
@@ -572,7 +543,7 @@ Maximum Score = 7.5 points
             <tr>
                 <td>More suggestions</td>
                 <td><code>dynamic_thresholds.base_threshold</code></td>
-                <td>Lower (0.25 → 0.18)</td>
+                <td>Lower (0.15 → 0.10)</td>
             </tr>
             <tr>
                 <td>Higher gene confidence</td>
@@ -582,7 +553,7 @@ Maximum Score = 7.5 points
             <tr>
                 <td>Spread BioBERT scores</td>
                 <td><code>embedding_based_matching.score_transformation.power_exponent</code></td>
-                <td>Raise (1.5 → 2.0)</td>
+                <td>Raise (4.0 → 5.0)</td>
             </tr>
             <tr>
                 <td>Lenient assessment</td>

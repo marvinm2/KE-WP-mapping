@@ -339,7 +339,7 @@ curl http://localhost:5000/metrics
 {
   "status": "healthy|degraded|unhealthy",
   "timestamp": 1754582360,
-  "version": "2.0.0",
+  "version": "2.5.0",
   "services": {
     "database": true,
     "oauth": true,
