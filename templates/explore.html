@@ -195,6 +195,21 @@
         {% endif %}
     </div>
 
+    <!-- WikiPathways Embed Modal -->
+    <div id="wpExploreModal" class="wp-explore-modal">
+        <div class="wp-explore-modal__header">
+            <div class="wp-explore-modal__header-info">
+                <div class="wp-explore-modal__title" id="wpModalTitle"></div>
+                <div class="wp-explore-modal__meta" id="wpModalMeta"></div>
+            </div>
+            <div class="wp-explore-modal__actions">
+                <a id="wpModalExtLink" href="#" target="_blank" class="btn-link-blue" style="font-size:12px;">Open on WikiPathways</a>
+                <button type="button" class="wp-explore-modal__close" onclick="closeModal()">&times;</button>
+            </div>
+        </div>
+        <div class="wp-explore-modal__body" id="wpModalBody"></div>
+    </div>
+
     <!-- Overlay for Modal -->
     <div id="modalOverlay" class="modal-overlay" style="display: none;" onclick="closeModal()"></div>
     {% include 'components/footer.html' %}
@@ -235,7 +250,20 @@
                 columns: [
                     { data: 'ke_id' },
                     { data: 'ke_name' },
-                    { data: 'pathway_id' },
+                    { data: 'pathway_id',
+                      render: function(data, type, row) {
+                          if (type !== 'display' || !data) return data || '';
+                          var wpUrl = 'https://www.wikipathways.org/pathways/' + data;
+                          var safeTitle = $('<span>').text(row.pathway_title || '').html();
+                          return '<a href="' + wpUrl + '" target="_blank" title="View on WikiPathways">'
+                              + data + '</a> '
+                              + '<button class="wp-preview-btn" '
+                              + 'data-wp-id="' + data + '" '
+                              + 'data-wp-title="' + safeTitle + '" '
+                              + 'data-ke-name="' + $('<span>').text(row.ke_name || '').html() + '" '
+                              + 'title="Preview pathway diagram">&#128065;</button>';
+                      }
+                    },
                     { data: 'pathway_title' },
                     { data: 'confidence_level' },
                     { data: 'provenance.approved_by', defaultContent: '-' },
@@ -254,6 +282,31 @@
                     { width: '12%', targets: 6, className: 'dt-center' },
                     { width: '12%', targets: 7, className: 'dt-center' }
                 ]
+            });
+
+            // WikiPathways embed modal
+            $('#datasetTable').on('click', '.wp-preview-btn', function(e) {
+                e.stopPropagation();
+                var wpId = $(this).data('wp-id');
+                var wpTitle = $(this).data('wp-title');
+                var keName = $(this).data('ke-name');
+                openExploreEmbedModal(wpId, wpTitle, keName);
+            });
+
+            function openExploreEmbedModal(wpId, wpTitle, keName) {
+                $('#wpModalTitle').text(wpTitle || wpId);
+                $('#wpModalMeta').text('KE: ' + (keName || '\u2014') + ' | ID: ' + wpId);
+                $('#wpModalExtLink').attr('href', 'https://www.wikipathways.org/pathways/' + wpId);
+                PathwayEmbed.mountIframe('#wpModalBody', wpId, []);
+                $('#wpExploreModal').addClass('is-visible');
+                $('#modalOverlay').show();
+            }
+
+            // Escape key closes modal
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
             });
 
             // Filter chip rendering
@@ -552,6 +605,7 @@
 
         function closeModal() {
             $("#proposalModal").hide();
+            $("#wpExploreModal").removeClass('is-visible');
             $("#modalOverlay").hide();
         }
 

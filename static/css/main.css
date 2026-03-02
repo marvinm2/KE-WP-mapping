@@ -1471,6 +1471,108 @@ select:focus:not(:focus-visible),
 .modal-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: var(--z-modal); background: white; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); padding: 25px; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: var(--z-modal-overlay); }
 
+/* WikiPathways embed viewer */
+.wp-explore-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: var(--z-modal);
+    width: 70vw;
+    height: 70vh;
+    background: var(--color-white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+.wp-explore-modal.is-visible {
+    display: flex;
+}
+.wp-explore-modal__header {
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-bottom: 1px solid var(--color-border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    background: var(--color-bg-lighter);
+}
+.wp-explore-modal__header-info {
+    flex: 1;
+    min-width: 0;
+}
+.wp-explore-modal__title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wp-explore-modal__meta {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+.wp-explore-modal__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
+    flex-shrink: 0;
+}
+.wp-explore-modal__close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    color: var(--color-text-muted);
+}
+.wp-explore-modal__close:hover {
+    color: var(--color-text-dark);
+}
+.wp-explore-modal__body {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+.wp-embed-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--color-text-muted);
+}
+.wp-embed-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 8px;
+    color: var(--color-text-muted);
+}
+.wp-embed-error a {
+    color: var(--color-primary-blue);
+}
+.wp-preview-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 14px;
+    vertical-align: middle;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+.wp-preview-btn:hover {
+    opacity: 1;
+}
+
 /* Outlined Panel */
 .panel-outlined { background: white; border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: var(--spacing-2xl); }
 

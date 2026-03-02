@@ -2,6 +2,68 @@
  * Main JavaScript functionality for KE-WP Mapping Application
  */
 
+/**
+ * PathwayEmbed - Utility object for embedding WikiPathways diagrams via Toolforge iframe.
+ * Exposed at window.PathwayEmbed for use in explore.html and future plans.
+ */
+var PathwayEmbed = {
+    /**
+     * Constructs the Toolforge embed URL for a given WP ID.
+     * If genes array is non-empty, appends ?yellow=... for gene highlighting.
+     */
+    buildEmbedUrl: function(wpId, genes) {
+        var base = 'https://pathway-viewer.toolforge.org/embed/' + wpId;
+        if (genes && genes.length > 0) {
+            var encoded = genes.map(function(g) { return encodeURIComponent(g); }).join(',');
+            return base + '?yellow=' + encoded;
+        }
+        return base;
+    },
+
+    /**
+     * Clears container, shows loading spinner, creates iframe with 5s timeout.
+     * On load: removes spinner, shows iframe.
+     * On timeout: removes iframe, shows error state with fallback link.
+     */
+    mountIframe: function(container, wpId, genes) {
+        var $container = $(container);
+        $container.empty();
+        $container.html('<div class="wp-embed-loading"><div class="loading-spinner"></div><span>Loading pathway...</span></div>');
+
+        var src = PathwayEmbed.buildEmbedUrl(wpId, genes);
+        var $iframe = $('<iframe>', {
+            src: src,
+            frameborder: 0,
+            allowfullscreen: true
+        }).css({ width: '100%', height: '100%', border: 'none', display: 'none' });
+
+        var timeoutId = setTimeout(function() {
+            $iframe.off('load');
+            $container.html(PathwayEmbed.buildErrorState(wpId));
+        }, 5000);
+
+        $iframe.on('load', function() {
+            clearTimeout(timeoutId);
+            $container.find('.wp-embed-loading').remove();
+            $iframe.show();
+        });
+
+        $container.append($iframe);
+    },
+
+    /**
+     * Returns HTML for the error state with a fallback link to WikiPathways.
+     */
+    buildErrorState: function(wpId) {
+        return '<div class="wp-embed-error">'
+            + '<p>Pathway viewer unavailable.</p>'
+            + '<a href="https://www.wikipathways.org/pathways/' + wpId + '" target="_blank">View on WikiPathways</a>'
+            + '</div>';
+    }
+};
+
+window.PathwayEmbed = PathwayEmbed;
+
 class KEWPApp {
     constructor() {
         this.isLoggedIn = false;
