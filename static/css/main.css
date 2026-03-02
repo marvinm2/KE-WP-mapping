@@ -1573,6 +1573,49 @@ select:focus:not(:focus-visible),
     opacity: 1;
 }
 
+/* WikiPathways mapping modal */
+.wp-mapping-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: var(--z-modal);
+    width: 70vw;
+    height: 70vh;
+    background: var(--color-white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+.wp-mapping-modal.is-visible {
+    display: flex;
+}
+.wp-mapping-modal__body {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+.wp-mapping-modal__genes {
+    padding: 8px var(--spacing-xl);
+    border-top: 1px solid var(--color-border-light);
+    font-size: 12px;
+    color: var(--color-text-muted);
+    max-height: 60px;
+    overflow-y: auto;
+    flex-shrink: 0;
+    background: var(--color-bg-lighter);
+}
+.wp-mapping-modal__genes strong {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.wp-gene-list {
+    display: inline;
+    word-break: break-word;
+}
+
 /* Outlined Panel */
 .panel-outlined { background: white; border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: var(--spacing-2xl); }
 
