@@ -1279,6 +1279,61 @@ def suggest_go_terms(ke_id):
         return jsonify({"error": "Failed to get GO suggestions"}), 500
 
 
+@api_bp.route("/search_go_terms", methods=["GET"])
+@sparql_rate_limit
+def search_go_terms():
+    """
+    Search GO terms with fuzzy matching
+
+    Query Parameters:
+        q: Search query string (required)
+        threshold: Minimum similarity threshold (0.0-1.0, default 0.4)
+        limit: Maximum number of results (default 10)
+
+    Returns:
+        JSON response with matching GO terms and relevance scores
+    """
+    try:
+        if not go_suggestion_service:
+            logger.error("GO suggestion service not available")
+            return jsonify({"error": "Search service unavailable"}), 503
+
+        query = request.args.get('q', '').strip()
+        threshold = request.args.get('threshold', 0.4, type=float)
+        limit = request.args.get('limit', 10, type=int)
+
+        if not query:
+            return jsonify({"error": "Search query is required"}), 400
+
+        if threshold < 0.1 or threshold > 1.0:
+            threshold = 0.4
+
+        if limit > 100:
+            limit = 100
+        elif limit < 1:
+            limit = 10
+
+        logger.info("Searching GO terms with query: '%s', threshold: %s", sanitize_log(query), threshold)
+
+        results = go_suggestion_service.search_go_terms(query, threshold, limit)
+
+        response = {
+            "query": query,
+            "threshold": threshold,
+            "limit": limit,
+            "results": results,
+            "total_results": len(results),
+            "timestamp": int(time.time())
+        }
+
+        logger.info("Found %d GO terms matching '%s'", len(results), sanitize_log(query))
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error("Error searching GO terms: %s", e)
+        return jsonify({"error": "Failed to search GO terms"}), 500
+
+
 @api_bp.route("/submit_go_mapping", methods=["POST"])
 @submission_rate_limit
 @login_required

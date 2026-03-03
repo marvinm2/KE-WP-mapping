@@ -267,6 +267,8 @@ class KEWPApp {
 
         // Step 2 sub-tab switching (#96)
         this.setupStep2SubTabs();
+        this.setupGoStep2SubTabs();
+        this.setupGoTermSearch();
 
         // Confidence select-button group wiring
         $(document).on('click', '#confidence-select-group .btn-option', (e) => {
@@ -3132,6 +3134,176 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         // Fire live duplicate check now that pathway is selected
         setTimeout(() => this.checkForDuplicatePair(), 100);
+    }
+
+    // --- GO Term Search ---
+
+    setupGoStep2SubTabs() {
+        $(document).on('click', '.go-step2-subtab', (e) => {
+            const $btn = $(e.currentTarget);
+            const subtab = $btn.data('subtab');
+
+            $('.go-step2-subtab').removeClass('active');
+            $btn.addClass('active');
+
+            $('.go-step2-panel').hide();
+            $(`#go-step2-panel-${subtab}`).show();
+        });
+    }
+
+    setupGoTermSearch() {
+        const $searchInput = $("#go-term-search");
+        const $searchResults = $("#go-search-results");
+        let searchTimeout;
+
+        $searchInput.on('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = $(e.target).val().trim();
+
+            if (query.length < 2) {
+                $searchResults.hide();
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                this.performGoTermSearch(query);
+            }, 300);
+        });
+
+        $searchInput.on('focus', () => {
+            if ($searchResults.children().length > 0) {
+                $searchResults.show();
+            }
+        });
+
+        $searchInput.on('blur', () => {
+            setTimeout(() => {
+                $searchResults.hide();
+            }, 150);
+        });
+
+        $searchInput.on('keydown', (e) => {
+            const $items = $searchResults.find('.search-result-item');
+            const $active = $items.filter('.active');
+
+            switch(e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if ($active.length === 0) {
+                        $items.first().addClass('active');
+                    } else {
+                        $active.removeClass('active');
+                        const $next = $active.next('.search-result-item');
+                        ($next.length > 0 ? $next : $items.first()).addClass('active');
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if ($active.length === 0) {
+                        $items.last().addClass('active');
+                    } else {
+                        $active.removeClass('active');
+                        const $prev = $active.prev('.search-result-item');
+                        ($prev.length > 0 ? $prev : $items.last()).addClass('active');
+                    }
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    if ($active.length > 0) {
+                        $active.click();
+                    }
+                    break;
+                case 'Escape':
+                    $searchResults.hide();
+                    $searchInput.blur();
+                    break;
+            }
+        });
+    }
+
+    performGoTermSearch(query) {
+        const $searchResults = $("#go-search-results");
+
+        $searchResults.html(`
+            <div class="search-loading">
+                <div style="margin-bottom: 10px;">Searching GO terms...</div>
+                <div class="spinner spinner--xs"></div>
+            </div>
+        `).show();
+
+        $.getJSON(`/search_go_terms?q=${encodeURIComponent(query)}&threshold=0.2&limit=10`)
+            .done((data) => {
+                this.displayGoSearchResults(data.results, query);
+            })
+            .fail(() => {
+                $searchResults.html('<div class="login-warning" style="padding: 10px;">Unable to search GO terms. Please try again.</div>');
+            });
+    }
+
+    displayGoSearchResults(results, query) {
+        const $searchResults = $("#go-search-results");
+
+        if (results.length === 0) {
+            $searchResults.html(`
+                <div class="text-muted" style="padding: 15px; text-align: center;">
+                    <div style="margin-bottom: 8px;">No GO terms found</div>
+                    <div style="font-size: 12px;">Try different keywords or broader terms</div>
+                </div>
+            `).show();
+            return;
+        }
+
+        let html = '';
+        results.forEach(result => {
+            const relevancePct = Math.round(result.relevance_score * 100);
+            const nameHighlighted = this.highlightSearchTerms(result.go_name, query);
+            const defSnippet = result.go_definition
+                ? this.truncateText(result.go_definition, 120)
+                : 'No definition available';
+
+            html += `
+                <div class="search-result-item"
+                     data-go-id="${this.escapeHtml(result.go_id)}"
+                     data-go-name="${this.escapeHtml(result.go_name)}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div class="text-dark-heading" style="font-weight: bold; margin-bottom: 4px;">
+                                ${nameHighlighted}
+                            </div>
+                            <div class="text-muted" style="font-size: 11px; margin-bottom: 4px;">
+                                ${result.go_id}
+                                &middot;
+                                <a href="${this.escapeHtml(result.quickgo_link)}" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="font-size: 11px;">QuickGO</a>
+                            </div>
+                            <div class="text-muted" style="font-size: 12px;">
+                                ${defSnippet}
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="center-text">
+                                <div class="biolevel-chip" style="font-size: 10px; font-weight: bold;">
+                                    ${relevancePct}%
+                                </div>
+                                <div class="text-muted" style="font-size: 9px; margin-top: 2px;">match</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        $searchResults.html(html).show();
+
+        $searchResults.find('.search-result-item').on('click', (e) => {
+            const $item = $(e.currentTarget);
+            this.selectGoSearchResult($item.data('go-id'), $item.data('go-name'));
+        });
+    }
+
+    selectGoSearchResult(goId, goName) {
+        $("#go-term-search").val('');
+        $("#go-search-results").hide();
+        this.selectGoTerm(goId, goName);
     }
 
     highlightSearchTerms(text, query) {

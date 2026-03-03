@@ -19,7 +19,8 @@
         <li><a href="/downloads" class="site-nav__link {{ 'active' if request.path == '/downloads' else '' }}">Downloads</a></li>
         <li><a href="/documentation" class="site-nav__link {{ 'active' if request.path.startswith('/documentation') else '' }}">Docs</a></li>
         {% if is_admin %}
-        <li><a href="/admin/proposals" class="site-nav__link {{ 'active' if request.path.startswith('/admin') else '' }}">Admin</a></li>
+        <li><a href="/admin/proposals" class="site-nav__link {{ 'active' if request.path == '/admin/proposals' else '' }}">Admin</a></li>
+        <li><a href="/admin/guest-codes" class="site-nav__link {{ 'active' if request.path == '/admin/guest-codes' else '' }}">Guest Codes</a></li>
         {% endif %}
       </ul>
     </nav>

@@ -6,6 +6,8 @@ using pre-computed embeddings and gene annotation overlap.
 import json
 import logging
 import os
+import re
+from difflib import SequenceMatcher
 from typing import Dict, List
 
 import numpy as np
@@ -168,6 +170,67 @@ class GoSuggestionService:
                 "ke_id": ke_id,
                 "ke_title": ke_title,
             }
+
+    def search_go_terms(
+        self, query: str, threshold: float = 0.4, limit: int = 10
+    ) -> List[Dict]:
+        """
+        Search GO terms using SequenceMatcher fuzzy matching.
+
+        Args:
+            query: Search query string
+            threshold: Minimum similarity threshold (0.0-1.0)
+            limit: Maximum number of results
+
+        Returns:
+            List of matching GO terms with relevance scores
+        """
+        try:
+            query_clean = self._clean_text(query)
+            if not query_clean:
+                return []
+
+            results = []
+            for go_id, metadata in self.go_metadata.items():
+                go_name = metadata.get('name', '')
+                go_definition = metadata.get('definition', '')
+
+                name_clean = self._clean_text(go_name)
+                name_similarity = SequenceMatcher(None, query_clean, name_clean).ratio()
+
+                def_similarity = 0.0
+                if go_definition:
+                    def_clean = self._clean_text(go_definition)
+                    def_similarity = SequenceMatcher(None, query_clean, def_clean).ratio()
+
+                max_similarity = max(name_similarity, def_similarity)
+
+                if max_similarity >= threshold:
+                    results.append({
+                        'go_id': go_id,
+                        'go_name': go_name,
+                        'go_definition': go_definition,
+                        'name_similarity': round(name_similarity, 3),
+                        'definition_similarity': round(def_similarity, 3),
+                        'relevance_score': round(max_similarity, 3),
+                        'quickgo_link': f"https://www.ebi.ac.uk/QuickGO/term/{go_id}",
+                    })
+
+            results.sort(key=lambda x: x['relevance_score'], reverse=True)
+            return results[:limit]
+
+        except Exception as e:
+            logger.error("Error in GO term search: %s", e)
+            return []
+
+    @staticmethod
+    def _clean_text(text: str) -> str:
+        """Clean and normalize text for comparison."""
+        if not text:
+            return ""
+        cleaned = re.sub(r"[^\w\s]", " ", text)
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        return cleaned.strip().lower()
 
     def _get_genes_from_ke(self, ke_id: str) -> List[str]:
         """Extract HGNC gene symbols associated with a Key Event"""
