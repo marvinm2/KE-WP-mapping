@@ -186,6 +186,23 @@ class GoSuggestionService:
             List of matching GO terms with relevance scores
         """
         try:
+            # Check for GO ID pattern (e.g. GO:0006915, go:0006915, GO_0006915)
+            go_id_match = re.match(r'^(GO)[:\-_]?(\d{4,7})$', query.strip(), re.IGNORECASE)
+            if go_id_match:
+                normalized = f"GO:{go_id_match.group(2).zfill(7)}"
+                if normalized in self.go_metadata:
+                    meta = self.go_metadata[normalized]
+                    return [{
+                        'go_id': normalized,
+                        'go_name': meta.get('name', ''),
+                        'go_definition': meta.get('definition', ''),
+                        'name_similarity': 1.0,
+                        'definition_similarity': 1.0,
+                        'relevance_score': 1.0,
+                        'quickgo_link': f"https://www.ebi.ac.uk/QuickGO/term/{normalized}",
+                    }]
+                return []
+
             query_clean = self._clean_text(query)
             if not query_clean:
                 return []
