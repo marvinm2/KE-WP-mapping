@@ -35,17 +35,17 @@ var PathwayEmbed = {
             src: src,
             frameborder: 0,
             allowfullscreen: true
-        }).css({ width: '100%', height: '100%', border: 'none', display: 'none' });
+        }).css({ width: '100%', height: '100%', border: 'none', visibility: 'hidden', position: 'absolute', top: 0, left: 0 });
 
         var timeoutId = setTimeout(function() {
             $iframe.off('load');
             $container.html(PathwayEmbed.buildErrorState(wpId));
-        }, 5000);
+        }, 10000);
 
         $iframe.on('load', function() {
             clearTimeout(timeoutId);
             $container.find('.wp-embed-loading').remove();
-            $iframe.show();
+            $iframe.css({ visibility: 'visible', position: 'static' });
         });
 
         $container.append($iframe);
@@ -2867,7 +2867,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
     prefetchKeGenes(keId) {
         if (this._cachedKeGenes[keId] !== undefined) return;
         this._cachedKeGenes[keId] = [];  // mark as in-flight
-        $.getJSON('/api/ke_genes/' + encodeURIComponent(keId))
+        $.getJSON('/ke_genes/' + encodeURIComponent(keId))
             .done((data) => {
                 this._cachedKeGenes[keId] = data.genes || [];
             })
@@ -2896,9 +2896,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $('#wpMappingModalMeta').text('ID: ' + wpId + ' | ' + geneCountText);
         $('#wpMappingModalExtLink').attr('href', 'https://www.wikipathways.org/pathways/' + wpId);
 
-        // Mount iframe with gene highlighting
-        PathwayEmbed.mountIframe('#wpMappingModalBody', wpId, genes);
-
         // Gene list footer
         var $genesDiv = $('#wpMappingModalGenes');
         if (genes.length > 0) {
@@ -2907,8 +2904,12 @@ This helps identify gaps in existing pathways for future development.">❓</span
             $genesDiv.hide();
         }
 
+        // Show modal first so iframe gets real viewport dimensions
         $('#wpMappingModal').addClass('is-visible');
         $('#wpMappingOverlay').show();
+
+        // Mount iframe after modal is visible
+        PathwayEmbed.mountIframe('#wpMappingModalBody', wpId, genes);
     }
 
     closeMappingModal() {

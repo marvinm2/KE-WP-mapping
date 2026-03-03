@@ -261,7 +261,11 @@
                               + 'data-wp-id="' + data + '" '
                               + 'data-wp-title="' + safeTitle + '" '
                               + 'data-ke-name="' + $('<span>').text(row.ke_name || '').html() + '" '
-                              + 'title="Preview pathway diagram">&#128065;</button>';
+                              + 'title="Preview pathway diagram">'
+                              + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                              + '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>'
+                              + '<circle cx="12" cy="12" r="3"/>'
+                              + '</svg></button>';
                       }
                     },
                     { data: 'pathway_title' },
@@ -297,9 +301,9 @@
                 $('#wpModalTitle').text(wpTitle || wpId);
                 $('#wpModalMeta').text('KE: ' + (keName || '\u2014') + ' | ID: ' + wpId);
                 $('#wpModalExtLink').attr('href', 'https://www.wikipathways.org/pathways/' + wpId);
-                PathwayEmbed.mountIframe('#wpModalBody', wpId, []);
                 $('#wpExploreModal').addClass('is-visible');
                 $('#modalOverlay').show();
+                PathwayEmbed.mountIframe('#wpModalBody', wpId, []);
             }
 
             // Escape key closes modal

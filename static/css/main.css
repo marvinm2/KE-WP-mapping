@@ -1563,14 +1563,18 @@ select:focus:not(:focus-visible),
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0 2px;
-    font-size: 14px;
+    padding: 2px 4px;
     vertical-align: middle;
-    opacity: 0.6;
+    color: var(--color-primary-blue);
+    opacity: 0.7;
     transition: opacity 0.15s;
 }
 .wp-preview-btn:hover {
     opacity: 1;
+}
+.wp-preview-btn svg {
+    display: inline-block;
+    vertical-align: middle;
 }
 
 /* WikiPathways mapping modal */
