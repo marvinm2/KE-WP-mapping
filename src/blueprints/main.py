@@ -553,6 +553,76 @@ def ke_biolevels():
     return jsonify(result)
 
 
+@main_bp.route("/api/ke-gene-counts")
+def ke_gene_counts():
+    """Return a map of KE ID to de-duplicated gene count from approved WP+GO mappings."""
+    from src.exporters.gmt_exporter import _fetch_pathway_genes_batch
+
+    result = {}
+
+    # WP gene data
+    wp_mappings = [m for m in (mapping_model.get_all_mappings() if mapping_model else [])
+                   if m.get('approved_by_curator') is not None]
+    wp_ids = list({m['wp_id'] for m in wp_mappings})
+    genes_by_wp = _fetch_pathway_genes_batch(wp_ids, cache_model=cache_model_ref) if wp_ids else {}
+
+    for m in wp_mappings:
+        ke_id = m['ke_id']
+        genes = genes_by_wp.get(m['wp_id'], [])
+        result.setdefault(ke_id, set()).update(genes)
+
+    # GO gene data
+    go_mappings = [m for m in (go_mapping_model.get_all_mappings() if go_mapping_model else [])
+                   if m.get('approved_by_curator') is not None]
+    go_annotations = {}
+    try:
+        go_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json')
+        with open(go_path, 'r') as f:
+            go_annotations = json_lib.load(f)
+    except Exception:
+        pass
+
+    for m in go_mappings:
+        ke_id = m['ke_id']
+        genes = go_annotations.get(m['go_id'], [])
+        result.setdefault(ke_id, set()).update(genes)
+
+    return jsonify({ke_id: len(genes) for ke_id, genes in result.items() if len(genes) > 0})
+
+
+@main_bp.route("/api/ke-genes/<ke_id>")
+def ke_genes_for_ke(ke_id):
+    """Return sorted list of HGNC gene symbols for a single KE from approved WP+GO mappings."""
+    from src.exporters.gmt_exporter import _fetch_pathway_genes_batch
+
+    all_genes = set()
+
+    # WP gene data
+    wp_mappings = [m for m in (mapping_model.get_all_mappings() if mapping_model else [])
+                   if m.get('approved_by_curator') is not None and m.get('ke_id') == ke_id]
+    wp_ids = list({m['wp_id'] for m in wp_mappings})
+    genes_by_wp = _fetch_pathway_genes_batch(wp_ids, cache_model=cache_model_ref) if wp_ids else {}
+
+    for m in wp_mappings:
+        all_genes.update(genes_by_wp.get(m['wp_id'], []))
+
+    # GO gene data
+    go_mappings = [m for m in (go_mapping_model.get_all_mappings() if go_mapping_model else [])
+                   if m.get('approved_by_curator') is not None and m.get('ke_id') == ke_id]
+    go_annotations = {}
+    try:
+        go_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json')
+        with open(go_path, 'r') as f:
+            go_annotations = json_lib.load(f)
+    except Exception:
+        pass
+
+    for m in go_mappings:
+        all_genes.update(go_annotations.get(m['go_id'], []))
+
+    return jsonify({"ke_id": ke_id, "genes": sorted(list(all_genes))})
+
+
 @main_bp.route("/stats")
 def stats():
     """Public dataset metrics dashboard — no login required."""
