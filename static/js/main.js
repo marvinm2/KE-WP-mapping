@@ -1569,16 +1569,70 @@ class KEWPApp {
             // Show the confidence guide section
             $("#confidence-guide").show();
 
+            // Build Step 1 summary: "KE{N}: {title}"
+            const keIdRaw = $('#ke_id').val() || '';
+            const keTitle = $('#ke_id option:selected').data('title') || $('#ke_id option:selected').text() || keIdRaw;
+            const keNum = keIdRaw.replace(/\D/g, '');
+            const step1SummaryText = keNum ? ` \u2014 KE${keNum}: ${keTitle}` : '';
+
+            // Build Step 2 summary from selected pathway
+            let step2SummaryText = '';
+            if (selectedPathways.length > 0) {
+                const firstPathway = selectedPathways[0];
+                const wpId = firstPathway.id || '';
+                const wpTitle = firstPathway.title || wpId;
+                step2SummaryText = wpId ? ` \u2014 ${wpId}: ${wpTitle}` : '';
+            }
+
+            // Helper to inject/refresh Step 1 summary
+            const injectStep1Summary = () => {
+                $('#step1-header .step-summary').remove();
+                if (step1SummaryText) {
+                    $('#step1-header').append($('<span class="step-summary"></span>').text(step1SummaryText));
+                }
+            };
+
+            // Helper to inject/refresh Step 2 summary
+            const injectStep2Summary = () => {
+                $('#step2-header .step-summary').remove();
+                if (step2SummaryText) {
+                    $('#step2-header').append($('<span class="step-summary"></span>').text(step2SummaryText));
+                }
+            };
+
+            injectStep1Summary();
+            injectStep2Summary();
+
             // Collapse Steps 1 & 2 to save screen space during assessment
             $('#step1-content').slideUp(300);
             $('#step2-content').slideUp(300);
             $('#step1-header').addClass('collapsible collapsed').off('click.collapse').on('click.collapse', function() {
-                $('#step1-content').slideToggle(200);
-                $(this).toggleClass('collapsed');
+                const $header = $(this);
+                const isNowExpanded = $header.hasClass('collapsed');
+                $header.toggleClass('collapsed');
+                if (isNowExpanded) {
+                    // Expanding — remove summary
+                    $header.find('.step-summary').remove();
+                    $('#step1-content').slideDown(200);
+                } else {
+                    // Collapsing — re-inject summary
+                    injectStep1Summary();
+                    $('#step1-content').slideUp(200);
+                }
             });
             $('#step2-header').addClass('collapsible collapsed').off('click.collapse').on('click.collapse', function() {
-                $('#step2-content').slideToggle(200);
-                $(this).toggleClass('collapsed');
+                const $header = $(this);
+                const isNowExpanded = $header.hasClass('collapsed');
+                $header.toggleClass('collapsed');
+                if (isNowExpanded) {
+                    // Expanding — remove summary
+                    $header.find('.step-summary').remove();
+                    $('#step2-content').slideDown(200);
+                } else {
+                    // Collapsing — re-inject summary
+                    injectStep2Summary();
+                    $('#step2-content').slideUp(200);
+                }
             });
 
             // Show loading state in the pathway assessments area
@@ -1604,6 +1658,7 @@ class KEWPApp {
             $('#step1-content').slideDown(200);
             $('#step2-content').slideDown(200);
             $('#step1-header, #step2-header').removeClass('collapsible collapsed').off('click.collapse');
+            $('#step1-header .step-summary, #step2-header .step-summary').remove();
             this.resetGuide();
         }
     }
