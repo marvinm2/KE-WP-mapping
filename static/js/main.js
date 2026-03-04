@@ -937,7 +937,8 @@ class KEWPApp {
     }
 
     handleConfidenceAssessment(event) {
-        const $btn = $(event.target);
+        const $btn = $(event.target).closest('.btn-option');
+        if (!$btn.length) return;
         const $group = $btn.closest(".btn-group");
         const stepId = $group.data("step");
         const assessmentId = $group.data("assessment");
@@ -2732,11 +2733,27 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 this.updateSelectedPathways();
                 this.toggleAssessmentSection();
 
-                // Fire live duplicate check now that both ke_id and wp_id are set
-                this.checkForDuplicatePair();
-
-                // Auto-scroll to Step 3 if visible
-                if ($('#confidence-guide').is(':visible')) {
+                // Fire duplicate check — scroll happens in callback
+                const keId = $('#ke_id').val();
+                const wpId = $('#wp_id').val();
+                if (keId && wpId) {
+                    $('#duplicate-warning').hide().empty();
+                    $.post('/check', { ke_id: keId, wp_id: wpId }, (result) => {
+                        if (result.pair_exists && result.blocking_type) {
+                            this.renderDuplicateWarning(result);
+                        } else if ($('#confidence-guide').is(':visible')) {
+                            $('html, body').animate({
+                                scrollTop: $('#confidence-guide').offset().top - 20
+                            }, 500);
+                        }
+                    }).fail(() => {
+                        if ($('#confidence-guide').is(':visible')) {
+                            $('html, body').animate({
+                                scrollTop: $('#confidence-guide').offset().top - 20
+                            }, 500);
+                        }
+                    });
+                } else if ($('#confidence-guide').is(':visible')) {
                     $('html, body').animate({
                         scrollTop: $('#confidence-guide').offset().top - 20
                     }, 500);
@@ -2788,6 +2805,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         html += '</div>';
         $('#duplicate-warning').html(html).show();
+        $('#duplicate-warning')[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         $('#duplicate-warning').off('click', '.btn-flag-stale').on('click', '.btn-flag-stale', function() {
             const btn = $(this);
@@ -2847,6 +2865,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         html += '</div>';
         $('#duplicate-warning-go').html(html).show();
+        $('#duplicate-warning-go')[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         $('#duplicate-warning-go').off('click', '.btn-flag-stale').on('click', '.btn-flag-stale', function() {
             const btn = $(this);
@@ -3757,7 +3776,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     handleGoAssessmentClick(event) {
-        const $btn = $(event.target);
+        const $btn = $(event.target).closest('.btn-option');
+        if (!$btn.length) return;
         const $group = $btn.closest('.go-btn-group');
         const stepId = $group.data('step');
         const selectedValue = $btn.data('value');
