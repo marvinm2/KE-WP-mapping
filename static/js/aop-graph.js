@@ -1,10 +1,11 @@
 /**
- * AOP Network Graph Module
- * IIFE module for Cytoscape.js graph rendering, node interaction, side panel,
- * and KE selection on /aop-network.
+ * AOP Network Graph — Standalone Adapter
+ * Consumes AOPGraphCore (aop-graph-core.js) for all graph rendering logic.
  *
- * Fetches /api/ker-adjacency on init, populates card grid + Select2 dropdown,
- * renders interactive graphs per AOP, and handles KE selection redirect.
+ * Handles page-specific concerns: card grid, Select2 dropdown, AOP selection
+ * flow, side panel population, and KE redirect — all specific to /aop-network.
+ *
+ * Requires: aop-graph-core.js loaded before this script.
  */
 var AOPGraph = (function () {
     'use strict';
@@ -15,37 +16,11 @@ var AOPGraph = (function () {
     var currentAOP = null;
     var selectedKEId = null;
 
-    // Node color palette — resolved from CSS variables at init time
-    // (Cytoscape style objects do not support CSS custom properties)
-    var NODE_COLORS = { MIE: '#E6007E', KE: '#307BBF', AO: '#005A6C' };
-    var EDGE_COLOR = '#29235C';
-
-    // ---------------------------------------------------------------------------
-    // CSS variable resolution
-    // ---------------------------------------------------------------------------
-    function getCSSVar(name) {
-        var val = getComputedStyle(document.documentElement)
-            .getPropertyValue(name)
-            .trim();
-        return val || undefined;
-    }
-
-    function resolveNodeColors() {
-        var mie = getCSSVar('--color-primary-pink');
-        var ke  = getCSSVar('--color-primary-blue');
-        var ao  = getCSSVar('--color-secondary-teal');
-        var edge = getCSSVar('--color-primary-dark');
-        if (mie) NODE_COLORS.MIE = mie;
-        if (ke)  NODE_COLORS.KE  = ke;
-        if (ao)  NODE_COLORS.AO  = ao;
-        if (edge) EDGE_COLOR     = edge;
-    }
-
     // ---------------------------------------------------------------------------
     // Init
     // ---------------------------------------------------------------------------
     function init() {
-        resolveNodeColors();
+        AOPGraphCore.resolveNodeColors();
         wireBackButton();
         wireCloseButton();
         loadData();
@@ -107,8 +82,8 @@ var AOPGraph = (function () {
             card.setAttribute('role', 'button');
             card.setAttribute('aria-label', 'View graph for ' + aopId);
             card.innerHTML =
-                '<div class="aop-card__id">' + escapeHtml(aopId) + '</div>' +
-                '<div class="aop-card__title">' + escapeHtml(aop.title || '') + '</div>' +
+                '<div class="aop-card__id">' + AOPGraphCore.escapeHtml(aopId) + '</div>' +
+                '<div class="aop-card__title">' + AOPGraphCore.escapeHtml(aop.title || '') + '</div>' +
                 '<div class="aop-card__ke-count">' + keCount + ' KE' + (keCount !== 1 ? 's' : '') + '</div>';
 
             card.addEventListener('click', function () {
@@ -234,11 +209,11 @@ var AOPGraph = (function () {
     }
 
     // ---------------------------------------------------------------------------
-    // Graph rendering (Cytoscape.js + dagre)
+    // Graph rendering — delegates to AOPGraphCore
     // ---------------------------------------------------------------------------
     function renderGraph(aopId) {
-        var aop = kerData[aopId];
-        if (!aop) return;
+        var aopData = kerData[aopId];
+        if (!aopData) return;
 
         // Destroy previous instance if any
         if (cy) {
@@ -246,135 +221,17 @@ var AOPGraph = (function () {
             cy = null;
         }
 
-        var container = document.getElementById('cy');
-        if (!container) return;
-
-        // Build elements array
-        var elements = [];
-
-        var kes = Array.isArray(aop.kes) ? aop.kes : [];
-        kes.forEach(function (ke) {
-            elements.push({
-                data: {
-                    id: ke.id,
-                    label: ke.title || ke.id,
-                    type: ke.type || 'KE'
-                }
-            });
-        });
-
-        var kers = Array.isArray(aop.kers) ? aop.kers : [];
-        kers.forEach(function (ker, idx) {
-            elements.push({
-                data: {
-                    id: 'ker-' + idx,
-                    source: ker.upstream,
-                    target: ker.downstream
-                }
-            });
-        });
-
-        // Initialise Cytoscape AFTER container is visible
-        cy = cytoscape({
-            container: container,
-            elements: elements,
-            style: buildCytoscapeStyle(),
-            layout: {
-                name: 'dagre',
-                rankDir: 'LR',
-                padding: 30,
-                nodeSep: 50,
-                rankSep: 100,
-                animate: false
+        // Standalone page does not pass mappedKeIds — no mapping-status borders
+        cy = AOPGraphCore.renderGraph('cy', aopData, {
+            onNodeTap: function (nodeData, cyInst) {
+                cyInst.elements().removeClass('active-node');
+                cyInst.$('#' + nodeData.id).addClass('active-node');
+                showSidePanel(nodeData);
             },
-            userPanningEnabled: true,
-            userZoomingEnabled: true,
-            boxSelectionEnabled: false
-        });
-
-        cy.fit(undefined, 30);
-        cy.resize();
-
-        // Bind node tap
-        cy.on('tap', 'node', function (evt) {
-            var node = evt.target;
-            cy.elements().removeClass('active-node');
-            node.addClass('active-node');
-            showSidePanel(node.data());
-        });
-
-        // Tap on background — dismiss panel
-        cy.on('tap', function (evt) {
-            if (evt.target === cy) {
+            onBackgroundTap: function () {
                 dismissSidePanel();
-                cy.elements().removeClass('active-node');
             }
         });
-    }
-
-    function buildCytoscapeStyle() {
-        return [
-            {
-                selector: 'node',
-                style: {
-                    'label': 'data(label)',
-                    'text-wrap': 'wrap',
-                    'text-max-width': '120px',
-                    'font-size': '10px',
-                    'text-valign': 'center',
-                    'text-halign': 'center',
-                    'width': 60,
-                    'height': 60,
-                    'shape': 'round-rectangle',
-                    'color': '#fff',
-                    'text-outline-width': 2,
-                    'text-outline-color': '#333'
-                }
-            },
-            {
-                selector: 'node[type="MIE"]',
-                style: {
-                    'background-color': NODE_COLORS.MIE,
-                    'text-outline-color': NODE_COLORS.MIE
-                }
-            },
-            {
-                selector: 'node[type="KE"]',
-                style: {
-                    'background-color': NODE_COLORS.KE,
-                    'text-outline-color': NODE_COLORS.KE
-                }
-            },
-            {
-                selector: 'node[type="AO"]',
-                style: {
-                    'background-color': NODE_COLORS.AO,
-                    'text-outline-color': NODE_COLORS.AO
-                }
-            },
-            {
-                selector: 'node.active-node',
-                style: {
-                    'border-width': 4,
-                    'border-color': '#FFD700',
-                    'border-style': 'solid',
-                    'shadow-blur': 10,
-                    'shadow-color': '#FFD700',
-                    'shadow-opacity': 0.6
-                }
-            },
-            {
-                selector: 'edge',
-                style: {
-                    'width': 2,
-                    'line-color': EDGE_COLOR,
-                    'target-arrow-color': EDGE_COLOR,
-                    'target-arrow-shape': 'triangle',
-                    'curve-style': 'bezier',
-                    'arrow-scale': 1.2
-                }
-            }
-        ];
     }
 
     // ---------------------------------------------------------------------------
@@ -410,7 +267,7 @@ var AOPGraph = (function () {
         // Populate "Also in these AOPs" list
         var listEl = document.getElementById('ke-panel-aop-list');
         if (listEl && kerData) {
-            var otherAOPs = findAOPsForKE(nodeData.id, currentAOP);
+            var otherAOPs = AOPGraphCore.findAOPsForKE(nodeData.id, currentAOP, kerData);
             listEl.innerHTML = '';
             if (otherAOPs.length === 0) {
                 var li = document.createElement('li');
@@ -470,38 +327,6 @@ var AOPGraph = (function () {
     // ---------------------------------------------------------------------------
     function redirectToKE(keId) {
         window.location.href = '/?ke_id=' + encodeURIComponent(keId);
-    }
-
-    // ---------------------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------------------
-
-    /**
-     * Find all AOP IDs that contain a given KE ID, excluding the current AOP.
-     */
-    function findAOPsForKE(keId, excludeAopId) {
-        if (!kerData) return [];
-        return Object.keys(kerData).filter(function (aopId) {
-            if (aopId === '_metadata') return false;
-            if (aopId === excludeAopId) return false;
-            var aop = kerData[aopId];
-            if (!Array.isArray(aop.kes)) return false;
-            return aop.kes.some(function (ke) {
-                return ke.id === keId;
-            });
-        });
-    }
-
-    /**
-     * Minimal HTML escape to prevent XSS when setting innerHTML.
-     */
-    function escapeHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
     }
 
     // Public API
