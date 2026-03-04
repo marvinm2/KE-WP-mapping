@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css">
     <!-- Select2 for searchable dropdowns -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/aop-graph.css') }}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
@@ -54,6 +55,24 @@
                 </div>
                 <div class="form-hint">
                     <em>Select an AOP to show only its Key Events, or leave empty to browse all KEs</em>
+                </div>
+            </div>
+
+            <!-- Inline AOP Graph Panel (hidden until AOP selected) -->
+            <div id="aop-inline-graph-panel" style="display: none;">
+                <div class="ke-inline-graph-wrapper">
+                    <div id="cy-inline"></div>
+                    <!-- KE Info Panel (floating card inside graph wrapper) -->
+                    <div id="ke-inline-panel" class="ke-inline-panel" style="display: none;">
+                        <div class="ke-inline-panel__type ke-side-panel__ke-type"></div>
+                        <div class="ke-inline-panel__title"></div>
+                        <div class="ke-inline-panel__id"></div>
+                        <div class="ke-inline-panel__biolevel"></div>
+                        <div class="ke-inline-panel__status"></div>
+                        <div class="ke-inline-panel__section-heading">Also in these AOPs</div>
+                        <ul class="ke-inline-panel__aop-list"></ul>
+                        <button type="button" class="ke-inline-panel__use-btn">Use this KE</button>
+                    </div>
                 </div>
             </div>
 
@@ -332,7 +351,15 @@
     <div id="wpMappingOverlay" class="modal-overlay" style="display:none;"></div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-
+    <!-- Cytoscape.js for inline AOP graph (scoped to this page) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.33.1/cytoscape.min.js"
+        integrity="sha512-kHAY8XzRfLVMcLuowdk91552RD+Nb2/1uHamfHMdLejNqlZnbEJLl1wYnsNnqIFCEZ++WaOcOlfokC6p9JWrLw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <script src="{{ url_for('static', filename='js/aop-graph-core.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/aop-graph-inline.js') }}"></script>
 
 
 </div>
