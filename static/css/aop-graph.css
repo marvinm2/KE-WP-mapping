@@ -445,3 +445,119 @@
 .ke-inline-panel__use-btn:hover {
     opacity: 0.88;
 }
+
+/* ---------------------------------------------------------------------------
+   Gene count badge overlay (cytoscape-node-html-label)
+   --------------------------------------------------------------------------- */
+.gene-badge-container {
+    /* Rendered as absolute div by plugin; no sizing needed here */
+}
+
+.gene-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #29235C;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9px;
+    line-height: 1;
+    transform: translate(50%, -50%);
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+/* Legend for gene badges */
+.aop-graph-legend {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--color-text-secondary, #666);
+    border-top: 1px solid var(--color-border-light, #eee);
+    margin-top: 4px;
+}
+
+.aop-graph-legend__badge-sample {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #29235C;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9px;
+    line-height: 1;
+}
+
+/* Gene list in side panel */
+.ke-side-panel__gene-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ke-side-panel__gene-list li {
+    padding: 4px 0;
+    border-bottom: 1px solid var(--color-border-light, #eee);
+    font-size: 13px;
+}
+
+.ke-side-panel__gene-list li:last-child {
+    border-bottom: none;
+}
+
+.ke-side-panel__gene-list a {
+    color: var(--color-primary-blue, #307BBF);
+    text-decoration: none;
+}
+
+.ke-side-panel__gene-list a:hover {
+    text-decoration: underline;
+}
+
+.ke-side-panel__gene-loading {
+    color: var(--color-text-secondary, #888);
+    font-style: italic;
+    font-size: 13px;
+    padding: 4px 0;
+}
+
+/* Inline gene panel */
+.ke-inline-panel__gene-section {
+    margin-top: 8px;
+    border-top: 1px solid var(--color-border-light, #eee);
+    padding-top: 8px;
+}
+
+.ke-inline-panel__gene-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.ke-inline-panel__gene-list li {
+    padding: 3px 0;
+    font-size: 12px;
+}
+
+.ke-inline-panel__gene-list a {
+    color: var(--color-primary-blue, #307BBF);
+    text-decoration: none;
+}
+
+.ke-inline-panel__gene-list a:hover {
+    text-decoration: underline;
+}

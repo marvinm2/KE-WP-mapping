@@ -13,6 +13,11 @@
 var AOPGraphCore = (function () {
     'use strict';
 
+    // Register cytoscape-node-html-label plugin if available (CDN-loaded)
+    if (typeof cytoscape !== 'undefined' && typeof cytoscapeNodeHtmlLabel !== 'undefined') {
+        cytoscape.use(cytoscapeNodeHtmlLabel);
+    }
+
     // Node color palette — resolved from CSS variables at init time
     // (Cytoscape style objects do not support CSS custom properties)
     var NODE_COLORS = { MIE: '#E6007E', KE: '#307BBF', AO: '#005A6C' };
@@ -308,6 +313,34 @@ var AOPGraphCore = (function () {
             .replace(/'/g, '&#39;');
     }
 
+    /**
+     * Apply gene-count badge overlays to graph nodes via cytoscape-node-html-label.
+     * Call AFTER renderGraph() returns a cy instance.
+     *
+     * @param {Object} cy            Cytoscape instance
+     * @param {Object} geneCountMap  {ke_id: count} — only KEs with genes
+     */
+    function applyGeneBadges(cy, geneCountMap) {
+        if (!cy || !geneCountMap) return;
+        if (typeof cy.nodeHtmlLabel !== 'function') {
+            console.warn('[AOPGraphCore] nodeHtmlLabel not available — badge plugin not loaded');
+            return;
+        }
+        cy.nodeHtmlLabel([{
+            query: 'node',
+            halign: 'right',
+            valign: 'top',
+            halignBox: 'right',
+            valignBox: 'top',
+            cssClass: 'gene-badge-container',
+            tpl: function(data) {
+                var count = geneCountMap[data.id];
+                if (!count || count === 0) return '';
+                return '<div class="gene-badge">' + escapeHtml(String(count)) + '</div>';
+            }
+        }]);
+    }
+
     // ---------------------------------------------------------------------------
     // Public API
     // ---------------------------------------------------------------------------
@@ -317,6 +350,7 @@ var AOPGraphCore = (function () {
         buildCytoscapeStyle: buildCytoscapeStyle,
         buildElements: buildElements,
         findAOPsForKE: findAOPsForKE,
-        escapeHtml: escapeHtml
+        escapeHtml: escapeHtml,
+        applyGeneBadges: applyGeneBadges
     };
 })();
