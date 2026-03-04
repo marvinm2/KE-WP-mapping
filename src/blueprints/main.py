@@ -527,6 +527,19 @@ def ker_adjacency_api():
     return jsonify(ker_adjacency)
 
 
+@main_bp.route("/api/mapped-ke-ids")
+def mapped_ke_ids():
+    """Return KE IDs with at least one approved mapping, by type (wp or go)."""
+    mapping_type = request.args.get("type", "wp")
+    if mapping_type == "go" and go_mapping_model:
+        ke_ids = go_mapping_model.get_mapped_ke_ids()
+    elif mapping_type == "wp" and mapping_model:
+        ke_ids = mapping_model.get_mapped_ke_ids()
+    else:
+        ke_ids = []
+    return jsonify({"type": mapping_type, "ke_ids": ke_ids})
+
+
 @main_bp.route("/stats")
 def stats():
     """Public dataset metrics dashboard — no login required."""

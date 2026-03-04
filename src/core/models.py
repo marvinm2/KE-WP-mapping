@@ -715,6 +715,17 @@ class MappingModel:
         finally:
             conn.close()
 
+    def get_mapped_ke_ids(self) -> list:
+        """Return distinct KE IDs that have at least one approved mapping."""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT DISTINCT ke_id FROM mappings WHERE approved_by_curator IS NOT NULL"
+            )
+            return [row["ke_id"] for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
     def get_mappings_paginated(
         self,
         page: int = 1,
@@ -1437,6 +1448,17 @@ class GoMappingModel:
                 (ke_id,)
             )
             return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_mapped_ke_ids(self) -> list:
+        """Return distinct KE IDs that have at least one approved GO mapping."""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT DISTINCT ke_id FROM ke_go_mappings WHERE approved_by_curator IS NOT NULL"
+            )
+            return [row["ke_id"] for row in cursor.fetchall()]
         finally:
             conn.close()
 
