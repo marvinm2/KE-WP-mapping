@@ -12,6 +12,7 @@ var AOPGraphInline = (function () {
     var currentAOP = null;
     var currentTab = 'wp';
     var biolevelMap = {};
+    var geneCountMap = {};
     var dataLoaded = false;
 
     function init() {
@@ -45,10 +46,14 @@ var AOPGraphInline = (function () {
             if (tab && tab !== currentTab) {
                 currentTab = tab;
                 if (currentAOP) {
-                    // Reload graph with new tab's mapping status
-                    loadMappedKeIds(currentTab, function () {
-                        renderInlineGraph(currentAOP);
-                    });
+                    var pending = 2;
+                    var done = function () {
+                        if (--pending === 0) {
+                            renderInlineGraph(currentAOP);
+                        }
+                    };
+                    loadMappedKeIds(currentTab, done);
+                    loadGeneCountMap(done);
                 }
             }
         });
@@ -112,6 +117,19 @@ var AOPGraphInline = (function () {
             });
     }
 
+    function loadGeneCountMap(callback) {
+        fetch('/api/ke-gene-counts')
+            .then(function (resp) { return resp.ok ? resp.json() : {}; })
+            .then(function (data) {
+                geneCountMap = data || {};
+                callback();
+            })
+            .catch(function () {
+                geneCountMap = {};
+                callback();
+            });
+    }
+
     // --- Graph show/hide ---
     function showInlineGraph(aopId) {
         ensureData(function () {
@@ -120,7 +138,7 @@ var AOPGraphInline = (function () {
                 return;
             }
             currentAOP = aopId;
-            var pending = 2;
+            var pending = 3;
             var done = function () {
                 if (--pending === 0) {
                     var panel = document.getElementById('aop-inline-graph-panel');
@@ -130,6 +148,7 @@ var AOPGraphInline = (function () {
             };
             loadBiolevels(done);
             loadMappedKeIds(currentTab, done);
+            loadGeneCountMap(done);
         });
     }
 
@@ -176,6 +195,11 @@ var AOPGraphInline = (function () {
                 rankSep: 80
             }
         });
+
+        // Apply gene-count badges
+        if (cy && Object.keys(geneCountMap).length > 0) {
+            AOPGraphCore.applyGeneBadges(cy, geneCountMap);
+        }
     }
 
     // --- Info panel ---
@@ -212,6 +236,43 @@ var AOPGraphInline = (function () {
             var isMapped = mappedKeIds.has(nodeData.id);
             statusEl.textContent = isMapped ? 'Mapped (' + currentTab.toUpperCase() + ')' : 'Not mapped (' + currentTab.toUpperCase() + ')';
             statusEl.className = 'ke-inline-panel__status ' + (isMapped ? 'ke-inline-panel__status--mapped' : 'ke-inline-panel__status--unmapped');
+        }
+
+        // Gene list section
+        var geneSection = panel.querySelector('.ke-inline-panel__gene-section');
+        if (geneSection) {
+            var geneListEl = geneSection.querySelector('.ke-inline-panel__gene-list');
+            var geneLoadingEl = geneSection.querySelector('.ke-inline-panel__gene-loading');
+            if (geneListEl) geneListEl.innerHTML = '';
+            var count = geneCountMap[nodeData.id] || 0;
+            if (count > 0) {
+                if (geneLoadingEl) {
+                    geneLoadingEl.textContent = 'Loading ' + count + ' gene(s)...';
+                    geneLoadingEl.style.display = '';
+                }
+                geneSection.style.display = '';
+                fetch('/api/ke-genes/' + encodeURIComponent(nodeData.id))
+                    .then(function (resp) { return resp.ok ? resp.json() : { genes: [] }; })
+                    .then(function (data) {
+                        if (geneLoadingEl) geneLoadingEl.style.display = 'none';
+                        var genes = data.genes || [];
+                        genes.forEach(function (symbol) {
+                            var li = document.createElement('li');
+                            var a = document.createElement('a');
+                            a.href = 'https://www.genecards.org/cgi-bin/carddisp.pl?gene=' + encodeURIComponent(symbol);
+                            a.target = '_blank';
+                            a.rel = 'noopener noreferrer';
+                            a.textContent = symbol;
+                            li.appendChild(a);
+                            geneListEl.appendChild(li);
+                        });
+                    })
+                    .catch(function () {
+                        if (geneLoadingEl) geneLoadingEl.style.display = 'none';
+                    });
+            } else {
+                geneSection.style.display = 'none';
+            }
         }
 
         // Wire "Use this KE" button
