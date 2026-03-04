@@ -466,6 +466,7 @@
     font-weight: 700;
     border-radius: 9px;
     line-height: 1;
+    transform: translate(-70%, -40%);
     box-sizing: border-box;
     pointer-events: none;
 }
