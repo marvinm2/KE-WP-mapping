@@ -292,6 +292,7 @@ def approve_proposal(proposal_id: int):
                     approved_by_curator=admin_username,
                     approved_at_curator=approved_at,
                     suggestion_score=proposal_score,
+                    proposed_by=proposal.get("github_username"),
                 )
             else:
                 success = False
@@ -308,6 +309,7 @@ def approve_proposal(proposal_id: int):
                 approved_by_curator=admin_username,
                 approved_at_curator=approved_at,
                 suggestion_score=proposal_score,       # carry score from proposal
+                proposed_by=proposal.get("github_username"),
             )
             action = "updated"
 
@@ -547,6 +549,7 @@ def approve_go_proposal(proposal_id: int):
                 approved_by_curator=admin_username,
                 approved_at_curator=approved_at,
                 suggestion_score=proposal_score,
+                proposed_by=proposal.get("github_username"),
             )
             go_proposal_model.update_go_proposal_status(
                 proposal_id=proposal_id,

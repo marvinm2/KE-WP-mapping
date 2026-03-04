@@ -203,6 +203,10 @@ class Database:
             # Migrate ke_go_proposals table to add new-pair fields (Phase 7)
             self._migrate_go_proposals_new_pair_fields(conn)
 
+            # Migrate mappings/ke_go_mappings to add proposed_by provenance column
+            self._migrate_mappings_proposed_by(conn)
+            self._migrate_go_mappings_proposed_by(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -623,6 +627,44 @@ class Database:
             logger.error("Error migrating ke_go_proposals new-pair fields: %s", e)
             raise
 
+    def _migrate_mappings_proposed_by(self, conn):
+        """
+        Add proposed_by column to mappings table if it does not exist.
+
+        proposed_by (TEXT, nullable) — GitHub username of the curator who submitted
+        the proposal that was approved into this mapping. NULL for all pre-Phase-13
+        rows. Populated at admin approval time from proposals.github_username.
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "proposed_by" not in columns:
+                conn.execute("ALTER TABLE mappings ADD COLUMN proposed_by TEXT")
+                logger.info("Migrated mappings table: added proposed_by column")
+        except Exception as e:
+            logger.error("Error migrating mappings proposed_by: %s", e)
+            raise
+
+    def _migrate_go_mappings_proposed_by(self, conn):
+        """
+        Add proposed_by column to ke_go_mappings table if it does not exist.
+
+        proposed_by (TEXT, nullable) — GitHub username of the curator who submitted
+        the GO proposal that was approved into this mapping. NULL for all pre-Phase-13
+        rows. Populated at admin approval time from ke_go_proposals.github_username.
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "proposed_by" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN proposed_by TEXT"
+                )
+                logger.info("Migrated ke_go_mappings table: added proposed_by column")
+        except Exception as e:
+            logger.error("Error migrating ke_go_mappings proposed_by: %s", e)
+            raise
+
 
 class MappingModel:
     def __init__(self, db: Database):
@@ -941,6 +983,7 @@ class MappingModel:
         approved_by_curator: str = None,
         approved_at_curator: str = None,
         suggestion_score: float = None,
+        proposed_by: str = None,
     ) -> bool:
         """
         Update an existing mapping
@@ -953,6 +996,7 @@ class MappingModel:
             approved_by_curator: GitHub username of curator who approved (optional)
             approved_at_curator: ISO timestamp of curator approval (optional)
             suggestion_score: BioBERT hybrid score from the approved proposal (optional)
+            proposed_by: GitHub username of the curator who originally submitted the proposal (optional)
 
         Returns:
             True if successful, False otherwise
@@ -965,6 +1009,7 @@ class MappingModel:
             "approved_by_curator": "approved_by_curator",
             "approved_at_curator": "approved_at_curator",
             "suggestion_score": "suggestion_score",
+            "proposed_by": "proposed_by",
         }
 
         conn = self.db.get_connection()
@@ -980,6 +1025,7 @@ class MappingModel:
                 "approved_by_curator": approved_by_curator,
                 "approved_at_curator": approved_at_curator,
                 "suggestion_score": suggestion_score,
+                "proposed_by": proposed_by,
             }
 
             for field_name, field_value in update_data.items():
@@ -1660,6 +1706,7 @@ class GoMappingModel:
         approved_by_curator: str = None,
         approved_at_curator: str = None,
         suggestion_score: float = None,
+        proposed_by: str = None,
     ) -> bool:
         """
         Update an existing KE-GO mapping.
@@ -1674,6 +1721,7 @@ class GoMappingModel:
             "approved_by_curator": "approved_by_curator",
             "approved_at_curator": "approved_at_curator",
             "suggestion_score": "suggestion_score",
+            "proposed_by": "proposed_by",
         }
 
         conn = self.db.get_connection()
@@ -1688,6 +1736,7 @@ class GoMappingModel:
                 "approved_by_curator": approved_by_curator,
                 "approved_at_curator": approved_at_curator,
                 "suggestion_score": suggestion_score,
+                "proposed_by": proposed_by,
             }
 
             for field_name, field_value in update_data.items():
