@@ -26,18 +26,20 @@ go_mapping_model = None
 export_manager = None
 metadata_manager = None
 cache_model_ref = None
+ker_adjacency = None
 
 EXPORT_CACHE_DIR = Path("static/exports")
 
 
-def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None, cache_model=None):
+def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None, cache_model=None, ker_adjacency_data=None):
     """Set the model instances"""
-    global mapping_model, export_manager, metadata_manager, go_mapping_model, cache_model_ref
+    global mapping_model, export_manager, metadata_manager, go_mapping_model, cache_model_ref, ker_adjacency
     mapping_model = mapping
     export_manager = export_mgr
     metadata_manager = metadata_mgr
     go_mapping_model = go_mapping
     cache_model_ref = cache_model
+    ker_adjacency = ker_adjacency_data
 
 
 def get_mapping_stats():
@@ -511,6 +513,20 @@ def mapping_detail(mapping_uuid):
     return render_template("mapping_detail.html", mapping=mapping)
 
 
+@main_bp.route("/aop-network")
+def aop_network():
+    """AOP Network Graph visualization page"""
+    return render_template("aop-network.html")
+
+
+@main_bp.route("/api/ker-adjacency")
+def ker_adjacency_api():
+    """Serve precomputed KER adjacency data for the AOP Network page."""
+    if ker_adjacency is None:
+        return jsonify({"error": "KER adjacency data not loaded"}), 503
+    return jsonify(ker_adjacency)
+
+
 @main_bp.route("/stats")
 def stats():
     """Public dataset metrics dashboard — no login required."""
@@ -615,7 +631,7 @@ def documentation(section='overview'):
     Serve documentation pages with section navigation
 
     Args:
-        section: Documentation section to display ('overview', 'user-guide', 'admin-guide', 'api', 'faq')
+        section: Documentation section to display ('overview', 'user-guide', 'admin-guide', 'api')
 
     Returns:
         Rendered documentation template
@@ -626,7 +642,6 @@ def documentation(section='overview'):
         'scoring-guide': 'Scoring Systems',
         'admin-guide': 'Admin Guide',
         'api': 'API Documentation',
-        'faq': 'FAQ & Troubleshooting'
     }
 
     # Validate section
