@@ -233,9 +233,14 @@ var AOPGraphCore = (function () {
             layout: layoutOptions,
             userPanningEnabled: true,
             userZoomingEnabled: true,
-            boxSelectionEnabled: false
+            boxSelectionEnabled: false,
+            maxZoom: 3,
+            minZoom: 0.3
         });
 
+        cy.on('layoutstop', function () {
+            cy.fit(undefined, 30);
+        });
         cy.fit(undefined, 30);
         cy.resize();
 

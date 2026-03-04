@@ -92,13 +92,24 @@ var AOPGraphInline = (function () {
             });
     }
 
-    function buildBiolevelMap() {
-        biolevelMap = {};
-        document.querySelectorAll('#ke_id option').forEach(function (opt) {
-            if (opt.value && opt.getAttribute('data-biolevel')) {
-                biolevelMap[opt.value] = opt.getAttribute('data-biolevel');
-            }
-        });
+    function loadBiolevels(callback) {
+        if (Object.keys(biolevelMap).length > 0) {
+            callback();
+            return;
+        }
+        fetch('/api/ke-biolevels')
+            .then(function (resp) {
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                return resp.json();
+            })
+            .then(function (data) {
+                biolevelMap = data || {};
+                callback();
+            })
+            .catch(function (err) {
+                console.error('[AOPGraphInline] Failed to load biolevels:', err);
+                callback();
+            });
     }
 
     // --- Graph show/hide ---
@@ -109,12 +120,16 @@ var AOPGraphInline = (function () {
                 return;
             }
             currentAOP = aopId;
-            buildBiolevelMap();
-            loadMappedKeIds(currentTab, function () {
-                var panel = document.getElementById('aop-inline-graph-panel');
-                if (panel) panel.style.display = '';
-                renderInlineGraph(aopId);
-            });
+            var pending = 2;
+            var done = function () {
+                if (--pending === 0) {
+                    var panel = document.getElementById('aop-inline-graph-panel');
+                    if (panel) panel.style.display = '';
+                    renderInlineGraph(aopId);
+                }
+            };
+            loadBiolevels(done);
+            loadMappedKeIds(currentTab, done);
         });
     }
 
@@ -189,29 +204,6 @@ var AOPGraphInline = (function () {
         if (biolevelEl) {
             var level = biolevelMap[nodeData.id] || 'Unknown';
             biolevelEl.textContent = level;
-        }
-
-        // Also in these AOPs
-        var listEl = panel.querySelector('.ke-inline-panel__aop-list');
-        if (listEl && kerData) {
-            var otherAOPs = AOPGraphCore.findAOPsForKE(nodeData.id, currentAOP, kerData);
-            listEl.innerHTML = '';
-            if (otherAOPs.length === 0) {
-                var li = document.createElement('li');
-                li.textContent = 'Not in any other AOPs';
-                li.style.color = '#888';
-                li.style.fontStyle = 'italic';
-                listEl.appendChild(li);
-            } else {
-                otherAOPs.forEach(function (aopId) {
-                    var li = document.createElement('li');
-                    li.textContent = aopId;
-                    if (kerData[aopId] && kerData[aopId].title) {
-                        li.title = kerData[aopId].title;
-                    }
-                    listEl.appendChild(li);
-                });
-            }
         }
 
         // Mapping status indicator

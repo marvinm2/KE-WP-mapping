@@ -540,6 +540,19 @@ def mapped_ke_ids():
     return jsonify({"type": mapping_type, "ke_ids": ke_ids})
 
 
+@main_bp.route("/api/ke-biolevels")
+def ke_biolevels():
+    """Return a map of KE ID to biological level."""
+    svc = getattr(current_app, 'service_container', None)
+    index = svc.ke_metadata_index if svc else {}
+    result = {}
+    for ke_label, meta in index.items():
+        biolevel = meta.get("biolevel", "")
+        if biolevel:
+            result[ke_label] = biolevel
+    return jsonify(result)
+
+
 @main_bp.route("/stats")
 def stats():
     """Public dataset metrics dashboard — no login required."""
