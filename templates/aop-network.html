@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AOP Network Graph - Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/aop-graph.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <!-- CSRF Token for AJAX requests -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body>
+
+    {% include 'components/navigation.html' %}
+
+    <div class="container">
+
+        <!-- Page Header -->
+        <div class="aop-page-header">
+            <h1 class="aop-page-header__title">AOP Network Graph</h1>
+            <p class="aop-page-header__subtitle">
+                Browse Adverse Outcome Pathways and explore their Key Event Relationships as interactive network graphs.
+            </p>
+        </div>
+
+        <!-- AOP Selector Bar -->
+        <div class="aop-selector-bar">
+            <label for="aop-selector" class="aop-selector-bar__label">Find an AOP</label>
+            <select id="aop-selector" class="aop-selector-bar__select" style="width: 100%;">
+                <option value="">Search by AOP title or ID...</option>
+            </select>
+        </div>
+
+        <!-- Card Grid Area (shown before AOP is selected) -->
+        <div id="aop-card-grid-section">
+            <div class="aop-card-search-wrap">
+                <input
+                    type="text"
+                    id="card-search-input"
+                    class="aop-card-search"
+                    placeholder="Filter AOPs by title or ID..."
+                    autocomplete="off"
+                />
+            </div>
+            <div id="aop-card-grid" class="aop-card-grid">
+                <!-- Cards are populated by aop-graph.js from /api/ker-adjacency -->
+                <div class="aop-card-loading">Loading AOPs...</div>
+            </div>
+        </div>
+
+        <!-- Graph Container (hidden until AOP selected) -->
+        <div id="aop-graph-section" style="display: none;">
+            <button id="aop-back-btn" class="aop-back-btn" type="button">
+                &larr; Back to all AOPs
+            </button>
+            <div id="cy"></div>
+        </div>
+
+    </div><!-- /.container -->
+
+    <!-- Side Panel (fixed, off-screen by default) -->
+    <aside id="ke-side-panel" class="ke-side-panel" role="complementary" aria-label="Key Event details">
+        <button id="ke-side-panel-close" class="ke-side-panel__close" type="button" aria-label="Close panel">&times;</button>
+        <div class="ke-side-panel__content">
+            <div id="ke-panel-type" class="ke-side-panel__ke-type"></div>
+            <h2 id="ke-panel-title" class="ke-side-panel__title"></h2>
+            <p id="ke-panel-id" class="ke-side-panel__id"></p>
+            <div class="ke-side-panel__section">
+                <h3 class="ke-side-panel__section-heading">Also in these AOPs</h3>
+                <ul id="ke-panel-aop-list" class="ke-side-panel__aop-list"></ul>
+            </div>
+            <div class="ke-side-panel__actions">
+                <button id="ke-panel-select-btn" class="ke-side-panel__select-btn" type="button">
+                    Select this KE
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Cytoscape.js and dagre layout (scoped to this page only) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.33.1/cytoscape.min.js"
+        integrity="sha512-kHAY8XzRfLVMcLuowdk91552RD+Nb2/1uHamfHMdLejNqlZnbEJLl1wYnsNnqIFCEZ++WaOcOlfokC6p9JWrLw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <script src="{{ url_for('static', filename='js/aop-graph.js') }}"></script>
+
+    <script>
+    // Initialise Select2 AOP selector and card search filtering
+    $(document).ready(function () {
+        // AOP selector — populated by aop-graph.js after data loads
+        $('#aop-selector').select2({
+            placeholder: 'Search by AOP title or ID...',
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Card search — real-time filter on title and ID text
+        $('#card-search-input').on('input', function () {
+            var query = this.value.toLowerCase();
+            document.querySelectorAll('.aop-card').forEach(function (card) {
+                var text = card.textContent.toLowerCase();
+                card.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+    });
+    </script>
+
+</body>
+</html>

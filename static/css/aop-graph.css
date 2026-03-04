@@ -1,0 +1,338 @@
+/* ==========================================================================
+   AOP Network Graph — Page-specific styles
+   Loaded only from templates/aop-network.html
+   Uses VHP4Safety CSS tokens from main.css :root
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Page Header
+   -------------------------------------------------------------------------- */
+.aop-page-header {
+    padding: 32px 0 20px;
+}
+
+.aop-page-header__title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    margin: 0 0 8px;
+}
+
+.aop-page-header__subtitle {
+    font-size: 0.95rem;
+    color: var(--color-text-secondary, #555);
+    margin: 0;
+    max-width: 680px;
+}
+
+/* --------------------------------------------------------------------------
+   AOP Selector Bar
+   -------------------------------------------------------------------------- */
+.aop-selector-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--color-white, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+}
+
+.aop-selector-bar__label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-primary-dark);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.aop-selector-bar__select {
+    flex: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Card Search Input
+   -------------------------------------------------------------------------- */
+.aop-card-search-wrap {
+    margin-bottom: 16px;
+}
+
+.aop-card-search {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 4px;
+    background: var(--color-white, #fff);
+    color: var(--color-text-primary, #222);
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.aop-card-search:focus {
+    border-color: var(--color-primary-blue);
+}
+
+/* --------------------------------------------------------------------------
+   AOP Card Grid
+   -------------------------------------------------------------------------- */
+.aop-card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    content-visibility: auto;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 1024px) {
+    .aop-card-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .aop-card-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.aop-card-loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: var(--color-text-secondary, #555);
+    font-size: 0.9rem;
+}
+
+/* --------------------------------------------------------------------------
+   AOP Card
+   -------------------------------------------------------------------------- */
+.aop-card {
+    background: var(--color-white, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 6px;
+    padding: 16px;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.aop-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--color-primary-blue);
+}
+
+.aop-card:focus {
+    outline: 2px solid var(--color-primary-blue);
+    outline-offset: 2px;
+}
+
+.aop-card__id {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.aop-card__title {
+    font-size: 0.875rem;
+    color: var(--color-text-primary, #222);
+    line-height: 1.4;
+    flex: 1;
+}
+
+.aop-card__ke-count {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-white, #fff);
+    background: var(--color-primary-blue);
+    border-radius: 12px;
+    padding: 2px 10px;
+    align-self: flex-start;
+    margin-top: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   Back Button
+   -------------------------------------------------------------------------- */
+.aop-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-primary-blue);
+    background: none;
+    border: 1px solid var(--color-primary-blue);
+    border-radius: 4px;
+    padding: 8px 14px;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.aop-back-btn:hover {
+    background: var(--color-primary-blue);
+    color: var(--color-white, #fff);
+}
+
+/* --------------------------------------------------------------------------
+   Cytoscape Graph Container
+   -------------------------------------------------------------------------- */
+#cy {
+    width: 100%;
+    min-height: 500px;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 6px;
+    background: var(--color-bg-page, #f5f5f7);
+    margin-bottom: 32px;
+}
+
+/* --------------------------------------------------------------------------
+   KE Side Panel
+   -------------------------------------------------------------------------- */
+.ke-side-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 360px;
+    height: 100vh;
+    background: var(--color-white, #fff);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+    z-index: var(--z-graph-panel, 10000);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.ke-side-panel--open {
+    transform: translateX(0);
+}
+
+.ke-side-panel__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--color-text-secondary, #555);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+}
+
+.ke-side-panel__close:hover {
+    background: var(--color-bg-page, #f5f5f7);
+    color: var(--color-primary-dark);
+}
+
+.ke-side-panel__content {
+    padding: 20px 20px 20px;
+    padding-top: 48px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ke-side-panel__ke-type {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-white, #fff);
+    border-radius: 4px;
+    padding: 3px 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    align-self: flex-start;
+}
+
+.ke-side-panel__ke-type--mie {
+    background: var(--color-primary-pink);
+}
+
+.ke-side-panel__ke-type--ke {
+    background: var(--color-primary-blue);
+}
+
+.ke-side-panel__ke-type--ao {
+    background: var(--color-secondary-teal);
+}
+
+.ke-side-panel__title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-primary-dark);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.ke-side-panel__id {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #555);
+    margin: 0;
+}
+
+.ke-side-panel__section {
+    border-top: 1px solid var(--color-border, #ddd);
+    padding-top: 12px;
+}
+
+.ke-side-panel__section-heading {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-secondary, #555);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 8px;
+}
+
+.ke-side-panel__aop-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ke-side-panel__aop-list li {
+    font-size: 0.825rem;
+    color: var(--color-text-primary, #222);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--color-bg-page, #f5f5f7);
+}
+
+.ke-side-panel__actions {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border, #ddd);
+}
+
+.ke-side-panel__select-btn {
+    width: 100%;
+    padding: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-white, #fff);
+    background: var(--color-primary-pink);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.ke-side-panel__select-btn:hover {
+    opacity: 0.88;
+}
