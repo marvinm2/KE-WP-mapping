@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/MolAOPlogo.png') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Documentation - Molecular AOP Builder</title>
@@ -23,7 +24,6 @@
                     <li><a href="/documentation/scoring-guide" class="{{ 'active' if current_section == 'scoring-guide' else '' }}">Scoring Systems</a></li>
                     <li><a href="/documentation/admin-guide" class="{{ 'active' if current_section == 'admin-guide' else '' }}">Admin Guide</a></li>
                     <li><a href="/documentation/api" class="{{ 'active' if current_section == 'api' else '' }}">API Documentation</a></li>
-                    <li><a href="/documentation/faq" class="{{ 'active' if current_section == 'faq' else '' }}">FAQ & Troubleshooting</a></li>
                 </ul>
             </nav>
         </aside>
@@ -39,8 +39,6 @@
                 {% include 'docs/admin-guide.html' %}
             {% elif current_section == 'api' %}
                 {% include 'docs/api.html' %}
-            {% elif current_section == 'faq' %}
-                {% include 'docs/faq.html' %}
             {% endif %}
         </main>
     </div>

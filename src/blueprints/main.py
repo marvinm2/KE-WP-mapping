@@ -558,34 +558,37 @@ def ke_gene_counts():
     """Return a map of KE ID to de-duplicated gene count from approved WP+GO mappings."""
     from src.exporters.gmt_exporter import _fetch_pathway_genes_batch
 
+    mapping_type = request.args.get("type", "all").lower()
     result = {}
 
     # WP gene data
-    wp_mappings = [m for m in (mapping_model.get_all_mappings() if mapping_model else [])
-                   if m.get('approved_by_curator') is not None]
-    wp_ids = list({m['wp_id'] for m in wp_mappings})
-    genes_by_wp = _fetch_pathway_genes_batch(wp_ids, cache_model=cache_model_ref) if wp_ids else {}
+    if mapping_type in ("wp", "all"):
+        wp_mappings = [m for m in (mapping_model.get_all_mappings() if mapping_model else [])
+                       if m.get('approved_by_curator') is not None]
+        wp_ids = list({m['wp_id'] for m in wp_mappings})
+        genes_by_wp = _fetch_pathway_genes_batch(wp_ids, cache_model=cache_model_ref) if wp_ids else {}
 
-    for m in wp_mappings:
-        ke_id = m['ke_id']
-        genes = genes_by_wp.get(m['wp_id'], [])
-        result.setdefault(ke_id, set()).update(genes)
+        for m in wp_mappings:
+            ke_id = m['ke_id']
+            genes = genes_by_wp.get(m['wp_id'], [])
+            result.setdefault(ke_id, set()).update(genes)
 
     # GO gene data
-    go_mappings = [m for m in (go_mapping_model.get_all_mappings() if go_mapping_model else [])
-                   if m.get('approved_by_curator') is not None]
-    go_annotations = {}
-    try:
-        go_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json')
-        with open(go_path, 'r') as f:
-            go_annotations = json_lib.load(f)
-    except Exception:
-        pass
+    if mapping_type in ("go", "all"):
+        go_mappings = [m for m in (go_mapping_model.get_all_mappings() if go_mapping_model else [])
+                       if m.get('approved_by_curator') is not None]
+        go_annotations = {}
+        try:
+            go_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json')
+            with open(go_path, 'r') as f:
+                go_annotations = json_lib.load(f)
+        except Exception:
+            pass
 
-    for m in go_mappings:
-        ke_id = m['ke_id']
-        genes = go_annotations.get(m['go_id'], [])
-        result.setdefault(ke_id, set()).update(genes)
+        for m in go_mappings:
+            ke_id = m['ke_id']
+            genes = go_annotations.get(m['go_id'], [])
+            result.setdefault(ke_id, set()).update(genes)
 
     return jsonify({ke_id: len(genes) for ke_id, genes in result.items() if len(genes) > 0})
 
@@ -595,47 +598,52 @@ def ke_genes_for_ke(ke_id):
     """Return genes for a single KE grouped by WP/GO source term."""
     from src.exporters.gmt_exporter import _fetch_pathway_genes_batch
 
+    mapping_type = request.args.get("type", "all").lower()
     all_genes = set()
     groups = []
 
     # WP gene data
-    wp_mappings = [m for m in (mapping_model.get_all_mappings() if mapping_model else [])
-                   if m.get('approved_by_curator') is not None and m.get('ke_id') == ke_id]
-    wp_ids = list({m['wp_id'] for m in wp_mappings})
-    genes_by_wp = _fetch_pathway_genes_batch(wp_ids, cache_model=cache_model_ref) if wp_ids else {}
+    if mapping_type in ("wp", "all"):
+        wp_mappings = [m for m in (mapping_model.get_all_mappings() if mapping_model else [])
+                       if m.get('approved_by_curator') is not None and m.get('ke_id') == ke_id]
+        wp_ids = list({m['wp_id'] for m in wp_mappings})
+        genes_by_wp = _fetch_pathway_genes_batch(wp_ids, cache_model=cache_model_ref) if wp_ids else {}
 
-    for m in wp_mappings:
-        genes = sorted(genes_by_wp.get(m['wp_id'], []))
-        all_genes.update(genes)
-        if genes:
-            groups.append({
-                "type": "wp",
-                "id": m['wp_id'],
-                "name": m.get('wp_title', m['wp_id']),
-                "genes": genes
-            })
+        for m in wp_mappings:
+            genes = sorted(genes_by_wp.get(m['wp_id'], []))
+            all_genes.update(genes)
+            if genes:
+                groups.append({
+                    "type": "wp",
+                    "id": m['wp_id'],
+                    "name": m.get('wp_title', m['wp_id']),
+                    "confidence_level": m.get('confidence_level', 'low'),
+                    "genes": genes
+                })
 
     # GO gene data
-    go_mappings = [m for m in (go_mapping_model.get_all_mappings() if go_mapping_model else [])
-                   if m.get('approved_by_curator') is not None and m.get('ke_id') == ke_id]
-    go_annotations = {}
-    try:
-        go_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json')
-        with open(go_path, 'r') as f:
-            go_annotations = json_lib.load(f)
-    except Exception:
-        pass
+    if mapping_type in ("go", "all"):
+        go_mappings = [m for m in (go_mapping_model.get_all_mappings() if go_mapping_model else [])
+                       if m.get('approved_by_curator') is not None and m.get('ke_id') == ke_id]
+        go_annotations = {}
+        try:
+            go_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json')
+            with open(go_path, 'r') as f:
+                go_annotations = json_lib.load(f)
+        except Exception:
+            pass
 
-    for m in go_mappings:
-        genes = sorted(go_annotations.get(m['go_id'], []))
-        all_genes.update(genes)
-        if genes:
-            groups.append({
-                "type": "go",
-                "id": m['go_id'],
-                "name": m.get('go_name', m['go_id']),
-                "genes": genes
-            })
+        for m in go_mappings:
+            genes = sorted(go_annotations.get(m['go_id'], []))
+            all_genes.update(genes)
+            if genes:
+                groups.append({
+                    "type": "go",
+                    "id": m['go_id'],
+                    "name": m.get('go_name', m['go_id']),
+                    "confidence_level": m.get('confidence_level', 'low'),
+                    "genes": genes
+                })
 
     return jsonify({
         "ke_id": ke_id,

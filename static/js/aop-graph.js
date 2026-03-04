@@ -77,9 +77,16 @@ var AOPGraph = (function () {
             var countSpan = document.createElement('span');
             countSpan.className = 'gene-group__count';
             countSpan.textContent = '(' + group.genes.length + ')';
+            var confBadge = document.createElement('span');
+            var level = (group.confidence_level || 'low').toLowerCase();
+            confBadge.className = 'confidence-' + level;
+            confBadge.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+            confBadge.style.fontSize = '11px';
+            confBadge.style.marginLeft = '4px';
             header.appendChild(arrow);
             header.appendChild(typeBadge);
             header.appendChild(nameSpan);
+            header.appendChild(confBadge);
             header.appendChild(countSpan);
             var ul = document.createElement('ul');
             ul.className = 'gene-group__genes';

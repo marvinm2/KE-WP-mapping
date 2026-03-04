@@ -3672,6 +3672,14 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         // Show GO confidence assessment
         this.showGoAssessmentForm(goId, goName);
+
+        // Scroll to confidence assessment section
+        setTimeout(() => {
+            const section = document.getElementById('go-confidence-guide');
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
     }
 
     showGoAssessmentForm(goId, goName) {

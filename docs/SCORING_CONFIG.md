@@ -827,6 +827,6 @@ For issues or questions:
 
 ---
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-03-03
 **Configuration Version**: 1.2.0
-**Application Version**: v2.3.0
+**Application Version**: v2.5.0

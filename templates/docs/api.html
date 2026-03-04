@@ -1,11 +1,50 @@
 <h2>API Documentation</h2>
 
-<p>The Molecular AOP Builder provides several API endpoints for integration and data access.</p>
+<p>The Molecular AOP Builder provides a public REST API for programmatic access to mapping data, plus internal endpoints used by the web interface.</p>
 
-<h3>Available Endpoints</h3>
+<div class="info-box">
+    <strong>Interactive docs:</strong> Browse and test all public API endpoints at <a href="/api/docs">/api/docs</a> (Swagger UI).
+    For code examples in Python and R, see the <a href="/docs">API Consumer Guide</a>.
+</div>
+
+<h3>Public REST API (v1)</h3>
+
+<p>The <code>/api/v1</code> endpoints are the recommended way to access mapping data. They support pagination, filtering, and CSV/JSON output. No authentication required.</p>
+
+<h4>GET /api/v1/mappings</h4>
+<p>List KE-WP mappings with pagination and optional filters.</p>
+<pre><code>curl "https://your-domain.com/api/v1/mappings?page=1&per_page=50"
+curl "https://your-domain.com/api/v1/mappings?confidence=High&aop_id=1"
+curl "https://your-domain.com/api/v1/mappings?format=csv" -o mappings.csv</code></pre>
+
+<p><strong>Parameters:</strong></p>
+<ul>
+    <li><code>page</code> - Page number (default: 1)</li>
+    <li><code>per_page</code> - Results per page (default: 50, max: 200)</li>
+    <li><code>confidence</code> - Filter by confidence level (High, Medium, Low)</li>
+    <li><code>aop_id</code> - Filter by AOP ID</li>
+    <li><code>format</code> - Response format: <code>json</code> (default) or <code>csv</code></li>
+</ul>
+
+<h4>GET /api/v1/mappings/&lt;uuid&gt;</h4>
+<p>Get a single KE-WP mapping by its UUID.</p>
+<pre><code>curl https://your-domain.com/api/v1/mappings/abc12345-...</code></pre>
+
+<h4>GET /api/v1/go-mappings</h4>
+<p>List KE-GO mappings with pagination and optional filters.</p>
+<pre><code>curl "https://your-domain.com/api/v1/go-mappings?page=1&per_page=50"
+curl "https://your-domain.com/api/v1/go-mappings?format=csv" -o go_mappings.csv</code></pre>
+
+<h4>GET /api/v1/go-mappings/&lt;uuid&gt;</h4>
+<p>Get a single KE-GO mapping by its UUID.</p>
+<pre><code>curl https://your-domain.com/api/v1/go-mappings/def67890-...</code></pre>
+
+<h3>Internal Endpoints</h3>
+
+<p>These endpoints are used by the web interface. They are public but may change without notice.</p>
 
 <h4>GET /get_ke_options</h4>
-<p>Fetch available Key Events from AOP-Wiki SPARQL endpoint.</p>
+<p>Fetch available Key Events from pre-computed metadata.</p>
 <pre><code>curl https://your-domain.com/get_ke_options</code></pre>
 
 <p><strong>Response:</strong> JSON array of Key Event objects</p>
@@ -19,7 +58,7 @@
 ]</code></pre>
 
 <h4>GET /get_pathway_options</h4>
-<p>Fetch available WikiPathways from SPARQL endpoint.</p>
+<p>Fetch available WikiPathways from pre-computed metadata.</p>
 <pre><code>curl https://your-domain.com/get_pathway_options</code></pre>
 
 <p><strong>Response:</strong> JSON array of pathway objects</p>
@@ -41,9 +80,20 @@
     <li><code>threshold</code> - Similarity threshold (default: 0.3)</li>
 </ul>
 
+<h4>GET /suggest_go_terms/&lt;ke_id&gt;</h4>
+<p>Get GO Biological Process term suggestions for a specific Key Event, ranked by gene overlap and semantic similarity.</p>
+<pre><code>curl https://your-domain.com/suggest_go_terms/55</code></pre>
+
+<p><strong>Response:</strong> JSON object with ranked GO term suggestions including scores and matched genes.</p>
+
+<h4>GET /search_go_terms</h4>
+<p>Search GO terms by name or GO ID (e.g. <code>GO:0006915</code>) with fuzzy matching.</p>
+<pre><code>curl "https://your-domain.com/search_go_terms?query=apoptosis&limit=10"
+curl "https://your-domain.com/search_go_terms?query=GO:0006915"</code></pre>
+
 <h4>GET /ke_genes/&lt;ke_id&gt;</h4>
 <p>Get gene associations for a specific Key Event.</p>
-<pre><code>curl https://your-domain.com/get_ke_genes/55</code></pre>
+<pre><code>curl https://your-domain.com/ke_genes/55</code></pre>
 
 <h4>GET /api/ke_context/&lt;ke_id&gt;</h4>
 <p>Get KE context: associated AOPs and any existing WP/GO mappings for a Key Event.</p>
@@ -57,12 +107,6 @@
     "go_mappings": [{"go_id": "GO:0006915", "go_name": "apoptotic process"}]
 }</code></pre>
 
-<h4>GET /suggest_go_terms/&lt;ke_id&gt;</h4>
-<p>Get GO Biological Process term suggestions for a specific Key Event, ranked by gene overlap and semantic similarity.</p>
-<pre><code>curl https://your-domain.com/suggest_go_terms/55</code></pre>
-
-<p><strong>Response:</strong> JSON object with ranked GO term suggestions including scores and matched genes.</p>
-
 <h4>GET /api/scoring-config</h4>
 <p>Retrieve the current KE-WP assessment scoring configuration.</p>
 <pre><code>curl https://your-domain.com/api/scoring-config</code></pre>
@@ -70,36 +114,6 @@
 <h4>GET /api/go-scoring-config</h4>
 <p>Retrieve the current KE-GO assessment scoring configuration.</p>
 <pre><code>curl https://your-domain.com/api/go-scoring-config</code></pre>
-
-<h4>POST /submit</h4>
-<p>Create a new KE-WP mapping (requires authentication).</p>
-<pre><code>curl -X POST https://your-domain.com/submit \
-  -H "Content-Type: application/json" \
-  -H "X-CSRFToken: YOUR_TOKEN" \
-  -d '{
-    "ke_id": "55",
-    "pathway_id": "WP4726",
-    "confidence": "High",
-    "connection_type": "Causative"
-  }'</code></pre>
-
-<h4>POST /submit_go_mapping</h4>
-<p>Create a new KE-GO mapping (requires authentication).</p>
-<pre><code>curl -X POST https://your-domain.com/submit_go_mapping \
-  -H "Content-Type: application/json" \
-  -H "X-CSRFToken: YOUR_TOKEN" \
-  -d '{
-    "ke_id": "55",
-    "go_id": "GO:0006915",
-    "confidence": "High",
-    "connection_type": "Causative"
-  }'</code></pre>
-
-<h4>POST /check_go_entry</h4>
-<p>Check whether a KE-GO mapping pair already exists in the database.</p>
-<pre><code>curl -X POST https://your-domain.com/check_go_entry \
-  -H "Content-Type: application/json" \
-  -d '{"ke_id": "55", "go_id": "GO:0006915"}'</code></pre>
 
 <h4>GET /export/&lt;format&gt;</h4>
 <p>Export the mapping dataset in the specified format.</p>
@@ -110,30 +124,18 @@ curl https://your-domain.com/export/rdf -o mappings.ttl</code></pre>
 
 <p><strong>Supported formats:</strong> <code>csv</code>, <code>tsv</code>, <code>json</code>, <code>excel</code>, <code>rdf</code></p>
 
-<h4>GET /guest-login</h4>
-<p>Display the guest login page where workshop participants can enter an access code.</p>
-
-<h4>POST /guest-login</h4>
-<p>Authenticate as a guest user using a workshop access code.</p>
-<pre><code>curl -X POST https://your-domain.com/guest-login \
-  -H "Content-Type: application/json" \
-  -d '{"access_code": "YOUR_CODE"}'</code></pre>
-
 <h3>Authentication</h3>
-<p>Most endpoints are public (GET requests). Mutation endpoints (POST /submit, POST /submit_go_mapping, POST /submit_proposal) require:</p>
+<p>The v1 public API requires no authentication. Internal mutation endpoints (POST /submit, POST /submit_go_mapping, POST /submit_proposal) require:</p>
 <ul>
     <li>GitHub OAuth authentication, or</li>
-    <li>Guest authentication via workshop access code (POST /guest-login)</li>
+    <li>Guest authentication via workshop access code</li>
     <li>CSRF token in request headers</li>
 </ul>
 
 <h3>Rate Limiting</h3>
-<p>API endpoints have rate limiting to prevent abuse:</p>
+<p>API endpoints are rate-limited via Flask-Limiter:</p>
 <ul>
-    <li>General endpoints: 100 requests/minute per IP</li>
-    <li>SPARQL proxies: 30 requests/minute per IP</li>
+    <li>Public API (v1): 100 requests/hour per IP</li>
+    <li>Internal endpoints: 500 requests/hour per IP</li>
 </ul>
-
-<div class="info-box">
-    <strong>Note:</strong> Full REST API with authentication and comprehensive documentation is planned (see GitHub issue #31).
-</div>
+<p>When the limit is exceeded the API returns <strong>HTTP 429 Too Many Requests</strong>.</p>

@@ -5,6 +5,102 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-03-03
+
+### Public REST API
+#### Added
+- **V1 API Blueprint**: New `v1_api_bp` with four paginated endpoints (`/api/v1/mappings`, `/api/v1/mappings/<uuid>`, `/api/v1/go-mappings`, `/api/v1/go-mappings/<uuid>`)
+- **OpenAPI 3.0.3 Spec**: Machine-readable API specification at `/api/v1/spec`
+- **Swagger UI**: Interactive API explorer at `/api/docs`
+- **API Consumer Guide**: Documentation page at `/docs` with footer navigation links
+- **Flask-Limiter**: Blueprint-scoped rate limiting (100/hour) with 429 handler, replacing custom rate limiter on v1 routes
+- **CSV Export on API**: `?format=csv` query parameter on v1 endpoints
+
+#### Related Issues
+- Closes #31 (comprehensive REST API)
+
+---
+
+### Data Model & Audit Trail
+#### Added
+- **UUID Identifiers**: All mappings and proposals now have stable UUID fields
+- **Provenance Tracking**: `created_by`, `updated_by`, `approved_by` columns on mapping tables
+- **Mapping Detail Pages**: `/mappings/<uuid>` route with provenance display
+- **Live Duplicate Check**: Real-time duplicate detection with inline warning cards during submission
+- **Confidence Enforcement**: Confidence select-button step before submission
+- **Proposal-First Submit Flow**: `/submit` now creates proposals; admin approval applies changes
+- **Stale Proposal Flagging**: `/flag_proposal_stale` endpoint
+
+---
+
+### Explore, Stats & Context
+#### Added
+- **AJAX DataTable**: Refactored explore page with server-side filtering (AOP, confidence, coverage gaps tab)
+- **KE Context Panel**: Collapsible panel showing associated AOPs, existing mappings, with URL param pre-fill
+- **KE Detail Endpoint**: `/api/ke_detail/<ke_id>` for KE context data
+- **KE-AOP Membership**: Pre-computed AOP membership data via `precompute_ke_aop_membership.py`
+- **Stats Page**: `/stats` route with mapping statistics and `get_mapping_stats()` helper
+- **WikiPathways Embed Viewer**: Inline pathway viewer in explore DataTable with eye icon toggle
+
+#### Related Issues
+- Closes #99 (KE context), #139 (embed viewer)
+
+---
+
+### Export & Publication
+#### Added
+- **GMT Exporter**: Gene Matrix Transposed format for KE-WP and KE-GO mappings with batch SPARQL gene lookup
+- **RDF Exporter**: Rewritten with rdflib Graph implementation
+- **Zenodo Uploader**: Publish and new-version workflows with admin routes
+- **Downloads Page**: `/downloads` with DOI badge in navbar and export links on stats page
+- **Public Export Routes**: `/exports/gmt/ke-wp`, `/exports/gmt/ke-go`, `/exports/rdf/ke-wp`, `/exports/rdf/ke-go`
+
+---
+
+### GO Mapping Enhancements
+#### Added
+- **GO Proposal Workflow**: GO submissions now route through proposal system with `GoProposalModel`
+- **GO Admin Dashboard**: `/admin/go-proposals` with approve/reject workflow, cross-linked from main admin
+- **GO Term Search**: Fuzzy text search via `/search_go_terms` endpoint
+- **GO ID Search**: Search by GO identifier (e.g. `GO:0006915`) in term lookup
+- **Suggestion Score Tracking**: `suggestion_score` persisted from proposal through to approved mapping
+
+#### Related Issues
+- Closes #138 (GO term search), #140 (Guest Codes nav link)
+
+---
+
+### UI & Design Token Migration
+#### Changed
+- **CSS Design Tokens**: Extended from 45 to 60 custom properties (added status, z-index, method, layout tokens)
+- **Inline Style Removal**: All templates and main.js migrated from inline styles to CSS class assignments
+- **Shared Component Pattern**: Navigation, footer, and detail pages use shared Jinja2 components
+- **Single-Bar Navigation**: Unified VHP4Safety nav bar with document-flow footer
+- **Match Badge Tokenization**: Color-coded match badges use CSS variables
+
+#### Related Issues
+- Closes #141 (CSS design tokens)
+
+---
+
+### Deployment Hardening
+#### Changed
+- **SQLite WAL Mode**: Write-Ahead Logging with busy timeout on every connection
+- **Docker-Safe Paths**: `DATABASE_PATH` defaults to absolute Docker path
+- **NPZ Embedding Format**: Migrated from .npy dicts to .npz with pre-normalized matrices and dot-product similarity
+- **Embedding Warm-Up**: Production-guarded warm-up call at startup
+- **Cron Backup**: Automated SQLite backup system via Dockerfile entrypoint
+
+#### Fixed
+- **ProxyFix for Traefik**: Added `ProxyFix` middleware for correct scheme/host behind reverse proxy
+- **Gunicorn 1 Worker**: Set to single worker for session consistency in Docker Swarm
+- **DATABASE_PATH Evaluation**: Deferred evaluation at access time instead of import time
+
+#### Related Issues
+- Closes #142 (Traefik/gunicorn fixes)
+
+---
+
 ## [2.4.0] - 2026-02-18
 
 ### Assessment UI Revision

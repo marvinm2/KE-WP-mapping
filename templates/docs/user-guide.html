@@ -12,16 +12,21 @@
 </ul>
 <p>After selecting a KE, a details panel appears showing the KE description, biological level, and a link to measurement methods on AOP-Wiki. A context panel also loads showing AOP membership and any existing WP/GO mappings.</p>
 
-<h4>Step 2: Select WikiPathway(s) — KE-WP Mapping</h4>
-<p>Choose one or two related WikiPathways using the <strong>KE-WP Mapping</strong> tab. The system provides three sub-tabs:</p>
+<h4>Step 2: Select WikiPathway — KE-WP Mapping</h4>
+<p>Choose a related WikiPathway using the <strong>KE-WP Mapping</strong> tab. The system provides three sub-tabs:</p>
 <ul>
-    <li><strong>Suggested</strong> - Ranked pathway recommendations based on text similarity and gene overlap</li>
+    <li><strong>Suggested</strong> - Ranked pathway recommendations based on gene overlap, semantic similarity, and ontology tag matching</li>
     <li><strong>Search</strong> - Search for pathways by name or keywords</li>
     <li><strong>Browse All</strong> - Browse all available WikiPathways</li>
 </ul>
+<p>If the selected KE-WP pair already exists in the database, a duplicate warning is shown before submission.</p>
 
 <h4>Step 2 (alternative): Select GO Term — KE-GO Mapping</h4>
-<p>To map a KE to a Gene Ontology Biological Process term, use the <strong>KE-GO Mapping</strong> tab. The system suggests GO BP terms based on gene overlap and semantic similarity, displayed as suggestion cards with GO term name, definition, matched genes, and similarity scores.</p>
+<p>To map a KE to a Gene Ontology Biological Process term, use the <strong>KE-GO Mapping</strong> tab. The system provides two sub-tabs:</p>
+<ul>
+    <li><strong>Suggested</strong> - GO BP term suggestions ranked by gene overlap and semantic similarity, displayed as cards with GO term name, definition, matched genes, and similarity scores</li>
+    <li><strong>Search</strong> - Search for GO terms by name or GO ID (e.g. <code>GO:0006915</code>)</li>
+</ul>
 
 <h4>Step 3: Confidence Assessment (4 Questions)</h4>
 <p>Answer four questions to evaluate mapping quality:</p>
@@ -71,9 +76,11 @@
 </div>
 
 <h3>Exploring Existing Mappings</h3>
-<p>Navigate to <strong>Explore</strong> to view all mappings in an interactive table with:</p>
+<p>Navigate to <strong>Explore</strong> to view all mappings in an interactive AJAX-powered DataTable with:</p>
 <ul>
-    <li>Sorting and filtering capabilities</li>
+    <li>Filtering by AOP and confidence level</li>
+    <li>Coverage gaps tab showing unmapped KEs</li>
+    <li>Inline WikiPathways embed viewer (click the eye icon to preview a pathway diagram)</li>
     <li>Export to CSV, Excel, PDF formats</li>
     <li>Proposal system for suggesting changes</li>
 </ul>

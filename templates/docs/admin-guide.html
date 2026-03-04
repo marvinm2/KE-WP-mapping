@@ -1,6 +1,6 @@
 <h2>Admin Guide</h2>
 
-<p>This guide is for administrators managing the proposal system and database.</p>
+<p>This guide is for administrators managing proposals, guest access, and data exports.</p>
 
 <h3>Admin Access</h3>
 <p>Admin privileges are controlled via the <code>ADMIN_USERS</code> environment variable:</p>
@@ -8,19 +8,19 @@
 
 <p>Once configured, admin users will see:</p>
 <ul>
-    <li>Admin tab in the top navigation</li>
-    <li>"(Admin)" badge next to their username</li>
-    <li>Access to proposal management dashboard</li>
+    <li><strong>Admin</strong> and <strong>Guest Codes</strong> links in the top navigation</li>
+    <li>"Admin" badge next to their username</li>
+    <li>Access to proposal management, guest code management, and export tools</li>
 </ul>
 
-<h3>Proposal Management</h3>
+<h3>KE-WP Proposal Management</h3>
 
 <h4>Viewing Proposals</h4>
-<p>Navigate to <strong>Admin → Manage Proposals</strong> to access the dashboard with:</p>
+<p>Navigate to <strong>Admin</strong> to access the KE-WP proposals dashboard with:</p>
 <ul>
     <li>Filterable table of all proposals</li>
     <li>Status indicators (Pending / Approved / Rejected)</li>
-    <li>User contact information</li>
+    <li>User contact information and provenance details</li>
     <li>Proposed changes detailed view</li>
 </ul>
 
@@ -29,6 +29,7 @@
     <li>Click <strong>View Details</strong> to see full proposal information</li>
     <li>Review the proposed changes:
         <ul>
+            <li>New mapping submission (proposal-first workflow)</li>
             <li>Delete mapping request</li>
             <li>Confidence level change</li>
             <li>Connection type modification</li>
@@ -40,9 +41,9 @@
 <h4>Approving Proposals</h4>
 <ol>
     <li>Click <strong>Approve</strong> button</li>
-    <li>Changes are immediately applied to the mapping</li>
+    <li>Changes are immediately applied to the mapping (or a new mapping is created)</li>
+    <li>Provenance fields (approved_by, approved_at) are recorded</li>
     <li>Proposal status updated to "Approved"</li>
-    <li>Timestamp and admin username logged</li>
 </ol>
 
 <h4>Rejecting Proposals</h4>
@@ -53,21 +54,51 @@
     <li>Original mapping remains unchanged</li>
 </ol>
 
-<h3>Database Management</h3>
-<p>The application uses SQLite with automatic migrations. Database files:</p>
+<h3>KE-GO Proposal Management</h3>
+<p>GO mapping proposals are managed separately. Access via the <strong>GO Proposals</strong> link on the admin page, or navigate directly to <code>/admin/go-proposals</code>.</p>
+<p>The workflow is the same as KE-WP proposals: review, approve (creates/updates GO mapping), or reject with notes.</p>
+
+<h3>Guest Code Management</h3>
+<p>Workshop participants can log in with temporary access codes instead of GitHub OAuth. Manage codes at <strong>Guest Codes</strong> in the navigation or <code>/admin/guest-codes</code>.</p>
+
+<h4>Creating Guest Codes</h4>
+<ol>
+    <li>Click <strong>Create Code</strong></li>
+    <li>The system generates a unique access code</li>
+    <li>Share the code with workshop participants</li>
+</ol>
+
+<h4>Revoking Guest Codes</h4>
+<p>Click <strong>Revoke</strong> next to any active code to disable it immediately. Revoked codes cannot be used to log in.</p>
+
+<h3>Export & Publication</h3>
+<p>Admin users can regenerate export files and publish to Zenodo from the admin interface:</p>
 <ul>
-    <li><code>database.db</code> - Main database with mappings and proposals</li>
-    <li><code>cache.db</code> - SPARQL response cache (24-hour expiry)</li>
+    <li><strong>Regenerate exports</strong>: Rebuilds GMT and RDF files in <code>static/exports/</code></li>
+    <li><strong>Publish to Zenodo</strong>: Uploads the latest dataset to Zenodo for DOI assignment</li>
 </ul>
 
+<h3>Database Management</h3>
+<p>The application uses SQLite with automatic migrations on startup. The database is stored in the <code>data/</code> directory.</p>
+
+<h4>Tables</h4>
+<table>
+    <tr><th>Table</th><th>Purpose</th></tr>
+    <tr><td><code>mappings</code></td><td>KE-WP mapping entries with UUID and provenance</td></tr>
+    <tr><td><code>proposals</code></td><td>Change proposals for KE-WP mappings</td></tr>
+    <tr><td><code>ke_go_mappings</code></td><td>KE-GO BP mapping entries with UUID and provenance</td></tr>
+    <tr><td><code>ke_go_proposals</code></td><td>Change proposals for KE-GO mappings</td></tr>
+    <tr><td><code>sparql_cache</code></td><td>Cached SPARQL query responses (24-hour expiry)</td></tr>
+</table>
+
 <div class="warning-box">
-    <strong>Important:</strong> All admin actions are logged with timestamps and usernames for accountability. Audit trails are maintained in the database.
+    <strong>Important:</strong> All admin actions are logged with timestamps and usernames for accountability. Audit trails are maintained in the database via provenance columns.
 </div>
 
 <h3>User Management</h3>
-<p>Currently, user access is managed through:</p>
+<p>User access is managed through:</p>
 <ul>
-    <li>GitHub OAuth for authentication</li>
-    <li>Environment variable for admin whitelist</li>
-    <li>No user registration - GitHub account required for submissions</li>
+    <li>GitHub OAuth for authentication (primary)</li>
+    <li>Guest access codes for workshop participants (admin-managed)</li>
+    <li>Environment variable whitelist for admin privileges</li>
 </ul>
