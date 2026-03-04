@@ -49,6 +49,7 @@ class ServiceContainer:
         self._pathway_metadata = None
         self._ke_aop_membership = None
         self._ke_metadata_index = None
+        self._ker_adjacency = None
 
         logger.info("Service container initialized")
 
@@ -157,6 +158,23 @@ class ServiceContainer:
                 except Exception as e:
                     logger.warning("Failed to load ke_aop_membership.json: %s", e)
         return self._ke_aop_membership
+
+    @property
+    def ker_adjacency(self):
+        """Load and cache KER adjacency data from pre-computed JSON file"""
+        if self._ker_adjacency is None:
+            path = os.path.join(PROJECT_ROOT, 'data', 'ker_adjacency.json')
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        self._ker_adjacency = json.load(f)
+                    logger.info(
+                        "Loaded KER adjacency for %d AOPs from %s",
+                        len([k for k in self._ker_adjacency if k != '_metadata']), path,
+                    )
+                except Exception as e:
+                    logger.warning("Failed to load ker_adjacency.json: %s", e)
+        return self._ker_adjacency
 
     @property
     def ke_metadata_index(self):
