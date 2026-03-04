@@ -466,7 +466,6 @@
     font-weight: 700;
     border-radius: 9px;
     line-height: 1;
-    transform: translate(50%, -50%);
     box-sizing: border-box;
     pointer-events: none;
 }
@@ -498,32 +497,103 @@
     line-height: 1;
 }
 
-/* Gene list in side panel */
-.ke-side-panel__gene-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.ke-side-panel__gene-list li {
-    padding: 4px 0;
+/* Gene group collapsible sections */
+.gene-group {
     border-bottom: 1px solid var(--color-border-light, #eee);
-    font-size: 13px;
 }
 
-.ke-side-panel__gene-list li:last-child {
+.gene-group:last-child {
     border-bottom: none;
 }
 
-.ke-side-panel__gene-list a {
+.gene-group__header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary, #333);
+    user-select: none;
+}
+
+.gene-group__header:hover {
+    color: var(--color-primary-blue, #307BBF);
+}
+
+.gene-group__arrow {
+    display: inline-block;
+    width: 12px;
+    font-size: 10px;
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.gene-group--open .gene-group__arrow {
+    transform: rotate(90deg);
+}
+
+.gene-group__count {
+    font-weight: 400;
+    color: var(--color-text-secondary, #888);
+    font-size: 12px;
+}
+
+.gene-group__type-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 3px;
+    line-height: 1.4;
+    flex-shrink: 0;
+}
+
+.gene-group__type-badge--wp {
+    background: #e8f0fe;
+    color: #1a56db;
+}
+
+.gene-group__type-badge--go {
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.gene-group__genes {
+    display: none;
+    list-style: none;
+    padding: 0 0 4px 18px;
+    margin: 0;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.gene-group--open .gene-group__genes {
+    display: block;
+}
+
+.gene-group__genes li {
+    padding: 2px 0;
+    font-size: 12px;
+}
+
+.gene-group__genes a {
     color: var(--color-primary-blue, #307BBF);
     text-decoration: none;
 }
 
-.ke-side-panel__gene-list a:hover {
+.gene-group__genes a:hover {
     text-decoration: underline;
+}
+
+/* Gene list containers */
+.ke-side-panel__gene-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .ke-side-panel__gene-loading {
@@ -544,13 +614,8 @@
     list-style: none;
     padding: 0;
     margin: 0;
-    max-height: 150px;
+    max-height: 200px;
     overflow-y: auto;
-}
-
-.ke-inline-panel__gene-list li {
-    padding: 3px 0;
-    font-size: 12px;
 }
 
 .ke-inline-panel__gene-list a {

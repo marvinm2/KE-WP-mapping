@@ -330,8 +330,8 @@ var AOPGraphCore = (function () {
             query: 'node',
             halign: 'right',
             valign: 'top',
-            halignBox: 'right',
-            valignBox: 'top',
+            halignBox: 'left',
+            valignBox: 'bottom',
             cssClass: 'gene-badge-container',
             tpl: function(data) {
                 var count = geneCountMap[data.id];

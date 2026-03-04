@@ -592,10 +592,11 @@ def ke_gene_counts():
 
 @main_bp.route("/api/ke-genes/<ke_id>")
 def ke_genes_for_ke(ke_id):
-    """Return sorted list of HGNC gene symbols for a single KE from approved WP+GO mappings."""
+    """Return genes for a single KE grouped by WP/GO source term."""
     from src.exporters.gmt_exporter import _fetch_pathway_genes_batch
 
     all_genes = set()
+    groups = []
 
     # WP gene data
     wp_mappings = [m for m in (mapping_model.get_all_mappings() if mapping_model else [])
@@ -604,7 +605,15 @@ def ke_genes_for_ke(ke_id):
     genes_by_wp = _fetch_pathway_genes_batch(wp_ids, cache_model=cache_model_ref) if wp_ids else {}
 
     for m in wp_mappings:
-        all_genes.update(genes_by_wp.get(m['wp_id'], []))
+        genes = sorted(genes_by_wp.get(m['wp_id'], []))
+        all_genes.update(genes)
+        if genes:
+            groups.append({
+                "type": "wp",
+                "id": m['wp_id'],
+                "name": m.get('wp_title', m['wp_id']),
+                "genes": genes
+            })
 
     # GO gene data
     go_mappings = [m for m in (go_mapping_model.get_all_mappings() if go_mapping_model else [])
@@ -618,9 +627,21 @@ def ke_genes_for_ke(ke_id):
         pass
 
     for m in go_mappings:
-        all_genes.update(go_annotations.get(m['go_id'], []))
+        genes = sorted(go_annotations.get(m['go_id'], []))
+        all_genes.update(genes)
+        if genes:
+            groups.append({
+                "type": "go",
+                "id": m['go_id'],
+                "name": m.get('go_name', m['go_id']),
+                "genes": genes
+            })
 
-    return jsonify({"ke_id": ke_id, "genes": sorted(list(all_genes))})
+    return jsonify({
+        "ke_id": ke_id,
+        "genes": sorted(list(all_genes)),
+        "groups": groups
+    })
 
 
 @main_bp.route("/stats")

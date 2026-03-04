@@ -117,6 +117,53 @@ var AOPGraphInline = (function () {
             });
     }
 
+    function renderGeneGroups(container, groups) {
+        groups.forEach(function (group) {
+            var div = document.createElement('div');
+            div.className = 'gene-group';
+            var header = document.createElement('div');
+            header.className = 'gene-group__header';
+            var arrow = document.createElement('span');
+            arrow.className = 'gene-group__arrow';
+            arrow.textContent = '\u25B6';
+            var typeBadge = document.createElement('span');
+            typeBadge.className = 'gene-group__type-badge gene-group__type-badge--' + group.type;
+            typeBadge.textContent = group.type.toUpperCase();
+            var nameSpan = document.createElement('span');
+            nameSpan.textContent = group.name;
+            nameSpan.style.flex = '1';
+            nameSpan.style.overflow = 'hidden';
+            nameSpan.style.textOverflow = 'ellipsis';
+            nameSpan.style.whiteSpace = 'nowrap';
+            nameSpan.title = group.name;
+            var countSpan = document.createElement('span');
+            countSpan.className = 'gene-group__count';
+            countSpan.textContent = '(' + group.genes.length + ')';
+            header.appendChild(arrow);
+            header.appendChild(typeBadge);
+            header.appendChild(nameSpan);
+            header.appendChild(countSpan);
+            var ul = document.createElement('ul');
+            ul.className = 'gene-group__genes';
+            group.genes.forEach(function (symbol) {
+                var li = document.createElement('li');
+                var a = document.createElement('a');
+                a.href = 'https://www.genecards.org/cgi-bin/carddisp.pl?gene=' + encodeURIComponent(symbol);
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.textContent = symbol;
+                li.appendChild(a);
+                ul.appendChild(li);
+            });
+            header.addEventListener('click', function () {
+                div.classList.toggle('gene-group--open');
+            });
+            div.appendChild(header);
+            div.appendChild(ul);
+            container.appendChild(div);
+        });
+    }
+
     function loadGeneCountMap(callback) {
         fetch('/api/ke-gene-counts')
             .then(function (resp) { return resp.ok ? resp.json() : {}; })
@@ -238,7 +285,7 @@ var AOPGraphInline = (function () {
             statusEl.className = 'ke-inline-panel__status ' + (isMapped ? 'ke-inline-panel__status--mapped' : 'ke-inline-panel__status--unmapped');
         }
 
-        // Gene list section
+        // Gene list section (grouped by WP/GO term)
         var geneSection = panel.querySelector('.ke-inline-panel__gene-section');
         if (geneSection) {
             var geneListEl = geneSection.querySelector('.ke-inline-panel__gene-list');
@@ -252,20 +299,13 @@ var AOPGraphInline = (function () {
                 }
                 geneSection.style.display = '';
                 fetch('/api/ke-genes/' + encodeURIComponent(nodeData.id))
-                    .then(function (resp) { return resp.ok ? resp.json() : { genes: [] }; })
+                    .then(function (resp) { return resp.ok ? resp.json() : { genes: [], groups: [] }; })
                     .then(function (data) {
                         if (geneLoadingEl) geneLoadingEl.style.display = 'none';
-                        var genes = data.genes || [];
-                        genes.forEach(function (symbol) {
-                            var li = document.createElement('li');
-                            var a = document.createElement('a');
-                            a.href = 'https://www.genecards.org/cgi-bin/carddisp.pl?gene=' + encodeURIComponent(symbol);
-                            a.target = '_blank';
-                            a.rel = 'noopener noreferrer';
-                            a.textContent = symbol;
-                            li.appendChild(a);
-                            geneListEl.appendChild(li);
-                        });
+                        var groups = data.groups || [];
+                        if (groups.length > 0) {
+                            renderGeneGroups(geneListEl, groups);
+                        }
                     })
                     .catch(function () {
                         if (geneLoadingEl) geneLoadingEl.style.display = 'none';
