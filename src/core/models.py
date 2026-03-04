@@ -1469,7 +1469,7 @@ class GoMappingModel:
                 """
                 SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
                        confidence_level, evidence_code, created_by, created_at, updated_at,
-                       uuid, approved_by_curator, approved_at_curator
+                       uuid, approved_by_curator, approved_at_curator, proposed_by
                 FROM ke_go_mappings
                 ORDER BY created_at DESC
             """

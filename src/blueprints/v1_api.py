@@ -96,6 +96,7 @@ def _serialize_mapping(row):
             "suggestion_score": row.get("suggestion_score"),
             "approved_by": row.get("approved_by_curator"),
             "approved_at": row.get("approved_at_curator"),
+            "proposed_by": row.get("proposed_by"),
         },
     }
 
@@ -114,6 +115,7 @@ def _serialize_go_mapping(row):
             "suggestion_score": row.get("suggestion_score"),
             "approved_by": row.get("approved_by_curator"),
             "approved_at": row.get("approved_at_curator"),
+            "proposed_by": row.get("proposed_by"),
         },
     }
 
@@ -121,11 +123,11 @@ def _serialize_go_mapping(row):
 # CSV fieldnames — provenance is flattened (nested dicts don't serialize to CSV)
 _MAPPING_CSV_FIELDS = [
     "uuid", "ke_id", "ke_name", "pathway_id", "pathway_title",
-    "confidence_level", "suggestion_score", "approved_by", "approved_at",
+    "confidence_level", "suggestion_score", "approved_by", "approved_at", "proposed_by",
 ]
 _GO_MAPPING_CSV_FIELDS = [
     "uuid", "ke_id", "ke_name", "go_term_id", "go_term_name", "go_namespace",
-    "confidence_level", "suggestion_score", "approved_by", "approved_at",
+    "confidence_level", "suggestion_score", "approved_by", "approved_at", "proposed_by",
 ]
 
 
@@ -136,6 +138,7 @@ def _flatten_for_csv(obj):
     flat["suggestion_score"] = prov.get("suggestion_score")
     flat["approved_by"] = prov.get("approved_by")
     flat["approved_at"] = prov.get("approved_at")
+    flat["proposed_by"] = prov.get("proposed_by")
     return flat
 
 

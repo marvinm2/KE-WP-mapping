@@ -74,6 +74,7 @@
                         <th>WP ID</th>
                         <th>WP Title</th>
                         <th>Confidence Level</th>
+                        <th>Proposer</th>
                         <th>Curator</th>
                         <th>Approved</th>
                         <th>Actions</th>
@@ -94,6 +95,7 @@
                         <th>GO Name</th>
                         <th>Connection Type</th>
                         <th>Confidence Level</th>
+                        <th>Proposer</th>
                         <th>Timestamp</th>
                     </tr>
                 </thead>
@@ -106,6 +108,7 @@
                         <td>{{ row['go_name'] }}</td>
                         <td>{{ row['connection_type'] }}</td>
                         <td>{{ row['confidence_level'] }}</td>
+                        <td>{{ row['proposed_by'] or '-' }}</td>
                         <td>{{ (row['created_at'] or '').split('.')[0] }}</td>
                     </tr>
                     {% endfor %}
@@ -271,21 +274,23 @@
                     },
                     { data: 'pathway_title' },
                     { data: 'confidence_level' },
+                    { data: 'provenance.proposed_by', defaultContent: '-' },
                     { data: 'provenance.approved_by', defaultContent: '-' },
                     { data: 'provenance.approved_at', defaultContent: '-',
                       render: function(d) { return d ? d.split('T')[0] : '-'; } },
                     { data: null, orderable: false, defaultContent: '<button class="propose-change btn-sm">Propose Change</button>' }
                 ],
-                order: [[6, 'desc']],
+                order: [[7, 'desc']],
                 columnDefs: [
                     { width: '8%',  targets: 0, className: 'dt-center' },
-                    { width: '18%', targets: 1, className: 'dt-center' },
+                    { width: '16%', targets: 1, className: 'dt-center' },
                     { width: '8%',  targets: 2, className: 'dt-center' },
-                    { width: '18%', targets: 3, className: 'dt-center' },
-                    { width: '12%', targets: 4, className: 'dt-center' },
-                    { width: '12%', targets: 5, className: 'dt-center' },
-                    { width: '12%', targets: 6, className: 'dt-center' },
-                    { width: '12%', targets: 7, className: 'dt-center' }
+                    { width: '16%', targets: 3, className: 'dt-center' },
+                    { width: '10%', targets: 4, className: 'dt-center' },
+                    { width: '10%', targets: 5, className: 'dt-center' },
+                    { width: '10%', targets: 6, className: 'dt-center' },
+                    { width: '12%', targets: 7, className: 'dt-center' },
+                    { width: '10%', targets: 8, className: 'dt-center' }
                 ]
             });
 
