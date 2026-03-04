@@ -60,6 +60,10 @@
                 &larr; Back to all AOPs
             </button>
             <div id="cy"></div>
+            <div class="aop-graph-legend">
+                <span class="aop-graph-legend__badge-sample">5</span>
+                <span>Number of mapped genes (from approved pathway/GO term mappings)</span>
+            </div>
         </div>
 
     </div><!-- /.container -->
@@ -74,6 +78,11 @@
             <div class="ke-side-panel__section">
                 <h3 class="ke-side-panel__section-heading">Also in these AOPs</h3>
                 <ul id="ke-panel-aop-list" class="ke-side-panel__aop-list"></ul>
+            </div>
+            <div class="ke-side-panel__section">
+                <h3 class="ke-side-panel__section-heading">Mapped Genes</h3>
+                <div id="ke-panel-gene-loading" class="ke-side-panel__gene-loading" style="display:none;"></div>
+                <ul id="ke-panel-gene-list" class="ke-side-panel__gene-list"></ul>
             </div>
             <div class="ke-side-panel__actions">
                 <button id="ke-panel-select-btn" class="ke-side-panel__select-btn" type="button">

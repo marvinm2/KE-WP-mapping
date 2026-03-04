@@ -15,6 +15,7 @@ var AOPGraph = (function () {
     var kerData = null;
     var currentAOP = null;
     var selectedKEId = null;
+    var geneCountMap = {};
 
     // ---------------------------------------------------------------------------
     // Init
@@ -38,6 +39,9 @@ var AOPGraph = (function () {
                 kerData = data;
                 populateSelect2(data);
                 populateCardGrid(data);
+                loadGeneCountMap(function () {
+                    // gene count data ready — will be applied on each graph render
+                });
             })
             .catch(function (err) {
                 var grid = document.getElementById('aop-card-grid');
@@ -48,6 +52,19 @@ var AOPGraph = (function () {
                         '<small>' + err.message + '</small></div>';
                 }
                 console.error('[AOPGraph] Failed to load /api/ker-adjacency:', err);
+            });
+    }
+
+    function loadGeneCountMap(callback) {
+        fetch('/api/ke-gene-counts')
+            .then(function (resp) { return resp.ok ? resp.json() : {}; })
+            .then(function (data) {
+                geneCountMap = data || {};
+                callback();
+            })
+            .catch(function () {
+                geneCountMap = {};
+                callback();
             });
     }
 
@@ -232,6 +249,11 @@ var AOPGraph = (function () {
                 dismissSidePanel();
             }
         });
+
+        // Apply gene-count badges
+        if (cy && Object.keys(geneCountMap).length > 0) {
+            AOPGraphCore.applyGeneBadges(cy, geneCountMap);
+        }
     }
 
     // ---------------------------------------------------------------------------
@@ -284,6 +306,51 @@ var AOPGraph = (function () {
                     }
                     listEl.appendChild(li);
                 });
+            }
+        }
+
+        // Populate gene list section
+        var geneListEl = document.getElementById('ke-panel-gene-list');
+        var geneLoadingEl = document.getElementById('ke-panel-gene-loading');
+        if (geneListEl) {
+            geneListEl.innerHTML = '';
+            var count = geneCountMap[nodeData.id] || 0;
+            if (count > 0 && geneLoadingEl) {
+                geneLoadingEl.textContent = 'Loading ' + count + ' gene(s)...';
+                geneLoadingEl.style.display = '';
+                fetch('/api/ke-genes/' + encodeURIComponent(nodeData.id))
+                    .then(function (resp) { return resp.ok ? resp.json() : { genes: [] }; })
+                    .then(function (data) {
+                        geneLoadingEl.style.display = 'none';
+                        var genes = data.genes || [];
+                        genes.forEach(function (symbol) {
+                            var li = document.createElement('li');
+                            var a = document.createElement('a');
+                            a.href = 'https://www.genecards.org/cgi-bin/carddisp.pl?gene=' + encodeURIComponent(symbol);
+                            a.target = '_blank';
+                            a.rel = 'noopener noreferrer';
+                            a.textContent = symbol;
+                            li.appendChild(a);
+                            geneListEl.appendChild(li);
+                        });
+                        if (genes.length === 0) {
+                            var li = document.createElement('li');
+                            li.textContent = 'No mapped genes';
+                            li.style.color = '#888';
+                            li.style.fontStyle = 'italic';
+                            geneListEl.appendChild(li);
+                        }
+                    })
+                    .catch(function () {
+                        geneLoadingEl.style.display = 'none';
+                    });
+            } else {
+                if (geneLoadingEl) geneLoadingEl.style.display = 'none';
+                var li = document.createElement('li');
+                li.textContent = 'No mapped genes';
+                li.style.color = '#888';
+                li.style.fontStyle = 'italic';
+                geneListEl.appendChild(li);
             }
         }
 
