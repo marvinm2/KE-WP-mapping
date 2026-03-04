@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import unicodedata
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +197,133 @@ def generate_ke_go_gmt(mappings, go_annotations_path=None, min_confidence=None) 
         ke_slug = _make_ke_slug(row["ke_id"], row["ke_title"])
         term_name = f"{ke_slug}_{go_id}"
         description = row["go_name"]
+        line = "\t".join([term_name, description] + genes)
+        buf.write(line + "\n")
+
+    return buf.getvalue()
+
+
+def generate_ke_centric_wp_gmt(mappings, cache_model=None, min_confidence=None) -> str:
+    """Generate KE-centric GMT content for KE-WP mappings.
+
+    Each row represents one Key Event. Gene symbols are unioned across all
+    approved WikiPathways mappings for that KE. Field 1 is just ``KE{N}``
+    (e.g. ``KE55``), not the full slug — suitable for KE-level enrichment
+    testing with fgsea or clusterProfiler.
+
+    Parameters
+    ----------
+    mappings:
+        List of dicts from MappingModel.get_all_mappings(). Each dict must
+        contain at least: ke_id, ke_title, wp_id, confidence_level.
+    cache_model:
+        Optional CacheModel instance for SPARQL result caching.
+    min_confidence:
+        Optional lowercase string (e.g. "high"). Rows whose confidence_level
+        does not match are excluded.
+
+    Returns
+    -------
+    str
+        GMT-formatted string (tab-separated, one row per KE).
+        Empty string if no rows survive filtering or no genes are found.
+    """
+    if min_confidence:
+        mappings = [r for r in mappings if r.get("confidence_level", "").lower() == min_confidence]
+
+    if not mappings:
+        return ""
+
+    # Group WP IDs by KE, preserving KE metadata
+    ke_to_wps = defaultdict(list)
+    ke_meta = {}
+    for row in mappings:
+        ke_to_wps[row["ke_id"]].append(row["wp_id"])
+        ke_meta[row["ke_id"]] = (row["ke_id"], row["ke_title"])
+
+    # Collect all unique WP IDs for a single batch SPARQL call
+    all_wp_ids = list(dict.fromkeys(wp for wps in ke_to_wps.values() for wp in wps))
+    genes_by_wp = _fetch_pathway_genes_batch(all_wp_ids, cache_model=cache_model)
+
+    buf = io.StringIO()
+    for ke_id in sorted(ke_to_wps.keys(), key=lambda k: int(re.sub(r'\D', '', k) or '0')):
+        all_genes = []
+        for wp_id in ke_to_wps[ke_id]:
+            all_genes.extend(genes_by_wp.get(wp_id, []))
+        genes = list(dict.fromkeys(all_genes))  # deduplicate, preserve order
+        if not genes:
+            continue
+        ke_id_raw, ke_title = ke_meta[ke_id]
+        num = re.sub(r'\D', '', ke_id_raw)
+        term_name = f"KE{num}"  # Field 1: JUST "KE55" — locked decision
+        description = ke_title  # Field 2: KE title
+        line = "\t".join([term_name, description] + genes)
+        buf.write(line + "\n")
+
+    return buf.getvalue()
+
+
+def generate_ke_centric_go_gmt(mappings, go_annotations_path=None, min_confidence=None) -> str:
+    """Generate KE-centric GMT content for KE-GO mappings.
+
+    Each row represents one Key Event. Gene symbols are unioned across all
+    approved GO Biological Process mappings for that KE. Field 1 is just
+    ``KE{N}`` (e.g. ``KE55``).
+
+    Parameters
+    ----------
+    mappings:
+        List of dicts from GoMappingModel.get_all_mappings(). Each dict must
+        contain at least: ke_id, ke_title, go_id, confidence_level.
+    go_annotations_path:
+        Path to go_bp_gene_annotations.json. Defaults to
+        data/go_bp_gene_annotations.json relative to the project root.
+    min_confidence:
+        Optional lowercase string for confidence filtering.
+
+    Returns
+    -------
+    str
+        GMT-formatted string (tab-separated, one row per KE).
+        Empty string if no rows survive filtering or no genes are found.
+    """
+    if go_annotations_path is None:
+        go_annotations_path = os.path.join(
+            os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json'
+        )
+
+    try:
+        with open(go_annotations_path) as f:
+            go_annotations = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning("Could not load GO annotations from %s: %s", go_annotations_path, e)
+        go_annotations = {}
+
+    if min_confidence:
+        mappings = [r for r in mappings if r.get("confidence_level", "").lower() == min_confidence]
+
+    if not mappings:
+        return ""
+
+    # Group GO IDs by KE, preserving KE metadata
+    ke_to_gos = defaultdict(list)
+    ke_meta = {}
+    for row in mappings:
+        ke_to_gos[row["ke_id"]].append(row["go_id"])
+        ke_meta[row["ke_id"]] = (row["ke_id"], row["ke_title"])
+
+    buf = io.StringIO()
+    for ke_id in sorted(ke_to_gos.keys(), key=lambda k: int(re.sub(r'\D', '', k) or '0')):
+        all_genes = []
+        for go_id in ke_to_gos[ke_id]:
+            all_genes.extend(go_annotations.get(go_id, []))
+        genes = list(dict.fromkeys(all_genes))  # deduplicate, preserve order
+        if not genes:
+            continue
+        ke_id_raw, ke_title = ke_meta[ke_id]
+        num = re.sub(r'\D', '', ke_id_raw)
+        term_name = f"KE{num}"  # Field 1: JUST "KE55" — locked decision
+        description = ke_title  # Field 2: KE title
         line = "\t".join([term_name, description] + genes)
         buf.write(line + "\n")
 
