@@ -1923,6 +1923,33 @@ This helps identify gaps in existing pathways for future development.">❓</span
             'multi-pathway-results_exists': $('#multi-pathway-results').length
         });
 
+        // Collapse the assessment section (Step 3) and show confidence summary in header
+        const confidenceLevel = $('#auto-confidence').text().trim();
+        const $cgHeader = $('#confidence-guide-header');
+        $cgHeader.find('.step-summary').remove();
+        if (confidenceLevel && confidenceLevel !== '--') {
+            $cgHeader.append($('<span class="step-summary"></span>').text(` \u2014 Confidence: ${confidenceLevel}`));
+        }
+        $('#confidence-guide-content').slideUp(300);
+        $cgHeader.addClass('collapsible collapsed').off('click.collapse').on('click.collapse', function() {
+            const $h = $(this);
+            const isNowExpanded = $h.hasClass('collapsed');
+            $h.toggleClass('collapsed');
+            if (isNowExpanded) {
+                // Expanding — remove summary
+                $h.find('.step-summary').remove();
+                $('#confidence-guide-content').slideDown(200);
+            } else {
+                // Re-collapsing — re-inject current confidence
+                const currentConfidence = $('#auto-confidence').text().trim();
+                $h.find('.step-summary').remove();
+                if (currentConfidence && currentConfidence !== '--') {
+                    $h.append($('<span class="step-summary"></span>').text(` \u2014 Confidence: ${currentConfidence}`));
+                }
+                $('#confidence-guide-content').slideUp(200);
+            }
+        });
+
         // Scroll to Step 4
         $('html, body').animate({
             scrollTop: $('#step-3-result').offset().top - 20
@@ -2035,6 +2062,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Hide duplicate warning
         $("#duplicate-warning").hide().empty();
         this.stepAnswers = {};
+
+        // Restore assessment section (Step 3) to its default expanded state
+        $('#confidence-guide-header').removeClass('collapsible collapsed').off('click.collapse');
+        $('#confidence-guide-header .step-summary').remove();
+        $('#confidence-guide-content').show();
     }
 
     preFillBiologicalLevel() {
@@ -3984,9 +4016,32 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $('.go-assessment-result').show();
 
         // Update Step 4 results
-        $('#go-auto-confidence').text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
+        const goConfidenceDisplay = confidence.charAt(0).toUpperCase() + confidence.slice(1);
+        $('#go-auto-confidence').text(goConfidenceDisplay);
         $('#go-auto-connection').text(connectionType.charAt(0).toUpperCase() + connectionType.slice(1));
         $('#go-step-result').show();
+
+        // Collapse GO assessment section (Step 3) with confidence summary in header
+        const $goHeader = $('#go-confidence-guide-header');
+        $goHeader.find('.step-summary').remove();
+        $goHeader.append($('<span class="step-summary"></span>').text(` \u2014 Confidence: ${goConfidenceDisplay}`));
+        $('#go-confidence-guide-content').slideUp(300);
+        $goHeader.addClass('collapsible collapsed').off('click.collapse').on('click.collapse', function() {
+            const $h = $(this);
+            const isNowExpanded = $h.hasClass('collapsed');
+            $h.toggleClass('collapsed');
+            if (isNowExpanded) {
+                $h.find('.step-summary').remove();
+                $('#go-confidence-guide-content').slideDown(200);
+            } else {
+                const currentGoConf = $('#go-auto-confidence').text().trim();
+                $h.find('.step-summary').remove();
+                if (currentGoConf && currentGoConf !== '--') {
+                    $h.append($('<span class="step-summary"></span>').text(` \u2014 Confidence: ${currentGoConf}`));
+                }
+                $('#go-confidence-guide-content').slideUp(200);
+            }
+        });
 
         // Enable submission
         $('#go-step-submit').show();
@@ -4192,6 +4247,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $('#go-mapping-form button[type="submit"]').prop('disabled', true).text('Complete GO Assessment First');
         $('#go-existing-entries').html('');
         $('#go-message').text('');
+
+        // Restore GO assessment header to default expanded state
+        $('#go-confidence-guide-header').removeClass('collapsible collapsed').off('click.collapse');
+        $('#go-confidence-guide-header .step-summary').remove();
+        $('#go-confidence-guide-content').show();
 
         // Reset suggestion highlighting
         $('.go-suggestion-item').removeClass('go-suggestion-item--selected');
