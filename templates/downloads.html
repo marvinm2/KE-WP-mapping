@@ -59,7 +59,40 @@
             </div>
         </div>
 
-        <!-- Card 3: KE-WP RDF/Turtle -->
+        <!-- Card 3: KE-Centric WP GMT -->
+        <div class="download-card download-card--blue">
+            <div class="download-card__header">
+                <h2 class="download-card__title">KE-Centric WP GMT</h2>
+                <span class="download-card__badge download-card__badge--blue">.gmt</span>
+            </div>
+            <p class="download-card__desc">
+                One row per Key Event. Gene symbols unioned across all approved WikiPathways
+                mappings for each KE. Use with fgsea <code>gmtPathways()</code> or clusterProfiler
+                <code>read.gmt()</code> for KE-level enrichment testing.
+            </p>
+            <div class="download-card__actions">
+                <a href="/exports/gmt/ke-wp-centric" class="btn-link-blue">All mappings</a>
+                <a href="/exports/gmt/ke-wp-centric?min_confidence=High" class="btn-link-blue">High confidence only</a>
+            </div>
+        </div>
+
+        <!-- Card 4: KE-Centric GO GMT -->
+        <div class="download-card download-card--teal">
+            <div class="download-card__header">
+                <h2 class="download-card__title">KE-Centric GO GMT</h2>
+                <span class="download-card__badge download-card__badge--teal">.gmt</span>
+            </div>
+            <p class="download-card__desc">
+                One row per Key Event. Gene symbols unioned across all approved GO Biological Process
+                mappings for each KE. Directly loadable by clusterProfiler and fgsea.
+            </p>
+            <div class="download-card__actions">
+                <a href="/exports/gmt/ke-go-centric" class="btn-link-teal">All mappings</a>
+                <a href="/exports/gmt/ke-go-centric?min_confidence=High" class="btn-link-teal">High confidence only</a>
+            </div>
+        </div>
+
+        <!-- Card 5: KE-WP RDF/Turtle -->
         <div class="download-card download-card--dark">
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-WP RDF/Turtle</h2>
@@ -75,7 +108,7 @@
             </div>
         </div>
 
-        <!-- Card 4: KE-GO RDF/Turtle -->
+        <!-- Card 6: KE-GO RDF/Turtle -->
         <div class="download-card download-card--dark">
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-GO RDF/Turtle</h2>

@@ -677,7 +677,10 @@ def downloads():
 
 def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
     """Return (path, filename) for GMT file, generating it if not cached."""
-    from src.exporters.gmt_exporter import generate_ke_wp_gmt, generate_ke_go_gmt
+    from src.exporters.gmt_exporter import (
+        generate_ke_wp_gmt, generate_ke_go_gmt,
+        generate_ke_centric_wp_gmt, generate_ke_centric_go_gmt,
+    )
     today = datetime.today().date().isoformat()
     tier = min_confidence.capitalize() if min_confidence else "All"
     filename = f"KE-{mapping_type.upper()}_{today}_{tier}.gmt"
@@ -687,6 +690,12 @@ def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
         if mapping_type == "wp":
             mappings = mapping_model.get_all_mappings() if mapping_model else []
             content = generate_ke_wp_gmt(mappings, cache_model=cache_model_ref, min_confidence=min_confidence)
+        elif mapping_type == "wp-centric":
+            mappings = mapping_model.get_all_mappings() if mapping_model else []
+            content = generate_ke_centric_wp_gmt(mappings, cache_model=cache_model_ref, min_confidence=min_confidence)
+        elif mapping_type == "go-centric":
+            mappings = go_mapping_model.get_all_mappings() if go_mapping_model else []
+            content = generate_ke_centric_go_gmt(mappings, min_confidence=min_confidence)
         else:
             mappings = go_mapping_model.get_all_mappings() if go_mapping_model else []
             content = generate_ke_go_gmt(mappings, min_confidence=min_confidence)
@@ -713,6 +722,26 @@ def download_ke_go_gmt():
     """Download KE-GO GMT file. ?min_confidence=High|Medium|Low for filtered versions."""
     min_conf = request.args.get("min_confidence", "").lower() or None
     cache_path, filename = _get_or_generate_gmt("go", min_conf)
+    if not cache_path.exists() or cache_path.stat().st_size == 0:
+        return jsonify({"error": "No KE-GO mappings available"}), 503
+    return send_file(str(cache_path), as_attachment=True, download_name=filename, mimetype="text/plain")
+
+
+@main_bp.route("/exports/gmt/ke-wp-centric")
+def download_ke_wp_centric_gmt():
+    """KE-centric WP GMT: one row per KE, genes unioned across all WP mappings."""
+    min_conf = request.args.get("min_confidence", "").lower() or None
+    cache_path, filename = _get_or_generate_gmt("wp-centric", min_conf)
+    if not cache_path.exists() or cache_path.stat().st_size == 0:
+        return jsonify({"error": "No KE-WP mappings available or WikiPathways SPARQL unavailable"}), 503
+    return send_file(str(cache_path), as_attachment=True, download_name=filename, mimetype="text/plain")
+
+
+@main_bp.route("/exports/gmt/ke-go-centric")
+def download_ke_go_centric_gmt():
+    """KE-centric GO GMT: one row per KE, genes unioned across all GO mappings."""
+    min_conf = request.args.get("min_confidence", "").lower() or None
+    cache_path, filename = _get_or_generate_gmt("go-centric", min_conf)
     if not cache_path.exists() or cache_path.stat().st_size == 0:
         return jsonify({"error": "No KE-GO mappings available"}), 503
     return send_file(str(cache_path), as_attachment=True, download_name=filename, mimetype="text/plain")
