@@ -207,6 +207,9 @@ class Database:
             self._migrate_mappings_proposed_by(conn)
             self._migrate_go_mappings_proposed_by(conn)
 
+            # Migrate identity columns to provider-prefixed format (Phase 14)
+            self._migrate_provider_prefix(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -665,6 +668,57 @@ class Database:
             logger.error("Error migrating ke_go_mappings proposed_by: %s", e)
             raise
 
+    def _migrate_provider_prefix(self, conn):
+        """
+        Rename github_username column to provider_username on proposal tables
+        and prefix existing bare usernames with 'github:' across all identity columns.
+
+        Idempotent: column rename only fires when github_username exists and
+        provider_username does not; prefix UPDATE uses NOT LIKE '%:%' guard.
+        """
+        try:
+            # --- Rename github_username -> provider_username on proposals ---
+            cursor = conn.execute("PRAGMA table_info(proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "github_username" in columns and "provider_username" not in columns:
+                conn.execute(
+                    "ALTER TABLE proposals RENAME COLUMN github_username TO provider_username"
+                )
+                logger.info("Migrated proposals: renamed github_username -> provider_username")
+
+            # --- Rename github_username -> provider_username on ke_go_proposals ---
+            cursor = conn.execute("PRAGMA table_info(ke_go_proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "github_username" in columns and "provider_username" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_proposals RENAME COLUMN github_username TO provider_username"
+                )
+                logger.info("Migrated ke_go_proposals: renamed github_username -> provider_username")
+
+            # --- Prefix existing bare usernames with 'github:' ---
+            prefix_targets = [
+                ("proposals", "provider_username"),
+                ("ke_go_proposals", "provider_username"),
+                ("mappings", "created_by"),
+                ("mappings", "proposed_by"),
+                ("mappings", "updated_by"),
+                ("ke_go_mappings", "created_by"),
+                ("ke_go_mappings", "proposed_by"),
+            ]
+            for table, col in prefix_targets:
+                # Verify column exists before updating
+                cursor = conn.execute(f"PRAGMA table_info({table})")
+                table_columns = [row[1] for row in cursor.fetchall()]
+                if col in table_columns:
+                    conn.execute(
+                        f"UPDATE {table} SET {col} = 'github:' || {col} "
+                        f"WHERE {col} IS NOT NULL AND {col} != '' AND {col} NOT LIKE '%:%'"
+                    )
+            logger.info("Migrated identity columns: prefixed bare usernames with 'github:'")
+        except Exception as e:
+            logger.error("Error in _migrate_provider_prefix: %s", e)
+            raise
+
 
 class MappingModel:
     def __init__(self, db: Database):
@@ -896,7 +950,7 @@ class MappingModel:
             cursor = conn.execute(
                 """
                 SELECT p.id, p.proposed_confidence, p.proposed_connection_type,
-                       p.github_username, p.created_at,
+                       p.provider_username, p.created_at,
                        m.ke_id, m.wp_id, m.ke_title, m.wp_title
                 FROM proposals p
                 JOIN mappings m ON p.mapping_id = m.id
@@ -918,7 +972,7 @@ class MappingModel:
                         "wp_title": row["wp_title"],
                         "proposed_confidence": row["proposed_confidence"],
                         "proposed_connection_type": row["proposed_connection_type"],
-                        "submitted_by": row["github_username"],
+                        "submitted_by": row["provider_username"],
                         "submitted_at": row["created_at"],
                     },
                     "actions": ["flag_stale"],
@@ -1108,7 +1162,7 @@ class ProposalModel:
         user_name: str,
         user_email: str,
         user_affiliation: str,
-        github_username: str = None,
+        provider_username: str = None,
         proposed_delete: bool = False,
         proposed_confidence: str = None,
         proposed_connection_type: str = None,
@@ -1120,7 +1174,7 @@ class ProposalModel:
             cursor = conn.execute(
                 """
                 INSERT INTO proposals (mapping_id, user_name, user_email, user_affiliation,
-                                     github_username, proposed_delete, proposed_confidence,
+                                     provider_username, proposed_delete, proposed_confidence,
                                      proposed_connection_type, uuid)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -1129,7 +1183,7 @@ class ProposalModel:
                     user_name,
                     user_email,
                     user_affiliation,
-                    github_username,
+                    provider_username,
                     proposed_delete,
                     proposed_confidence,
                     proposed_connection_type,
@@ -1141,7 +1195,7 @@ class ProposalModel:
             logger.info(
                 "Created proposal for mapping %s by %s, UUID=%s",
                 mapping_id,
-                github_username,
+                provider_username,
                 proposal_uuid,
             )
             return cursor.lastrowid
@@ -1160,7 +1214,7 @@ class ProposalModel:
         wp_title: str,
         connection_type: str,
         confidence_level: str,
-        github_username: str = None,
+        provider_username: str = None,
         suggestion_score: float = None,
     ) -> Optional[int]:
         """
@@ -1177,7 +1231,7 @@ class ProposalModel:
             wp_title: WikiPathways title
             connection_type: Proposed connection type
             confidence_level: Proposed confidence level
-            github_username: GitHub username of submitting curator
+            provider_username: Provider-prefixed username of submitting curator
             suggestion_score: BioBERT hybrid score captured at suggestion time
 
         Returns:
@@ -1190,7 +1244,7 @@ class ProposalModel:
                 """
                 INSERT INTO proposals (
                     mapping_id, user_name, user_email, user_affiliation,
-                    github_username, proposed_delete, proposed_confidence,
+                    provider_username, proposed_delete, proposed_confidence,
                     proposed_connection_type, uuid, suggestion_score,
                     ke_id, ke_title, wp_id, wp_title,
                     new_pair_connection_type, new_pair_confidence_level
@@ -1198,10 +1252,10 @@ class ProposalModel:
                 VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
-                    github_username or "curator",
+                    provider_username or "curator",
                     "",
                     "",
-                    github_username,
+                    provider_username,
                     False,
                     confidence_level,
                     connection_type,
@@ -1221,7 +1275,7 @@ class ProposalModel:
                 "Created new-pair proposal for %s -> %s by %s, UUID=%s",
                 ke_id,
                 wp_id,
-                github_username,
+                provider_username,
                 proposal_uuid,
             )
             return cursor.lastrowid
@@ -1569,7 +1623,7 @@ class GoMappingModel:
             cursor = conn.execute(
                 """
                 SELECT id, proposed_confidence, proposed_connection_type,
-                       github_username, created_at, ke_id, go_id, ke_title, go_name
+                       provider_username, created_at, ke_id, go_id, ke_title, go_name
                 FROM ke_go_proposals
                 WHERE ke_id = ? AND go_id = ? AND mapping_id IS NULL AND status = 'pending'
                 ORDER BY created_at DESC LIMIT 1
@@ -1589,7 +1643,7 @@ class GoMappingModel:
                         "go_name": row["go_name"],
                         "proposed_confidence": row["proposed_confidence"],
                         "proposed_connection_type": row["proposed_connection_type"],
-                        "submitted_by": row["github_username"],
+                        "submitted_by": row["provider_username"],
                         "submitted_at": row["created_at"],
                     },
                     "actions": ["flag_stale"],
@@ -1599,7 +1653,7 @@ class GoMappingModel:
             cursor = conn.execute(
                 """
                 SELECT p.id, p.proposed_confidence, p.proposed_connection_type,
-                       p.github_username, p.created_at,
+                       p.provider_username, p.created_at,
                        m.ke_id, m.go_id, m.ke_title, m.go_name
                 FROM ke_go_proposals p
                 JOIN ke_go_mappings m ON p.mapping_id = m.id
@@ -1621,7 +1675,7 @@ class GoMappingModel:
                         "go_name": row["go_name"],
                         "proposed_confidence": row["proposed_confidence"],
                         "proposed_connection_type": row["proposed_connection_type"],
-                        "submitted_by": row["github_username"],
+                        "submitted_by": row["provider_username"],
                         "submitted_at": row["created_at"],
                     },
                     "actions": ["flag_stale"],
@@ -1828,7 +1882,7 @@ class GoProposalModel:
         user_name: str,
         user_email: str,
         user_affiliation: str,
-        github_username: str = None,
+        provider_username: str = None,
         proposed_delete: bool = False,
         proposed_confidence: str = None,
         proposed_connection_type: str = None,
@@ -1840,7 +1894,7 @@ class GoProposalModel:
             cursor = conn.execute(
                 """
                 INSERT INTO ke_go_proposals (mapping_id, user_name, user_email, user_affiliation,
-                                            github_username, proposed_delete, proposed_confidence,
+                                            provider_username, proposed_delete, proposed_confidence,
                                             proposed_connection_type, uuid)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -1849,7 +1903,7 @@ class GoProposalModel:
                     user_name,
                     user_email,
                     user_affiliation,
-                    github_username,
+                    provider_username,
                     proposed_delete,
                     proposed_confidence,
                     proposed_connection_type,
@@ -1861,7 +1915,7 @@ class GoProposalModel:
             logger.info(
                 "Created GO proposal for mapping %s by %s, UUID=%s",
                 mapping_id,
-                github_username,
+                provider_username,
                 proposal_uuid,
             )
             return cursor.lastrowid
@@ -1880,7 +1934,7 @@ class GoProposalModel:
         go_name: str,
         connection_type: str,
         confidence_level: str,
-        github_username: str = None,
+        provider_username: str = None,
         suggestion_score: float = None,
     ) -> Optional[int]:
         """
@@ -1897,7 +1951,7 @@ class GoProposalModel:
                 """
                 INSERT INTO ke_go_proposals (
                     mapping_id, user_name, user_email, user_affiliation,
-                    github_username, proposed_delete, proposed_confidence,
+                    provider_username, proposed_delete, proposed_confidence,
                     proposed_connection_type, uuid, suggestion_score,
                     ke_id, ke_title, go_id, go_name,
                     new_pair_connection_type, new_pair_confidence_level
@@ -1905,10 +1959,10 @@ class GoProposalModel:
                 VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    github_username or "curator",
+                    provider_username or "curator",
                     "",
                     "",
-                    github_username,
+                    provider_username,
                     False,
                     confidence_level,
                     connection_type,
@@ -1927,7 +1981,7 @@ class GoProposalModel:
                 "Created new-pair GO proposal for %s -> %s by %s, UUID=%s",
                 ke_id,
                 go_id,
-                github_username,
+                provider_username,
                 proposal_uuid,
             )
             return cursor.lastrowid

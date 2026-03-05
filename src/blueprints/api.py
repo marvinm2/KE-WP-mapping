@@ -168,7 +168,7 @@ def submit():
             wp_title=wp_title,
             connection_type=connection_type,
             confidence_level=confidence_level,
-            github_username=created_by,
+            provider_username=created_by,
             suggestion_score=suggestion_score,
         )
         if proposal_id:
@@ -590,7 +590,7 @@ def submit_proposal():
             return jsonify({"error": "Original mapping not found."}), 404
 
         # Get current user
-        github_username = session.get("user", {}).get("username", "unknown")
+        provider_username = session.get("user", {}).get("username", "unknown")
 
         # Create proposal in database
         proposal_id = proposal_model.create_proposal(
@@ -598,7 +598,7 @@ def submit_proposal():
             user_name=user_name,
             user_email=user_email,
             user_affiliation=user_affiliation,
-            github_username=github_username,
+            provider_username=provider_username,
             proposed_delete=proposed_delete,
             proposed_confidence=proposed_confidence if proposed_confidence else None,
             proposed_connection_type=proposed_connection_type
@@ -608,7 +608,7 @@ def submit_proposal():
 
         if proposal_id:
             logger.info(
-                "Created proposal %s by user %s for mapping %s", proposal_id, github_username, mapping_id
+                "Created proposal %s by user %s for mapping %s", proposal_id, provider_username, mapping_id
             )
             return (
                 jsonify(
@@ -1386,7 +1386,7 @@ def submit_go_mapping():
             go_name=go_name,
             connection_type=connection_type,
             confidence_level=confidence_level,
-            github_username=created_by,
+            provider_username=created_by,
             suggestion_score=suggestion_score,
         )
 

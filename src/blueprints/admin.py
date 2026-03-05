@@ -284,7 +284,7 @@ def approve_proposal(proposal_id: int):
                 wp_title=proposal["wp_title"],
                 connection_type=proposal.get("new_pair_connection_type") or proposal.get("proposed_connection_type"),
                 confidence_level=proposal.get("new_pair_confidence_level") or proposal.get("proposed_confidence"),
-                created_by=proposal.get("github_username") or admin_username,
+                created_by=proposal.get("provider_username") or admin_username,
             )
             if new_mapping_id:
                 success = mapping_model.update_mapping(
@@ -292,7 +292,7 @@ def approve_proposal(proposal_id: int):
                     approved_by_curator=admin_username,
                     approved_at_curator=approved_at,
                     suggestion_score=proposal_score,
-                    proposed_by=proposal.get("github_username"),
+                    proposed_by=proposal.get("provider_username"),
                 )
             else:
                 success = False
@@ -309,7 +309,7 @@ def approve_proposal(proposal_id: int):
                 approved_by_curator=admin_username,
                 approved_at_curator=approved_at,
                 suggestion_score=proposal_score,       # carry score from proposal
-                proposed_by=proposal.get("github_username"),
+                proposed_by=proposal.get("provider_username"),
             )
             action = "updated"
 
@@ -540,7 +540,7 @@ def approve_go_proposal(proposal_id: int):
             go_name=proposal["go_name"],
             connection_type=proposal.get("new_pair_connection_type") or proposal.get("proposed_connection_type"),
             confidence_level=proposal.get("new_pair_confidence_level") or proposal.get("proposed_confidence"),
-            created_by=proposal.get("github_username") or admin_username,
+            created_by=proposal.get("provider_username") or admin_username,
         )
 
         if new_mapping_id:
@@ -549,7 +549,7 @@ def approve_go_proposal(proposal_id: int):
                 approved_by_curator=admin_username,
                 approved_at_curator=approved_at,
                 suggestion_score=proposal_score,
-                proposed_by=proposal.get("github_username"),
+                proposed_by=proposal.get("provider_username"),
             )
             go_proposal_model.update_go_proposal_status(
                 proposal_id=proposal_id,
