@@ -20,6 +20,29 @@ from src.core.schemas import AdminNotesSchema, SecurityValidation, validate_requ
 
 logger = logging.getLogger(__name__)
 
+
+def _get_admin_users():
+    """Return list of provider-prefixed admin usernames from ADMIN_USERS env var.
+
+    Entries without a ':' separator are auto-prefixed as 'github:' for
+    backward compatibility (e.g. 'mmartens' becomes 'github:mmartens').
+    """
+    raw = os.getenv("ADMIN_USERS", "").split(",")
+    result = []
+    for entry in raw:
+        entry = entry.strip()
+        if not entry:
+            continue
+        if ":" not in entry:
+            logger.warning(
+                "ADMIN_USERS entry '%s' has no provider prefix — auto-prefixing as 'github:%s'",
+                entry, entry,
+            )
+            entry = f"github:{entry}"
+        result.append(entry)
+    return result
+
+
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 # Global model instances (will be set by app initialization)
@@ -68,8 +91,7 @@ def admin_required(f):
             return jsonify({"error": "Authentication required"}), 401
 
         current_user = session.get("user", {}).get("username")
-        admin_users = os.getenv("ADMIN_USERS", "").split(",")
-        admin_users = [user.strip() for user in admin_users if user.strip()]
+        admin_users = _get_admin_users()
 
         if current_user not in admin_users:
             logger.warning("User %s attempted to access admin route", current_user)
@@ -93,10 +115,7 @@ def is_admin(username: str = None) -> bool:
     if not username:
         username = session.get("user", {}).get("username")
 
-    admin_users = os.getenv("ADMIN_USERS", "").split(",")
-    admin_users = [user.strip() for user in admin_users if user.strip()]
-
-    return username in admin_users
+    return username in _get_admin_users()
 
 
 @admin_bp.route("/proposals")

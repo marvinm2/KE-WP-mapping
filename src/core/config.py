@@ -29,6 +29,54 @@ class Config:
     def GITHUB_CLIENT_SECRET(self):
         return os.getenv("GITHUB_CLIENT_SECRET")
 
+    # ORCID OAuth Configuration
+    @property
+    def ORCID_CLIENT_ID(self):
+        return os.getenv("ORCID_CLIENT_ID")
+
+    @property
+    def ORCID_CLIENT_SECRET(self):
+        return os.getenv("ORCID_CLIENT_SECRET")
+
+    @property
+    def ORCID_DISCOVERY_URL(self):
+        return os.getenv(
+            "ORCID_DISCOVERY_URL",
+            "https://sandbox.orcid.org/.well-known/openid-configuration",
+        )
+
+    # Life Science Login OAuth Configuration
+    @property
+    def LS_CLIENT_ID(self):
+        return os.getenv("LS_CLIENT_ID")
+
+    @property
+    def LS_CLIENT_SECRET(self):
+        return os.getenv("LS_CLIENT_SECRET")
+
+    @property
+    def LS_DISCOVERY_URL(self):
+        return os.getenv(
+            "LS_DISCOVERY_URL",
+            "https://oidc.pilot.lifescienceid.org/oauth2/.well-known/openid-configuration",
+        )
+
+    # SURFconext OAuth Configuration
+    @property
+    def SURF_CLIENT_ID(self):
+        return os.getenv("SURF_CLIENT_ID")
+
+    @property
+    def SURF_CLIENT_SECRET(self):
+        return os.getenv("SURF_CLIENT_SECRET")
+
+    @property
+    def SURF_DISCOVERY_URL(self):
+        return os.getenv(
+            "SURF_DISCOVERY_URL",
+            "https://connect.test.surfconext.nl/.well-known/openid-configuration",
+        )
+
     # Database
     @property
     def DATABASE_URL(self):

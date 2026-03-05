@@ -12,6 +12,7 @@ from pathlib import Path
 
 from flask import Blueprint, abort, current_app, make_response, render_template, send_file, send_from_directory, session, request, jsonify
 
+from src.blueprints.admin import _get_admin_users
 from src.core.models import MappingModel
 from src.services.monitoring import monitor_performance
 from src.utils.text import sanitize_log
@@ -96,10 +97,7 @@ def is_admin(username: str = None) -> bool:
     if not username:
         username = session.get("user", {}).get("username")
 
-    admin_users = os.getenv("ADMIN_USERS", "").split(",")
-    admin_users = [user.strip() for user in admin_users if user.strip()]
-
-    return username in admin_users
+    return username in _get_admin_users()
 
 
 @main_bp.route("/")

@@ -151,21 +151,38 @@ def create_app(config_name: str = None):
     # Context processor to make is_admin available to all templates
     @app.context_processor
     def inject_user_context():
-        """Inject user context including admin and guest status to all templates"""
+        """Inject user context including admin, guest, and provider availability to all templates"""
         from flask import session
+        from src.blueprints.admin import _get_admin_users
 
         user_data = session.get("user", {})
         current_user = user_data.get("username")
         is_guest = user_data.get("is_guest", False)
 
         if current_user:
-            admin_users = os.getenv("ADMIN_USERS", "").split(",")
-            admin_users = [user.strip() for user in admin_users if user.strip()]
-            is_admin = current_user in admin_users
+            is_admin = current_user in _get_admin_users()
         else:
             is_admin = False
 
-        return dict(is_admin=is_admin, is_guest=is_guest)
+        # Provider availability flags for login modal
+        orcid_configured = bool(os.getenv("ORCID_CLIENT_ID") and os.getenv("ORCID_CLIENT_SECRET"))
+        ls_configured = bool(os.getenv("LS_CLIENT_ID") and os.getenv("LS_CLIENT_SECRET"))
+        surf_configured = bool(os.getenv("SURF_CLIENT_ID") and os.getenv("SURF_CLIENT_SECRET"))
+
+        return dict(
+            is_admin=is_admin,
+            is_guest=is_guest,
+            orcid_configured=orcid_configured,
+            ls_configured=ls_configured,
+            surf_configured=surf_configured,
+        )
+
+    @app.template_filter("display_username")
+    def display_username_filter(username):
+        """Strip provider prefix for display: 'github:mmartens' -> 'mmartens'"""
+        if username and ":" in username:
+            return username.split(":", 1)[1]
+        return username or ""
 
     @app.context_processor
     def inject_zenodo_meta():
