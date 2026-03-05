@@ -1,11 +1,9 @@
 """
 Authentication Blueprint
-Handles user login, logout, and OAuth flows
+Handles user login, logout, and multi-provider OAuth flows
 """
 import logging
-import os
 
-from authlib.integrations.flask_client import OAuth
 from flask import Blueprint, redirect, render_template, request, session, url_for
 
 from src.services.rate_limiter import submission_rate_limit
@@ -14,79 +12,71 @@ logger = logging.getLogger(__name__)
 
 auth_bp = Blueprint("auth", __name__)
 
-
-def init_oauth(app):
-    """Initialize OAuth with the Flask app"""
-    oauth = OAuth(app)
-    github = oauth.register(
-        name="github",
-        client_id=os.getenv("GITHUB_CLIENT_ID"),
-        client_secret=os.getenv("GITHUB_CLIENT_SECRET"),
-        access_token_url="https://github.com/login/oauth/access_token",
-        authorize_url="https://github.com/login/oauth/authorize",
-        api_base_url="https://api.github.com/",
-        client_kwargs={"scope": "user:email"},
-    )
-    return github
-
-
-# Store github client globally (will be set by app initialization)
-github_client = None
+# Provider clients dict (set by app initialization via set_models)
+provider_clients = {}
 guest_code_model = None
 
 
-def set_models(client, guest_code=None):
-    """Set the GitHub OAuth client and guest code model"""
-    global github_client, guest_code_model
-    github_client = client
+def set_models(clients: dict, guest_code=None):
+    """Set the OAuth provider clients dict and guest code model"""
+    global provider_clients, guest_code_model
+    provider_clients = clients
     guest_code_model = guest_code
 
 
-@auth_bp.route("/login")
-def login():
-    """Initiate GitHub OAuth login flow"""
-    if not github_client:
-        logger.error("GitHub OAuth client not initialized")
+@auth_bp.route("/login/<provider>")
+def login_provider(provider):
+    """Initiate OAuth login flow for the given provider"""
+    client = provider_clients.get(provider)
+    if not client:
+        logger.error("OAuth client not found for provider: %s", provider)
         return redirect(url_for("main.index"))
 
-    # Save return URL so we can redirect back after OAuth
     next_url = request.args.get("next") or request.referrer
     if next_url:
         session["login_next_url"] = next_url
 
-    redirect_uri = url_for("auth.authorize", _external=True)
-    return github_client.authorize_redirect(redirect_uri)
+    redirect_uri = url_for("auth.oauth_callback", provider=provider, _external=True)
+    return client.authorize_redirect(redirect_uri)
 
 
-@auth_bp.route("/callback")
-def authorize():
-    """Handle OAuth callback from GitHub"""
+@auth_bp.route("/callback/<provider>")
+def oauth_callback(provider):
+    """Handle OAuth callback for the given provider"""
+    client = provider_clients.get(provider)
+    if not client:
+        logger.error("OAuth callback for unknown provider: %s", provider)
+        return redirect(url_for("main.index"))
+
     try:
-        if not github_client:
-            logger.error("GitHub OAuth client not initialized")
-            return redirect(url_for("main.index"))
+        token = client.authorize_access_token()
 
-        token = github_client.authorize_access_token()
-        user_info = github_client.get("user").json()
-        user_email = github_client.get("user/emails").json()
+        if provider == "github":
+            user_info = client.get("user").json()
+            user_emails = client.get("user/emails").json()
+            sub = user_info["login"]
+            email = (
+                user_emails[0]["email"]
+                if user_emails and len(user_emails) > 0
+                else "No public email"
+            )
+        else:
+            # OIDC providers: authlib auto-parses id_token
+            userinfo = token.get("userinfo", {})
+            sub = userinfo.get("sub", "")
+            email = userinfo.get("email", "")
 
-        # Validate user_info
-        if not user_info or "login" not in user_info:
-            logger.error("Failed to get user info from GitHub")
-            return redirect(url_for("main.index"))
-
-        # Store user info in session
+        prefixed_username = f"{provider}:{sub}"
         session["user"] = {
-            "username": user_info["login"],
-            "email": user_email[0]["email"]
-            if user_email and len(user_email) > 0
-            else "No public email",
+            "username": prefixed_username,
+            "email": email,
+            "provider": provider,
         }
-        logger.info("User %s logged in successfully", user_info['login'])
+        logger.info("User %s logged in via %s", prefixed_username, provider)
         next_url = session.pop("login_next_url", None) or url_for("main.index")
         return redirect(next_url)
     except Exception as e:
-        logger.error("OAuth callback error: %s", e)
+        logger.error("OAuth callback error for %s: %s", provider, e)
         session.pop("login_next_url", None)
         return redirect(url_for("main.index"))
 

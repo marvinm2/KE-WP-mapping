@@ -19,6 +19,33 @@ from src.services.embedding import BiologicalEmbeddingService
 
 logger = logging.getLogger(__name__)
 
+# Multi-provider OAuth configuration.
+# Each entry maps a provider name to its env-var keys and OIDC discovery URL.
+# Providers are only registered when their CLIENT_ID and CLIENT_SECRET env vars are set.
+PROVIDER_CONFIGS = {
+    "orcid": {
+        "env_client_id": "ORCID_CLIENT_ID",
+        "env_client_secret": "ORCID_CLIENT_SECRET",
+        "env_discovery_url": "ORCID_DISCOVERY_URL",
+        "default_discovery_url": "https://sandbox.orcid.org/.well-known/openid-configuration",
+        "client_kwargs": {"scope": "openid"},
+    },
+    "ls": {
+        "env_client_id": "LS_CLIENT_ID",
+        "env_client_secret": "LS_CLIENT_SECRET",
+        "env_discovery_url": "LS_DISCOVERY_URL",
+        "default_discovery_url": "https://oidc.pilot.lifescienceid.org/oauth2/.well-known/openid-configuration",
+        "client_kwargs": {"scope": "openid profile email"},
+    },
+    "surf": {
+        "env_client_id": "SURF_CLIENT_ID",
+        "env_client_secret": "SURF_CLIENT_SECRET",
+        "env_discovery_url": "SURF_DISCOVERY_URL",
+        "default_discovery_url": "https://connect.test.surfconext.nl/.well-known/openid-configuration",
+        "client_kwargs": {"scope": "openid"},
+    },
+}
+
 
 class ServiceContainer:
     """
@@ -43,6 +70,7 @@ class ServiceContainer:
         self._guest_code_model = None
         self._oauth = None
         self._github_client = None
+        self._provider_clients = {}
         self._scoring_config = None
         self._embedding_service = None
         self._ke_metadata = None
@@ -330,9 +358,14 @@ class ServiceContainer:
         return self._embedding_service
 
     def init_oauth(self, app) -> OAuth:
-        """Initialize OAuth with the Flask app"""
+        """Initialize OAuth with the Flask app.
+
+        Registers GitHub (always) plus any OIDC providers whose env vars are set.
+        """
         if self._oauth is None:
             self._oauth = OAuth(app)
+
+            # GitHub is always registered
             self._github_client = self._oauth.register(
                 name="github",
                 client_id=self.config.GITHUB_CLIENT_ID,
@@ -342,8 +375,35 @@ class ServiceContainer:
                 api_base_url="https://api.github.com/",
                 client_kwargs={"scope": "user:email"},
             )
+            self._provider_clients["github"] = self._github_client
             logger.info("OAuth initialized with GitHub")
+
+            # Register optional OIDC providers
+            for provider, cfg in PROVIDER_CONFIGS.items():
+                client_id = os.getenv(cfg["env_client_id"])
+                client_secret = os.getenv(cfg["env_client_secret"])
+                if not client_id or not client_secret:
+                    continue
+
+                discovery_url = os.getenv(
+                    cfg["env_discovery_url"], cfg["default_discovery_url"]
+                )
+                client = self._oauth.register(
+                    name=provider,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    server_metadata_url=discovery_url,
+                    client_kwargs=cfg["client_kwargs"],
+                )
+                self._provider_clients[provider] = client
+                logger.info("OAuth provider registered: %s", provider)
+
         return self._oauth
+
+    @property
+    def provider_clients(self) -> dict:
+        """Return dict of registered OAuth provider clients"""
+        return self._provider_clients
 
     @property
     def github_client(self):

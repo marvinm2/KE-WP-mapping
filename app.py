@@ -129,7 +129,7 @@ def create_app(config_name: str = None):
     oauth = services.init_oauth(app)
 
     # Set up models for blueprints
-    set_auth_models(services.github_client, guest_code=services.guest_code_model)
+    set_auth_models(services.provider_clients, guest_code=services.guest_code_model)
     set_api_models(
         services.mapping_model, services.proposal_model, services.cache_model,
         services.pathway_suggestion_service,
