@@ -114,7 +114,7 @@ class TestProposalModel:
             user_name="Test User",
             user_email="test@example.com",
             user_affiliation="Test Org",
-            github_username="testuser",
+            provider_username="testuser",
             proposed_confidence="high",
         )
 
