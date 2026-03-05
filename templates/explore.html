@@ -108,7 +108,7 @@
                         <td>{{ row['go_name'] }}</td>
                         <td>{{ row['connection_type'] }}</td>
                         <td>{{ row['confidence_level'] }}</td>
-                        <td>{{ row['proposed_by'] or '-' }}</td>
+                        <td>{{ row['proposed_by']|display_username if row['proposed_by'] else '-' }}</td>
                         <td>{{ (row['created_at'] or '').split('.')[0] }}</td>
                     </tr>
                     {% endfor %}
@@ -195,7 +195,7 @@
         </form>
         {% else %}
             <p class="text-muted" style="text-align: center; margin: 20px 0;">You must be logged in to propose changes to mapping entries.</p>
-            <button id="loginButton" data-url="{{ url_for('auth.login') }}" style="display: block; margin: 0 auto;">Login with GitHub to Continue</button>
+            <button id="loginButton" data-url="{{ url_for('auth.login_provider', provider='github') }}" style="display: block; margin: 0 auto;">Login to Continue</button>
         {% endif %}
     </div>
 
@@ -274,8 +274,20 @@
                     },
                     { data: 'pathway_title' },
                     { data: 'confidence_level' },
-                    { data: 'provenance.proposed_by', defaultContent: '-' },
-                    { data: 'provenance.approved_by', defaultContent: '-' },
+                    { data: 'provenance.proposed_by', defaultContent: '-',
+                      render: function(data) {
+                          if (!data) return '-';
+                          var idx = data.indexOf(':');
+                          return idx > -1 ? data.substring(idx + 1) : data;
+                      }
+                    },
+                    { data: 'provenance.approved_by', defaultContent: '-',
+                      render: function(data) {
+                          if (!data) return '-';
+                          var idx = data.indexOf(':');
+                          return idx > -1 ? data.substring(idx + 1) : data;
+                      }
+                    },
                     { data: 'provenance.approved_at', defaultContent: '-',
                       render: function(d) { return d ? d.split('T')[0] : '-'; } },
                     { data: null, orderable: false, defaultContent: '<button class="propose-change btn-sm">Propose Change</button>' }

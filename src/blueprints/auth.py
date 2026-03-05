@@ -92,14 +92,13 @@ def logout():
 
 @auth_bp.route("/guest-login")
 def guest_login():
-    """Render guest login form"""
+    """Redirect to index -- guest login form is now inside the login modal"""
     if session.get("user"):
         return redirect(url_for("main.index"))
-    # Save return URL so we can redirect back after guest login
     next_url = request.args.get("next") or request.referrer
     if next_url:
         session["login_next_url"] = next_url
-    return render_template("guest_login.html")
+    return redirect(url_for("main.index"))
 
 
 @auth_bp.route("/guest-login", methods=["POST"])
