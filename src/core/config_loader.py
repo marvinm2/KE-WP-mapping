@@ -328,6 +328,11 @@ class GoSuggestionConfig:
     gene_min_threshold: float = 0.05
     gene_min_term_size: int = 10
     name_weight: float = 0.60
+    hierarchy: Dict[str, Any] = field(default_factory=lambda: {
+        'enabled': True,
+        'ic_weight': 0.15,
+        'redundancy_threshold': 0.20
+    })
 
 
 @dataclass

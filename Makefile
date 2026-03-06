@@ -37,6 +37,9 @@ docker-compose-down:	## Stop docker-compose
 migrate:	## Run database migration
 	python migrate_csv_to_db.py
 
+go-hierarchy:	## Build GO hierarchy data (IC scores, ancestors, depths)
+	python scripts/precompute_go_hierarchy.py
+
 clean:		## Clean up generated files
 	rm -rf __pycache__
 	rm -rf .pytest_cache
