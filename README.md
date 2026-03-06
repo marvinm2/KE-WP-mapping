@@ -22,6 +22,9 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
   - Pre-computed BioBERT embeddings for ~30K GO BP terms
   - Gene annotation overlap between KE-associated genes and GO terms
   - Hybrid scoring combining gene, text, and semantic signals
+- **GO Hierarchy Integration**: IC-based specificity boost and ancestor redundancy filtering using precomputed GO hierarchy (24K+ BP terms)
+- **KE-Centric GMT Exports**: Gene union across all approved mappings per KE for fgsea/clusterProfiler
+- **Proposer Provenance**: Every approved mapping records the submitting curator's identity
 - **Streamlined Confidence Assessment**: 4-question guided workflow with biological level weighting:
   - Transparent scoring algorithm (0-7.5 points) with biological level bonus
   - Automatic +1 bonus for molecular/cellular/tissue-level Key Events
@@ -50,7 +53,8 @@ A modern Flask-based web application for mapping Key Events (KEs) to WikiPathway
 
 ### Security & Authentication
 
-- **GitHub OAuth Integration**: Secure authentication with GitHub
+- **Multi-Provider OAuth**: GitHub, ORCID, LS Login, and SURFconext authentication via OIDC
+- **Provider-Prefixed Identity**: Usernames stored as `provider:name` to prevent cross-provider collision
 - **Role-based Access Control**: Admin dashboard for proposal management with proper Docker deployment support
 - **CSRF Protection**: Comprehensive security against cross-site attacks
 - **Rate Limiting**: API protection with intelligent throttling
@@ -131,7 +135,7 @@ All workflows run automatically on push to main branch and can be triggered manu
    - Create new OAuth App with:
      - **Application name**: `KE-WP Mapping Tool`
      - **Homepage URL**: `http://localhost:5000`
-     - **Authorization callback URL**: `http://localhost:5000/callback`
+     - **Authorization callback URL**: `http://localhost:5000/callback/github`
    - Copy Client ID and Client Secret
 
 5. **Configure environment:**
@@ -175,7 +179,7 @@ All workflows run automatically on push to main branch and can be triggered manu
 
 7. **Access the application:**
    - Open: http://localhost:5000
-   - Click "Login with GitHub"
+   - Click "Login" and choose a provider (GitHub, ORCID, LS Login, or SURFconext)
    - Start mapping KE-WP relationships!
 
 ### Run with Docker
@@ -233,8 +237,10 @@ tests/                  # Pytest test suite
 | `/ke-details` | GET | Key Event detail page | Optional |
 | `/pw-details` | GET | Pathway detail page | Optional |
 | `/documentation` | GET | Application documentation | Optional |
-| `/login` | GET | GitHub OAuth login | None |
+| `/login/<provider>` | GET | OAuth login (github, orcid, ls, surf) | None |
 | `/logout` | GET | User logout | Required |
+| `/aop-network` | GET | Interactive AOP network graph | Optional |
+| `/downloads` | GET | Dataset download page | Optional |
 
 ### API Endpoints
 
@@ -287,7 +293,7 @@ tests/                  # Pytest test suite
 
 ## Security Features
 
-- **OAuth 2.0**: Secure GitHub authentication
+- **OAuth 2.0 / OIDC**: Multi-provider authentication (GitHub, ORCID, LS Login, SURFconext)
 - **CSRF Protection**: All forms protected with tokens
 - **Input Validation**: Marshmallow schema validation
 - **SQL Injection Prevention**: Parameterized queries
@@ -304,12 +310,18 @@ tests/                  # Pytest test suite
 | `FLASK_SECRET_KEY` | Flask session encryption key | - | Yes |
 | `GITHUB_CLIENT_ID` | GitHub OAuth client ID | - | Yes |
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | - | Yes |
-| `ADMIN_USERS` | Comma-separated admin usernames | - | Yes |
+| `ADMIN_USERS` | Comma-separated admin usernames (supports provider prefix, e.g. `github:alice,orcid:0000-0001-...`) | - | Yes |
 | `FLASK_ENV` | Environment mode | `development` | No |
 | `FLASK_DEBUG` | Debug mode toggle | `true` | No |
 | `PORT` | Server port | `5000` | No |
 | `DATABASE_PATH` | SQLite database path | `ke_wp_mapping.db` | No |
 | `RATELIMIT_STORAGE_URL` | Rate limiting backend | `memory://` | No |
+| `ORCID_CLIENT_ID` | ORCID OAuth client ID | - | No |
+| `ORCID_CLIENT_SECRET` | ORCID OAuth client secret | - | No |
+| `LS_CLIENT_ID` | LS Login OAuth client ID | - | No |
+| `LS_CLIENT_SECRET` | LS Login OAuth client secret | - | No |
+| `SURF_CLIENT_ID` | SURFconext OAuth client ID | - | No |
+| `SURF_CLIENT_SECRET` | SURFconext OAuth client secret | - | No |
 
 ### Configuration Classes
 
@@ -339,7 +351,7 @@ curl http://localhost:5000/metrics
 {
   "status": "healthy|degraded|unhealthy",
   "timestamp": 1754582360,
-  "version": "2.5.0",
+  "version": "2.6.0",
   "services": {
     "database": true,
     "oauth": true,
@@ -398,7 +410,7 @@ PORT=5001
 
 **OAuth not working:**
 
-- Verify callback URL: `http://localhost:5000/callback`
+- Verify callback URL: `http://localhost:5000/callback/github`
 - Check Client ID/Secret in GitHub settings
 - Ensure OAuth app is not suspended
 
@@ -421,7 +433,7 @@ chmod +x start.sh
 
 - **Key Events**: [AOP-Wiki SPARQL Endpoint](https://aopwiki.rdf.bigcat-bioinformatics.org/sparql)
 - **WikiPathways**: [WikiPathways SPARQL Endpoint](https://sparql.wikipathways.org/sparql)
-- **Gene Ontology**: [GO OBO file](http://purl.obolibrary.org/obo/go.obo) (Biological Process terms)
+- **Gene Ontology**: [go-basic.obo](http://purl.obolibrary.org/obo/go/go-basic.obo) (Biological Process terms; used for hierarchy precomputation)
 - **GO Annotations**: [UniProt-GOA Human](https://www.ebi.ac.uk/GOA) (GO-gene associations)
 - **Caching**: 24-hour cache for SPARQL responses
 

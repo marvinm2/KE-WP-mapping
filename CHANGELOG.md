@@ -5,6 +5,55 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-03-06
+
+### Multi-Provider Authentication
+#### Added
+- **ORCID OAuth**: Login via ORCID using OIDC auto-discovery
+- **LS Login OAuth**: Life Science Login authentication
+- **SURFconext OAuth**: SURFconext institutional authentication
+- **Provider-Prefixed Identity**: All usernames stored as `provider:name` (e.g. `github:alice`, `orcid:0000-0001-...`)
+- **Login Modal**: Branded multi-provider login dialog with guest code entry
+- **Admin Whitelist Expansion**: `ADMIN_USERS` supports provider-prefixed entries (e.g. `github:alice,orcid:0000-...`)
+
+### GO Hierarchy Integration
+#### Added
+- **GO Hierarchy Precompute**: `scripts/precompute_go_hierarchy.py` parses go-basic.obo, produces 24,547 BP terms with IC scores, depths, and ancestors
+- **IC-Based Specificity Boost**: More specific GO terms rank higher in suggestions via information content weighting
+- **Redundancy Filtering**: Ancestor GO terms suppressed when a more specific descendant is present
+- **Depth Badge**: GO suggestion cards show hierarchy depth indicator
+- **Graceful Degradation**: Suggestions continue without hierarchy data if `go_hierarchy.json` is absent
+
+### Curator Provenance
+#### Added
+- **Proposer Identity Tracking**: `proposed_by` column on WP and GO mapping tables, auto-migrated on startup
+- **Provenance Chain**: Every approved mapping records both proposer (submitter) and curator (approver)
+- **Explore Page Display**: Proposer column in WP DataTable and GO static table
+
+### KE-Centric GMT Exports
+#### Added
+- **KE-Centric WP GMT**: One gene-set row per KE with genes unioned across all approved WP mappings
+- **KE-Centric GO GMT**: Same format for GO mappings
+- **Download Cards**: Two new export cards on downloads page with confidence filtering
+
+### Collapsed Section Summaries
+#### Added
+- **Step Summaries**: Collapsed workflow sections show KE ID/title, pathway/GO term, and confidence level
+- **Toggle Behavior**: Summary appears on collapse, disappears on expand, re-reads from live DOM
+
+### API Metadata Enrichment
+#### Added
+- **KE Context Fields**: `connection_type`, `ke_aop_context`, `ke_bio_level` in WP and GO mapping responses
+- **GO Hierarchy Fields**: `go_definition`, `go_ic`, `go_depth` in GO mapping responses
+- **Proposer in API**: `proposed_by` field in provenance section of all mapping responses
+- **CSV Columns**: All new fields included in CSV exports (`ke_aop_context` as semicolon-separated)
+- **OpenAPI Spec Update**: All new response fields documented in `static/openapi/openapi.yaml`
+
+#### Related Issues
+- Closes #80 (GO hierarchy integration), #101 (ORCID auth), #135 (API metadata), #136 (KE-centric GMT), #147 (proposer identity), #148 (collapsed sections)
+
+---
+
 ## [2.5.0] - 2026-03-03
 
 ### Public REST API
