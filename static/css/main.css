@@ -164,7 +164,7 @@ html, body {
 }
 
 .site-header__logo {
-    height: 32px;
+    height: 44px;
     width: auto;
     flex-shrink: 0;
     object-fit: contain;
@@ -1497,7 +1497,7 @@ select:focus:not(:focus-visible),
 
 /* Login Modal */
 .login-modal { display: flex; align-items: center; justify-content: center; }
-.login-modal__panel { position: relative; width: 340px; max-width: 90vw; padding: 32px; text-align: center; }
+.login-modal__panel { position: relative; width: 340px; max-width: 90vw; padding: 32px; text-align: center; top: auto; left: auto; transform: none; }
 .login-modal__close { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--color-text-muted); }
 .login-modal__close:hover { color: var(--color-text-primary); }
 .login-modal__title { margin: 0 0 24px; font-size: 1.25rem; font-weight: 600; }
