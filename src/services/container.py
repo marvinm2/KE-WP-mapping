@@ -78,6 +78,8 @@ class ServiceContainer:
         self._ke_aop_membership = None
         self._ke_metadata_index = None
         self._ker_adjacency = None
+        self._go_hierarchy = None
+        self._go_bp_metadata = None
 
         logger.info("Service container initialized")
 
@@ -216,6 +218,48 @@ class ServiceContainer:
                 "Built KE metadata index with %d entries", len(self._ke_metadata_index)
             )
         return self._ke_metadata_index
+
+    @property
+    def go_hierarchy(self):
+        """Load and cache GO hierarchy data from pre-computed JSON file"""
+        if self._go_hierarchy is None:
+            path = os.path.join(PROJECT_ROOT, 'data', 'go_hierarchy.json')
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        self._go_hierarchy = json.load(f)
+                    logger.info(
+                        "Loaded GO hierarchy for %d terms from %s",
+                        len(self._go_hierarchy), path,
+                    )
+                except Exception as e:
+                    logger.warning("Failed to load go_hierarchy.json: %s", e)
+                    self._go_hierarchy = {}
+            else:
+                logger.info("go_hierarchy.json not found at %s — GO depth/IC will be unavailable", path)
+                self._go_hierarchy = {}
+        return self._go_hierarchy
+
+    @property
+    def go_bp_metadata(self):
+        """Load and cache GO biological process metadata from pre-computed JSON file"""
+        if self._go_bp_metadata is None:
+            path = os.path.join(PROJECT_ROOT, 'data', 'go_bp_metadata.json')
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        self._go_bp_metadata = json.load(f)
+                    logger.info(
+                        "Loaded GO BP metadata for %d terms from %s",
+                        len(self._go_bp_metadata), path,
+                    )
+                except Exception as e:
+                    logger.warning("Failed to load go_bp_metadata.json: %s", e)
+                    self._go_bp_metadata = {}
+            else:
+                logger.info("go_bp_metadata.json not found at %s — GO definitions will be unavailable", path)
+                self._go_bp_metadata = {}
+        return self._go_bp_metadata
 
     @property
     def pathway_suggestion_service(self) -> PathwaySuggestionService:

@@ -875,7 +875,8 @@ class MappingModel:
             ).fetchone()[0]
             rows = conn.execute(
                 f"""SELECT uuid, ke_id, ke_title, wp_id, wp_title, confidence_level,
-                           approved_by_curator, approved_at_curator, suggestion_score
+                           approved_by_curator, approved_at_curator, suggestion_score,
+                           proposed_by, connection_type
                     FROM mappings {where}
                     ORDER BY created_at DESC
                     LIMIT ? OFFSET ?""",
@@ -1116,7 +1117,8 @@ class MappingModel:
                 """
                 SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type,
                        confidence_level, created_by, created_at, updated_at,
-                       uuid, approved_by_curator, approved_at_curator, updated_by
+                       uuid, approved_by_curator, approved_at_curator, updated_by,
+                       proposed_by, suggestion_score
                 FROM mappings
                 WHERE uuid = ?
                 """,
@@ -1740,7 +1742,8 @@ class GoMappingModel:
                 """
                 SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
                        confidence_level, evidence_code, created_by, created_at, updated_at,
-                       uuid, approved_by_curator, approved_at_curator
+                       uuid, approved_by_curator, approved_at_curator,
+                       proposed_by, suggestion_score, go_namespace
                 FROM ke_go_mappings
                 WHERE uuid = ?
                 """,
@@ -1861,7 +1864,8 @@ class GoMappingModel:
             ).fetchone()[0]
             rows = conn.execute(
                 f"""SELECT uuid, ke_id, ke_title, go_id, go_name, go_namespace,
-                           confidence_level, approved_by_curator, approved_at_curator, suggestion_score
+                           confidence_level, approved_by_curator, approved_at_curator, suggestion_score,
+                           proposed_by, connection_type
                     FROM ke_go_mappings {where}
                     ORDER BY created_at DESC
                     LIMIT ? OFFSET ?""",
