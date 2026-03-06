@@ -81,4 +81,5 @@ data/*.json
 
 # GO source data (large, re-downloadable)
 data/go.obo
+data/go-basic.obo
 data/goa_human.gaf.gz
