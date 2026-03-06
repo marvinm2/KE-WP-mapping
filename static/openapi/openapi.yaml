@@ -259,6 +259,19 @@ components:
           type: string
           enum: [High, Medium, Low]
           description: "Curator-assessed confidence level"
+        connection_type:
+          type: string
+          nullable: true
+          description: "Relationship type between KE and pathway (e.g. 'direct', 'indirect')"
+        ke_aop_context:
+          type: array
+          items:
+            type: string
+          description: "AOP IDs containing this Key Event (e.g. ['AOP 1', 'AOP 23']). Empty array when no membership data available."
+        ke_bio_level:
+          type: string
+          nullable: true
+          description: "Biological organization level of the Key Event (e.g. 'Molecular', 'Cellular', 'Tissue')"
         provenance:
           $ref: "#/components/schemas/Provenance"
 
@@ -289,6 +302,32 @@ components:
           type: string
           enum: [High, Medium, Low]
           description: "Curator-assessed confidence level"
+        connection_type:
+          type: string
+          nullable: true
+          description: "Relationship type between KE and pathway (e.g. 'direct', 'indirect')"
+        ke_aop_context:
+          type: array
+          items:
+            type: string
+          description: "AOP IDs containing this Key Event (e.g. ['AOP 1', 'AOP 23']). Empty array when no membership data available."
+        ke_bio_level:
+          type: string
+          nullable: true
+          description: "Biological organization level of the Key Event (e.g. 'Molecular', 'Cellular', 'Tissue')"
+        go_definition:
+          type: string
+          nullable: true
+          description: "Gene Ontology term definition text"
+        go_ic:
+          type: number
+          format: float
+          nullable: true
+          description: "Information Content score (0.0 = most general, higher = more specific). Null when GO hierarchy data unavailable."
+        go_depth:
+          type: integer
+          nullable: true
+          description: "Depth of GO term in the ontology hierarchy (0 = root). Null when GO hierarchy data unavailable."
         provenance:
           $ref: "#/components/schemas/Provenance"
 
@@ -304,7 +343,11 @@ components:
         approved_by:
           type: string
           nullable: true
-          description: "GitHub username of the curator who approved the mapping"
+          description: "Provider-prefixed username of the curator who approved the mapping (e.g. 'github:mmartens', 'orcid:0000-0001-...')"
+        proposed_by:
+          type: string
+          nullable: true
+          description: "Provider-prefixed username of the curator who proposed the mapping (e.g. 'github:mmartens', 'orcid:0000-0001-...'). Null for pre-v1.2 mappings."
         approved_at:
           type: string
           format: date-time
