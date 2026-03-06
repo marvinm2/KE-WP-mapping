@@ -48,6 +48,10 @@ class GoSuggestionService:
         self._load_go_metadata(go_metadata_path)
         self._load_go_annotations(go_annotations_path)
 
+        # Load GO hierarchy for IC-based scoring and redundancy filtering
+        self.go_hierarchy = {}
+        self._load_go_hierarchy('data/go_hierarchy.json')
+
     def _load_go_embeddings(self, path):
         """Load pre-computed GO BP embeddings from NPZ format (no pickle)."""
         npz_path = path.replace('.npy', '.npz')
@@ -102,6 +106,95 @@ class GoSuggestionService:
         else:
             logger.warning("GO annotations file not found: %s", path)
 
+    def _load_go_hierarchy(self, path):
+        """Load GO hierarchy data (depth, IC scores, ancestors) for scoring adjustments.
+
+        Provides graceful degradation: if file is missing or invalid, hierarchy
+        features are simply disabled and suggestions work as before.
+        """
+        if not os.path.exists(path):
+            logger.info("GO hierarchy file not found at %s, running without hierarchy features", path)
+            return
+
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+            # Convert ancestor lists to sets for O(1) lookup
+            for go_id, data in raw.items():
+                ancestors = data.get('ancestors', [])
+                data['ancestors'] = set(ancestors) if isinstance(ancestors, list) else ancestors
+            self.go_hierarchy = raw
+            logger.info("Loaded GO hierarchy for %d terms", len(self.go_hierarchy))
+        except Exception as e:
+            logger.warning("Could not load GO hierarchy from %s: %s", path, e)
+
+    def _apply_ic_boost(self, suggestions):
+        """Apply information content boost to favour more specific GO terms.
+
+        Formula: hybrid_score *= (1 + ic_weight * ic_score)
+        Also attaches depth field to each suggestion for UI display.
+        """
+        go_cfg = getattr(self.config, 'go_suggestion', None)
+        hierarchy_cfg = getattr(go_cfg, 'hierarchy', {}) if go_cfg else {}
+        ic_weight = hierarchy_cfg.get('ic_weight', 0.15) if isinstance(hierarchy_cfg, dict) else 0.15
+
+        for s in suggestions:
+            go_id = s.get('go_id', '')
+            h = self.go_hierarchy.get(go_id, {})
+            ic_score = h.get('ic_score', 0.0)
+            depth = h.get('depth', 0)
+
+            if not h:
+                logger.debug("GO term %s not found in hierarchy data", go_id)
+
+            # Apply IC boost
+            s['hybrid_score'] *= (1 + ic_weight * ic_score)
+            s['hybrid_score'] = round(min(s['hybrid_score'], 0.98), 4)
+
+            # Attach depth for UI display
+            s['depth'] = depth
+
+        # Re-sort after boosting
+        suggestions.sort(key=lambda x: x['hybrid_score'], reverse=True)
+        return suggestions
+
+    def _filter_redundant_ancestors(self, suggestions):
+        """Remove ancestor GO terms when a more specific descendant is present.
+
+        An ancestor is removed unless its hybrid_score exceeds the child's score
+        by more than redundancy_threshold (default 20%).
+        """
+        go_cfg = getattr(self.config, 'go_suggestion', None)
+        hierarchy_cfg = getattr(go_cfg, 'hierarchy', {}) if go_cfg else {}
+        threshold = hierarchy_cfg.get('redundancy_threshold', 0.20) if isinstance(hierarchy_cfg, dict) else 0.20
+
+        # Build lookup of suggestion go_ids to their scores
+        suggestion_ids = {s['go_id'] for s in suggestions}
+        score_map = {s['go_id']: s['hybrid_score'] for s in suggestions}
+
+        # Collect ancestors to remove
+        ancestors_to_remove = set()
+        for s in suggestions:
+            go_id = s['go_id']
+            h = self.go_hierarchy.get(go_id, {})
+            ancestors = h.get('ancestors', set())
+
+            for anc_id in ancestors:
+                if anc_id not in suggestion_ids:
+                    continue
+                # anc_id is an ancestor of go_id and both are in suggestions
+                child_score = score_map[go_id]
+                ancestor_score = score_map[anc_id]
+
+                # Keep ancestor only if it scores threshold+ higher than child
+                if ancestor_score < child_score * (1 + threshold):
+                    ancestors_to_remove.add(anc_id)
+
+        if ancestors_to_remove:
+            logger.info("Removing %d redundant ancestor GO terms", len(ancestors_to_remove))
+
+        return [s for s in suggestions if s['go_id'] not in ancestors_to_remove]
+
     def get_go_suggestions(
         self,
         ke_id: str,
@@ -146,6 +239,14 @@ class GoSuggestionService:
                 combined = gene_scores
             else:
                 combined = self._combine_go_scores(embedding_scores, gene_scores)
+
+            # Apply hierarchy-based adjustments if available
+            if self.go_hierarchy:
+                go_cfg = getattr(self.config, 'go_suggestion', None)
+                hierarchy_cfg = getattr(go_cfg, 'hierarchy', {}) if go_cfg else {}
+                if isinstance(hierarchy_cfg, dict) and hierarchy_cfg.get('enabled', True):
+                    combined = self._apply_ic_boost(combined)
+                    combined = self._filter_redundant_ancestors(combined)
 
             # Sort by score and limit
             combined.sort(key=lambda x: x['hybrid_score'], reverse=True)
