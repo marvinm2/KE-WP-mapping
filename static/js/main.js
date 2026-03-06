@@ -3569,6 +3569,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Suggestion list (current page only)
         pageSuggestions.forEach((suggestion, index) => {
             const matchBadges = this.getGoMatchBadges(suggestion.match_types || []);
+            const depthBadge = (suggestion.depth !== undefined && suggestion.depth > 0)
+                ? `<span class="badge-match--depth">Depth: ${suggestion.depth}</span>`
+                : '';
             const scorePercent = Math.round((suggestion.hybrid_score || 0) * 100);
             const scoreTier = scorePercent >= 60 ? 'high' : scorePercent >= 30 ? 'medium' : 'low';
             const rawDefinition = suggestion.go_definition
@@ -3582,7 +3585,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                         <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                                 <strong style="font-size: 14px;" class="text-dark-heading">${this.escapeHtml(suggestion.go_name)}</strong>
-                                ${matchBadges}
+                                ${matchBadges}${depthBadge}
                             </div>
                             <div class="text-muted" style="font-size: 12px; margin-bottom: 6px;">
                                 <a href="${suggestion.quickgo_link}" target="_blank" onclick="event.stopPropagation();">${suggestion.go_id}</a>

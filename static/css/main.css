@@ -2422,6 +2422,14 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
     border-radius: 3px;
     font-size: 10px;
 }
+.badge-match--depth {
+    background: var(--color-bg-muted, #f0f0f0);
+    color: var(--color-text-muted, #666);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+}
 
 /* Ontology tag chip */
 .ontology-tag-chip {
