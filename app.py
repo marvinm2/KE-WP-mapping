@@ -146,6 +146,10 @@ def create_app(config_name: str = None):
         mapping=services.mapping_model,
         go_mapping=services.go_mapping_model,
         cache=services.cache_model,
+        ke_meta_index=services.ke_metadata_index,
+        ke_aop_data=services.ke_aop_membership,
+        go_hier=services.go_hierarchy,
+        go_bp_meta=services.go_bp_metadata,
     )
 
     # Context processor to make is_admin available to all templates

@@ -23,14 +23,24 @@ v1_api_bp = Blueprint("v1_api", __name__, url_prefix="/api/v1")
 mapping_model = None
 go_mapping_model = None
 cache_model = None
+ke_metadata_index = None
+ke_aop_membership = None
+go_hierarchy = None
+go_bp_metadata = None
 
 
-def set_models(mapping, go_mapping, cache):
+def set_models(mapping, go_mapping, cache, ke_meta_index=None,
+               ke_aop_data=None, go_hier=None, go_bp_meta=None):
     """Inject model instances from create_app()."""
     global mapping_model, go_mapping_model, cache_model
+    global ke_metadata_index, ke_aop_membership, go_hierarchy, go_bp_metadata
     mapping_model = mapping
     go_mapping_model = go_mapping
     cache_model = cache
+    ke_metadata_index = ke_meta_index
+    ke_aop_membership = ke_aop_data
+    go_hierarchy = go_hier
+    go_bp_metadata = go_bp_meta
 
 
 # ---------------------------------------------------------------------------
@@ -85,13 +95,25 @@ def _make_pagination(page, per_page, total, base_url, extra_params):
 
 def _serialize_mapping(row):
     """Convert a DB row dict to the v1 mapping object shape."""
+    ke_id = row["ke_id"]
+
+    # KE context enrichment
+    aop_entries = (ke_aop_membership or {}).get(ke_id, [])
+    ke_aop_context = [entry["aop_id"] for entry in aop_entries]
+
+    ke_meta = (ke_metadata_index or {}).get(ke_id)
+    ke_bio_level = ke_meta.get("biolevel") if ke_meta else None
+
     return {
         "uuid": row["uuid"],
-        "ke_id": row["ke_id"],
+        "ke_id": ke_id,
         "ke_name": row["ke_title"],
         "pathway_id": row["wp_id"],
         "pathway_title": row["wp_title"],
         "confidence_level": row["confidence_level"],
+        "connection_type": row.get("connection_type"),
+        "ke_aop_context": ke_aop_context,
+        "ke_bio_level": ke_bio_level,
         "provenance": {
             "suggestion_score": row.get("suggestion_score"),
             "approved_by": row.get("approved_by_curator"),
@@ -103,14 +125,38 @@ def _serialize_mapping(row):
 
 def _serialize_go_mapping(row):
     """Convert a DB row dict to the v1 GO mapping object shape."""
+    ke_id = row["ke_id"]
+    go_id = row["go_id"]
+
+    # KE context enrichment
+    aop_entries = (ke_aop_membership or {}).get(ke_id, [])
+    ke_aop_context = [entry["aop_id"] for entry in aop_entries]
+
+    ke_meta = (ke_metadata_index or {}).get(ke_id)
+    ke_bio_level = ke_meta.get("biolevel") if ke_meta else None
+
+    # GO hierarchy enrichment
+    go_hier_entry = (go_hierarchy or {}).get(go_id)
+    go_ic = round(go_hier_entry["ic_score"], 2) if go_hier_entry and go_hier_entry.get("ic_score") is not None else None
+    go_depth = go_hier_entry.get("depth") if go_hier_entry else None
+
+    go_bp_entry = (go_bp_metadata or {}).get(go_id)
+    go_definition = go_bp_entry.get("definition") if go_bp_entry else None
+
     return {
         "uuid": row["uuid"],
-        "ke_id": row["ke_id"],
+        "ke_id": ke_id,
         "ke_name": row["ke_title"],
-        "go_term_id": row["go_id"],
+        "go_term_id": go_id,
         "go_term_name": row["go_name"],
         "go_namespace": row.get("go_namespace", "biological_process"),
         "confidence_level": row["confidence_level"],
+        "connection_type": row.get("connection_type"),
+        "ke_aop_context": ke_aop_context,
+        "ke_bio_level": ke_bio_level,
+        "go_definition": go_definition,
+        "go_ic": go_ic,
+        "go_depth": go_depth,
         "provenance": {
             "suggestion_score": row.get("suggestion_score"),
             "approved_by": row.get("approved_by_curator"),
@@ -124,10 +170,12 @@ def _serialize_go_mapping(row):
 _MAPPING_CSV_FIELDS = [
     "uuid", "ke_id", "ke_name", "pathway_id", "pathway_title",
     "confidence_level", "suggestion_score", "approved_by", "approved_at", "proposed_by",
+    "connection_type", "ke_aop_context", "ke_bio_level",
 ]
 _GO_MAPPING_CSV_FIELDS = [
     "uuid", "ke_id", "ke_name", "go_term_id", "go_term_name", "go_namespace",
     "confidence_level", "suggestion_score", "approved_by", "approved_at", "proposed_by",
+    "connection_type", "ke_aop_context", "ke_bio_level", "go_definition", "go_ic", "go_depth",
 ]
 
 
@@ -139,6 +187,9 @@ def _flatten_for_csv(obj):
     flat["approved_by"] = prov.get("approved_by")
     flat["approved_at"] = prov.get("approved_at")
     flat["proposed_by"] = prov.get("proposed_by")
+    # Convert ke_aop_context array to semicolon-separated string for CSV
+    aop_ctx = flat.get("ke_aop_context")
+    flat["ke_aop_context"] = ";".join(aop_ctx) if aop_ctx else ""
     return flat
 
 
