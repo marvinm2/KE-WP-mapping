@@ -14,6 +14,7 @@ import numpy as np
 from src.core.config_loader import ConfigLoader
 from src.suggestions.ke_genes import get_genes_from_ke
 from src.suggestions.scoring import combine_scored_items
+from src.utils.description_toggle import resolve_description_usage
 from src.utils.text import remove_directionality_terms
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,7 @@ class GoSuggestionService:
         cache_model=None,
         config=None,
         embedding_service=None,
+        ke_override_model=None,
         go_embeddings_path='data/go_bp_embeddings.npz',
         go_name_embeddings_path='data/go_bp_name_embeddings.npz',
         go_metadata_path='data/go_bp_metadata.json',
@@ -35,6 +37,7 @@ class GoSuggestionService:
         self.cache_model = cache_model
         self.config = config or ConfigLoader.get_default_config()
         self.embedding_service = embedding_service
+        self.ke_override_model = ke_override_model
         self.aop_wiki_endpoint = "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql"
 
         # Load pre-computed GO data
@@ -369,8 +372,16 @@ class GoSuggestionService:
             # Clean KE title
             ke_title_clean = remove_directionality_terms(ke_title)
 
-            # Get KE embedding
-            ke_emb = self.embedding_service.get_ke_embedding(ke_id, ke_title_clean)
+            # Resolve description toggle: global config + per-KE overrides
+            go_config = getattr(self.config, 'go_suggestion', None)
+            global_toggle = getattr(go_config, 'use_ke_description', True) if go_config else True
+            disabled_kes = self.ke_override_model.get_disabled_ke_ids() if self.ke_override_model else set()
+            use_desc = resolve_description_usage(ke_id, global_toggle, disabled_kes)
+            logger.debug("GO embedding toggle: global=%s, ke_disabled=%s, use_desc=%s",
+                         global_toggle, ke_id in disabled_kes, use_desc)
+
+            # Get KE embedding (toggle-aware: selects title-only or title+description)
+            ke_emb = self.embedding_service.get_ke_embedding_for_matching(ke_id, ke_title_clean, use_description=use_desc)
 
             # Get GO config thresholds
             go_config = getattr(self.config, 'go_suggestion', None)

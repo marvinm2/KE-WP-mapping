@@ -270,7 +270,8 @@ class ServiceContainer:
             self._pathway_suggestion_service = PathwaySuggestionService(
                 self.cache_model,
                 config=scoring_config,
-                embedding_service=self.embedding_service
+                embedding_service=self.embedding_service,
+                ke_override_model=self.ke_override_model,
             )
             logger.debug("PathwaySuggestionService instance created with config")
         return self._pathway_suggestion_service
@@ -317,6 +318,7 @@ class ServiceContainer:
                     cache_model=self.cache_model,
                     config=scoring_config,
                     embedding_service=self.embedding_service,
+                    ke_override_model=self.ke_override_model,
                 )
                 logger.info("GoSuggestionService instance created")
             except Exception as e:

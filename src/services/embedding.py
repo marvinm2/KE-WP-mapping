@@ -567,6 +567,7 @@ class BiologicalEmbeddingService:
         ke_id: str,
         ke_title: str,
         ke_description: str,
+        use_description: bool = True,
         pathways: List[Dict]
     ) -> List[Dict]:
         """
@@ -590,7 +591,7 @@ class BiologicalEmbeddingService:
             ke_title_emb = self.encode(ke_title_processed)
             ke_text = f"{ke_title}. {ke_description}" if ke_description else ke_title
             ke_text_processed = self._extract_entities(ke_text)
-            ke_full_emb = self.get_ke_embedding(ke_id, ke_text_processed)
+            ke_full_emb = self.get_ke_embedding_for_matching(ke_id, ke_text_processed, use_description=use_description)
 
             results = []
 
