@@ -278,6 +278,7 @@ class EmbeddingBasedMatching:
     skip_precomputed_for_titles: bool = True  # Skip pre-computed for entity extraction
     entity_extraction: EntityExtraction = field(default_factory=EntityExtraction)
     score_transformation: ScoreTransformation = field(default_factory=ScoreTransformation)
+    use_ke_description: bool = True
 
 
 @dataclass
@@ -333,6 +334,7 @@ class GoSuggestionConfig:
         'ic_weight': 0.15,
         'redundancy_threshold': 0.20
     })
+    use_ke_description: bool = True
 
 
 @dataclass

@@ -86,7 +86,14 @@ def precompute_all_ke_embeddings(output_path='data/ke_embeddings.npz',
     """
     Fetch all Key Events and pre-compute their BioBERT embeddings.
     Also saves ke_metadata.json for serving dropdown options without live SPARQL.
+
+    Generates three NPZ files:
+    - data/ke_embeddings_title_only.npz  (title-only embeddings)
+    - data/ke_embeddings_with_desc.npz   (title+description embeddings)
+    - data/ke_embeddings.npz             (backward-compat copy of with_desc)
     """
+    import shutil
+
     embedding_service = init_embedding_service()
 
     # Fetch all Key Events
@@ -106,15 +113,46 @@ def precompute_all_ke_embeddings(output_path='data/ke_embeddings.npz',
     ]
     save_metadata(metadata, metadata_path)
 
-    # Build {id: text} dict with directionality removal
-    items = {}
+    # Build two dicts: title-only and title+description
+    title_only_items = {}
+    with_desc_items = {}
+    desc_count = 0
+
     for ke in kes:
         ke_title_clean = remove_directionality_terms(ke['ke_title'])
-        ke_text = f"{ke_title_clean}. {ke['ke_description']}" if ke['ke_description'] else ke_title_clean
-        items[ke['ke_id']] = ke_text
 
-    embeddings = compute_embeddings_batch(embedding_service, items, label="Key Events")
-    save_embeddings(embeddings, output_path)
+        # Title-only: always just the cleaned title
+        title_only_items[ke['ke_id']] = ke_title_clean
+
+        # With-description: concatenate description if available
+        if ke['ke_description']:
+            with_desc_items[ke['ke_id']] = f"{ke_title_clean}. {ke['ke_description']}"
+            desc_count += 1
+        else:
+            with_desc_items[ke['ke_id']] = ke_title_clean
+
+    logger.info(f"KE description stats: {desc_count}/{len(kes)} KEs have descriptions, "
+                f"{len(kes) - desc_count} are title-only")
+
+    # Compute and save title-only embeddings
+    title_only_path = 'data/ke_embeddings_title_only.npz'
+    logger.info("Computing title-only KE embeddings...")
+    title_only_embeddings = compute_embeddings_batch(
+        embedding_service, title_only_items, label="Key Events (title-only)"
+    )
+    save_embeddings(title_only_embeddings, title_only_path)
+
+    # Compute and save title+description embeddings
+    with_desc_path = 'data/ke_embeddings_with_desc.npz'
+    logger.info("Computing title+description KE embeddings...")
+    with_desc_embeddings = compute_embeddings_batch(
+        embedding_service, with_desc_items, label="Key Events (with description)"
+    )
+    save_embeddings(with_desc_embeddings, with_desc_path)
+
+    # Backward-compatible copy: ke_embeddings.npz = with_desc
+    shutil.copy2(with_desc_path, output_path)
+    logger.info(f"Copied {with_desc_path} -> {output_path} (backward compatibility)")
 
 
 if __name__ == '__main__':
