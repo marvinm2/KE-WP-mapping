@@ -567,8 +567,8 @@ class BiologicalEmbeddingService:
         ke_id: str,
         ke_title: str,
         ke_description: str,
+        pathways: List[Dict],
         use_description: bool = True,
-        pathways: List[Dict]
     ) -> List[Dict]:
         """
         Compute similarity between KE and multiple pathways efficiently using pre-computed embeddings

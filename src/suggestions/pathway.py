@@ -516,8 +516,8 @@ class PathwaySuggestionService:
                 ke_id=ke_id,
                 ke_title=ke_title_clean,  # Use cleaned title
                 ke_description=ke_description,
+                pathways=all_pathways,
                 use_description=use_desc,
-                pathways=all_pathways
             )
 
             # Apply minimum threshold and format suggestions
