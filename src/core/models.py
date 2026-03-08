@@ -178,6 +178,18 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_guest_codes_code ON guest_codes(code)"
             )
 
+            # Create KE description overrides table (Phase 17)
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ke_description_overrides (
+                    ke_id TEXT PRIMARY KEY,
+                    description_disabled INTEGER NOT NULL DEFAULT 0,
+                    updated_by TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """
+            )
+
             # Migrate proposals table to add admin fields if needed
             self._migrate_proposals_admin_fields(conn)
 
@@ -2400,5 +2412,71 @@ class GuestCodeModel:
             logger.error("Error deleting guest code: %s", e)
             conn.rollback()
             return False
+        finally:
+            conn.close()
+
+
+class KeDescriptionOverrideModel:
+    """Model for managing per-KE description override toggles."""
+
+    def __init__(self, db: Database):
+        self.db = db
+
+    def get_disabled_ke_ids(self) -> set:
+        """Return set of ke_ids where description is disabled."""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT ke_id FROM ke_description_overrides WHERE description_disabled = 1"
+            )
+            return {row["ke_id"] for row in cursor.fetchall()}
+        except Exception as e:
+            logger.error("Error fetching disabled KE IDs: %s", e)
+            return set()
+        finally:
+            conn.close()
+
+    def toggle_override(self, ke_id: str, disabled: bool, updated_by: str) -> bool:
+        """Insert or replace a per-KE description override.
+
+        Args:
+            ke_id: Key Event ID (e.g., "KE 55")
+            disabled: True to disable description for this KE
+            updated_by: Admin username who made the change
+
+        Returns:
+            True if successful
+        """
+        conn = self.db.get_connection()
+        try:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO ke_description_overrides
+                    (ke_id, description_disabled, updated_by, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                (ke_id, 1 if disabled else 0, updated_by),
+            )
+            conn.commit()
+            logger.info("KE description override set: %s disabled=%s by %s", ke_id, disabled, updated_by)
+            return True
+        except Exception as e:
+            logger.error("Error toggling KE description override: %s", e)
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def get_all_overrides(self) -> Dict[str, bool]:
+        """Return {ke_id: disabled_bool} for all overrides."""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT ke_id, description_disabled FROM ke_description_overrides"
+            )
+            return {row["ke_id"]: bool(row["description_disabled"]) for row in cursor.fetchall()}
+        except Exception as e:
+            logger.error("Error fetching KE description overrides: %s", e)
+            return {}
         finally:
             conn.close()

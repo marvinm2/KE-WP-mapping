@@ -9,7 +9,7 @@ import os
 from authlib.integrations.flask_client import OAuth
 
 from src import PROJECT_ROOT
-from src.core.models import CacheModel, Database, GoMappingModel, GoProposalModel, GuestCodeModel, MappingModel, ProposalModel
+from src.core.models import CacheModel, Database, GoMappingModel, GoProposalModel, GuestCodeModel, KeDescriptionOverrideModel, MappingModel, ProposalModel
 from src.services.monitoring import MetricsCollector
 from src.suggestions.pathway import PathwaySuggestionService
 from src.suggestions.go import GoSuggestionService
@@ -68,6 +68,7 @@ class ServiceContainer:
         self._go_mapping_model = None
         self._go_proposal_model = None
         self._guest_code_model = None
+        self._ke_override_model = None
         self._oauth = None
         self._github_client = None
         self._provider_clients = {}
@@ -297,6 +298,14 @@ class ServiceContainer:
             self._guest_code_model = GuestCodeModel(self.database)
             logger.debug("GuestCodeModel instance created")
         return self._guest_code_model
+
+    @property
+    def ke_override_model(self) -> KeDescriptionOverrideModel:
+        """Get or create KE description override model instance"""
+        if self._ke_override_model is None:
+            self._ke_override_model = KeDescriptionOverrideModel(self.database)
+            logger.debug("KeDescriptionOverrideModel instance created")
+        return self._ke_override_model
 
     @property
     def go_suggestion_service(self) -> GoSuggestionService:

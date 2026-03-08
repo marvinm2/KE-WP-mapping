@@ -8,12 +8,12 @@ import re
 from datetime import datetime, timedelta
 from functools import wraps
 
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, current_app, jsonify, render_template, request, session
 
 from src.utils.timezone import format_local_datetime, utc_to_local
 from src.utils.text import sanitize_log
 
-from src.core.models import GoProposalModel, MappingModel, ProposalModel
+from src.core.models import GoProposalModel, KeDescriptionOverrideModel, MappingModel, ProposalModel
 from src.services.monitoring import monitor_performance
 from src.services.rate_limiter import submission_rate_limit
 from src.core.schemas import AdminNotesSchema, SecurityValidation, validate_request_data
@@ -52,17 +52,19 @@ guest_code_model = None
 go_mapping_model = None
 go_proposal_model = None
 cache_model_ref = None
+ke_override_model = None
 
 
-def set_models(proposal, mapping, guest_code=None, go_mapping=None, go_proposal=None, cache_model=None):
+def set_models(proposal, mapping, guest_code=None, go_mapping=None, go_proposal=None, cache_model=None, ke_override=None):
     """Set the model instances"""
-    global proposal_model, mapping_model, guest_code_model, go_mapping_model, go_proposal_model, cache_model_ref
+    global proposal_model, mapping_model, guest_code_model, go_mapping_model, go_proposal_model, cache_model_ref, ke_override_model
     proposal_model = proposal
     mapping_model = mapping
     guest_code_model = guest_code
     go_mapping_model = go_mapping
     go_proposal_model = go_proposal
     cache_model_ref = cache_model
+    ke_override_model = ke_override
 
 
 def login_required(f):
@@ -868,3 +870,92 @@ CC0 1.0 Universal
     except Exception as e:
         logger.error("Zenodo publish failed: %s", e)
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@admin_bp.route("/ke-descriptions")
+@admin_required
+@monitor_performance
+def admin_ke_descriptions():
+    """Admin page for KE description coverage audit and per-KE override toggles."""
+    try:
+        # Load KE metadata from service container
+        services = current_app.service_container
+        ke_metadata = services.ke_metadata or []
+
+        # Compute coverage stats
+        total_kes = len(ke_metadata)
+        kes_with_desc = sum(
+            1 for ke in ke_metadata
+            if ke.get("KEdescription") and ke["KEdescription"].strip()
+        )
+        coverage_pct = round((kes_with_desc / total_kes * 100), 1) if total_kes else 0
+
+        # Load per-KE overrides
+        overrides = ke_override_model.get_all_overrides() if ke_override_model else {}
+
+        # Read global toggle from config
+        config = services.scoring_config
+        global_toggle = getattr(
+            getattr(
+                getattr(config, 'pathway_suggestion', None),
+                'embedding_based_matching', None
+            ),
+            'use_ke_description', True
+        ) if config else True
+
+        return render_template(
+            "admin_ke_descriptions.html",
+            ke_metadata=ke_metadata,
+            total_kes=total_kes,
+            kes_with_desc=kes_with_desc,
+            coverage_pct=coverage_pct,
+            overrides=overrides,
+            global_toggle=global_toggle,
+        )
+    except Exception as e:
+        logger.error("Error loading KE descriptions page: %s", e)
+        return render_template(
+            "admin_ke_descriptions.html",
+            ke_metadata=[],
+            total_kes=0,
+            kes_with_desc=0,
+            coverage_pct=0,
+            overrides={},
+            global_toggle=True,
+            error="Failed to load KE description data",
+        )
+
+
+@admin_bp.route("/ke-descriptions/<path:ke_id>/toggle", methods=["POST"])
+@admin_required
+def toggle_ke_description(ke_id: str):
+    """Toggle description usage for a specific KE."""
+    try:
+        if not ke_override_model:
+            return jsonify({"error": "Override model not available"}), 500
+
+        data = request.get_json(silent=True) or {}
+        disabled = bool(data.get("disabled", False))
+
+        # Validate ke_id exists in metadata
+        services = current_app.service_container
+        ke_metadata = services.ke_metadata or []
+        valid_ids = {ke["KElabel"] for ke in ke_metadata}
+        if ke_id not in valid_ids:
+            return jsonify({"error": f"KE ID '{ke_id}' not found"}), 404
+
+        admin_username = session.get("user", {}).get("username", "unknown")
+        success = ke_override_model.toggle_override(ke_id, disabled, admin_username)
+
+        if success:
+            return jsonify({
+                "success": True,
+                "ke_id": ke_id,
+                "description_disabled": disabled,
+            })
+        else:
+            return jsonify({"error": "Failed to save override"}), 500
+
+    except Exception as e:
+        logger.error("Error toggling KE description for %s: %s", ke_id, e)
+        return jsonify({"error": "Failed to toggle description"}), 500
