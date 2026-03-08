@@ -124,6 +124,11 @@ class BiologicalEmbeddingService:
             if precomputed_ke_embeddings_path and os.path.exists(precomputed_ke_embeddings_path):
                 self._load_precomputed_ke_embeddings(precomputed_ke_embeddings_path)
 
+            # Load dual KE embedding sets (title-only and with-description)
+            self.ke_embeddings_title_only = {}
+            self.ke_embeddings_with_desc = {}
+            self._load_precomputed_ke_embeddings_dual()
+
             # Load pre-computed pathway TITLE embeddings if available
             self.pathway_title_embeddings = {}
             if os.path.exists('data/pathway_title_embeddings.npz'):
@@ -188,6 +193,70 @@ class BiologicalEmbeddingService:
         except Exception as e:
             logger.warning("Could not load pre-computed pathway title embeddings: %s", e)
             self.pathway_title_embeddings = {}
+
+    def _load_precomputed_ke_embeddings_dual(self):
+        """Load both title-only and title+description KE embedding sets.
+
+        Falls back gracefully if files don't exist:
+        - title-only missing: empty dict (log warning)
+        - with-desc missing: falls back to self.ke_embeddings
+        """
+        title_only_path = 'data/ke_embeddings_title_only.npz'
+        with_desc_path = 'data/ke_embeddings_with_desc.npz'
+
+        # Load title-only embeddings
+        if os.path.exists(title_only_path):
+            try:
+                with np.load(title_only_path) as data:
+                    ids = data['ids']
+                    matrix = data['matrix']
+                self.ke_embeddings_title_only = dict(zip(ids, matrix))
+                logger.info("Loaded %d title-only KE embeddings",
+                            len(self.ke_embeddings_title_only))
+            except Exception as e:
+                logger.warning("Could not load title-only KE embeddings: %s", e)
+                self.ke_embeddings_title_only = {}
+        else:
+            logger.warning("Title-only KE embeddings not found: %s", title_only_path)
+            self.ke_embeddings_title_only = {}
+
+        # Load with-description embeddings
+        if os.path.exists(with_desc_path):
+            try:
+                with np.load(with_desc_path) as data:
+                    ids = data['ids']
+                    matrix = data['matrix']
+                self.ke_embeddings_with_desc = dict(zip(ids, matrix))
+                logger.info("Loaded %d title+description KE embeddings",
+                            len(self.ke_embeddings_with_desc))
+            except Exception as e:
+                logger.warning("Could not load title+description KE embeddings: %s", e)
+                self.ke_embeddings_with_desc = dict(self.ke_embeddings)
+        else:
+            logger.warning("Title+description KE embeddings not found: %s — "
+                           "falling back to default ke_embeddings", with_desc_path)
+            self.ke_embeddings_with_desc = dict(self.ke_embeddings)
+
+    def get_ke_embedding_for_matching(self, ke_id: str, ke_text: str,
+                                       use_description: bool = True) -> 'np.ndarray':
+        """Select title-only or title+description embedding based on toggle state.
+
+        Args:
+            ke_id: Key Event ID (e.g., "KE 55")
+            ke_text: Fallback text if no precomputed embedding exists
+            use_description: Whether to use title+description embedding
+
+        Returns:
+            Embedding vector (768-dim)
+        """
+        if use_description:
+            if ke_id in self.ke_embeddings_with_desc:
+                return self.ke_embeddings_with_desc[ke_id]
+        else:
+            if ke_id in self.ke_embeddings_title_only:
+                return self.ke_embeddings_title_only[ke_id]
+        # Fallback to original ke_embeddings (backward compat) or encode
+        return self.get_ke_embedding(ke_id, ke_text)
 
     def _extract_entities(self, text: str) -> str:
         """
