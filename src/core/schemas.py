@@ -207,7 +207,7 @@ class SecurityValidation:
 
     @staticmethod
     def validate_username(username: str) -> bool:
-        """Validate GitHub or guest username format"""
+        """Validate OAuth provider-prefixed or guest username format"""
         if not isinstance(username, str):
             return False
 
@@ -216,7 +216,14 @@ class SecurityValidation:
             guest_label = username[6:]
             return bool(re.match(r"^[a-zA-Z0-9_-]{3,50}$", guest_label))
 
-        # GitHub username rules: alphanumeric, hyphens, max 39 chars, no consecutive hyphens
+        # Strip OAuth provider prefix (e.g. "github:", "orcid:", "ls:", "surf:")
+        if ":" in username:
+            username = username.split(":", 1)[1]
+
+        # Username rules: alphanumeric, hyphens, max 39 chars, no consecutive hyphens
+        # Also allow ORCID format (0000-0001-2345-6789)
+        if re.match(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$", username):
+            return True
         pattern = r"^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$"
         return bool(re.match(pattern, username))
 
