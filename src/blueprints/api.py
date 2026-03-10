@@ -1506,6 +1506,8 @@ def get_go_scoring_config():
                 "confidence_thresholds": ke_go.confidence_thresholds,
                 "max_scores": ke_go.max_scores,
                 "connection_types": ke_go.connection_types,
+                "dimension_weights": ke_go.dimension_weights,
+                "dimension_thresholds": ke_go.dimension_thresholds,
             },
             "metadata": {
                 "loaded_at": datetime.utcnow().isoformat() + "Z",
@@ -1530,6 +1532,8 @@ def get_go_scoring_config():
                 "confidence_thresholds": ke_go.confidence_thresholds,
                 "max_scores": ke_go.max_scores,
                 "connection_types": ke_go.connection_types,
+                "dimension_weights": ke_go.dimension_weights,
+                "dimension_thresholds": ke_go.dimension_thresholds,
             },
             "metadata": {
                 "loaded_at": datetime.utcnow().isoformat() + "Z",
