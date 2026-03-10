@@ -137,7 +137,7 @@ class GoSuggestionService:
         Formula: hybrid_score *= (1 + ic_weight * ic_score)
         Also attaches depth field to each suggestion for UI display.
         """
-        go_cfg = getattr(self.config, 'go_suggestion', None)
+        go_cfg = getattr(self.config, 'go_bp', None)
         hierarchy_cfg = getattr(go_cfg, 'hierarchy', {}) if go_cfg else {}
         ic_weight = hierarchy_cfg.get('ic_weight', 0.15) if isinstance(hierarchy_cfg, dict) else 0.15
 
@@ -167,7 +167,7 @@ class GoSuggestionService:
         An ancestor is removed unless its hybrid_score exceeds the child's score
         by more than redundancy_threshold (default 20%).
         """
-        go_cfg = getattr(self.config, 'go_suggestion', None)
+        go_cfg = getattr(self.config, 'go_bp', None)
         hierarchy_cfg = getattr(go_cfg, 'hierarchy', {}) if go_cfg else {}
         threshold = hierarchy_cfg.get('redundancy_threshold', 0.20) if isinstance(hierarchy_cfg, dict) else 0.20
 
@@ -206,7 +206,7 @@ class GoSuggestionService:
         directions receive a boost; mismatched directions receive a penalty.
         Unspecified direction on either side → no adjustment.
 
-        Config keys (under go_suggestion.directionality):
+        Config keys (under go_bp.directionality):
             match_boost (default 1.10)
             mismatch_penalty (default 0.85)
 
@@ -216,7 +216,7 @@ class GoSuggestionService:
             direction_alignment: "match" | "mismatch" | null
         """
         # Read config with safe fallback defaults
-        go_cfg = getattr(self.config, 'go_suggestion', None)
+        go_cfg = getattr(self.config, 'go_bp', None)
         dir_cfg = getattr(go_cfg, 'directionality', {}) if go_cfg else {}
         if isinstance(dir_cfg, dict):
             match_boost = dir_cfg.get('match_boost', 1.10)
@@ -304,7 +304,7 @@ class GoSuggestionService:
 
             # Apply hierarchy-based adjustments if available
             if self.go_hierarchy:
-                go_cfg = getattr(self.config, 'go_suggestion', None)
+                go_cfg = getattr(self.config, 'go_bp', None)
                 hierarchy_cfg = getattr(go_cfg, 'hierarchy', {}) if go_cfg else {}
                 if isinstance(hierarchy_cfg, dict) and hierarchy_cfg.get('enabled', True):
                     combined = self._apply_ic_boost(combined)
@@ -435,7 +435,7 @@ class GoSuggestionService:
             ke_title_clean = remove_directionality_terms(ke_title)
 
             # Resolve description toggle: global config + per-KE overrides
-            go_config = getattr(self.config, 'go_suggestion', None)
+            go_config = getattr(self.config, 'go_bp', None)
             global_toggle = getattr(go_config, 'use_ke_description', True) if go_config else True
             disabled_kes = self.ke_override_model.get_disabled_ke_ids() if self.ke_override_model else set()
             use_desc = resolve_description_usage(ke_id, global_toggle, disabled_kes)
@@ -446,7 +446,7 @@ class GoSuggestionService:
             ke_emb = self.embedding_service.get_ke_embedding_for_matching(ke_id, ke_title_clean, use_description=use_desc)
 
             # Get GO config thresholds
-            go_config = getattr(self.config, 'go_suggestion', None)
+            go_config = getattr(self.config, 'go_bp', None)
             min_threshold = getattr(go_config, 'embedding_min_threshold', 0.3) if go_config else 0.3
 
             # Get GO-specific name/definition weighting
@@ -534,7 +534,7 @@ class GoSuggestionService:
             return []
 
         try:
-            go_config = getattr(self.config, 'go_suggestion', None)
+            go_config = getattr(self.config, 'go_bp', None)
             min_threshold = getattr(go_config, 'gene_min_threshold', 0.05) if go_config else 0.05
             min_term_size = getattr(go_config, 'gene_min_term_size', 10) if go_config else 10
 
@@ -601,7 +601,7 @@ class GoSuggestionService:
         Returns merged list with hybrid_score computed from both signals.
         """
         # Get weights from config
-        go_config = getattr(self.config, 'go_suggestion', None)
+        go_config = getattr(self.config, 'go_bp', None)
         if go_config:
             weights_cfg = getattr(go_config, 'hybrid_weights', {})
             if isinstance(weights_cfg, dict):

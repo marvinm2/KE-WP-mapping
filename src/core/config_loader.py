@@ -442,7 +442,8 @@ class ScoringConfig:
     """Complete scoring configuration"""
     pathway_suggestion: PathwaySuggestionConfig = field(default_factory=PathwaySuggestionConfig)
     ke_pathway_assessment: KEPathwayAssessmentConfig = field(default_factory=KEPathwayAssessmentConfig)
-    go_suggestion: GoSuggestionConfig = field(default_factory=GoSuggestionConfig)
+    go_bp: GoSuggestionConfig = field(default_factory=GoSuggestionConfig)
+    go_mf: GoSuggestionConfig = field(default_factory=GoSuggestionConfig)
     ke_go_assessment: KEGoAssessmentConfig = field(default_factory=KEGoAssessmentConfig)
     metadata: Dict[str, str] = field(default_factory=lambda: {
         'version': '1.0.0',
@@ -542,7 +543,9 @@ class ConfigLoader:
             # Extract sections
             pathway_dict = config_dict.get('pathway_suggestion', {})
             ke_pathway_dict = config_dict.get('ke_pathway_assessment', {})
-            go_suggestion_dict = config_dict.get('go_suggestion', {})
+            # Backward-compat: accept old 'go_suggestion' key as fallback for go_bp
+            go_bp_dict = config_dict.get('go_bp', config_dict.get('go_suggestion', {}))
+            go_mf_dict = config_dict.get('go_mf', {})
             ke_go_dict = config_dict.get('ke_go_assessment', {})
             metadata_dict = config_dict.get('metadata', {})
 
@@ -587,8 +590,9 @@ class ConfigLoader:
             # Build KE-pathway assessment config
             ke_pathway_config = KEPathwayAssessmentConfig(**ke_pathway_dict)
 
-            # Build GO suggestion config
-            go_suggestion_config = GoSuggestionConfig(**go_suggestion_dict)
+            # Build GO suggestion configs (BP and MF namespaces)
+            go_bp_config = GoSuggestionConfig(**go_bp_dict)
+            go_mf_config = GoSuggestionConfig(**go_mf_dict)
 
             # Build KE-GO assessment config
             ke_go_config = KEGoAssessmentConfig(**ke_go_dict)
@@ -596,7 +600,8 @@ class ConfigLoader:
             return ScoringConfig(
                 pathway_suggestion=pathway_config,
                 ke_pathway_assessment=ke_pathway_config,
-                go_suggestion=go_suggestion_config,
+                go_bp=go_bp_config,
+                go_mf=go_mf_config,
                 ke_go_assessment=ke_go_config,
                 metadata=metadata_dict
             )
