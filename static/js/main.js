@@ -3831,9 +3831,16 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         // Reset GO assessment state
         this.goAssessmentAnswers = {};
+        this.goMappingResult = null;
 
         const config = this.goScoringConfig;
         const connectionTypes = config.connection_types || ['describes', 'involves', 'related', 'context'];
+
+        const dimensionTooltips = {
+            connection: 'How directly does this GO term relate to the key event\'s biological mechanism? High: direct mechanistic link. Medium: functionally related process. Low: broadly associated.',
+            specificity: 'How precisely does this GO term describe the key event? High: exact match to the biological process. Medium: correct but broader/narrower. Low: tangentially relevant.',
+            evidence: 'How strong is the literature evidence linking this GO term to this key event? High: multiple experimental studies. Medium: curated or computational evidence. Low: inferred or assumed.'
+        };
 
         let html = `
             <div class="go-assessment go-assessment-wrapper" data-go-id="${goId}">
@@ -3842,50 +3849,62 @@ This helps identify gaps in existing pathways for future development.">❓</span
                     <span class="text-muted" style="font-size: 13px; font-weight: normal;">(${goId})</span>
                 </h4>
 
-                <!-- Step 1: Connection Type -->
-                <div class="go-assessment-step" data-step="go-step1">
-                    <h4>1. What is the relationship between the GO term and Key Event?
-                        <span class="tooltip" data-tooltip="describes: GO term directly describes KE mechanism; involves: KE involves this process; related: Related biological process; context: Provides context">&#10067;</span>
-                    </h4>
-                    <div class="btn-group go-btn-group" data-step="go-step1">
-                        ${connectionTypes.map(ct => `
-                            <button type="button" class="btn-option go-assess-btn" data-value="${ct}">
-                                ${ct.charAt(0).toUpperCase() + ct.slice(1)}
-                            </button>
-                        `).join('')}
+                <!-- Connection Type dropdown (separate metadata field) -->
+                <div style="margin-bottom: 16px;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 6px;">Connection Type
+                        <span class="tooltip" data-tooltip="describes: GO term directly describes KE mechanism; involves: KE involves this process; related: Related biological process; context: Provides context" style="cursor: help; font-size: 14px;">&#9432;</span>
+                    </label>
+                    <select id="go-connection-type-select" style="padding: 6px 10px; border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); font-size: var(--font-size-sm);">
+                        <option value="">-- Select connection type --</option>
+                        ${connectionTypes.map(ct => `<option value="${ct}">${ct.charAt(0).toUpperCase() + ct.slice(1)}</option>`).join('')}
+                    </select>
+                </div>
+
+                <!-- Dimension: Connection score -->
+                <div class="go-dimension-row" style="margin-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-weight: 600; min-width: 200px;">Connection (biological relevance)
+                            <span class="tooltip" data-tooltip="${dimensionTooltips.connection}" style="cursor: help; font-size: 14px;">&#9432;</span>
+                        </span>
+                        <div class="btn-group go-btn-group" data-dimension="connection" style="margin: 0;">
+                            <button type="button" class="btn-option go-dim-btn" data-dimension="connection" data-score="3">High</button>
+                            <button type="button" class="btn-option go-dim-btn" data-dimension="connection" data-score="2">Medium</button>
+                            <button type="button" class="btn-option go-dim-btn" data-dimension="connection" data-score="1">Low</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Step 2: Term Specificity -->
-                <div class="go-assessment-step" data-step="go-step2" style="display: none;">
-                    <h4>2. How specific is the GO term to this Key Event?
-                        <span class="tooltip" data-tooltip="exact: GO term describes KE precisely; parent_child: Parent/child relationship; related: Related but not direct; broad: Very general term">&#10067;</span>
-                    </h4>
-                    <div class="btn-group go-btn-group" data-step="go-step2">
-                        <button type="button" class="btn-option go-assess-btn" data-value="exact">Exact Match</button>
-                        <button type="button" class="btn-option go-assess-btn" data-value="parent_child">Parent/Child</button>
-                        <button type="button" class="btn-option go-assess-btn" data-value="related">Related</button>
-                        <button type="button" class="btn-option go-assess-btn" data-value="broad">Broad Term</button>
+                <!-- Dimension: Specificity score -->
+                <div class="go-dimension-row" style="margin-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-weight: 600; min-width: 200px;">Specificity (term precision)
+                            <span class="tooltip" data-tooltip="${dimensionTooltips.specificity}" style="cursor: help; font-size: 14px;">&#9432;</span>
+                        </span>
+                        <div class="btn-group go-btn-group" data-dimension="specificity" style="margin: 0;">
+                            <button type="button" class="btn-option go-dim-btn" data-dimension="specificity" data-score="3">High</button>
+                            <button type="button" class="btn-option go-dim-btn" data-dimension="specificity" data-score="2">Medium</button>
+                            <button type="button" class="btn-option go-dim-btn" data-dimension="specificity" data-score="1">Low</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Step 3: Evidence Support -->
-                <div class="go-assessment-step" data-step="go-step3" style="display: none;">
-                    <h4>3. What is the evidence basis for this mapping?
-                        <span class="tooltip" data-tooltip="experimental: Direct experimental evidence; curated: Curated from literature; inferred: Computationally inferred; assumed: No specific evidence">&#10067;</span>
-                    </h4>
-                    <div class="btn-group go-btn-group" data-step="go-step3">
-                        <button type="button" class="btn-option go-assess-btn" data-value="experimental">Experimental</button>
-                        <button type="button" class="btn-option go-assess-btn" data-value="curated">Curated</button>
-                        <button type="button" class="btn-option go-assess-btn" data-value="inferred">Inferred</button>
-                        <button type="button" class="btn-option go-assess-btn" data-value="assumed">Assumed</button>
+                <!-- Dimension: Evidence score -->
+                <div class="go-dimension-row" style="margin-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-weight: 600; min-width: 200px;">Evidence (literature support)
+                            <span class="tooltip" data-tooltip="${dimensionTooltips.evidence}" style="cursor: help; font-size: 14px;">&#9432;</span>
+                        </span>
+                        <div class="btn-group go-btn-group" data-dimension="evidence" style="margin: 0;">
+                            <button type="button" class="btn-option go-dim-btn" data-dimension="evidence" data-score="3">High</button>
+                            <button type="button" class="btn-option go-dim-btn" data-dimension="evidence" data-score="2">Medium</button>
+                            <button type="button" class="btn-option go-dim-btn" data-dimension="evidence" data-score="1">Low</button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="go-assessment-result go-assessment-result-panel" style="display: none;">
-                    <p style="margin: 5px 0;"><strong>Confidence Level:</strong> <span class="go-confidence-result">--</span></p>
-                    <p style="margin: 5px 0;"><strong>Connection Type:</strong> <span class="go-connection-result">--</span></p>
-                    <p class="go-score-details text-muted" style="margin: 5px 0; font-size: 12px;">--</p>
+                <!-- Live preview badge -->
+                <div id="go-dimension-preview" style="display: none; margin-top: 12px; padding: 10px 14px; background: var(--color-bg-subtle, #f8f9fa); border-radius: var(--radius-sm); border: 1px solid var(--color-border-light);">
+                    Computed confidence: <span id="go-dimension-badge" class="badge-status-medium" style="font-size: 14px;">--</span>
                 </div>
             </div>
         `;
@@ -3893,208 +3912,93 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $form.html(html);
         $section.show();
 
-        // Setup GO assessment button handlers
-        $(document).off('click', '.go-assess-btn').on('click', '.go-assess-btn', (e) => {
-            this.handleGoAssessmentClick(e);
+        // Setup dimension button handlers
+        $(document).off('click', '.go-dim-btn').on('click', '.go-dim-btn', (e) => {
+            this.handleDimensionSelection(e);
         });
+
+        // Disable submit button until all dimensions selected
+        $('#go-mapping-form button[type="submit"]').prop('disabled', true).text('Complete GO Assessment First');
     }
 
-    handleGoAssessmentClick(event) {
+    handleDimensionSelection(event) {
         const $btn = $(event.target).closest('.btn-option');
         if (!$btn.length) return;
-        const $group = $btn.closest('.go-btn-group');
-        const stepId = $group.data('step');
-        const selectedValue = $btn.data('value');
+        const dimension = $btn.data('dimension');
+        const score = parseInt($btn.data('score'), 10);
 
-        // Save answer
-        this.goAssessmentAnswers[stepId] = selectedValue;
-
-        // Update UI
-        $group.find('.btn-option').removeClass('selected');
+        // Update button selection within this dimension group
+        $btn.closest('.go-btn-group').find('.btn-option').removeClass('selected');
         $btn.addClass('selected');
 
-        // Step progression
-        this.handleGoStepProgression();
+        // Store dimension score
+        if (!this.goAssessmentAnswers) this.goAssessmentAnswers = {};
+        this.goAssessmentAnswers[dimension] = score;
+
+        this.updateDimensionPreview();
     }
 
-    handleGoStepProgression() {
-        const answers = this.goAssessmentAnswers;
-        const s1 = answers['go-step1'];
-        const s2 = answers['go-step2'];
-        const s3 = answers['go-step3'];
+    updateDimensionPreview() {
+        const answers = this.goAssessmentAnswers || {};
+        const connScore = answers['connection'];
+        const specScore = answers['specificity'];
+        const evScore = answers['evidence'];
 
-        const $form = $('#go-assessment-form');
-        const stepLabels = {
-            'go-step1': { num: 1, label: "Connection", values: { describes: "Describes", involves: "Involves", related: "Related", context: "Context" } },
-            'go-step2': { num: 2, label: "Specificity", values: { exact: "Exact Match", parent_child: "Parent/Child", related: "Related", broad: "Broad Term" } },
-            'go-step3': { num: 3, label: "Evidence", values: { experimental: "Experimental", curated: "Curated", inferred: "Inferred", assumed: "Assumed" } }
-        };
+        const $preview = $('#go-dimension-preview');
+        const $badge = $('#go-dimension-badge');
+        const $submitBtn = $('#go-mapping-form button[type="submit"]');
 
-        // Remove existing collapsed summaries
-        $form.find('.assessment-step-collapsed').remove();
+        if (connScore && specScore && evScore) {
+            const config = this.goScoringConfig;
+            const result = this.computeDimensionConfidence(connScore, specScore, evScore, config);
 
-        const answeredSteps = [];
-        if (s1) answeredSteps.push('go-step1');
-        if (s1 && s2) answeredSteps.push('go-step2');
-        if (s1 && s2 && s3) answeredSteps.push('go-step3');
+            $badge
+                .text(result.label.charAt(0).toUpperCase() + result.label.slice(1))
+                .removeClass('badge-status-high badge-status-medium badge-status-low')
+                .addClass(`badge-status-${result.label}`);
+            $preview.show();
 
-        const allStepKeys = ['go-step1', 'go-step2', 'go-step3'];
-        const currentStepIdx = answeredSteps.length;
+            $submitBtn.prop('disabled', false).text('Review & Submit GO Mapping');
 
-        allStepKeys.forEach((stepKey, idx) => {
-            const $step = $(`.go-assessment-step[data-step="${stepKey}"]`);
-            const answer = answers[stepKey];
+            this.goMappingResult = {
+                confidence: result.label,
+                connection_type: $('#go-connection-type-select').val(),
+                connection_score: connScore,
+                specificity_score: specScore,
+                evidence_score: evScore,
+                score: result.score
+            };
 
-            if (answer && idx < currentStepIdx) {
-                $step.hide();
-                const info = stepLabels[stepKey];
-                const displayValue = info.values[answer] || answer;
-                const collapsedHtml = `
-                    <div class="assessment-step-collapsed" data-collapsed-step="${stepKey}">
-                        <span class="collapsed-summary">Q${info.num}: <strong>${info.label}</strong> &mdash; ${this.escapeHtml(displayValue)}</span>
-                        <button type="button" class="collapsed-edit-btn go-collapsed-edit" data-edit-step="${stepKey}">Edit</button>
-                    </div>
-                `;
-                $step.before(collapsedHtml);
-            } else if (idx === currentStepIdx) {
-                $step.show();
-            } else {
-                $step.hide();
-            }
-        });
-
-        // Bind edit handlers for GO
-        $form.find('.go-collapsed-edit').off('click').on('click', (e) => {
-            const editStep = $(e.currentTarget).data('edit-step');
-            this.editGoAssessmentStep(editStep);
-        });
-
-        if (s1 && s2 && s3) {
-            this.evaluateGoConfidence();
-        }
-    }
-
-    editGoAssessmentStep(stepKey) {
-        const allStepKeys = ['go-step1', 'go-step2', 'go-step3'];
-        const stepIdx = allStepKeys.indexOf(stepKey);
-
-        for (let i = stepIdx; i < allStepKeys.length; i++) {
-            delete this.goAssessmentAnswers[allStepKeys[i]];
-        }
-
-        // Clear selected buttons
-        allStepKeys.slice(stepIdx).forEach(sk => {
-            $(`.go-btn-group[data-step="${sk}"] .btn-option`).removeClass('selected');
-        });
-
-        // Hide results
-        $('.go-assessment-result').hide();
-        $('#go-step-result').hide();
-        $('#go-step-submit').hide();
-        this.goMappingResult = null;
-
-        // Re-run progression
-        this.handleGoStepProgression();
-    }
-
-    evaluateGoConfidence() {
-        const answers = this.goAssessmentAnswers;
-        const config = this.goScoringConfig;
-
-        const connectionType = answers['go-step1'];
-        const termSpecificity = answers['go-step2'];
-        const evidenceSupport = answers['go-step3'];
-
-        let score = 0;
-
-        // Term specificity score
-        score += config.term_specificity[termSpecificity] || 0;
-
-        // Evidence support score
-        score += config.evidence_support[evidenceSupport] || 0;
-
-        // Gene overlap score (auto-determine from selected GO suggestion)
-        const goSuggestion = this.selectedGoTerm;
-        const $selectedItem = $(`.go-suggestion-item[data-go-id="${goSuggestion.goId}"]`);
-        // We don't have gene overlap in the UI directly, so use gene_overlap from suggestion data if available
-        // For now, use low_score as default since user doesn't assess gene overlap manually
-        score += config.gene_overlap.low_score || 0;
-
-        // Biological level bonus
-        const bioLevel = this.selectedBiolevel ? this.selectedBiolevel.toLowerCase() : '';
-        let bioBonus = 0;
-        if (bioLevel.includes('molecular')) {
-            bioBonus = config.bio_level_bonus.molecular_process || 1.0;
-        } else if (bioLevel.includes('cellular')) {
-            bioBonus = config.bio_level_bonus.cellular_process || 1.0;
-        } else if (bioLevel) {
-            bioBonus = config.bio_level_bonus.general_process || 0.5;
-        }
-        score += bioBonus;
-
-        // Determine confidence level
-        let confidence;
-        if (score >= config.confidence_thresholds.high) {
-            confidence = 'high';
-        } else if (score >= config.confidence_thresholds.medium) {
-            confidence = 'medium';
+            // Update Step 4 display
+            const goConfidenceDisplay = result.label.charAt(0).toUpperCase() + result.label.slice(1);
+            $('#go-auto-confidence').text(goConfidenceDisplay);
+            $('#go-auto-connection').text((this.goMappingResult.connection_type || '').charAt(0).toUpperCase() + (this.goMappingResult.connection_type || '').slice(1));
+            $('#go-step-result').show();
+            $('#go-step-submit').show();
         } else {
-            confidence = 'low';
+            $preview.hide();
+            $submitBtn.prop('disabled', true).text('Complete GO Assessment First');
+            this.goMappingResult = null;
+            $('#go-step-result').hide();
+            $('#go-step-submit').hide();
         }
+    }
 
-        const maxScore = bioBonus > 0
-            ? config.max_scores.with_bio_bonus
-            : config.max_scores.without_bio_bonus;
+    computeDimensionConfidence(connScore, specScore, evScore, config) {
+        const weights = (config && config.dimension_weights) || { connection: 0.33, specificity: 0.33, evidence: 0.34 };
+        const thresholds = (config && config.dimension_thresholds) || { high: 2.5, medium: 1.5 };
 
-        // Update assessment result
-        $('.go-confidence-result').text(confidence.charAt(0).toUpperCase() + confidence.slice(1));
-        $('.go-connection-result').text(connectionType.charAt(0).toUpperCase() + connectionType.slice(1));
-        $('.go-score-details').text(`Score: ${score.toFixed(1)}/${maxScore}${bioBonus > 0 ? ' (with biological level bonus)' : ''}`);
-        $('.go-assessment-result').show();
+        const weightedAvg = (connScore * weights.connection) + (specScore * weights.specificity) + (evScore * weights.evidence);
 
-        // Update Step 4 results
-        const goConfidenceDisplay = confidence.charAt(0).toUpperCase() + confidence.slice(1);
-        $('#go-auto-confidence').text(goConfidenceDisplay);
-        $('#go-auto-connection').text(connectionType.charAt(0).toUpperCase() + connectionType.slice(1));
-        $('#go-step-result').show();
-
-        // Collapse GO assessment section (Step 3) with confidence summary in header
-        const $goHeader = $('#go-confidence-guide-header');
-        $goHeader.find('.step-summary').remove();
-        $goHeader.append($('<span class="step-summary"></span>').text(` \u2014 Confidence: ${goConfidenceDisplay}`));
-        $('#go-confidence-guide-content').slideUp(300);
-        $goHeader.addClass('collapsible collapsed').off('click.collapse').on('click.collapse', function() {
-            const $h = $(this);
-            const isNowExpanded = $h.hasClass('collapsed');
-            $h.toggleClass('collapsed');
-            if (isNowExpanded) {
-                $h.find('.step-summary').remove();
-                $('#go-confidence-guide-content').slideDown(200);
-            } else {
-                const currentGoConf = $('#go-auto-confidence').text().trim();
-                $h.find('.step-summary').remove();
-                if (currentGoConf && currentGoConf !== '--') {
-                    $h.append($('<span class="step-summary"></span>').text(` \u2014 Confidence: ${currentGoConf}`));
-                }
-                $('#go-confidence-guide-content').slideUp(200);
-            }
-        });
-
-        // Enable submission
-        $('#go-step-submit').show();
-        $('#go-mapping-form button[type="submit"]').prop('disabled', false).text('Review & Submit GO Mapping');
-
-        // Store for submission
-        this.goMappingResult = {
-            confidence: confidence,
-            connection_type: connectionType,
-            score: score
-        };
-
-        // Scroll to results
-        $('html, body').animate({
-            scrollTop: $('#go-step-result').offset().top - 20
-        }, 500);
+        let label;
+        if (weightedAvg >= thresholds.high) {
+            label = 'high';
+        } else if (weightedAvg >= thresholds.medium) {
+            label = 'medium';
+        } else {
+            label = 'low';
+        }
+        return { label, score: weightedAvg };
     }
 
     handleGoFormSubmission(event) {
@@ -4114,6 +4018,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
             return;
         }
 
+        // Sync connection_type from dropdown at submission time
+        if (this.goMappingResult) {
+            this.goMappingResult.connection_type = $('#go-connection-type-select').val() || this.goMappingResult.connection_type;
+        }
+
         const formData = {
             ke_id: $('#ke_id').val(),
             ke_title: $('#ke_id option:selected').data('title'),
@@ -4121,6 +4030,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
             go_name: this.selectedGoTerm.goName,
             connection_type: this.goMappingResult.connection_type,
             confidence_level: this.goMappingResult.confidence,
+            connection_score: this.goMappingResult.connection_score || '',
+            specificity_score: this.goMappingResult.specificity_score || '',
+            evidence_score: this.goMappingResult.evidence_score || '',
             suggestion_score: this.goMappingResult.score || '',
             csrf_token: this.csrfToken
         };
@@ -4279,6 +4191,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         $('#go-confidence-guide').hide();
         $('#go-assessment-form').html('');
+        $('#go-dimension-preview').hide();
         $('#go-step-result').hide();
         $('#go-step-submit').hide();
         $('#go-mapping-form button[type="submit"]').prop('disabled', true).text('Complete GO Assessment First');
