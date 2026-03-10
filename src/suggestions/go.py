@@ -15,7 +15,7 @@ from src.core.config_loader import ConfigLoader
 from src.suggestions.ke_genes import get_genes_from_ke
 from src.suggestions.scoring import combine_scored_items
 from src.utils.description_toggle import resolve_description_usage
-from src.utils.text import remove_directionality_terms
+from src.utils.text import remove_directionality_terms, detect_ke_direction, detect_go_direction
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +198,65 @@ class GoSuggestionService:
 
         return [s for s in suggestions if s['go_id'] not in ancestors_to_remove]
 
+    def _apply_direction_adjustment(self, suggestions, ke_title):
+        """Apply direction-based score boost or penalty to GO suggestions.
+
+        Detects the KE direction from its title and compares to each GO term's
+        direction (from precomputed metadata or runtime fallback). Matching
+        directions receive a boost; mismatched directions receive a penalty.
+        Unspecified direction on either side → no adjustment.
+
+        Config keys (under go_suggestion.directionality):
+            match_boost (default 1.10)
+            mismatch_penalty (default 0.85)
+
+        Attaches to each suggestion:
+            go_direction: "positive" | "negative" | "unspecified"
+            ke_direction: "positive" | "negative" | "unspecified"
+            direction_alignment: "match" | "mismatch" | null
+        """
+        # Read config with safe fallback defaults
+        go_cfg = getattr(self.config, 'go_suggestion', None)
+        dir_cfg = getattr(go_cfg, 'directionality', {}) if go_cfg else {}
+        if isinstance(dir_cfg, dict):
+            match_boost = dir_cfg.get('match_boost', 1.10)
+            mismatch_penalty = dir_cfg.get('mismatch_penalty', 0.85)
+        else:
+            match_boost = 1.10
+            mismatch_penalty = 0.85
+
+        ke_direction = detect_ke_direction(ke_title)
+
+        for s in suggestions:
+            go_id = s.get('go_id', '')
+            go_name = s.get('go_name', '')
+
+            # Get GO direction from precomputed metadata; fall back to runtime detection
+            meta = self.go_metadata.get(go_id, {})
+            if 'direction' in meta:
+                go_direction = meta['direction']
+            else:
+                go_direction = detect_go_direction(go_name)
+
+            s['go_direction'] = go_direction
+            s['ke_direction'] = ke_direction
+
+            # Compute alignment and apply score adjustment
+            if ke_direction == "unspecified" or go_direction == "unspecified":
+                s['direction_alignment'] = None
+            elif ke_direction == go_direction:
+                s['direction_alignment'] = "match"
+                s['hybrid_score'] *= match_boost
+                s['hybrid_score'] = round(min(s['hybrid_score'], 0.98), 4)
+            else:
+                s['direction_alignment'] = "mismatch"
+                s['hybrid_score'] *= mismatch_penalty
+                s['hybrid_score'] = round(min(s['hybrid_score'], 0.98), 4)
+
+        # Re-sort by hybrid_score descending after adjustments
+        suggestions.sort(key=lambda x: x['hybrid_score'], reverse=True)
+        return suggestions
+
     def get_go_suggestions(
         self,
         ke_id: str,
@@ -250,6 +309,9 @@ class GoSuggestionService:
                 if isinstance(hierarchy_cfg, dict) and hierarchy_cfg.get('enabled', True):
                     combined = self._apply_ic_boost(combined)
                     combined = self._filter_redundant_ancestors(combined)
+
+            # Apply direction-based score adjustments (boost/penalty)
+            combined = self._apply_direction_adjustment(combined, ke_title)
 
             # Sort by score and limit
             combined.sort(key=lambda x: x['hybrid_score'], reverse=True)

@@ -8,6 +8,8 @@ import uuid as uuid_lib
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from src.utils.text import detect_go_direction
+
 logger = logging.getLogger(__name__)
 
 
@@ -221,6 +223,9 @@ class Database:
 
             # Migrate identity columns to provider-prefixed format (Phase 14)
             self._migrate_provider_prefix(conn)
+
+            # Migrate ke_go_mappings to add go_direction column (Phase 18)
+            self._migrate_go_mappings_go_direction(conn)
 
             conn.commit()
             logger.info("Database initialized successfully")
@@ -729,6 +734,48 @@ class Database:
             logger.info("Migrated identity columns: prefixed bare usernames with 'github:'")
         except Exception as e:
             logger.error("Error in _migrate_provider_prefix: %s", e)
+            raise
+
+    def _migrate_go_mappings_go_direction(self, conn):
+        """
+        Add go_direction column to ke_go_mappings table if it does not exist.
+
+        go_direction (TEXT, nullable) — direction of the GO term derived from its name.
+        Stored as "positive" or "negative"; NULL for "unspecified" (API convention).
+
+        Existing rows are backfilled by calling detect_go_direction(go_name) for
+        each row. Rows with NULL/empty go_name receive NULL go_direction.
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "go_direction" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN go_direction TEXT"
+                )
+                logger.info("Migrated ke_go_mappings table: added go_direction column")
+
+                # Backfill existing rows
+                cursor = conn.execute("SELECT id, go_name FROM ke_go_mappings")
+                rows = cursor.fetchall()
+                for row in rows:
+                    row_id = row[0]
+                    go_name = row[1]
+                    if not go_name:
+                        direction_value = None
+                    else:
+                        detected = detect_go_direction(go_name)
+                        direction_value = detected if detected != "unspecified" else None
+                    conn.execute(
+                        "UPDATE ke_go_mappings SET go_direction = ? WHERE id = ?",
+                        (direction_value, row_id)
+                    )
+                logger.info(
+                    "Backfilled go_direction for %d existing ke_go_mappings rows", len(rows)
+                )
+        except Exception as e:
+            logger.error("Error migrating ke_go_mappings go_direction: %s", e)
             raise
 
 
@@ -1486,16 +1533,24 @@ class GoMappingModel:
         confidence_level: str = "low",
         evidence_code: str = None,
         created_by: str = None,
+        go_direction: str = None,
     ) -> Optional[int]:
         """Create a new KE-GO mapping"""
         mapping_uuid = str(uuid_lib.uuid4())
+
+        # Determine go_direction from go_name if not explicitly provided
+        if go_direction is None and go_name:
+            detected = detect_go_direction(go_name)
+            go_direction = detected if detected != "unspecified" else None
+
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
                 """
                 INSERT INTO ke_go_mappings (ke_id, ke_title, go_id, go_name, connection_type,
-                                           confidence_level, evidence_code, created_by, uuid)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                           confidence_level, evidence_code, created_by, uuid,
+                                           go_direction)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     ke_id,
@@ -1507,6 +1562,7 @@ class GoMappingModel:
                     evidence_code,
                     created_by,
                     mapping_uuid,
+                    go_direction,
                 ),
             )
 
