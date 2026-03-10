@@ -2431,6 +2431,49 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
     font-weight: 500;
 }
 
+/* Direction badges for GO suggestion cards and KE title area */
+.badge-direction {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: var(--radius-full, 50px);
+    font-size: 10px;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+}
+.badge-direction--positive {
+    background-color: var(--color-status-high);
+}
+.badge-direction--negative {
+    background-color: var(--color-status-low);
+}
+.badge-direction-align {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+.badge-direction-align--match {
+    color: var(--color-status-high);
+}
+.badge-direction-align--mismatch {
+    color: var(--color-status-low);
+}
+.badge-direction-ke {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 9px;
+    border-radius: var(--radius-full, 50px);
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    vertical-align: middle;
+    margin-left: 6px;
+}
+
 /* Ontology tag chip */
 .ontology-tag-chip {
     font-size: 10px;

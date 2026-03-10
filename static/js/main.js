@@ -1271,7 +1271,7 @@ class KEWPApp {
         const html = `
             <details id="ke-context-panel" class="ke-context-panel" open>
                 <summary class="ke-context-title">
-                    <strong>${this.escapeHtml(data.ke_title)}</strong> ${biolevelBadge}
+                    <strong>${this.escapeHtml(data.ke_title)}</strong> ${biolevelBadge}<span id="ke-direction-badge"></span>
                 </summary>
                 <div style="margin-top:10px;">
                     <div style="margin-bottom:8px;">${descriptionHTML}</div>
@@ -1283,6 +1283,18 @@ class KEWPApp {
 
         // Insert after KE dropdown container
         $('#ke_id').closest('.form-group, .field-group, div').first().after(html);
+    }
+
+    updateKEDirectionBadge(keDirection) {
+        const $badge = $('#ke-direction-badge');
+        if (!$badge.length) return;
+        if (keDirection === 'positive' || keDirection === 'negative') {
+            const arrow = keDirection === 'positive' ? '&#8593;' : '&#8595;';
+            const label = keDirection === 'positive' ? 'Positive' : 'Negative';
+            $badge.html(`<span class="badge-direction-ke badge-direction--${keDirection}">${arrow} KE: ${label}</span>`);
+        } else {
+            $badge.empty();
+        }
     }
 
     getBiolevelColor(level) {
@@ -3549,6 +3561,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const endIdx = Math.min(startIdx + perPage, suggestions.length);
         const pageSuggestions = suggestions.slice(startIdx, endIdx);
 
+        // Update KE direction badge in context panel (ke_direction is same for all suggestions)
+        const keDirectionFromSuggestion = suggestions.length > 0 ? (suggestions[0].ke_direction || 'unspecified') : 'unspecified';
+        this.updateKEDirectionBadge(keDirectionFromSuggestion);
+
         let html = `
             <div style="margin-bottom: 15px;">
                 ${this.buildGoMethodFilterHtml(filter)}
@@ -3579,13 +3595,31 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 : 'No definition available';
             const definition = this.escapeHtml(rawDefinition);
 
+            // Direction badge for GO term
+            const goDir = suggestion.go_direction;
+            const keDir = suggestion.ke_direction;
+            let directionBadge = '';
+            if (goDir === 'positive' || goDir === 'negative') {
+                const arrow = goDir === 'positive' ? '&#8593;' : '&#8595;';
+                const label = goDir === 'positive' ? 'Positive' : 'Negative';
+                directionBadge = `<span class="badge-direction badge-direction--${goDir}">${arrow} ${label}</span>`;
+                // Alignment indicator: only when both KE and GO directions are specified
+                if (keDir && keDir !== 'unspecified' && goDir !== 'unspecified') {
+                    if (keDir === goDir) {
+                        directionBadge += `<span class="badge-direction-align badge-direction-align--match">&#10003;</span>`;
+                    } else {
+                        directionBadge += `<span class="badge-direction-align badge-direction-align--mismatch">&#10007;</span>`;
+                    }
+                }
+            }
+
             html += `
                 <div class="go-suggestion-item go-suggestion-item--${scoreTier}" data-go-id="${suggestion.go_id}" data-go-name="${this.escapeHtml(suggestion.go_name)}">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                                 <strong style="font-size: 14px;" class="text-dark-heading">${this.escapeHtml(suggestion.go_name)}</strong>
-                                ${matchBadges}${depthBadge}
+                                ${matchBadges}${depthBadge}${directionBadge}
                             </div>
                             <div class="text-muted" style="font-size: 12px; margin-bottom: 6px;">
                                 <a href="${suggestion.quickgo_link}" target="_blank" onclick="event.stopPropagation();">${suggestion.go_id}</a>
