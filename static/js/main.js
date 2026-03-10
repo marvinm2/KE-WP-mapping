@@ -80,6 +80,7 @@ class KEWPApp {
         this.activeTab = 'wp';
         this.goScoringConfig = null;
         this.goMethodFilter = 'all';
+        this.goAspectFilter = 'all';
         this.selectedGoTerm = null;
         this.goAssessmentAnswers = {};
         this.goMappingResult = null;
@@ -1210,7 +1211,8 @@ class KEWPApp {
                 this.loadPathwaySuggestions(keId, title, 'all');
             } else if (this.activeTab === 'go') {
                 this.goMethodFilter = 'all';
-                this.loadGoSuggestions(keId, title, 'all');
+                this.goAspectFilter = 'all';
+                this.loadGoSuggestions(keId, title, 'all', 'all');
             }
         } else {
             this.hidePathwaySuggestions();
@@ -3378,14 +3380,20 @@ This helps identify gaps in existing pathways for future development.">❓</span
             const defSnippet = result.go_definition
                 ? this.truncateText(result.go_definition, 120)
                 : 'No definition available';
+            const searchNs = result.go_namespace || 'BP';
+            const searchNsBadge = searchNs === 'MF'
+                ? '<span class="badge-go-mf">MF</span>'
+                : '<span class="badge-go-bp">BP</span>';
 
             html += `
                 <div class="search-result-item"
                      data-go-id="${this.escapeHtml(result.go_id)}"
-                     data-go-name="${this.escapeHtml(result.go_name)}">
+                     data-go-name="${this.escapeHtml(result.go_name)}"
+                     data-go-namespace="${this.escapeHtml(searchNs)}">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
                         <div style="flex: 1;">
-                            <div class="text-dark-heading" style="font-weight: bold; margin-bottom: 4px;">
+                            <div class="text-dark-heading" style="display: flex; align-items: center; gap: 6px; font-weight: bold; margin-bottom: 4px;">
+                                ${searchNsBadge}
                                 ${nameHighlighted}
                             </div>
                             <div class="text-muted" style="font-size: 11px; margin-bottom: 4px;">
@@ -3414,14 +3422,14 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         $searchResults.find('.search-result-item').on('click', (e) => {
             const $item = $(e.currentTarget);
-            this.selectGoSearchResult($item.data('go-id'), $item.data('go-name'));
+            this.selectGoSearchResult($item.data('go-id'), $item.data('go-name'), $item.data('go-namespace') || 'BP');
         });
     }
 
-    selectGoSearchResult(goId, goName) {
+    selectGoSearchResult(goId, goName, goNamespace = 'BP') {
         $("#go-term-search").val('');
         $("#go-search-results").hide();
-        this.selectGoTerm(goId, goName);
+        this.selectGoTerm(goId, goName, goNamespace);
     }
 
     highlightSearchTerms(text, query) {
@@ -3484,29 +3492,30 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
             // Load GO suggestions if a KE is already selected
             if (keId && keTitle) {
-                this.loadGoSuggestions(keId, keTitle, this.goMethodFilter);
+                this.loadGoSuggestions(keId, keTitle, this.goMethodFilter, this.goAspectFilter);
             }
         }
     }
 
-    loadGoSuggestions(keId, keTitle, methodFilter = 'all') {
+    loadGoSuggestions(keId, keTitle, methodFilter = 'all', aspectFilter = 'all') {
         this.goMethodFilter = methodFilter;
+        this.goAspectFilter = aspectFilter;
         const $container = $('#go-suggestions-container');
 
         // Show loading state
         $container.html(`
             <div style="text-align: center; padding: 20px;">
                 <div class="spinner spinner--md"></div>
-                <p class="text-muted" style="margin-top: 10px;">Loading GO Biological Process suggestions for this Key Event...</p>
+                <p class="text-muted" style="margin-top: 10px;">Loading GO term suggestions for this Key Event...</p>
             </div>
         `);
 
         const encodedKeId = encodeURIComponent(keId);
         const encodedKeTitle = encodeURIComponent(keTitle);
 
-        $.getJSON(`/suggest_go_terms/${encodedKeId}?ke_title=${encodedKeTitle}&limit=20&method_filter=${encodeURIComponent(methodFilter)}`)
+        $.getJSON(`/suggest_go_terms/${encodedKeId}?ke_title=${encodedKeTitle}&limit=20&method_filter=${encodeURIComponent(methodFilter)}&aspect_filter=${encodeURIComponent(aspectFilter)}`)
             .done((data) => {
-                this.displayGoSuggestions(data, methodFilter);
+                this.displayGoSuggestions(data, methodFilter, aspectFilter);
             })
             .fail((xhr, status, error) => {
                 console.error('Failed to load GO suggestions:', error);
@@ -3519,10 +3528,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
             });
     }
 
-    displayGoSuggestions(data, filter = 'all') {
+    displayGoSuggestions(data, filter = 'all', aspectFilter = 'all') {
         // Store full data for pagination
         this.goSuggestionsData = data;
         this.goSuggestionsFilter = filter;
+        this.goSuggestionsAspectFilter = aspectFilter;
         this.goSuggestionsPage = 0;
 
         this.renderGoSuggestionsPage();
@@ -3532,12 +3542,13 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const $container = $('#go-suggestions-container');
         const data = this.goSuggestionsData;
         const filter = this.goSuggestionsFilter || 'all';
+        const aspectFilter = this.goSuggestionsAspectFilter || 'all';
         const suggestions = data.suggestions || [];
 
         if (suggestions.length === 0) {
             $container.html(`
                 <div style="padding: 20px; text-align: center;">
-                    ${this.buildGoMethodFilterHtml(filter)}
+                    ${this.buildGoMethodFilterHtml(filter, aspectFilter)}
                     ${data.genes_found > 0 ? `
                         <div class="gene-info-panel">
                             <strong>Associated Genes:</strong> ${data.gene_list.join(', ')} (${data.genes_found} gene${data.genes_found !== 1 ? 's' : ''} found)
@@ -3545,11 +3556,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
                     ` : ''}
                     <div class="text-muted panel-outlined" style="padding: 20px;">
                         <p style="font-weight: bold;">No GO term suggestions found for this Key Event.</p>
-                        <p style="font-size: 13px;">Try a different method filter or select a different Key Event.</p>
+                        <p style="font-size: 13px;">Try a different method filter or aspect, or select a different Key Event.</p>
                     </div>
                 </div>
             `);
-            this.setupGoMethodFilterButtons(filter);
+            this.setupGoFilterButtons(filter, aspectFilter);
             return;
         }
 
@@ -3567,7 +3578,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         let html = `
             <div style="margin-bottom: 15px;">
-                ${this.buildGoMethodFilterHtml(filter)}
+                ${this.buildGoMethodFilterHtml(filter, aspectFilter)}
             </div>
         `;
 
@@ -3595,6 +3606,12 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 : 'No definition available';
             const definition = this.escapeHtml(rawDefinition);
 
+            // Namespace badge (BP blue, MF purple)
+            const ns = suggestion.go_namespace || 'BP';
+            const namespaceBadge = ns === 'MF'
+                ? '<span class="badge-go-mf">MF</span>'
+                : '<span class="badge-go-bp">BP</span>';
+
             // Direction badge for GO term
             const goDir = suggestion.go_direction;
             const keDir = suggestion.ke_direction;
@@ -3614,10 +3631,11 @@ This helps identify gaps in existing pathways for future development.">❓</span
             }
 
             html += `
-                <div class="go-suggestion-item go-suggestion-item--${scoreTier}" data-go-id="${suggestion.go_id}" data-go-name="${this.escapeHtml(suggestion.go_name)}">
+                <div class="go-suggestion-item go-suggestion-item--${scoreTier}" data-go-id="${suggestion.go_id}" data-go-name="${this.escapeHtml(suggestion.go_name)}" data-go-namespace="${this.escapeHtml(ns)}">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                ${namespaceBadge}
                                 <strong style="font-size: 14px;" class="text-dark-heading">${this.escapeHtml(suggestion.go_name)}</strong>
                                 ${matchBadges}${depthBadge}${directionBadge}
                             </div>
@@ -3721,13 +3739,13 @@ This helps identify gaps in existing pathways for future development.">❓</span
         `;
 
         $container.html(html);
-        this.setupGoMethodFilterButtons(filter);
+        this.setupGoFilterButtons(filter, aspectFilter);
         this.setupGoPaginationButtons();
 
         // Bind click handlers using data attributes instead of inline onclick
         $container.find('.go-suggestion-item').off('click').on('click', (e) => {
             const $item = $(e.currentTarget);
-            this.selectGoTerm($item.data('go-id'), $item.data('go-name'));
+            this.selectGoTerm($item.data('go-id'), $item.data('go-name'), $item.data('go-namespace') || 'BP');
         });
     }
 
@@ -3749,20 +3767,28 @@ This helps identify gaps in existing pathways for future development.">❓</span
         });
     }
 
-    buildGoMethodFilterHtml(currentFilter) {
-        const filters = [
+    buildGoMethodFilterHtml(currentFilter, currentAspect = 'all') {
+        const methodFilters = [
             { value: 'all', label: 'All Methods' },
             { value: 'text', label: 'Semantic Only' },
             { value: 'gene', label: 'Gene-based Only' }
         ];
 
+        const aspectFilters = [
+            { value: 'all', label: 'All GO' },
+            { value: 'bp', label: 'BP only' },
+            { value: 'mf', label: 'MF only' }
+        ];
+
         let html = `
             <div style="padding: 10px; background: var(--color-white); border: 1px solid var(--color-border-light); border-radius: 6px; margin-bottom: 10px;">
-                <label style="font-weight: bold; margin-right: 10px; display: block; margin-bottom: 8px;" class="text-dark-heading">Filter By Method:</label>
-                <div class="btn-group" role="group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;">
+                    <div>
+                        <label style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 12px;" class="text-dark-heading">Method:</label>
+                        <div class="btn-group" role="group" style="display: flex; gap: 6px; flex-wrap: wrap;">
         `;
 
-        filters.forEach(f => {
+        methodFilters.forEach(f => {
             const isActive = f.value === currentFilter;
             html += `
                 <button type="button" class="go-method-filter-btn method-filter-btn ${isActive ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-method="${f.value}">
@@ -3772,13 +3798,33 @@ This helps identify gaps in existing pathways for future development.">❓</span
         });
 
         html += `
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 12px;" class="text-dark-heading">Aspect:</label>
+                        <div class="btn-group" role="group" style="display: flex; gap: 6px; flex-wrap: wrap;">
+        `;
+
+        aspectFilters.forEach(f => {
+            const isActive = f.value === currentAspect;
+            html += `
+                <button type="button" class="go-aspect-filter-btn method-filter-btn ${isActive ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-aspect="${f.value}">
+                    ${f.label}
+                </button>
+            `;
+        });
+
+        html += `
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
         return html;
     }
 
-    setupGoMethodFilterButtons(currentFilter) {
+    setupGoFilterButtons(currentFilter, currentAspect = 'all') {
+        // Method filter buttons
         $('.go-method-filter-btn').off('click').on('click', (e) => {
             const method = $(e.currentTarget).data('method');
             $('.go-method-filter-btn').removeClass('active method-filter-btn--active').addClass('method-filter-btn--inactive');
@@ -3787,7 +3833,21 @@ This helps identify gaps in existing pathways for future development.">❓</span
             const keId = $('#ke_id').val();
             const keTitle = $('#ke_id option:selected').data('title');
             if (keId && keTitle) {
-                this.loadGoSuggestions(keId, keTitle, method);
+                this.loadGoSuggestions(keId, keTitle, method, this.goAspectFilter);
+            }
+        });
+
+        // Aspect filter buttons
+        $('.go-aspect-filter-btn').off('click').on('click', (e) => {
+            const aspect = $(e.currentTarget).data('aspect');
+            this.goAspectFilter = aspect;
+            $('.go-aspect-filter-btn').removeClass('active method-filter-btn--active').addClass('method-filter-btn--inactive');
+            $(e.currentTarget).removeClass('method-filter-btn--inactive').addClass('active method-filter-btn--active');
+
+            const keId = $('#ke_id').val();
+            const keTitle = $('#ke_id option:selected').data('title');
+            if (keId && keTitle) {
+                this.loadGoSuggestions(keId, keTitle, this.goMethodFilter, aspect);
             }
         });
     }
@@ -3803,8 +3863,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
         return badges.join(' ');
     }
 
-    selectGoTerm(goId, goName) {
-        this.selectedGoTerm = { goId, goName };
+    selectGoTerm(goId, goName, goNamespace = 'BP') {
+        this.selectedGoTerm = { goId, goName, goNamespace };
 
         // Highlight selected item
         $('.go-suggestion-item').removeClass('go-suggestion-item--selected');
@@ -4023,11 +4083,16 @@ This helps identify gaps in existing pathways for future development.">❓</span
             this.goMappingResult.connection_type = $('#go-connection-type-select').val() || this.goMappingResult.connection_type;
         }
 
+        // Map UI namespace label to DB value
+        const nsLabel = this.selectedGoTerm.goNamespace || 'BP';
+        const goNamespaceDb = nsLabel === 'MF' ? 'molecular_function' : 'biological_process';
+
         const formData = {
             ke_id: $('#ke_id').val(),
             ke_title: $('#ke_id option:selected').data('title'),
             go_id: this.selectedGoTerm.goId,
             go_name: this.selectedGoTerm.goName,
+            go_namespace: goNamespaceDb,
             connection_type: this.goMappingResult.connection_type,
             confidence_level: this.goMappingResult.confidence,
             connection_score: this.goMappingResult.connection_score || '',
