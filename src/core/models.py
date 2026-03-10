@@ -227,6 +227,10 @@ class Database:
             # Migrate ke_go_mappings to add go_direction column (Phase 18)
             self._migrate_go_mappings_go_direction(conn)
 
+            # Migrate ke_go_proposals and ke_go_mappings for dimension scores (Phase 19)
+            self._migrate_go_proposals_dimension_scores(conn)
+            self._migrate_go_mappings_dimension_scores(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -776,6 +780,84 @@ class Database:
                 )
         except Exception as e:
             logger.error("Error migrating ke_go_mappings go_direction: %s", e)
+            raise
+
+    def _migrate_go_proposals_dimension_scores(self, conn):
+        """
+        Add proposed dimension score columns to ke_go_proposals table if they do not exist.
+
+        proposed_connection_score INTEGER (nullable) — curator's connection score (0-3)
+        proposed_specificity_score INTEGER (nullable) — curator's specificity score (0-3)
+        proposed_evidence_score    INTEGER (nullable) — curator's evidence score (0-3)
+
+        Uses proposed_ prefix to match existing naming convention
+        (proposed_confidence, proposed_connection_type).
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "proposed_connection_score" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_proposals ADD COLUMN proposed_connection_score INTEGER"
+                )
+                logger.info("Migrated ke_go_proposals table: added proposed_connection_score column")
+
+            if "proposed_specificity_score" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_proposals ADD COLUMN proposed_specificity_score INTEGER"
+                )
+                logger.info("Migrated ke_go_proposals table: added proposed_specificity_score column")
+
+            if "proposed_evidence_score" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_proposals ADD COLUMN proposed_evidence_score INTEGER"
+                )
+                logger.info("Migrated ke_go_proposals table: added proposed_evidence_score column")
+
+        except Exception as e:
+            logger.error("Error migrating ke_go_proposals dimension scores: %s", e)
+            raise
+
+    def _migrate_go_mappings_dimension_scores(self, conn):
+        """
+        Add dimension score columns to ke_go_mappings table if they do not exist.
+
+        connection_score  INTEGER (nullable) — NULL for v1 mappings
+        specificity_score INTEGER (nullable) — NULL for v1 mappings
+        evidence_score    INTEGER (nullable) — NULL for v1 mappings
+        assessment_version TEXT NOT NULL DEFAULT 'v1' — 'v1' for legacy, 'v2' for scored mappings
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "connection_score" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN connection_score INTEGER"
+                )
+                logger.info("Migrated ke_go_mappings table: added connection_score column")
+
+            if "specificity_score" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN specificity_score INTEGER"
+                )
+                logger.info("Migrated ke_go_mappings table: added specificity_score column")
+
+            if "evidence_score" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN evidence_score INTEGER"
+                )
+                logger.info("Migrated ke_go_mappings table: added evidence_score column")
+
+            if "assessment_version" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_mappings ADD COLUMN assessment_version TEXT NOT NULL DEFAULT 'v1'"
+                )
+                logger.info("Migrated ke_go_mappings table: added assessment_version column")
+
+        except Exception as e:
+            logger.error("Error migrating ke_go_mappings dimension scores: %s", e)
             raise
 
 
@@ -1534,6 +1616,10 @@ class GoMappingModel:
         evidence_code: str = None,
         created_by: str = None,
         go_direction: str = None,
+        connection_score: int = None,
+        specificity_score: int = None,
+        evidence_score: int = None,
+        assessment_version: str = "v1",
     ) -> Optional[int]:
         """Create a new KE-GO mapping"""
         mapping_uuid = str(uuid_lib.uuid4())
@@ -1549,8 +1635,9 @@ class GoMappingModel:
                 """
                 INSERT INTO ke_go_mappings (ke_id, ke_title, go_id, go_name, connection_type,
                                            confidence_level, evidence_code, created_by, uuid,
-                                           go_direction)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                           go_direction, connection_score, specificity_score,
+                                           evidence_score, assessment_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     ke_id,
@@ -1563,6 +1650,10 @@ class GoMappingModel:
                     created_by,
                     mapping_uuid,
                     go_direction,
+                    connection_score,
+                    specificity_score,
+                    evidence_score,
+                    assessment_version,
                 ),
             )
 
@@ -1593,7 +1684,8 @@ class GoMappingModel:
                 """
                 SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
                        confidence_level, evidence_code, created_by, created_at, updated_at,
-                       uuid, approved_by_curator, approved_at_curator, proposed_by
+                       uuid, approved_by_curator, approved_at_curator, proposed_by,
+                       connection_score, specificity_score, evidence_score, assessment_version
                 FROM ke_go_mappings
                 ORDER BY created_at DESC
             """
@@ -1811,7 +1903,8 @@ class GoMappingModel:
                 SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
                        confidence_level, evidence_code, created_by, created_at, updated_at,
                        uuid, approved_by_curator, approved_at_curator,
-                       proposed_by, suggestion_score, go_namespace
+                       proposed_by, suggestion_score, go_namespace, go_direction,
+                       connection_score, specificity_score, evidence_score, assessment_version
                 FROM ke_go_mappings
                 WHERE uuid = ?
                 """,
@@ -1938,7 +2031,8 @@ class GoMappingModel:
             rows = conn.execute(
                 f"""SELECT uuid, ke_id, ke_title, go_id, go_name, go_namespace,
                            confidence_level, go_direction, approved_by_curator, approved_at_curator,
-                           suggestion_score, proposed_by, connection_type
+                           suggestion_score, proposed_by, connection_type,
+                           connection_score, specificity_score, evidence_score, assessment_version
                     FROM ke_go_mappings {where}
                     ORDER BY created_at DESC
                     LIMIT ? OFFSET ?""",
@@ -2013,6 +2107,9 @@ class GoProposalModel:
         confidence_level: str,
         provider_username: str = None,
         suggestion_score: float = None,
+        connection_score: int = None,
+        specificity_score: int = None,
+        evidence_score: int = None,
     ) -> Optional[int]:
         """
         Create a new-pair GO proposal where no existing mapping_id exists yet.
@@ -2031,9 +2128,10 @@ class GoProposalModel:
                     provider_username, proposed_delete, proposed_confidence,
                     proposed_connection_type, uuid, suggestion_score,
                     ke_id, ke_title, go_id, go_name,
-                    new_pair_connection_type, new_pair_confidence_level
+                    new_pair_connection_type, new_pair_confidence_level,
+                    proposed_connection_score, proposed_specificity_score, proposed_evidence_score
                 )
-                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     provider_username or "curator",
@@ -2051,6 +2149,9 @@ class GoProposalModel:
                     go_name,
                     connection_type,
                     confidence_level,
+                    connection_score,
+                    specificity_score,
+                    evidence_score,
                 ),
             )
             conn.commit()
@@ -2099,6 +2200,7 @@ class GoProposalModel:
             cursor = conn.execute(
                 """
                 SELECT p.*,
+                       p.proposed_connection_score, p.proposed_specificity_score, p.proposed_evidence_score,
                        m.ke_id as mapping_ke_id, m.ke_title as mapping_ke_title,
                        m.go_id as mapping_go_id, m.go_name as mapping_go_name,
                        m.connection_type as current_connection_type,
