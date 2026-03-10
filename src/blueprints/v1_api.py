@@ -153,6 +153,10 @@ def _serialize_go_mapping(row):
         "confidence_level": row["confidence_level"],
         "go_direction": row.get("go_direction"),  # positive/negative/null
         "connection_type": row.get("connection_type"),
+        "assessment_version": row.get("assessment_version", "v1"),
+        "connection_score": row.get("connection_score"),   # null for v1 mappings
+        "specificity_score": row.get("specificity_score"), # null for v1 mappings
+        "evidence_score": row.get("evidence_score"),       # null for v1 mappings
         "ke_aop_context": ke_aop_context,
         "ke_bio_level": ke_bio_level,
         "go_definition": go_definition,

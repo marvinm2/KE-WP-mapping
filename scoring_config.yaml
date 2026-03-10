@@ -499,6 +499,29 @@ ke_go_assessment:
     - related                          # Related biological process
     - context                          # Provides biological context
 
+  # ----------------------------------------------------------------------------
+  # Dimension Weights (Three-Dimension Assessment)
+  # ----------------------------------------------------------------------------
+  # Weights for computing composite confidence from three dimension scores.
+  # Must sum to 1.0 (validated on startup).
+  # connection + specificity + evidence = 1.0
+
+  dimension_weights:
+    connection: 0.33                   # Weight for connection score (0-3)
+    specificity: 0.33                  # Weight for specificity score (0-3)
+    evidence: 0.34                     # Weight for evidence score (0-3)
+
+  # ----------------------------------------------------------------------------
+  # Dimension Thresholds (H/M/L mapping)
+  # ----------------------------------------------------------------------------
+  # Weighted average score thresholds for confidence level assignment.
+  # Weighted average range: 0.0 (all zeros) to 3.0 (all max)
+
+  dimension_thresholds:
+    high: 2.5                          # Weighted average >= 2.5 -> 'high'
+    medium: 1.5                        # Weighted average >= 1.5 -> 'medium'
+                                       # Weighted average < 1.5  -> 'low'
+
 
 # ==============================================================================
 # METADATA

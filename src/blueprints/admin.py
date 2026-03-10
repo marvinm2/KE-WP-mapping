@@ -67,6 +67,37 @@ def set_models(proposal, mapping, guest_code=None, go_mapping=None, go_proposal=
     ke_override_model = ke_override
 
 
+def _compute_confidence_from_dimensions(conn_score, spec_score, ev_score, ke_go_config):
+    """
+    Compute confidence level (high/medium/low) from three dimension scores.
+
+    Uses dimension_weights from ke_go_config to compute a weighted average,
+    then maps to H/M/L using dimension_thresholds.
+
+    Args:
+        conn_score: Connection score (integer, 0-3)
+        spec_score: Specificity score (integer, 0-3)
+        ev_score: Evidence score (integer, 0-3)
+        ke_go_config: KEGoAssessmentConfig instance with dimension_weights and dimension_thresholds
+
+    Returns:
+        str: 'high', 'medium', or 'low'
+    """
+    w = ke_go_config.dimension_weights
+    weighted_avg = (
+        conn_score * w['connection']
+        + spec_score * w['specificity']
+        + ev_score * w['evidence']
+    )
+    thresholds = ke_go_config.dimension_thresholds
+    if weighted_avg >= thresholds['high']:
+        return 'high'
+    elif weighted_avg >= thresholds['medium']:
+        return 'medium'
+    else:
+        return 'low'
+
+
 def login_required(f):
     """Decorator to require login for protected routes"""
 
@@ -554,14 +585,58 @@ def approve_go_proposal(proposal_id: int):
         approved_at = datetime.utcnow().isoformat()
         proposal_score = proposal.get("suggestion_score")
 
+        # Read dimension scores from form (optional integers)
+        def _parse_int(val):
+            try:
+                return int(val) if val is not None else None
+            except (ValueError, TypeError):
+                return None
+
+        connection_score = _parse_int(request.form.get("connection_score"))
+        specificity_score = _parse_int(request.form.get("specificity_score"))
+        evidence_score = _parse_int(request.form.get("evidence_score"))
+
+        # If all three dimension scores are present, compute confidence server-side
+        if connection_score is not None and specificity_score is not None and evidence_score is not None:
+            try:
+                services = current_app.service_container
+                ke_go_config = services.scoring_config.ke_go_assessment
+            except Exception:
+                ke_go_config = None
+
+            if ke_go_config is not None:
+                confidence_level = _compute_confidence_from_dimensions(
+                    connection_score, specificity_score, evidence_score, ke_go_config
+                )
+            else:
+                confidence_level = (
+                    proposal.get("new_pair_confidence_level")
+                    or proposal.get("proposed_confidence")
+                )
+            assessment_version = "v2"
+        else:
+            # Legacy flow — no dimension scores provided
+            confidence_level = (
+                proposal.get("new_pair_confidence_level")
+                or proposal.get("proposed_confidence")
+            )
+            connection_score = None
+            specificity_score = None
+            evidence_score = None
+            assessment_version = "v1"
+
         new_mapping_id = go_mapping_model.create_mapping(
             ke_id=proposal["ke_id"],
             ke_title=proposal["ke_title"],
             go_id=proposal["go_id"],
             go_name=proposal["go_name"],
             connection_type=proposal.get("new_pair_connection_type") or proposal.get("proposed_connection_type"),
-            confidence_level=proposal.get("new_pair_confidence_level") or proposal.get("proposed_confidence"),
+            confidence_level=confidence_level,
             created_by=proposal.get("provider_username") or admin_username,
+            connection_score=connection_score,
+            specificity_score=specificity_score,
+            evidence_score=evidence_score,
+            assessment_version=assessment_version,
         )
 
         if new_mapping_id:

@@ -1379,6 +1379,17 @@ def submit_go_mapping():
         except (ValueError, TypeError):
             suggestion_score = None
 
+        # Capture optional dimension scores from form
+        def _parse_int(val):
+            try:
+                return int(val) if val is not None else None
+            except (ValueError, TypeError):
+                return None
+
+        connection_score = _parse_int(request.form.get("connection_score"))
+        specificity_score = _parse_int(request.form.get("specificity_score"))
+        evidence_score = _parse_int(request.form.get("evidence_score"))
+
         proposal_id = go_proposal_model.create_new_pair_go_proposal(
             ke_id=ke_id,
             ke_title=ke_title,
@@ -1388,6 +1399,9 @@ def submit_go_mapping():
             confidence_level=confidence_level,
             provider_username=created_by,
             suggestion_score=suggestion_score,
+            connection_score=connection_score,
+            specificity_score=specificity_score,
+            evidence_score=evidence_score,
         )
 
         if proposal_id:

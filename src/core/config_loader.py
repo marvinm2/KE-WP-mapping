@@ -382,6 +382,14 @@ class KEGoAssessmentConfig:
         'describes', 'involves', 'related', 'context'
     ])
 
+    dimension_weights: Dict[str, float] = field(default_factory=lambda: {
+        'connection': 0.33, 'specificity': 0.33, 'evidence': 0.34
+    })
+
+    dimension_thresholds: Dict[str, float] = field(default_factory=lambda: {
+        'high': 2.5, 'medium': 1.5
+    })
+
 
 @dataclass
 class KEPathwayAssessmentConfig:
@@ -637,6 +645,20 @@ class ConfigLoader:
         # Validate evidence quality scores
         if not all(isinstance(v, int) and v >= 0 for v in ke.evidence_quality.values()):
             errors.append("Evidence quality scores must be non-negative integers")
+
+        # Validate KE-GO assessment dimension weights
+        dw = config.ke_go_assessment.dimension_weights
+        required_keys = {'connection', 'specificity', 'evidence'}
+        missing_keys = required_keys - set(dw.keys())
+        if missing_keys:
+            errors.append(
+                f"ke_go_assessment.dimension_weights missing keys: {missing_keys}"
+            )
+        elif abs(sum(dw.values()) - 1.0) >= 0.01:
+            errors.append(
+                f"ke_go_assessment.dimension_weights must sum to 1.0 "
+                f"(got {sum(dw.values()):.4f})"
+            )
 
         if errors:
             error_msg = "Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
