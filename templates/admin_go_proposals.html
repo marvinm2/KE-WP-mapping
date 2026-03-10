@@ -124,6 +124,93 @@
         let currentGoProposalId = null;
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+        // GO scoring config cache for admin dimension preview
+        let goScoringConfig = null;
+
+        async function loadGoScoringConfig() {
+            if (goScoringConfig) return goScoringConfig;
+            try {
+                const resp = await fetch('/api/go-scoring-config');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    goScoringConfig = data.ke_go_assessment;
+                }
+            } catch (e) {
+                console.warn('Failed to load GO scoring config for admin modal, using defaults');
+            }
+            if (!goScoringConfig) {
+                goScoringConfig = {
+                    dimension_weights: { connection: 0.33, specificity: 0.33, evidence: 0.34 },
+                    dimension_thresholds: { high: 2.5, medium: 1.5 }
+                };
+            }
+            return goScoringConfig;
+        }
+
+        function computeDimensionConfidence(connScore, specScore, evScore, config) {
+            const weights = (config && config.dimension_weights) || { connection: 0.33, specificity: 0.33, evidence: 0.34 };
+            const thresholds = (config && config.dimension_thresholds) || { high: 2.5, medium: 1.5 };
+            const weightedAvg = (connScore * weights.connection) + (specScore * weights.specificity) + (evScore * weights.evidence);
+            let label;
+            if (weightedAvg >= thresholds.high) { label = 'high'; }
+            else if (weightedAvg >= thresholds.medium) { label = 'medium'; }
+            else { label = 'low'; }
+            return { label, score: weightedAvg };
+        }
+
+        function scoreToLabel(score) {
+            if (score === 3) return 'High';
+            if (score === 2) return 'Medium';
+            if (score === 1) return 'Low';
+            return '&mdash;';
+        }
+
+        function renderAdminDimensionToggles(dimension, prefilledScore) {
+            const tooltips = {
+                connection: 'How directly does this GO term relate to the key event\'s biological mechanism? High: direct mechanistic link. Medium: functionally related process. Low: broadly associated.',
+                specificity: 'How precisely does this GO term describe the key event? High: exact match to the biological process. Medium: correct but broader/narrower. Low: tangentially relevant.',
+                evidence: 'How strong is the literature evidence linking this GO term to this key event? High: multiple experimental studies. Medium: curated or computational evidence. Low: inferred or assumed.'
+            };
+            const labels = { connection: 'Connection (biological relevance)', specificity: 'Specificity (term precision)', evidence: 'Evidence (literature support)' };
+            const scores = [3, 2, 1];
+            const scoreLabels = { 3: 'High', 2: 'Medium', 1: 'Low' };
+            const btns = scores.map(s => {
+                const sel = s === prefilledScore ? ' selected' : '';
+                return `<button type="button" class="btn-option admin-dim-btn${sel}" data-dimension="${dimension}" data-score="${s}">${scoreLabels[s]}</button>`;
+            }).join('');
+            return `
+                <div class="go-dimension-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                    <span style="font-weight: 600; min-width: 220px; font-size: 14px;">${labels[dimension]}
+                        <span title="${tooltips[dimension]}" style="cursor: help; font-size: 13px; color: var(--color-text-muted, #6c757d);">&#9432;</span>
+                    </span>
+                    <div class="btn-group go-btn-group" data-dimension="${dimension}" style="margin: 0;">
+                        ${btns}
+                    </div>
+                </div>`;
+        }
+
+        function updateAdminDimensionPreview() {
+            const connScore = parseInt($('.admin-dim-btn.selected[data-dimension="connection"]').data('score') || 0);
+            const specScore = parseInt($('.admin-dim-btn.selected[data-dimension="specificity"]').data('score') || 0);
+            const evScore = parseInt($('.admin-dim-btn.selected[data-dimension="evidence"]').data('score') || 0);
+            const $badge = $('#admin-dimension-badge');
+            const $preview = $('#admin-dimension-preview');
+            const $approveBtn = document.getElementById('goModalApproveBtn');
+
+            if (connScore && specScore && evScore) {
+                const result = computeDimensionConfidence(connScore, specScore, evScore, goScoringConfig);
+                $badge
+                    .text(result.label.charAt(0).toUpperCase() + result.label.slice(1))
+                    .removeClass('badge-status-high badge-status-medium badge-status-low')
+                    .addClass('badge-status-' + result.label);
+                $preview.show();
+                if ($approveBtn) $approveBtn.disabled = false;
+            } else {
+                $preview.hide();
+                if ($approveBtn) $approveBtn.disabled = true;
+            }
+        }
+
         $(document).ready(function() {
             $('#goProposalsTable').DataTable(
                 DataTableConfig.merge('base', {
@@ -142,6 +229,14 @@
                     ]
                 })
             );
+
+            // Admin dimension toggle handler
+            $(document).on('click', '.admin-dim-btn', function() {
+                const $btn = $(this);
+                $btn.closest('.go-btn-group').find('.admin-dim-btn').removeClass('selected');
+                $btn.addClass('selected');
+                updateAdminDimensionPreview();
+            });
         });
 
         function filterGoProposals() {
@@ -153,9 +248,11 @@
 
         function viewGoProposal(proposalId) {
             currentGoProposalId = proposalId;
-            $.get(`/admin/go-proposals/${proposalId}`)
-                .done(function(proposal) { showGoProposalModal(proposal); })
-                .fail(function(xhr) { alert('Error loading GO proposal: ' + (xhr.responseJSON?.error || 'Unknown error')); });
+            loadGoScoringConfig().then(function() {
+                $.get(`/admin/go-proposals/${proposalId}`)
+                    .done(function(proposal) { showGoProposalModal(proposal); })
+                    .fail(function(xhr) { alert('Error loading GO proposal: ' + (xhr.responseJSON?.error || 'Unknown error')); });
+            });
         }
 
         function showGoProposalModal(proposal) {
@@ -164,6 +261,28 @@
             const content = document.getElementById('goModalContent');
             const approveBtn = document.getElementById('goModalApproveBtn');
             const rejectBtn = document.getElementById('goModalRejectBtn');
+
+            // Curator's proposed dimension scores
+            const cConn = proposal.proposed_connection_score;
+            const cSpec = proposal.proposed_specificity_score;
+            const cEv = proposal.proposed_evidence_score;
+            const hasCuratorScores = cConn !== null && cConn !== undefined
+                                  && cSpec !== null && cSpec !== undefined
+                                  && cEv !== null && cEv !== undefined;
+
+            const curatorScoreHtml = hasCuratorScores
+                ? `<div style="margin-top: 6px; font-size: 13px; color: var(--color-text-muted, #6c757d);">
+                       Curator's assessment: Connection=${scoreToLabel(cConn)}, Specificity=${scoreToLabel(cSpec)}, Evidence=${scoreToLabel(cEv)}
+                   </div>`
+                : `<div style="margin-top: 6px; font-size: 13px; color: var(--color-text-muted, #6c757d);">No dimension assessment submitted (legacy proposal)</div>`;
+
+            // Admin toggles pre-filled with curator's scores if available
+            const adminDimHtml = renderAdminDimensionToggles('connection', hasCuratorScores ? cConn : null)
+                               + renderAdminDimensionToggles('specificity', hasCuratorScores ? cSpec : null)
+                               + renderAdminDimensionToggles('evidence', hasCuratorScores ? cEv : null);
+
+            // Check if curator's scores are all pre-filled (enable approve immediately)
+            const allPreFilled = hasCuratorScores;
 
             content.innerHTML = `
                 <div style="margin-bottom: 20px;">
@@ -187,11 +306,28 @@
                     ${proposal.admin_notes ? `<div><strong>Admin Notes:</strong> ${proposal.admin_notes}</div>` : ''}
                     ${proposal.approved_at_formatted ? `<div><strong>Reviewed At:</strong> ${proposal.approved_at_formatted}</div>` : ''}
                 </div>
+                <div style="margin-bottom: 20px; border-top: 1px solid var(--color-border-light); padding-top: 16px;">
+                    <h4 style="margin-bottom: 10px;">Assessment</h4>
+                    ${curatorScoreHtml}
+                    <div style="margin-top: 14px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">Admin dimension scores:</div>
+                        ${adminDimHtml}
+                    </div>
+                    <div id="admin-dimension-preview" style="display: none; margin-top: 10px; padding: 8px 12px; background: var(--color-bg-subtle, #f8f9fa); border-radius: 4px; border: 1px solid var(--color-border-light);">
+                        Computed confidence: <span id="admin-dimension-badge" class="badge-status-medium" style="font-size: 13px;">--</span>
+                    </div>
+                </div>
             `;
 
             if (proposal.status === 'pending') {
                 approveBtn.style.display = 'inline-block';
                 rejectBtn.style.display = 'inline-block';
+                // Gate approve button: disabled until all three admin dimensions selected
+                approveBtn.disabled = !allPreFilled;
+                // If pre-filled, show initial preview
+                if (allPreFilled) {
+                    updateAdminDimensionPreview();
+                }
             } else {
                 approveBtn.style.display = 'none';
                 rejectBtn.style.display = 'none';
@@ -236,7 +372,20 @@
         function confirmGoApprove() {
             if (currentGoProposalId) {
                 const notes = document.getElementById('goAdminNotes').value;
-                $.post(`/admin/go-proposals/${currentGoProposalId}/approve`, { admin_notes: notes, csrf_token: csrfToken })
+                const connScore = parseInt($('.admin-dim-btn.selected[data-dimension="connection"]').data('score') || 0);
+                const specScore = parseInt($('.admin-dim-btn.selected[data-dimension="specificity"]').data('score') || 0);
+                const evScore = parseInt($('.admin-dim-btn.selected[data-dimension="evidence"]').data('score') || 0);
+                if (!connScore || !specScore || !evScore) {
+                    alert('Please select all three dimension scores before approving.');
+                    return;
+                }
+                $.post(`/admin/go-proposals/${currentGoProposalId}/approve`, {
+                    admin_notes: notes,
+                    connection_score: connScore,
+                    specificity_score: specScore,
+                    evidence_score: evScore,
+                    csrf_token: csrfToken
+                })
                     .done(function(response) {
                         alert(response.message || 'GO proposal approved.');
                         closeGoModal();
