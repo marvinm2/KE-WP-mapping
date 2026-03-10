@@ -335,6 +335,10 @@ class GoSuggestionConfig:
         'redundancy_threshold': 0.20
     })
     use_ke_description: bool = True
+    directionality: Dict[str, float] = field(default_factory=lambda: {
+        'match_boost': 1.10,
+        'mismatch_penalty': 0.85
+    })
 
 
 @dataclass
