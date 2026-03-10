@@ -23,7 +23,7 @@ from embedding_utils import setup_project_path, init_embedding_service, compute_
 
 setup_project_path()
 
-from src.utils.text import remove_directionality_terms, extract_entities
+from src.utils.text import remove_directionality_terms, extract_entities, detect_go_direction
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -81,12 +81,14 @@ def parse_obo_file(obo_path):
                     if (current_term['namespace'] == 'biological_process'
                             and not current_term['is_obsolete']):
                         go_id = current_term['id']
+                        go_name = current_term['name']
                         terms[go_id] = {
-                            'name': current_term['name'],
+                            'name': go_name,
                             'definition': current_term['definition'],
                             'is_a': current_term['is_a'],
                             'part_of': current_term['part_of'],
-                            'synonyms': current_term['synonyms']
+                            'synonyms': current_term['synonyms'],
+                            'direction': detect_go_direction(go_name)
                         }
                 in_term = False
                 current_term = None

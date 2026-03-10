@@ -409,6 +409,15 @@ go_suggestion:
     ic_weight: 0.0               # IC multiplier: score * (1 + ic_weight * IC_norm)
     redundancy_threshold: 0.10   # Keep ancestor if score exceeds child by this fraction
 
+  # ----------------------------------------------------------------------------
+  # Directionality Scoring Adjustments
+  # ----------------------------------------------------------------------------
+  # When KE direction (from title) matches GO term direction, boost the score.
+  # When they mismatch, apply a penalty. No adjustment when either is "unspecified".
+  directionality:
+    match_boost: 1.10            # Multiply hybrid_score by this when KE and GO directions match
+    mismatch_penalty: 0.85       # Multiply hybrid_score by this when directions conflict
+
 
 # ==============================================================================
 # KE-GO ASSESSMENT SCORING (Frontend - main.js)

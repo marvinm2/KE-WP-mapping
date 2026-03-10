@@ -7,6 +7,43 @@ import re
 import logging
 from typing import Any
 
+# ---------------------------------------------------------------------------
+# Module-level compiled regex patterns for KE direction detection
+# (compiled once at import time for performance)
+# ---------------------------------------------------------------------------
+
+# POSITIVE directional terms
+_POSITIVE_PATTERN = re.compile(
+    r'\b('
+    r'increase[sd]?|increasing|elevation|elevated|'
+    r'up-?regulated?|upregulation|upregulate[sd]?|'
+    r'activation|activate[sd]?|activating|'
+    r'stimulation|stimulate[sd]?|stimulating|'
+    r'induction|induced?|inducing|'
+    r'enhancement|enhanced?|enhancing|'
+    r'accumulation|accumulated?|accumulating|'
+    r'formation|formed?|forming|'
+    r'generation|generated?|generating|'
+    r'gain|excessive|over'
+    r')\b',
+    re.IGNORECASE
+)
+
+# NEGATIVE directional terms
+_NEGATIVE_PATTERN = re.compile(
+    r'\b('
+    r'decrease[sd]?|decreasing|reduction|reduced?|reducing|'
+    r'down-?regulated?|downregulation|downregulate[sd]?|'
+    r'inhibition|inhibited?|inhibiting|'
+    r'suppression|suppressed?|suppressing|'
+    r'disruption|disrupted?|disrupting|'
+    r'impairment|impaired?|impairing|'
+    r'depletion|depleted?|depleting|'
+    r'loss|deficient|insufficient|under|absence'
+    r')\b',
+    re.IGNORECASE
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -118,6 +155,88 @@ def remove_directionality_terms(text: str) -> str:
         cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
 
     return cleaned_text if cleaned_text else text
+
+
+def detect_go_direction(go_name: str) -> str:
+    """
+    Detect the direction of a GO term from its name via simple prefix matching.
+
+    Rules:
+    - "positive regulation of ..." -> "positive"
+    - "negative regulation of ..." -> "negative"
+    - Everything else (including plain "regulation of ...") -> "unspecified"
+
+    Args:
+        go_name: The GO term name string
+
+    Returns:
+        "positive", "negative", or "unspecified"
+
+    Examples:
+        >>> detect_go_direction("positive regulation of apoptotic process")
+        'positive'
+        >>> detect_go_direction("negative regulation of cell growth")
+        'negative'
+        >>> detect_go_direction("regulation of transcription")
+        'unspecified'
+        >>> detect_go_direction("apoptotic process")
+        'unspecified'
+        >>> detect_go_direction("")
+        'unspecified'
+    """
+    if not go_name or not go_name.strip():
+        return "unspecified"
+
+    name_lower = go_name.strip().lower()
+
+    if name_lower.startswith("positive regulation of"):
+        return "positive"
+    if name_lower.startswith("negative regulation of"):
+        return "negative"
+    return "unspecified"
+
+
+def detect_ke_direction(ke_title: str) -> str:
+    """
+    Detect the direction of a KE from its title via regex pattern matching.
+
+    Uses vocabulary split into positive and negative groups. Terms that are
+    ambiguous (altered, changes, binding, release, abnormal, presence, lack)
+    are intentionally NOT included in either group.
+
+    If BOTH positive and negative patterns match, returns "unspecified" (ambiguous).
+
+    Args:
+        ke_title: The Key Event title string
+
+    Returns:
+        "positive", "negative", or "unspecified"
+
+    Examples:
+        >>> detect_ke_direction("Increase in ROS production")
+        'positive'
+        >>> detect_ke_direction("Decreased mitochondrial function")
+        'negative'
+        >>> detect_ke_direction("Altered gene expression")
+        'unspecified'
+        >>> detect_ke_direction("Activation and Inhibition of pathway")
+        'unspecified'
+        >>> detect_ke_direction("Cell proliferation")
+        'unspecified'
+    """
+    if not ke_title or not ke_title.strip():
+        return "unspecified"
+
+    has_positive = bool(_POSITIVE_PATTERN.search(ke_title))
+    has_negative = bool(_NEGATIVE_PATTERN.search(ke_title))
+
+    if has_positive and has_negative:
+        return "unspecified"
+    if has_positive:
+        return "positive"
+    if has_negative:
+        return "negative"
+    return "unspecified"
 
 
 # Unified stopword set (union of all previous implementations)
