@@ -345,6 +345,19 @@ var AOPGraphInline = (function () {
         hideInlineInfoPanel();
 
         var $keDropdown = $('#ke_id');
+
+        // If the option doesn't exist in the current (possibly AOP-filtered) dropdown,
+        // restore the full KE list so the option is available
+        if ($keDropdown.find('option[value="' + keId + '"]').length === 0) {
+            var app = window.KEWPApp;
+            if (app && app.allKEOptions) {
+                app.populateKEDropdown(app.allKEOptions);
+                // Clear the AOP filter UI to stay consistent
+                $('#aop_filter').val(null).trigger('change');
+                $('#clear_aop_filter').hide();
+            }
+        }
+
         $keDropdown.val(keId).trigger('change');
 
         // Smooth scroll to the KE dropdown area
