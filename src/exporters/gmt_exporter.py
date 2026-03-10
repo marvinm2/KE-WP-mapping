@@ -143,6 +143,30 @@ def generate_ke_wp_gmt(mappings, cache_model=None, min_confidence=None) -> str:
     return buf.getvalue()
 
 
+def _load_go_annotations_merged(bp_path=None, mf_path=None) -> dict:
+    """Load and merge BP and MF gene annotation dicts.
+
+    MF annotations are loaded from *mf_path* (derived from *bp_path* if not given).
+    Missing files are silently skipped — callers get whatever is available.
+    """
+    data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
+
+    if bp_path is None:
+        bp_path = os.path.join(data_dir, 'go_bp_gene_annotations.json')
+    if mf_path is None:
+        mf_path = os.path.join(data_dir, 'go_mf_gene_annotations.json')
+
+    merged = {}
+    for path, label in [(bp_path, 'BP'), (mf_path, 'MF')]:
+        try:
+            with open(path) as f:
+                merged.update(json.load(f))
+        except (OSError, json.JSONDecodeError) as e:
+            logger.info("Could not load GO %s annotations from %s: %s", label, path, e)
+
+    return merged
+
+
 def generate_ke_go_gmt(mappings, go_annotations_path=None, min_confidence=None) -> str:
     """Generate GMT content for KE-GO mappings.
 
@@ -151,9 +175,11 @@ def generate_ke_go_gmt(mappings, go_annotations_path=None, min_confidence=None) 
     mappings:
         List of dicts from GoMappingModel.get_all_mappings(). Each dict must
         contain at least: ke_id, ke_title, go_id, go_name, confidence_level.
+        MF mappings are identified by go_namespace='molecular_function'.
     go_annotations_path:
         Path to go_bp_gene_annotations.json. Defaults to
         data/go_bp_gene_annotations.json relative to the project root.
+        MF annotations are loaded from the sibling go_mf_gene_annotations.json.
     min_confidence:
         Optional lowercase string for confidence filtering.
 
@@ -162,18 +188,8 @@ def generate_ke_go_gmt(mappings, go_annotations_path=None, min_confidence=None) 
     str
         GMT-formatted string. Empty string if no rows survive.
     """
-    if go_annotations_path is None:
-        go_annotations_path = os.path.join(
-            os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json'
-        )
-
-    # Load GO gene annotations
-    try:
-        with open(go_annotations_path) as f:
-            go_annotations = json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
-        logger.warning("Could not load GO annotations from %s: %s", go_annotations_path, e)
-        go_annotations = {}
+    # Load both BP and MF annotations; MF terms need genes from MF file
+    go_annotations = _load_go_annotations_merged(bp_path=go_annotations_path)
 
     # Apply confidence filter
     if min_confidence:
@@ -270,7 +286,7 @@ def generate_ke_centric_go_gmt(mappings, go_annotations_path=None, min_confidenc
     """Generate KE-centric GMT content for KE-GO mappings.
 
     Each row represents one Key Event. Gene symbols are unioned across all
-    approved GO Biological Process mappings for that KE. Field 1 is just
+    approved GO (BP and MF) mappings for that KE. Field 1 is just
     ``KE{N}`` (e.g. ``KE55``).
 
     Parameters
@@ -278,9 +294,11 @@ def generate_ke_centric_go_gmt(mappings, go_annotations_path=None, min_confidenc
     mappings:
         List of dicts from GoMappingModel.get_all_mappings(). Each dict must
         contain at least: ke_id, ke_title, go_id, confidence_level.
+        MF mappings are identified by go_namespace='molecular_function'.
     go_annotations_path:
         Path to go_bp_gene_annotations.json. Defaults to
         data/go_bp_gene_annotations.json relative to the project root.
+        MF annotations are loaded from the sibling go_mf_gene_annotations.json.
     min_confidence:
         Optional lowercase string for confidence filtering.
 
@@ -290,17 +308,8 @@ def generate_ke_centric_go_gmt(mappings, go_annotations_path=None, min_confidenc
         GMT-formatted string (tab-separated, one row per KE).
         Empty string if no rows survive filtering or no genes are found.
     """
-    if go_annotations_path is None:
-        go_annotations_path = os.path.join(
-            os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json'
-        )
-
-    try:
-        with open(go_annotations_path) as f:
-            go_annotations = json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
-        logger.warning("Could not load GO annotations from %s: %s", go_annotations_path, e)
-        go_annotations = {}
+    # Load both BP and MF annotations
+    go_annotations = _load_go_annotations_merged(bp_path=go_annotations_path)
 
     if min_confidence:
         mappings = [r for r in mappings if r.get("confidence_level", "").lower() == min_confidence]

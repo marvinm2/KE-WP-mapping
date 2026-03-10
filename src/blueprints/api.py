@@ -1243,10 +1243,15 @@ def suggest_go_terms(ke_id):
         ke_title = request.args.get('ke_title', '')
         limit = request.args.get('limit', 20, type=int)
         method_filter = request.args.get('method_filter', 'all')
+        aspect_filter = request.args.get('aspect_filter', 'all')
 
         # Validate method filter
         if method_filter not in ('all', 'text', 'gene'):
             method_filter = 'all'
+
+        # Validate aspect filter
+        if aspect_filter not in ('all', 'bp', 'mf'):
+            aspect_filter = 'all'
 
         # Validate limit
         limit = max(1, min(50, limit))
@@ -1254,10 +1259,13 @@ def suggest_go_terms(ke_id):
         if not ke_id or len(ke_id.strip()) == 0:
             return jsonify({"error": "Invalid Key Event ID"}), 400
 
-        logger.info("Getting GO suggestions for KE: %s (method_filter: %s)", sanitize_log(ke_id), sanitize_log(method_filter))
+        logger.info(
+            "Getting GO suggestions for KE: %s (method_filter: %s, aspect_filter: %s)",
+            sanitize_log(ke_id), sanitize_log(method_filter), sanitize_log(aspect_filter),
+        )
 
         result = go_suggestion_service.get_go_suggestions(
-            ke_id, ke_title, limit, method_filter
+            ke_id, ke_title, limit, method_filter, aspect_filter
         )
 
         if "error" in result:
