@@ -138,4 +138,7 @@ def generate_ke_go_turtle(mappings, min_confidence=None) -> str:
                 Literal(float(row["suggestion_score"]), datatype=XSD.decimal),
             ))
 
+        if row.get("go_direction"):
+            g.add((uri, KEWP.goDirection, Literal(row["go_direction"])))
+
     return g.serialize(format="turtle")

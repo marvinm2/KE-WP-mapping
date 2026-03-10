@@ -197,6 +197,9 @@ def generate_ke_go_gmt(mappings, go_annotations_path=None, min_confidence=None) 
         ke_slug = _make_ke_slug(row["ke_id"], row["ke_title"])
         term_name = f"{ke_slug}_{go_id}"
         description = row["go_name"]
+        go_dir = row.get("go_direction")
+        if go_dir:
+            description += f" | direction:{go_dir}"
         line = "\t".join([term_name, description] + genes)
         buf.write(line + "\n")
 
