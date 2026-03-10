@@ -1895,6 +1895,7 @@ class GoMappingModel:
         ke_id: str = None,
         go_term_id: str = None,
         confidence_level: str = None,
+        direction: str = None,
     ) -> tuple:
         """
         Return (List[Dict], total_count) for approved KE-GO mappings.
@@ -1903,10 +1904,11 @@ class GoMappingModel:
           ke_id            — exact match on ke_go_mappings.ke_id
           go_term_id       — exact match on ke_go_mappings.go_id
           confidence_level — case-insensitive match on ke_go_mappings.confidence_level
+          direction        — exact match on ke_go_mappings.go_direction ("positive" or "negative")
 
         Returns rows with columns:
           uuid, ke_id, ke_title, go_id, go_name, go_namespace,
-          confidence_level, approved_by_curator, approved_at_curator, suggestion_score
+          confidence_level, go_direction, approved_by_curator, approved_at_curator, suggestion_score
         Ordered by created_at DESC.
         """
         conditions = []
@@ -1921,6 +1923,9 @@ class GoMappingModel:
         if confidence_level:
             conditions.append("LOWER(confidence_level) = LOWER(?)")
             params.append(confidence_level)
+        if direction:
+            conditions.append("go_direction = ?")
+            params.append(direction)
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         offset = (page - 1) * per_page
@@ -1932,8 +1937,8 @@ class GoMappingModel:
             ).fetchone()[0]
             rows = conn.execute(
                 f"""SELECT uuid, ke_id, ke_title, go_id, go_name, go_namespace,
-                           confidence_level, approved_by_curator, approved_at_curator, suggestion_score,
-                           proposed_by, connection_type
+                           confidence_level, go_direction, approved_by_curator, approved_at_curator,
+                           suggestion_score, proposed_by, connection_type
                     FROM ke_go_mappings {where}
                     ORDER BY created_at DESC
                     LIMIT ? OFFSET ?""",

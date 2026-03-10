@@ -151,6 +151,7 @@ def _serialize_go_mapping(row):
         "go_term_name": row["go_name"],
         "go_namespace": row.get("go_namespace", "biological_process"),
         "confidence_level": row["confidence_level"],
+        "go_direction": row.get("go_direction"),  # positive/negative/null
         "connection_type": row.get("connection_type"),
         "ke_aop_context": ke_aop_context,
         "ke_bio_level": ke_bio_level,
@@ -174,7 +175,7 @@ _MAPPING_CSV_FIELDS = [
 ]
 _GO_MAPPING_CSV_FIELDS = [
     "uuid", "ke_id", "ke_name", "go_term_id", "go_term_name", "go_namespace",
-    "confidence_level", "suggestion_score", "approved_by", "approved_at", "proposed_by",
+    "confidence_level", "go_direction", "suggestion_score", "approved_by", "approved_at", "proposed_by",
     "connection_type", "ke_aop_context", "ke_bio_level", "go_definition", "go_ic", "go_depth",
 ]
 
@@ -403,6 +404,7 @@ def list_go_mappings():
       ke_id            — filter by KE ID (comma-separated for multiple)
       go_term_id       — filter by GO term ID (comma-separated)
       confidence_level — filter by confidence level (High/Medium/Low, case-insensitive)
+      direction        — filter by GO direction: "positive" or "negative"
       page             — page number (default 1)
       per_page         — results per page (default 50, max 200)
 
@@ -415,6 +417,10 @@ def list_go_mappings():
     ke_id_raw = request.args.get("ke_id")
     go_term_id_raw = request.args.get("go_term_id")
     confidence_level = request.args.get("confidence_level")
+    direction = request.args.get("direction")
+
+    if direction is not None and direction not in ("positive", "negative"):
+        return jsonify({"error": "Invalid direction value. Must be 'positive' or 'negative'"}), 400
 
     ke_id = ke_id_raw.split(",")[0].strip() if ke_id_raw else None
     go_term_id = go_term_id_raw.split(",")[0].strip() if go_term_id_raw else None
@@ -426,6 +432,7 @@ def list_go_mappings():
             ke_id=ke_id,
             go_term_id=go_term_id,
             confidence_level=confidence_level,
+            direction=direction,
         )
     except Exception as exc:
         logger.error("Error in list_go_mappings: %s", exc)
@@ -440,6 +447,8 @@ def list_go_mappings():
         extra_params["go_term_id"] = go_term_id_raw
     if confidence_level:
         extra_params["confidence_level"] = confidence_level
+    if direction:
+        extra_params["direction"] = direction
     pagination = _make_pagination(page, per_page, total, base_url, extra_params)
 
     return _respond_collection(serialized, pagination, _GO_MAPPING_CSV_FIELDS)
