@@ -2,15 +2,23 @@
 Download and process GO gene annotations for human
 
 Downloads the UniProt-GOA human annotations file, parses GAF format,
-filters to Biological Process annotations, and maps gene symbols.
+filters annotations by namespace (Biological Process or Molecular Function),
+and maps gene symbols.
 
 Usage:
-    python scripts/download_go_annotations.py
+    python scripts/download_go_annotations.py [--namespace bp|mf]
 
-Output:
+    --namespace bp  (default) Biological Process — filters GAF aspect 'P'
+    --namespace mf            Molecular Function  — filters GAF aspect 'F'
+
+Output (bp):
     go_bp_gene_annotations.json - {go_id: [gene_symbols]}
+
+Output (mf):
+    go_mf_gene_annotations.json - {go_id: [gene_symbols]}
 """
 
+import argparse
 import sys
 import os
 import json
@@ -28,6 +36,13 @@ logger = logging.getLogger(__name__)
 GOA_URL = "https://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz"
 GOA_LOCAL = "data/goa_human.gaf.gz"
 
+# GAF aspect code map: CLI namespace arg -> GAF Aspect column value
+# P = Biological Process, F = Molecular Function, C = Cellular Component
+ASPECT_CODE = {
+    'bp': 'P',
+    'mf': 'F',
+}
+
 
 def download_goa_file(url=GOA_URL, local_path=GOA_LOCAL):
     """Download GOA file if not already present"""
@@ -41,7 +56,7 @@ def download_goa_file(url=GOA_URL, local_path=GOA_LOCAL):
     return local_path
 
 
-def parse_gaf_file(gaf_path):
+def parse_gaf_file(gaf_path, aspect_code='P'):
     """
     Parse GAF (Gene Association Format) file
 
@@ -62,14 +77,18 @@ def parse_gaf_file(gaf_path):
     13: Date
     14: Assigned_By
 
+    Args:
+        gaf_path: Path to the GAF (or .gz) annotation file
+        aspect_code: GAF Aspect column filter ('P' for BP, 'F' for MF)
+
     Returns:
-        dict: {go_id: set(gene_symbols)} for Biological Process only
+        dict: {go_id: set(gene_symbols)} for the specified aspect only
     """
-    logger.info(f"Parsing GAF file: {gaf_path}")
+    logger.info(f"Parsing GAF file: {gaf_path} (aspect: {aspect_code})")
 
     go_gene_map = defaultdict(set)
     total_lines = 0
-    bp_lines = 0
+    aspect_lines = 0
 
     opener = gzip.open if gaf_path.endswith('.gz') else open
 
@@ -86,11 +105,11 @@ def parse_gaf_file(gaf_path):
                 continue
 
             aspect = fields[8]
-            # Only keep Biological Process annotations
-            if aspect != 'P':
+            # Only keep annotations matching the requested aspect
+            if aspect != aspect_code:
                 continue
 
-            bp_lines += 1
+            aspect_lines += 1
 
             go_id = fields[4]
             gene_symbol = fields[2]
@@ -103,21 +122,31 @@ def parse_gaf_file(gaf_path):
             if gene_symbol and go_id:
                 go_gene_map[go_id].add(gene_symbol)
 
-    logger.info(f"Parsed {total_lines} total lines, {bp_lines} BP annotations")
-    logger.info(f"Found {len(go_gene_map)} unique GO BP terms with gene annotations")
+    logger.info(f"Parsed {total_lines} total lines, {aspect_lines} aspect={aspect_code} annotations")
+    logger.info(f"Found {len(go_gene_map)} unique GO terms with gene annotations")
 
     return go_gene_map
 
 
-def download_go_annotations(output_path='data/go_bp_gene_annotations.json'):
+def download_go_annotations(namespace='bp', output_path=None):
     """
-    Download and process GO gene annotations for human BP terms
+    Download and process GO gene annotations for human.
+
+    Args:
+        namespace: 'bp' (Biological Process, default) or 'mf' (Molecular Function)
+        output_path: Override output file path
     """
+    aspect_code = ASPECT_CODE[namespace]
+    if output_path is None:
+        output_path = f'data/go_{namespace}_gene_annotations.json'
+
+    logger.info(f"Downloading GO {namespace.upper()} gene annotations (aspect={aspect_code})")
+
     # Download GOA file
     gaf_path = download_goa_file()
 
     # Parse GAF file
-    go_gene_map = parse_gaf_file(gaf_path)
+    go_gene_map = parse_gaf_file(gaf_path, aspect_code=aspect_code)
 
     # Convert sets to sorted lists for JSON serialization
     go_gene_annotations = {}
@@ -137,7 +166,7 @@ def download_go_annotations(output_path='data/go_bp_gene_annotations.json'):
     for genes in go_gene_annotations.values():
         total_genes.update(genes)
 
-    logger.info(f"GO BP terms with annotations: {len(go_gene_annotations)}")
+    logger.info(f"GO {namespace.upper()} terms with annotations: {len(go_gene_annotations)}")
     logger.info(f"Unique gene symbols: {len(total_genes)}")
 
     # Print sample
@@ -148,4 +177,12 @@ def download_go_annotations(output_path='data/go_bp_gene_annotations.json'):
 
 
 if __name__ == '__main__':
-    download_go_annotations()
+    parser = argparse.ArgumentParser(
+        description='Download and process GO gene annotations for human'
+    )
+    parser.add_argument(
+        '--namespace', choices=['bp', 'mf'], default='bp',
+        help='GO namespace to download: bp (Biological Process, default) or mf (Molecular Function)'
+    )
+    args = parser.parse_args()
+    download_go_annotations(namespace=args.namespace)

@@ -1,15 +1,21 @@
 """
 Pre-compute GO hierarchy data with IC scores, depths, and ancestors
 
-Downloads go-basic.obo, parses biological_process terms, computes
+Downloads go-basic.obo, parses terms for the selected namespace, computes
 Information Content from the gene annotation corpus, and writes
-data/go_hierarchy.json for use by the GO suggestion scoring pipeline.
+the hierarchy JSON for use by the GO suggestion scoring pipeline.
 
 Usage:
-    python scripts/precompute_go_hierarchy.py [--force]
+    python scripts/precompute_go_hierarchy.py [--namespace bp|mf] [--force]
+
+    --namespace bp  (default) Biological Process — reads go_bp_gene_annotations.json,
+                              writes data/go_bp_hierarchy.json
+    --namespace mf            Molecular Function  — reads go_mf_gene_annotations.json,
+                              writes data/go_mf_hierarchy.json
 
 Output:
-    data/go_hierarchy.json - Per-term hierarchy data (depth, IC, ancestors)
+    data/go_bp_hierarchy.json - Per-term hierarchy data (depth, IC, ancestors) for BP
+    data/go_mf_hierarchy.json - Per-term hierarchy data (depth, IC, ancestors) for MF
 """
 
 import argparse
@@ -35,10 +41,18 @@ logger = logging.getLogger(__name__)
 
 GO_BASIC_OBO_URL = "https://purl.obolibrary.org/obo/go/go-basic.obo"
 GO_BASIC_OBO_LOCAL = "data/go-basic.obo"
-ANNOTATIONS_PATH = "data/go_bp_gene_annotations.json"
-OUTPUT_PATH = "data/go_hierarchy.json"
 
-BP_ROOT = "GO:0008150"
+# Namespace filter map: CLI arg -> OBO namespace value
+NAMESPACE_FILTER = {
+    'bp': 'biological_process',
+    'mf': 'molecular_function',
+}
+
+# Root GO term for each namespace (used for BFS depth computation)
+NAMESPACE_ROOTS = {
+    'bp': 'GO:0008150',   # biological_process root
+    'mf': 'GO:0003674',   # molecular_function root
+}
 
 
 def download_go_obo(url=GO_BASIC_OBO_URL, local_path=GO_BASIC_OBO_LOCAL, force=False):
@@ -56,16 +70,20 @@ def download_go_obo(url=GO_BASIC_OBO_URL, local_path=GO_BASIC_OBO_LOCAL, force=F
     return local_path
 
 
-def parse_obo_file(obo_path):
+def parse_obo_file(obo_path, namespace_value='biological_process'):
     """
-    Parse go-basic.obo and extract all biological_process terms.
+    Parse go-basic.obo and extract all terms for the specified namespace.
+
+    Args:
+        obo_path: Path to the OBO file
+        namespace_value: OBO namespace string to filter by
 
     Returns:
         tuple: (terms_dict, obsolete_remap_dict)
             terms_dict: {go_id: {name, namespace, is_a[], part_of[]}}
             obsolete_remap: {obsolete_id: replacement_id}
     """
-    logger.info(f"Parsing OBO file: {obo_path}")
+    logger.info(f"Parsing OBO file: {obo_path} (namespace: {namespace_value})")
 
     terms = {}
     obsolete_terms = []
@@ -92,7 +110,7 @@ def parse_obo_file(obo_path):
 
             if line == '' or line.startswith('['):
                 if in_term and current_term and current_term['id']:
-                    if current_term['namespace'] == 'biological_process':
+                    if current_term['namespace'] == namespace_value:
                         if current_term['is_obsolete']:
                             obsolete_terms.append(current_term)
                         else:
@@ -152,8 +170,8 @@ def parse_obo_file(obo_path):
             logger.warning(f"Obsolete term {obs_id} ({term['name']}): no replaced_by or consider fields")
             skipped += 1
 
-    logger.info(f"Parsed {len(terms)} active biological_process terms")
-    logger.info(f"Found {len(obsolete_terms)} obsolete BP terms")
+    logger.info(f"Parsed {len(terms)} active {namespace_value} terms")
+    logger.info(f"Found {len(obsolete_terms)} obsolete {namespace_value} terms")
     logger.info(f"Remapped {len(remap)} obsolete terms, skipped {skipped} with no replacement")
 
     return terms, remap
@@ -206,13 +224,18 @@ def compute_ancestors(terms, parents_map):
     return ancestors_cache
 
 
-def compute_depths(terms, parents_map):
+def compute_depths(terms, parents_map, root):
     """
-    Compute minimum depth from root (GO:0008150) via BFS.
+    Compute minimum depth from the namespace root via BFS.
+
+    Args:
+        terms: dict of GO terms
+        parents_map: dict of {go_id: set(parent_ids)}
+        root: root GO term ID (e.g. GO:0008150 for BP, GO:0003674 for MF)
 
     Returns dict: {go_id: depth}
     """
-    logger.info("Computing depths via BFS from root...")
+    logger.info(f"Computing depths via BFS from root {root}...")
 
     # Build children map for BFS
     children = defaultdict(set)
@@ -221,8 +244,8 @@ def compute_depths(terms, parents_map):
             children[pid].add(go_id)
 
     depths = {}
-    queue = deque([(BP_ROOT, 0)])
-    depths[BP_ROOT] = 0
+    queue = deque([(root, 0)])
+    depths[root] = 0
 
     while queue:
         current, depth = queue.popleft()
@@ -239,7 +262,7 @@ def compute_depths(terms, parents_map):
             unreachable += 1
 
     if unreachable > 0:
-        logger.warning(f"{unreachable} terms not reachable from root {BP_ROOT}")
+        logger.warning(f"{unreachable} terms not reachable from root {root}")
 
     max_depth = max(d for d in depths.values() if d >= 0)
     logger.info(f"Depth range: 0 to {max_depth}")
@@ -247,13 +270,20 @@ def compute_depths(terms, parents_map):
     return depths
 
 
-def compute_ic_scores(terms, ancestors_cache, annotations_path, remap):
+def compute_ic_scores(terms, ancestors_cache, annotations_path, remap, root):
     """
     Compute Information Content scores from gene annotation corpus.
 
     IC(t) = -log2(freq(t) / freq(root))
     Normalized to [0, 1] by dividing by max IC.
     Root forced to IC = 0.0.
+
+    Args:
+        terms: dict of active GO terms
+        ancestors_cache: transitive ancestor map
+        annotations_path: path to gene annotations JSON
+        remap: obsolete term remapping dict
+        root: namespace root GO term ID
     """
     logger.info(f"Loading annotation corpus from {annotations_path}...")
     with open(annotations_path, 'r') as f:
@@ -282,12 +312,12 @@ def compute_ic_scores(terms, ancestors_cache, annotations_path, remap):
             propagated[ancestor].update(genes)
 
     # Compute IC
-    root_freq = len(propagated.get(BP_ROOT, set()))
+    root_freq = len(propagated.get(root, set()))
     if root_freq == 0:
         logger.error("Root term has no annotations after propagation!")
         root_freq = 1  # avoid division by zero
 
-    logger.info(f"Root term {BP_ROOT} has {root_freq} unique genes after propagation")
+    logger.info(f"Root term {root} has {root_freq} unique genes after propagation")
 
     raw_ic = {}
     for go_id in terms:
@@ -299,7 +329,7 @@ def compute_ic_scores(terms, ancestors_cache, annotations_path, remap):
             raw_ic[go_id] = -math.log2(freq / root_freq)
 
     # Force root IC = 0.0 (log2(1) = 0)
-    raw_ic[BP_ROOT] = 0.0
+    raw_ic[root] = 0.0
 
     # Find max IC among computed values for normalization
     computed_ics = [v for v in raw_ic.values() if v is not None]
@@ -314,7 +344,7 @@ def compute_ic_scores(terms, ancestors_cache, annotations_path, remap):
             ic_scores[go_id] = ic_val / max_ic if max_ic > 0 else 0.0
 
     # Force root to exactly 0.0
-    ic_scores[BP_ROOT] = 0.0
+    ic_scores[root] = 0.0
 
     # Stats
     non_zero = sum(1 for v in ic_scores.values() if v > 0)
@@ -344,35 +374,47 @@ def main():
         description='Pre-compute GO hierarchy data with IC scores'
     )
     parser.add_argument(
+        '--namespace', choices=['bp', 'mf'], default='bp',
+        help='GO namespace to process: bp (Biological Process, default) or mf (Molecular Function)'
+    )
+    parser.add_argument(
         '--force', action='store_true',
         help='Force re-download of go-basic.obo'
     )
     args = parser.parse_args()
 
+    namespace = args.namespace
+    namespace_value = NAMESPACE_FILTER[namespace]
+    root = NAMESPACE_ROOTS[namespace]
+    annotations_path = f'data/go_{namespace}_gene_annotations.json'
+    output_path = f'data/go_{namespace}_hierarchy.json'
+
+    logger.info(f"Processing GO hierarchy for namespace: {namespace_value} (root: {root})")
+
     # Download OBO
     obo_path = download_go_obo(force=args.force)
 
-    # Parse
-    terms, remap = parse_obo_file(obo_path)
+    # Parse terms for the selected namespace
+    terms, remap = parse_obo_file(obo_path, namespace_value=namespace_value)
 
     # Build hierarchy structures
     parents_map = build_parents_map(terms)
     ancestors_cache = compute_ancestors(terms, parents_map)
-    depths = compute_depths(terms, parents_map)
+    depths = compute_depths(terms, parents_map, root=root)
 
     # Compute IC scores
-    ic_scores = compute_ic_scores(terms, ancestors_cache, ANNOTATIONS_PATH, remap)
+    ic_scores = compute_ic_scores(terms, ancestors_cache, annotations_path, remap, root=root)
 
     # Build output
     hierarchy = build_hierarchy_json(terms, ancestors_cache, depths, ic_scores)
 
     # Write output
-    logger.info(f"Writing {len(hierarchy)} terms to {OUTPUT_PATH}...")
-    with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
+    logger.info(f"Writing {len(hierarchy)} terms to {output_path}...")
+    with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(hierarchy, f, indent=2)
 
-    size_mb = os.path.getsize(OUTPUT_PATH) / 1024 / 1024
-    logger.info(f"Output: {OUTPUT_PATH} ({size_mb:.1f} MB)")
+    size_mb = os.path.getsize(output_path) / 1024 / 1024
+    logger.info(f"Output: {output_path} ({size_mb:.1f} MB)")
     logger.info("Done.")
 
 
