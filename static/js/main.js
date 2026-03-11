@@ -4212,6 +4212,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
     showGoSuccessMessage(formData) {
         // Use the thank you modal
+        const nsLabel = formData.go_namespace === 'molecular_function' ? 'MF' : 'BP';
+        const nsBadgeClass = formData.go_namespace === 'molecular_function' ? 'badge-go-mf' : 'badge-go-bp';
+        const nsBadge = `<span class="${nsBadgeClass}">${nsLabel}</span>`;
+
         const summaryHtml = `
             <div style="margin-bottom: 15px;">
                 <div style="margin-bottom: 10px;">
@@ -4223,7 +4227,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 <div style="margin-bottom: 10px;">
                     <strong class="text-dark-heading">GO Term:</strong><br>
                     <span class="text-muted" style="font-family: monospace; font-size: 13px;">${formData.go_id}</span><br>
-                    <span style="font-size: 14px;">${formData.go_name}</span>
+                    <span style="font-size: 14px;">${formData.go_name}</span><br>
+                    <div style="margin-top: 4px;"><strong class="text-dark-heading">Namespace:</strong> ${nsBadge}</div>
                 </div>
             </div>
             <div style="border-top: 1px solid var(--color-border-light); padding-top: 15px; display: flex; justify-content: space-around; font-size: 14px;">

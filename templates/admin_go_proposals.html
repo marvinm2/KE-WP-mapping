@@ -284,6 +284,11 @@
             // Check if curator's scores are all pre-filled (enable approve immediately)
             const allPreFilled = hasCuratorScores;
 
+            const rawNs = proposal.go_namespace || 'biological_process';
+            const nsShort = rawNs === 'molecular_function' ? 'MF' : 'BP';
+            const nsBadgeClass = rawNs === 'molecular_function' ? 'badge-go-mf' : 'badge-go-bp';
+            const nsBadgeHtml = `<span class="${nsBadgeClass}" style="margin-left: 6px;">${nsShort}</span>`;
+
             content.innerHTML = `
                 <div style="margin-bottom: 20px;">
                     <h4>Mapping Information</h4>
@@ -291,6 +296,7 @@
                     <div><strong>KE Title:</strong> ${proposal.ke_title || '&mdash;'}</div>
                     <div><strong>GO ID:</strong> ${proposal.go_id || '&mdash;'}</div>
                     <div><strong>GO Name:</strong> ${proposal.go_name || '&mdash;'}</div>
+                    <div><strong>GO Namespace:</strong> ${nsBadgeHtml}</div>
                 </div>
                 <div style="margin-bottom: 20px;">
                     <h4>Proposed Values</h4>
