@@ -85,7 +85,7 @@ def save_embeddings(embeddings: dict, path: str):
         return
 
     # Always write to .npz extension regardless of input path
-    npz_path = path.replace('.npy', '').rstrip('.')
+    npz_path = path.replace('.npy', '').replace('.npz', '').rstrip('.')
 
     # Build ids array with Unicode dtype (NOT dtype=object — that requires pickle on load)
     ids = np.array(list(embeddings.keys()), dtype=str)
