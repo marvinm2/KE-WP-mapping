@@ -81,6 +81,7 @@ class ServiceContainer:
         self._ker_adjacency = None
         self._go_hierarchy = None
         self._go_bp_metadata = None
+        self._go_mf_metadata = None
 
         logger.info("Service container initialized")
 
@@ -261,6 +262,27 @@ class ServiceContainer:
                 logger.info("go_bp_metadata.json not found at %s — GO definitions will be unavailable", path)
                 self._go_bp_metadata = {}
         return self._go_bp_metadata
+
+    @property
+    def go_mf_metadata(self):
+        """Load and cache GO molecular function metadata from pre-computed JSON file"""
+        if self._go_mf_metadata is None:
+            path = os.path.join(PROJECT_ROOT, 'data', 'go_mf_metadata.json')
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        self._go_mf_metadata = json.load(f)
+                    logger.info(
+                        "Loaded GO MF metadata for %d terms from %s",
+                        len(self._go_mf_metadata), path,
+                    )
+                except Exception as e:
+                    logger.warning("Failed to load go_mf_metadata.json: %s", e)
+                    self._go_mf_metadata = {}
+            else:
+                logger.info("go_mf_metadata.json not found at %s — GO MF definitions will be unavailable", path)
+                self._go_mf_metadata = {}
+        return self._go_mf_metadata
 
     @property
     def pathway_suggestion_service(self) -> PathwaySuggestionService:

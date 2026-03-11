@@ -1711,10 +1711,11 @@ class GoMappingModel:
         try:
             cursor = conn.execute(
                 """
-                SELECT id, ke_id, ke_title, go_id, go_name, connection_type,
-                       confidence_level, evidence_code, created_by, created_at, updated_at,
+                SELECT id, ke_id, ke_title, go_id, go_name, go_namespace, go_direction,
+                       connection_type, confidence_level, evidence_code, created_by, created_at, updated_at,
                        uuid, approved_by_curator, approved_at_curator, proposed_by,
-                       connection_score, specificity_score, evidence_score, assessment_version
+                       connection_score, specificity_score, evidence_score, assessment_version,
+                       suggestion_score
                 FROM ke_go_mappings
                 ORDER BY created_at DESC
             """

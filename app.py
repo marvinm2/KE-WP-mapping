@@ -150,6 +150,7 @@ def create_app(config_name: str = None):
         ke_aop_data=services.ke_aop_membership,
         go_hier=services.go_hierarchy,
         go_bp_meta=services.go_bp_metadata,
+        go_mf_meta=services.go_mf_metadata,
     )
 
     # Context processor to make is_admin available to all templates
