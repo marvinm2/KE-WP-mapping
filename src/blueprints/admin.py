@@ -637,6 +637,7 @@ def approve_go_proposal(proposal_id: int):
             specificity_score=specificity_score,
             evidence_score=evidence_score,
             assessment_version=assessment_version,
+            go_namespace=proposal.get("go_namespace", "biological_process"),
         )
 
         if new_mapping_id:

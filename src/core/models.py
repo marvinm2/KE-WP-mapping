@@ -231,6 +231,9 @@ class Database:
             self._migrate_go_proposals_dimension_scores(conn)
             self._migrate_go_mappings_dimension_scores(conn)
 
+            # Migrate ke_go_proposals to add go_namespace column (Phase 21)
+            self._migrate_proposals_go_namespace(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -558,6 +561,30 @@ class Database:
                 )
         except Exception as e:
             logger.error("Error migrating ke_go_mappings go_namespace: %s", e)
+            raise
+
+    def _migrate_proposals_go_namespace(self, conn):
+        """
+        Add go_namespace column to ke_go_proposals table if it does not exist.
+
+        go_namespace (TEXT, NOT NULL, DEFAULT 'biological_process') — the ontology
+        namespace for the GO term. All existing proposals are Biological Process;
+        the column is added so MF proposals store their namespace at submission time.
+        Existing rows receive 'biological_process' via the DEFAULT.
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_go_proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "go_namespace" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_go_proposals ADD COLUMN "
+                    "go_namespace TEXT NOT NULL DEFAULT 'biological_process'"
+                )
+                logger.info(
+                    "Migrated ke_go_proposals table: added go_namespace column"
+                )
+        except Exception as e:
+            logger.error("Error migrating ke_go_proposals go_namespace: %s", e)
             raise
 
     def _migrate_proposals_new_pair_fields(self, conn):
@@ -1620,6 +1647,7 @@ class GoMappingModel:
         specificity_score: int = None,
         evidence_score: int = None,
         assessment_version: str = "v1",
+        go_namespace: str = "biological_process",
     ) -> Optional[int]:
         """Create a new KE-GO mapping"""
         mapping_uuid = str(uuid_lib.uuid4())
@@ -1636,8 +1664,8 @@ class GoMappingModel:
                 INSERT INTO ke_go_mappings (ke_id, ke_title, go_id, go_name, connection_type,
                                            confidence_level, evidence_code, created_by, uuid,
                                            go_direction, connection_score, specificity_score,
-                                           evidence_score, assessment_version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                           evidence_score, assessment_version, go_namespace)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     ke_id,
@@ -1654,6 +1682,7 @@ class GoMappingModel:
                     specificity_score,
                     evidence_score,
                     assessment_version,
+                    go_namespace,
                 ),
             )
 
@@ -2110,6 +2139,7 @@ class GoProposalModel:
         connection_score: int = None,
         specificity_score: int = None,
         evidence_score: int = None,
+        go_namespace: str = "biological_process",
     ) -> Optional[int]:
         """
         Create a new-pair GO proposal where no existing mapping_id exists yet.
@@ -2129,9 +2159,10 @@ class GoProposalModel:
                     proposed_connection_type, uuid, suggestion_score,
                     ke_id, ke_title, go_id, go_name,
                     new_pair_connection_type, new_pair_confidence_level,
-                    proposed_connection_score, proposed_specificity_score, proposed_evidence_score
+                    proposed_connection_score, proposed_specificity_score, proposed_evidence_score,
+                    go_namespace
                 )
-                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     provider_username or "curator",
@@ -2152,6 +2183,7 @@ class GoProposalModel:
                     connection_score,
                     specificity_score,
                     evidence_score,
+                    go_namespace,
                 ),
             )
             conn.commit()

@@ -1355,6 +1355,7 @@ def submit_go_mapping():
             "go_name": request.form.get("go_name"),
             "connection_type": request.form.get("connection_type"),
             "confidence_level": request.form.get("confidence_level"),
+            "go_namespace": request.form.get("go_namespace", "biological_process"),
         }
 
         is_valid, validated_data, errors = validate_request_data(
@@ -1371,6 +1372,7 @@ def submit_go_mapping():
         go_name = SecurityValidation.sanitize_string(validated_data["go_name"])
         connection_type = validated_data["connection_type"]
         confidence_level = validated_data["confidence_level"]
+        go_namespace = validated_data.get("go_namespace", "biological_process")
 
         created_by = session.get("user", {}).get("username", "anonymous")
 
@@ -1410,6 +1412,7 @@ def submit_go_mapping():
             connection_score=connection_score,
             specificity_score=specificity_score,
             evidence_score=evidence_score,
+            go_namespace=go_namespace,
         )
 
         if proposal_id:

@@ -6,6 +6,26 @@ import re
 from marshmallow import Schema, ValidationError, fields, validate, validates
 
 
+_GO_NAMESPACE_MAP = {
+    "BP": "biological_process",
+    "MF": "molecular_function",
+    "biological_process": "biological_process",
+    "molecular_function": "molecular_function",
+}
+
+
+class GoNamespaceField(fields.Field):
+    """Marshmallow field that normalizes GO namespace short codes and full names."""
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value not in _GO_NAMESPACE_MAP:
+            raise ValidationError(
+                f"Invalid go_namespace '{value}'. "
+                "Accepted values: BP, MF, biological_process, molecular_function."
+            )
+        return _GO_NAMESPACE_MAP[value]
+
+
 class MappingSchema(Schema):
     """Schema for KE-WP mapping submissions"""
 
@@ -137,6 +157,7 @@ class GoMappingSchema(Schema):
             ["low", "medium", "high"], error="Invalid confidence level"
         ),
     )
+    go_namespace = GoNamespaceField(load_default="biological_process")
 
 
 class GoCheckEntrySchema(Schema):
