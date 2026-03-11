@@ -141,4 +141,7 @@ def generate_ke_go_turtle(mappings, min_confidence=None) -> str:
         if row.get("go_direction"):
             g.add((uri, KEWP.goDirection, Literal(row["go_direction"])))
 
+        if row.get("go_namespace"):
+            g.add((uri, KEWP.goNamespace, Literal(row["go_namespace"])))
+
     return g.serialize(format="turtle")

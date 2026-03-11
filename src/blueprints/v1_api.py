@@ -27,13 +27,14 @@ ke_metadata_index = None
 ke_aop_membership = None
 go_hierarchy = None
 go_bp_metadata = None
+go_mf_metadata = None
 
 
 def set_models(mapping, go_mapping, cache, ke_meta_index=None,
-               ke_aop_data=None, go_hier=None, go_bp_meta=None):
+               ke_aop_data=None, go_hier=None, go_bp_meta=None, go_mf_meta=None):
     """Inject model instances from create_app()."""
     global mapping_model, go_mapping_model, cache_model
-    global ke_metadata_index, ke_aop_membership, go_hierarchy, go_bp_metadata
+    global ke_metadata_index, ke_aop_membership, go_hierarchy, go_bp_metadata, go_mf_metadata
     mapping_model = mapping
     go_mapping_model = go_mapping
     cache_model = cache
@@ -41,6 +42,7 @@ def set_models(mapping, go_mapping, cache, ke_meta_index=None,
     ke_aop_membership = ke_aop_data
     go_hierarchy = go_hier
     go_bp_metadata = go_bp_meta
+    go_mf_metadata = go_mf_meta
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +143,11 @@ def _serialize_go_mapping(row):
     go_depth = go_hier_entry.get("depth") if go_hier_entry else None
 
     go_bp_entry = (go_bp_metadata or {}).get(go_id)
-    go_definition = go_bp_entry.get("definition") if go_bp_entry else None
+    if go_bp_entry is None:
+        go_mf_entry = (go_mf_metadata or {}).get(go_id)
+        go_definition = go_mf_entry.get("definition") if go_mf_entry else None
+    else:
+        go_definition = go_bp_entry.get("definition")
 
     return {
         "uuid": row["uuid"],
