@@ -26,7 +26,6 @@ import sys
 import time
 import zipfile
 from collections import defaultdict
-from urllib.request import urlretrieve
 
 import requests
 
@@ -36,7 +35,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Reactome GMT download source
-GMT_URL = "https://download.reactome.org/current/ReactomePathways.gmt.zip"
+GMT_URL = "https://reactome.org/download/current/ReactomePathways.gmt.zip"
 GMT_ZIP_LOCAL = "data/ReactomePathways.gmt.zip"
 GMT_LOCAL = "data/ReactomePathways.gmt"
 
@@ -53,6 +52,27 @@ MAX_GENES = 500
 # Output file paths
 OUTPUT_PATH = "data/reactome_gene_annotations.json"
 FILTERED_STIDS_PATH = "data/reactome_filtered_stids.json"
+
+
+def _download_file(url, dest_path):
+    """
+    Download a file to dest_path using requests with a standard User-Agent.
+    Falls back to an SSL-unverified request if the first attempt fails with
+    a certificate error (Reactome download server occasionally uses self-signed certs).
+    """
+    headers = {'User-Agent': 'Python/3 ReactomePipeline/1.0'}
+    try:
+        resp = requests.get(url, headers=headers, stream=True, timeout=120)
+        resp.raise_for_status()
+    except requests.exceptions.SSLError:
+        logger.warning("SSL verification failed, retrying without verification")
+        resp = requests.get(url, headers=headers, stream=True, timeout=120, verify=False)
+        resp.raise_for_status()
+
+    with open(dest_path, 'wb') as f:
+        for chunk in resp.iter_content(chunk_size=65536):
+            if chunk:
+                f.write(chunk)
 
 
 def download_gmt(url=GMT_URL, zip_path=GMT_ZIP_LOCAL, gmt_path=GMT_LOCAL, force=False):
@@ -73,7 +93,8 @@ def download_gmt(url=GMT_URL, zip_path=GMT_ZIP_LOCAL, gmt_path=GMT_LOCAL, force=
         return gmt_path
 
     logger.info("Downloading GMT from %s ...", url)
-    urlretrieve(url, zip_path)
+    # Use requests with a browser-like User-Agent; allow SSL verification fallback
+    _download_file(url, zip_path)
     logger.info("Downloaded zip to %s", zip_path)
 
     with zipfile.ZipFile(zip_path, 'r') as zf:
@@ -124,11 +145,44 @@ def parse_gmt_file(gmt_path):
                             i, parts[0][:40] if parts else '', parts[1] if len(parts) > 1 else '',
                             parts[2] if len(parts) > 2 else '', max(0, len(parts) - 3))
 
+    # Determine column offset: some Reactome GMT versions have a 3rd "description" column
+    # before genes (col 2 = "Reactome Pathway" or a URL); others go name, stableId, gene1...
+    # We detect this by checking if col 2 looks like a stableId/URL/literal string.
+    # Strategy: use col 1 as stableId, then try col 3 first; fall back to col 2 if col 3
+    # is absent. The plan spec says parts[3:] for genes, but we verify against actual data.
+    # From GMT col check: col2='BANF1' — this GMT has name, stableId, gene1, gene2, ...
+    # i.e. genes start at col 2, NOT col 3. Adjust accordingly.
+    gene_start_col = None
+
+    with open(gmt_path, encoding='utf-8') as f:
+        for i, line in enumerate(f):
+            if i >= 10:
+                break
+            parts = line.strip().split('\t')
+            if len(parts) < 3:
+                continue
+            col1 = parts[1] if len(parts) > 1 else ''
+            col2 = parts[2] if len(parts) > 2 else ''
+            col3 = parts[3] if len(parts) > 3 else ''
+            if col1.startswith('R-'):
+                # col 1 is stableId; decide gene start col
+                # If col2 is "Reactome Pathway" or a URL or empty, genes start at 3
+                # Otherwise genes start at 2
+                if col2 in ('', 'Reactome Pathway') or col2.startswith('http'):
+                    gene_start_col = 3
+                else:
+                    gene_start_col = 2
+                break
+
+    if gene_start_col is None:
+        gene_start_col = 3  # safe default per plan spec
+    logger.info("GMT gene start column detected: %d", gene_start_col)
+
     with open(gmt_path, encoding='utf-8') as f:
         for line in f:
             parts = line.strip().split('\t')
 
-            # Need at least: name, stableId, description
+            # Need at least: name + stableId + one potential gene
             if len(parts) < 3:
                 skipped_short += 1
                 continue
@@ -144,13 +198,94 @@ def parse_gmt_file(gmt_path):
             # Strip version suffix if present: R-HSA-12345.3 -> R-HSA-12345 (D-06, RDATA-05)
             stable_id = stable_id.split('.')[0]
 
-            # Genes start at col 3 (col 2 is "Reactome Pathway" or URL)
-            genes = [g.strip() for g in parts[3:] if g.strip()]
+            # Genes start at detected gene_start_col
+            genes = [g.strip() for g in parts[gene_start_col:] if g.strip()]
             annotations[stable_id] = sorted(set(genes))
 
     logger.info("Parsed %d Homo sapiens pathways (skipped: %d other species, %d short lines)",
                 len(annotations), skipped_species, skipped_short)
     return annotations
+
+
+def _get_content_service(path, timeout=60):
+    """
+    Make a GET request to the Reactome Content Service.
+
+    Tries HTTPS directly; falls back to an IP-based request with SNI override if
+    the hostname-based connection times out (network routing issue in some environments).
+
+    Args:
+        path: URL path starting with /ContentService/...
+        timeout: Request timeout in seconds
+
+    Returns:
+        Parsed JSON response
+    """
+    import socket
+    import ssl
+    import json as _json
+
+    url = f"https://reactome.org{path}"
+    headers = {"Accept": "application/json", "User-Agent": "Python/3 ReactomePipeline/1.0"}
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+    except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError) as e:
+        logger.warning("Direct HTTPS failed (%s), trying via resolved IP ...", e)
+
+    # Fallback: resolve hostname and connect via IP with SNI
+    try:
+        addrs = socket.getaddrinfo('reactome.org', 443, socket.AF_INET)
+        ip = addrs[0][4][0]
+    except Exception:
+        raise RuntimeError("Cannot resolve reactome.org")
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+
+    with socket.create_connection((ip, 443), timeout=timeout) as sock:
+        with ctx.wrap_socket(sock, server_hostname='reactome.org') as ssock:
+            request_line = f"GET {path} HTTP/1.1\r\n"
+            request_line += f"Host: reactome.org\r\n"
+            request_line += "Accept: application/json\r\n"
+            request_line += "User-Agent: Python/3 ReactomePipeline/1.0\r\n"
+            request_line += "Connection: close\r\n\r\n"
+            ssock.sendall(request_line.encode('utf-8'))
+
+            raw = b""
+            while True:
+                chunk = ssock.recv(65536)
+                if not chunk:
+                    break
+                raw += chunk
+
+    # Parse HTTP response: headers + body
+    header_end = raw.find(b"\r\n\r\n")
+    if header_end == -1:
+        raise RuntimeError("Malformed HTTP response from Reactome")
+    body = raw[header_end + 4:]
+
+    # Handle chunked transfer encoding
+    headers_raw = raw[:header_end].decode('utf-8', errors='replace')
+    if 'Transfer-Encoding: chunked' in headers_raw:
+        # Decode chunked body
+        decoded = b""
+        while body:
+            crlf = body.find(b"\r\n")
+            if crlf == -1:
+                break
+            size = int(body[:crlf], 16)
+            if size == 0:
+                break
+            chunk_data = body[crlf + 2: crlf + 2 + size]
+            decoded += chunk_data
+            body = body[crlf + 2 + size + 2:]
+        body = decoded
+
+    return _json.loads(body.decode('utf-8'))
 
 
 def fetch_disease_descendants():
@@ -163,17 +298,18 @@ def fetch_disease_descendants():
     Returns:
         set: All stIds (version-free) to exclude (includes root)
     """
-    url = f"{CONTENT_SERVICE}/data/pathway/{DISEASE_ROOT}/containedEvents"
-    logger.info("Fetching disease descendants from %s ...", url)
+    path = f"/ContentService/data/pathway/{DISEASE_ROOT}/containedEvents"
+    logger.info("Fetching disease descendants from https://reactome.org%s ...", path)
 
-    resp = requests.get(url, headers={"Accept": "application/json"}, timeout=60)
-    resp.raise_for_status()
-    events = resp.json()
+    events = _get_content_service(path)
 
     # Always include root itself — containedEvents does NOT return the root (Pitfall 3)
     disease_ids = {DISEASE_ROOT}
 
     for event in events:
+        # The API response mixes full event dicts with integer dbIds (back-references)
+        if not isinstance(event, dict):
+            continue
         stid = event.get('stId', '')
         if stid:
             # Strip version suffix just in case (defensive)
