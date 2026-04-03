@@ -62,7 +62,10 @@ EMBEDDINGS_PATH = "data/reactome_pathway_embeddings"       # .npz added by save_
 NAME_EMBEDDINGS_PATH = "data/reactome_pathway_name_embeddings"  # .npz added by save_embeddings
 
 # API batching parameters
-BATCH_SIZE = 100
+# NOTE: The Reactome Content Service /data/query/ids endpoint hard-limits responses
+# to 20 items per POST regardless of how many IDs are submitted. Batches larger
+# than 20 will silently return only the first 20 results. Use BATCH_SIZE=20.
+BATCH_SIZE = 20
 BATCH_DELAY = 0.2  # seconds between API batches (polite pacing — no documented rate limit)
 
 
