@@ -303,19 +303,40 @@ def fetch_disease_descendants():
 
     events = _get_content_service(path)
 
+    # Pass 1 — Build a dbId→stId mapping from all dict entries in the response.
+    # The containedEvents API returns a mix of full event dicts and raw integer dbId
+    # back-references. We need to resolve the integers through this map.
+    dbid_to_stid = {}
+    for event in events:
+        if isinstance(event, dict):
+            dbid = event.get('dbId')
+            stid = event.get('stId', '')
+            if dbid is not None and stid:
+                dbid_to_stid[dbid] = stid.split('.')[0]
+
     # Always include root itself — containedEvents does NOT return the root (Pitfall 3)
     disease_ids = {DISEASE_ROOT}
 
+    # Pass 2 — Collect stIds from both dict entries and integer back-references.
     for event in events:
-        # The API response mixes full event dicts with integer dbIds (back-references)
-        if not isinstance(event, dict):
-            continue
-        stid = event.get('stId', '')
-        if stid:
-            # Strip version suffix just in case (defensive)
-            disease_ids.add(stid.split('.')[0])
+        if isinstance(event, dict):
+            stid = event.get('stId', '')
+            if stid:
+                # Strip version suffix just in case (defensive)
+                disease_ids.add(stid.split('.')[0])
+        elif isinstance(event, int):
+            # Integer entries are dbId back-references to events also in the list
+            resolved = dbid_to_stid.get(event)
+            if resolved:
+                disease_ids.add(resolved)
+            else:
+                logger.warning("Unresolved integer dbId in containedEvents: %d", event)
 
-    logger.info("Disease branch: %d pathways to exclude", len(disease_ids))
+    n_from_int = sum(1 for e in events if isinstance(e, int) and dbid_to_stid.get(e))
+    logger.info(
+        "Disease branch: %d pathways to exclude (%d resolved from integer dbIds)",
+        len(disease_ids), n_from_int
+    )
     return disease_ids
 
 
