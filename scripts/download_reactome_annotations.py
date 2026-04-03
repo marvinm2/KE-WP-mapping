@@ -303,9 +303,13 @@ def fetch_disease_descendants():
 
     events = _get_content_service(path)
 
-    # Pass 1 — Build a dbId→stId mapping from all dict entries in the response.
-    # The containedEvents API returns a mix of full event dicts and raw integer dbId
-    # back-references. We need to resolve the integers through this map.
+    # The containedEvents API returns a mix of full event dicts and raw integer dbIds.
+    # Integer entries are top-level disease category pathways that do NOT appear as
+    # dicts in the same response. For Homo sapiens, Reactome stable IDs are constructed
+    # directly from the numeric dbId: dbId N → stId R-HSA-N. We resolve integers using
+    # this construction.
+    #
+    # Pass 1 — Build a dbId→stId mapping from dict entries (for safety / cross-check).
     dbid_to_stid = {}
     for event in events:
         if isinstance(event, dict):
@@ -318,6 +322,7 @@ def fetch_disease_descendants():
     disease_ids = {DISEASE_ROOT}
 
     # Pass 2 — Collect stIds from both dict entries and integer back-references.
+    n_from_int = 0
     for event in events:
         if isinstance(event, dict):
             stid = event.get('stId', '')
@@ -325,14 +330,12 @@ def fetch_disease_descendants():
                 # Strip version suffix just in case (defensive)
                 disease_ids.add(stid.split('.')[0])
         elif isinstance(event, int):
-            # Integer entries are dbId back-references to events also in the list
-            resolved = dbid_to_stid.get(event)
-            if resolved:
-                disease_ids.add(resolved)
-            else:
-                logger.warning("Unresolved integer dbId in containedEvents: %d", event)
+            # Try dict-based resolution first; fall back to direct R-HSA-{dbId} construction.
+            # The direct mapping is valid for all Homo sapiens pathways (numeric dbId == stId number).
+            resolved = dbid_to_stid.get(event) or f"R-HSA-{event}"
+            disease_ids.add(resolved)
+            n_from_int += 1
 
-    n_from_int = sum(1 for e in events if isinstance(e, int) and dbid_to_stid.get(e))
     logger.info(
         "Disease branch: %d pathways to exclude (%d resolved from integer dbIds)",
         len(disease_ids), n_from_int
