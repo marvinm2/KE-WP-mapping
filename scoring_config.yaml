@@ -552,12 +552,40 @@ ke_go_assessment:
 
 
 # ==============================================================================
+# REACTOME PATHWAY SUGGESTION SCORING (Backend - reactome.py)
+# ==============================================================================
+# These parameters control how Reactome pathways are suggested for Key Events.
+# Uses BioBERT embedding similarity and gene overlap signals.
+# No IC boost, no direction adjustment, no redundancy filtering (Reactome has no hierarchy).
+
+reactome_suggestion:
+
+  # Hybrid scoring weights for combining embedding and gene signals
+  hybrid_weights:
+    embedding: 0.60        # Embedding-based scoring weight (semantic similarity)
+    gene: 0.40             # Gene-based scoring weight (gene overlap)
+    multi_evidence_bonus: 0.05
+
+  min_threshold: 0.15      # Minimum hybrid score to include in results
+  embedding_min_threshold: 0.3   # Minimum embedding similarity
+  gene_min_threshold: 0.05       # Minimum gene overlap score
+  gene_min_term_size: 10         # Pathways below this gene count get dampened scores
+
+  # Name/Description embedding blend
+  # Reactome descriptions are short; name carries more signal
+  name_weight: 0.70        # Weight for name similarity (description weight = 1 - name_weight)
+
+  max_results: 20          # Maximum suggestions returned
+  use_ke_description: true  # Include KE description in embedding computation
+
+
+# ==============================================================================
 # METADATA
 # ==============================================================================
 
 metadata:
-  version: "1.3.0"
-  last_modified: "2026-02-04"
+  version: "1.4.0"
+  last_modified: "2026-04-03"
   modified_by: "system"
   description: |
     Scoring configuration for KE-WP and KE-GO Mapping application.
@@ -582,6 +610,7 @@ metadata:
     - Keep backups before making changes for easy rollback
 
   changelog:
+    - "2026-04-03: Added Reactome pathway suggestion scoring section"
     - "2026-02-04: Added GO suggestion and KE-GO assessment sections"
     - "2026-01-23: Raised base_threshold from 0.25 to 0.30 to filter noise"
     - "2026-01-23: Added quality_tiers for UI badges (excellent/good/moderate)"

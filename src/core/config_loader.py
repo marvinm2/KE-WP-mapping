@@ -342,6 +342,23 @@ class GoSuggestionConfig:
 
 
 @dataclass
+class ReactomeSuggestionConfig:
+    """Reactome pathway suggestion scoring configuration"""
+    hybrid_weights: Dict[str, float] = field(default_factory=lambda: {
+        'embedding': 0.60,
+        'gene': 0.40,
+        'multi_evidence_bonus': 0.05
+    })
+    min_threshold: float = 0.15
+    embedding_min_threshold: float = 0.3
+    gene_min_threshold: float = 0.05
+    gene_min_term_size: int = 10
+    name_weight: float = 0.70
+    max_results: int = 20
+    use_ke_description: bool = True
+
+
+@dataclass
 class KEGoAssessmentConfig:
     """KE-GO assessment scoring configuration"""
     term_specificity: Dict[str, int] = field(default_factory=lambda: {
@@ -445,6 +462,7 @@ class ScoringConfig:
     go_bp: GoSuggestionConfig = field(default_factory=GoSuggestionConfig)
     go_mf: GoSuggestionConfig = field(default_factory=GoSuggestionConfig)
     ke_go_assessment: KEGoAssessmentConfig = field(default_factory=KEGoAssessmentConfig)
+    reactome_suggestion: ReactomeSuggestionConfig = field(default_factory=ReactomeSuggestionConfig)
     metadata: Dict[str, str] = field(default_factory=lambda: {
         'version': '1.0.0',
         'last_modified': '2026-01-12',
@@ -547,6 +565,7 @@ class ConfigLoader:
             go_bp_dict = config_dict.get('go_bp', config_dict.get('go_suggestion', {}))
             go_mf_dict = config_dict.get('go_mf', {})
             ke_go_dict = config_dict.get('ke_go_assessment', {})
+            reactome_dict = config_dict.get('reactome_suggestion', {})
             metadata_dict = config_dict.get('metadata', {})
 
             # Build pathway suggestion config
@@ -597,12 +616,16 @@ class ConfigLoader:
             # Build KE-GO assessment config
             ke_go_config = KEGoAssessmentConfig(**ke_go_dict)
 
+            # Build Reactome suggestion config
+            reactome_config = ReactomeSuggestionConfig(**reactome_dict)
+
             return ScoringConfig(
                 pathway_suggestion=pathway_config,
                 ke_pathway_assessment=ke_pathway_config,
                 go_bp=go_bp_config,
                 go_mf=go_mf_config,
                 ke_go_assessment=ke_go_config,
+                reactome_suggestion=reactome_config,
                 metadata=metadata_dict
             )
 
