@@ -12,6 +12,15 @@ from src.utils.text import detect_go_direction
 
 logger = logging.getLogger(__name__)
 
+# Reactome proposal carry fields — columns copied from proposal to mapping at admin approval time.
+# Phase 25 admin route reads this constant; change it if schema changes.
+REACTOME_PROPOSAL_CARRY_FIELDS = (
+    'pathway_name',
+    'species',
+    'suggestion_score',
+    'confidence_level',
+)
+
 
 class Database:
     def __init__(self, db_path: str = "ke_wp_mapping.db"):
@@ -190,6 +199,75 @@ class Database:
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """
+            )
+
+            # Create KE-Reactome mappings table (Phase 24)
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ke_reactome_mappings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ke_id TEXT NOT NULL,
+                    ke_title TEXT NOT NULL,
+                    reactome_id TEXT NOT NULL,
+                    pathway_name TEXT NOT NULL,
+                    species TEXT DEFAULT 'Homo sapiens',
+                    confidence_level TEXT NOT NULL DEFAULT 'low',
+                    suggestion_score REAL,
+                    proposed_by TEXT,
+                    created_by TEXT,
+                    uuid TEXT,
+                    approved_by_curator TEXT,
+                    approved_at_curator TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(ke_id, reactome_id)
+                )
+            """
+            )
+
+            # Create KE-Reactome proposals table (Phase 24)
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ke_reactome_proposals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    mapping_id INTEGER,
+                    user_name TEXT NOT NULL,
+                    user_email TEXT NOT NULL,
+                    user_affiliation TEXT NOT NULL,
+                    provider_username TEXT,
+                    proposed_delete BOOLEAN DEFAULT FALSE,
+                    proposed_confidence TEXT,
+                    proposed_connection_type TEXT,
+                    status TEXT DEFAULT 'pending',
+                    admin_notes TEXT,
+                    approved_by TEXT,
+                    approved_at TIMESTAMP,
+                    rejected_by TEXT,
+                    rejected_at TIMESTAMP,
+                    uuid TEXT,
+                    suggestion_score REAL,
+                    is_stale BOOLEAN DEFAULT FALSE,
+                    ke_id TEXT,
+                    ke_title TEXT,
+                    reactome_id TEXT,
+                    pathway_name TEXT,
+                    species TEXT,
+                    new_pair_confidence_level TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (mapping_id) REFERENCES ke_reactome_mappings(id)
+                )
+            """
+            )
+
+            # Create indexes for Reactome tables
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_reactome_mappings_ke_id ON ke_reactome_mappings(ke_id)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_reactome_mappings_reactome_id ON ke_reactome_mappings(reactome_id)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_reactome_proposals_mapping_id ON ke_reactome_proposals(mapping_id)"
             )
 
             # Migrate proposals table to add admin fields if needed
@@ -2674,5 +2752,273 @@ class KeDescriptionOverrideModel:
         except Exception as e:
             logger.error("Error fetching KE description overrides: %s", e)
             return {}
+        finally:
+            conn.close()
+
+
+class ReactomeMappingModel:
+    """Model for KE-Reactome pathway mappings"""
+
+    def __init__(self, db: Database):
+        self.db = db
+
+    def create_mapping(
+        self,
+        ke_id: str,
+        ke_title: str,
+        reactome_id: str,
+        pathway_name: str,
+        species: str = 'Homo sapiens',
+        confidence_level: str = 'low',
+        suggestion_score: float = None,
+        created_by: str = None,
+    ) -> Optional[int]:
+        """Create a new KE-Reactome mapping"""
+        mapping_uuid = str(uuid_lib.uuid4())
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO ke_reactome_mappings
+                    (ke_id, ke_title, reactome_id, pathway_name, species,
+                     confidence_level, suggestion_score, created_by, uuid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (ke_id, ke_title, reactome_id, pathway_name, species,
+                 confidence_level, suggestion_score, created_by, mapping_uuid),
+            )
+            conn.commit()
+            logger.info(
+                "Created Reactome mapping: KE=%s, Reactome=%s, User=%s, UUID=%s",
+                ke_id, reactome_id, created_by, mapping_uuid,
+            )
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            logger.warning(
+                "Duplicate Reactome mapping: KE=%s, Reactome=%s", ke_id, reactome_id
+            )
+            return None
+        except Exception as e:
+            logger.error("Error creating Reactome mapping: %s", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def get_all_mappings(self) -> List[Dict]:
+        """Get all KE-Reactome mappings"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, reactome_id, pathway_name, species,
+                       confidence_level, suggestion_score, proposed_by, created_by,
+                       uuid, approved_by_curator, approved_at_curator,
+                       created_at, updated_at
+                FROM ke_reactome_mappings
+                ORDER BY created_at DESC
+                """
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_mappings_by_ke(self, ke_id: str) -> List[Dict]:
+        """Get all Reactome mappings for a specific Key Event"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, reactome_id, pathway_name, species,
+                       confidence_level, suggestion_score, proposed_by, created_by,
+                       uuid, approved_by_curator, approved_at_curator,
+                       created_at, updated_at
+                FROM ke_reactome_mappings
+                WHERE ke_id = ?
+                ORDER BY created_at DESC
+                """,
+                (ke_id,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def check_mapping_exists(self, ke_id: str, reactome_id: str) -> Dict:
+        """Check if KE-Reactome pair exists"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM ke_reactome_mappings WHERE ke_id = ? AND reactome_id = ?",
+                (ke_id, reactome_id),
+            )
+            pair_match = cursor.fetchone()
+            if pair_match:
+                return {
+                    "pair_exists": True,
+                    "message": f"The KE-Reactome pair ({ke_id}, {reactome_id}) already exists.",
+                }
+            cursor = conn.execute(
+                "SELECT * FROM ke_reactome_mappings WHERE ke_id = ?",
+                (ke_id,),
+            )
+            ke_matches = [dict(row) for row in cursor.fetchall()]
+            if ke_matches:
+                return {
+                    "ke_exists": True,
+                    "message": f"The KE ID {ke_id} exists but not with Reactome ID {reactome_id}.",
+                    "ke_matches": ke_matches,
+                }
+            return {
+                "ke_exists": False,
+                "pair_exists": False,
+                "message": f"The KE ID {ke_id} and Reactome ID {reactome_id} are new entries.",
+            }
+        finally:
+            conn.close()
+
+    def get_mapped_ke_ids(self) -> list:
+        """Return distinct KE IDs that have at least one approved Reactome mapping."""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT DISTINCT ke_id FROM ke_reactome_mappings WHERE approved_by_curator IS NOT NULL"
+            )
+            return [row["ke_id"] for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+
+class ReactomeProposalModel:
+    """Model for KE-Reactome mapping proposals"""
+
+    def __init__(self, db: Database):
+        self.db = db
+
+    def create_proposal(
+        self,
+        mapping_id: int,
+        user_name: str,
+        user_email: str,
+        user_affiliation: str,
+        provider_username: str = None,
+        proposed_delete: bool = False,
+        proposed_confidence: str = None,
+    ) -> Optional[int]:
+        """Create a new Reactome mapping proposal"""
+        proposal_uuid = str(uuid_lib.uuid4())
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO ke_reactome_proposals (mapping_id, user_name, user_email, user_affiliation,
+                                                   provider_username, proposed_delete, proposed_confidence, uuid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (mapping_id, user_name, user_email, user_affiliation,
+                 provider_username, proposed_delete, proposed_confidence, proposal_uuid),
+            )
+            conn.commit()
+            logger.info(
+                "Created Reactome proposal for mapping %s by %s, UUID=%s",
+                mapping_id, provider_username, proposal_uuid,
+            )
+            return cursor.lastrowid
+        except Exception as e:
+            logger.error("Error creating Reactome proposal: %s", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def create_new_pair_reactome_proposal(
+        self,
+        ke_id: str,
+        ke_title: str,
+        reactome_id: str,
+        pathway_name: str,
+        confidence_level: str,
+        species: str = 'Homo sapiens',
+        provider_username: str = None,
+        suggestion_score: float = None,
+    ) -> Optional[int]:
+        """
+        Create a new-pair Reactome proposal where no existing mapping_id exists yet.
+        The mapping is created only after admin approval. mapping_id is NULL.
+        """
+        proposal_uuid = str(uuid_lib.uuid4())
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO ke_reactome_proposals (
+                    mapping_id, user_name, user_email, user_affiliation,
+                    provider_username, proposed_delete, proposed_confidence,
+                    uuid, suggestion_score,
+                    ke_id, ke_title, reactome_id, pathway_name, species,
+                    new_pair_confidence_level
+                )
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    provider_username or "curator", "", "",
+                    provider_username, False, confidence_level,
+                    proposal_uuid, suggestion_score,
+                    ke_id, ke_title, reactome_id, pathway_name, species,
+                    confidence_level,
+                ),
+            )
+            conn.commit()
+            logger.info(
+                "Created new-pair Reactome proposal for %s -> %s by %s, UUID=%s",
+                ke_id, reactome_id, provider_username, proposal_uuid,
+            )
+            return cursor.lastrowid
+        except Exception as e:
+            logger.error("Error creating Reactome proposal: %s", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def get_pending_proposals(self) -> List[Dict]:
+        """Get all pending Reactome proposals"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, mapping_id, user_name, user_email, user_affiliation,
+                       provider_username, proposed_delete, proposed_confidence,
+                       status, admin_notes, approved_by, approved_at,
+                       rejected_by, rejected_at, uuid, suggestion_score,
+                       ke_id, ke_title, reactome_id, pathway_name, species,
+                       new_pair_confidence_level, created_at
+                FROM ke_reactome_proposals
+                WHERE status = 'pending'
+                ORDER BY created_at DESC
+                """
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_proposal_by_id(self, proposal_id: int) -> Optional[Dict]:
+        """Get a specific Reactome proposal by ID"""
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                SELECT id, mapping_id, user_name, user_email, user_affiliation,
+                       provider_username, proposed_delete, proposed_confidence,
+                       status, admin_notes, approved_by, approved_at,
+                       rejected_by, rejected_at, uuid, suggestion_score,
+                       ke_id, ke_title, reactome_id, pathway_name, species,
+                       new_pair_confidence_level, created_at
+                FROM ke_reactome_proposals
+                WHERE id = ?
+                """,
+                (proposal_id,),
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
         finally:
             conn.close()

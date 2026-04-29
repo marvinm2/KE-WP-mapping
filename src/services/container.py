@@ -9,7 +9,7 @@ import os
 from authlib.integrations.flask_client import OAuth
 
 from src import PROJECT_ROOT
-from src.core.models import CacheModel, Database, GoMappingModel, GoProposalModel, GuestCodeModel, KeDescriptionOverrideModel, MappingModel, ProposalModel
+from src.core.models import CacheModel, Database, GoMappingModel, GoProposalModel, GuestCodeModel, KeDescriptionOverrideModel, MappingModel, ProposalModel, ReactomeMappingModel, ReactomeProposalModel
 from src.services.monitoring import MetricsCollector
 from src.suggestions.pathway import PathwaySuggestionService
 from src.suggestions.go import GoSuggestionService
@@ -69,6 +69,8 @@ class ServiceContainer:
         self._go_proposal_model = None
         self._guest_code_model = None
         self._ke_override_model = None
+        self._reactome_mapping_model = None
+        self._reactome_proposal_model = None
         self._oauth = None
         self._github_client = None
         self._provider_clients = {}
@@ -329,6 +331,22 @@ class ServiceContainer:
             self._ke_override_model = KeDescriptionOverrideModel(self.database)
             logger.debug("KeDescriptionOverrideModel instance created")
         return self._ke_override_model
+
+    @property
+    def reactome_mapping_model(self) -> ReactomeMappingModel:
+        """Get or create Reactome mapping model instance"""
+        if self._reactome_mapping_model is None:
+            self._reactome_mapping_model = ReactomeMappingModel(self.database)
+            logger.debug("ReactomeMappingModel instance created")
+        return self._reactome_mapping_model
+
+    @property
+    def reactome_proposal_model(self) -> ReactomeProposalModel:
+        """Get or create Reactome proposal model instance"""
+        if self._reactome_proposal_model is None:
+            self._reactome_proposal_model = ReactomeProposalModel(self.database)
+            logger.debug("ReactomeProposalModel instance created")
+        return self._reactome_proposal_model
 
     @property
     def go_suggestion_service(self) -> GoSuggestionService:
