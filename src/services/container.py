@@ -13,6 +13,7 @@ from src.core.models import CacheModel, Database, GoMappingModel, GoProposalMode
 from src.services.monitoring import MetricsCollector
 from src.suggestions.pathway import PathwaySuggestionService
 from src.suggestions.go import GoSuggestionService
+from src.suggestions.reactome import ReactomeSuggestionService
 from src.services.rate_limiter import RateLimiter
 from src.core.config_loader import ConfigLoader
 from src.services.embedding import BiologicalEmbeddingService
@@ -65,6 +66,7 @@ class ServiceContainer:
         self._rate_limiter = None
         self._pathway_suggestion_service = None
         self._go_suggestion_service = None
+        self._reactome_suggestion_service = None
         self._go_mapping_model = None
         self._go_proposal_model = None
         self._guest_code_model = None
@@ -365,6 +367,24 @@ class ServiceContainer:
                 logger.error(f"Failed to initialize GO suggestion service: {e}")
                 self._go_suggestion_service = None
         return self._go_suggestion_service
+
+    @property
+    def reactome_suggestion_service(self) -> ReactomeSuggestionService:
+        """Get or create Reactome suggestion service instance"""
+        if self._reactome_suggestion_service is None:
+            try:
+                scoring_config = self.scoring_config
+                self._reactome_suggestion_service = ReactomeSuggestionService(
+                    cache_model=self.cache_model,
+                    config=scoring_config,
+                    embedding_service=self.embedding_service,
+                    ke_override_model=self.ke_override_model,
+                )
+                logger.info("ReactomeSuggestionService instance created")
+            except Exception as e:
+                logger.error(f"Failed to initialize Reactome suggestion service: {e}")
+                self._reactome_suggestion_service = None
+        return self._reactome_suggestion_service
 
     @property
     def embedding_service(self) -> BiologicalEmbeddingService:
