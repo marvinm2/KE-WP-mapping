@@ -318,6 +318,72 @@
         <p id="go-message"></p>
         </div><!-- end go-tab-content -->
 
+        <!-- Reactome Mapping Tab Content -->
+        <div id="reactome-tab-content" class="tab-content" style="display: none;">
+        <section>
+            <h2>Step 2: Find a Reactome Pathway</h2>
+
+            <div class="step2-subtabs">
+                <button type="button" class="step2-subtab reactome-step2-subtab active" data-subtab="suggested">Suggested</button>
+                <button type="button" class="step2-subtab reactome-step2-subtab" data-subtab="search">Search</button>
+            </div>
+
+            <!-- Suggested panel -->
+            <div class="reactome-step2-panel" id="reactome-step2-panel-suggested">
+                <div id="reactome-suggestions-container">
+                    <p class="text-muted-italic">Select a Key Event above to see Reactome pathway suggestions.</p>
+                </div>
+            </div>
+
+            <!-- Search panel -->
+            <div class="reactome-step2-panel" id="reactome-step2-panel-search" style="display: none;">
+                <div class="search-container" style="margin-bottom: 15px;">
+                    <label for="reactome-pathway-search" class="form-label">
+                        Search Reactome Pathways:
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" id="reactome-pathway-search" placeholder="Type to search Reactome pathways by name...">
+                        <div id="reactome-search-results" class="search-results-dropdown">
+                        </div>
+                    </div>
+                    <div class="form-hint">
+                        <em>Try searching for keywords like "MAPK signaling", "apoptosis", "oxidative stress"</em>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Duplicate warning card for KE-Reactome form (shown when a selected pair already exists) -->
+        <div id="duplicate-warning-reactome" style="display: none;"></div>
+
+        <section id="reactome-confidence-guide" style="display: none;">
+            <h2>Step 3: Select Confidence Level</h2>
+            <p>Select the confidence level for this Reactome mapping: <span style="color: var(--color-status-low);">*</span></p>
+            <div class="btn-group" id="reactome-confidence-select-group" data-step="confidence">
+                <button type="button" class="btn-option" data-value="high">High</button>
+                <button type="button" class="btn-option" data-value="medium">Medium</button>
+                <button type="button" class="btn-option" data-value="low">Low</button>
+            </div>
+            <p id="reactome-confidence-select-error" style="color: var(--color-status-low); display: none;">Please select a confidence level before submitting.</p>
+        </section>
+
+        <section id="reactome-step-submit" style="display: none;">
+            <h2>Step 4: Submit Your Reactome Mapping</h2>
+            {% if session.get('user') %}
+                <form id="reactome-mapping-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" disabled>Complete Steps 2&ndash;3 First</button>
+                </form>
+            {% else %}
+                <p class="login-warning">Please <a href="#" onclick="document.getElementById('login-modal').style.display='flex';return false;">log in</a> to submit your mapping.</p>
+                <button disabled>Submit KE-Reactome Mapping</button>
+            {% endif %}
+        </section>
+
+        <div id="reactome-existing-entries"></div>
+        <p id="reactome-message"></p>
+        </div><!-- end reactome-tab-content -->
+
     </div>
     {% include 'components/footer.html' %}
 
