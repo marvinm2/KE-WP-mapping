@@ -838,7 +838,12 @@ def approve_reactome_proposal(proposal_id: int):
             or proposal.get("confidence_level")
         )
 
-        new_mapping_id = reactome_mapping_model.create_mapping(
+        # Phase 25 review H-1: write the mapping in one INSERT with every
+        # carry-field populated up front (eliminates the create_mapping +
+        # update_reactome_mapping two-step that could leave NULL provenance
+        # on partial failure). Then check update_proposal_status's return
+        # and roll the mapping back if the status flip fails.
+        new_mapping_id = reactome_mapping_model.create_approved_mapping(
             ke_id=proposal["ke_id"],
             ke_title=proposal["ke_title"],
             reactome_id=proposal["reactome_id"],
@@ -846,33 +851,42 @@ def approve_reactome_proposal(proposal_id: int):
             species=proposal.get("species") or "Homo sapiens",
             confidence_level=confidence_level,
             suggestion_score=proposal_score,
+            approved_by_curator=admin_username,
+            approved_at_curator=approved_at,
+            proposed_by=proposal.get("provider_username"),
             created_by=proposal.get("provider_username") or admin_username,
         )
 
-        if new_mapping_id:
-            reactome_mapping_model.update_reactome_mapping(
-                mapping_id=new_mapping_id,
-                approved_by_curator=admin_username,
-                approved_at_curator=approved_at,
-                suggestion_score=proposal_score,
-                proposed_by=proposal.get("provider_username"),
-            )
-            reactome_proposal_model.update_proposal_status(
-                proposal_id=proposal_id,
-                status="approved",
-                admin_username=admin_username,
-                admin_notes=admin_notes,
-            )
-            logger.info(
-                "Reactome proposal %s approved by %s, mapping %s created",
-                proposal_id, sanitize_log(admin_username), new_mapping_id,
-            )
-            return jsonify({
-                "message": "Reactome proposal approved successfully. Mapping created.",
-                "action": "created",
-            }), 200
-        else:
+        if not new_mapping_id:
             return jsonify({"error": "Failed to create Reactome mapping (pair may already exist)"}), 500
+
+        if not reactome_proposal_model.update_proposal_status(
+            proposal_id=proposal_id,
+            status="approved",
+            admin_username=admin_username,
+            admin_notes=admin_notes,
+        ):
+            # Roll the mapping back so the proposal can be re-approved
+            # later. Otherwise the proposal stays "pending" and a retry
+            # would hit the UNIQUE constraint on (ke_id, reactome_id).
+            logger.error(
+                "Reactome proposal %s status flip failed after mapping %s "
+                "created; rolling back mapping",
+                proposal_id, new_mapping_id,
+            )
+            reactome_mapping_model.delete_mapping(new_mapping_id)
+            return jsonify({
+                "error": "Failed to update proposal status; mapping rolled back",
+            }), 500
+
+        logger.info(
+            "Reactome proposal %s approved by %s, mapping %s created",
+            proposal_id, sanitize_log(admin_username), new_mapping_id,
+        )
+        return jsonify({
+            "message": "Reactome proposal approved successfully. Mapping created.",
+            "action": "created",
+        }), 200
 
     except Exception as e:
         logger.error("Error approving Reactome proposal %s: %s",

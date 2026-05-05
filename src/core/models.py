@@ -2805,6 +2805,96 @@ class ReactomeMappingModel:
         finally:
             conn.close()
 
+    def create_approved_mapping(
+        self,
+        ke_id: str,
+        ke_title: str,
+        reactome_id: str,
+        pathway_name: str,
+        species: str,
+        confidence_level: str,
+        suggestion_score: Optional[float],
+        approved_by_curator: str,
+        approved_at_curator: str,
+        proposed_by: Optional[str],
+        created_by: Optional[str] = None,
+    ) -> Optional[int]:
+        """Create an approved KE-Reactome mapping in a single INSERT.
+
+        Phase 25 review H-1: the approve flow used to call create_mapping()
+        followed by update_reactome_mapping() to attach provenance, which
+        was non-transactional and ignored return values — a partial failure
+        could leave a row with NULL approved_by_curator/approved_at_curator/
+        proposed_by, contradicting RCUR-02 SC#3. This single-statement
+        helper writes every carry-field up front so partial state is
+        impossible.
+
+        Returns the new mapping id, or None on IntegrityError (UNIQUE on
+        (ke_id, reactome_id)) or other DB error.
+        """
+        mapping_uuid = str(uuid_lib.uuid4())
+        conn = self.db.get_connection()
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO ke_reactome_mappings (
+                    ke_id, ke_title, reactome_id, pathway_name, species,
+                    confidence_level, suggestion_score, created_by, uuid,
+                    approved_by_curator, approved_at_curator, proposed_by
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    ke_id, ke_title, reactome_id, pathway_name, species,
+                    confidence_level, suggestion_score,
+                    created_by or proposed_by or approved_by_curator,
+                    mapping_uuid,
+                    approved_by_curator, approved_at_curator, proposed_by,
+                ),
+            )
+            conn.commit()
+            logger.info(
+                "Created approved Reactome mapping: KE=%s, Reactome=%s, "
+                "approved_by=%s, proposed_by=%s, UUID=%s",
+                ke_id, reactome_id, approved_by_curator, proposed_by,
+                mapping_uuid,
+            )
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            logger.warning(
+                "Duplicate Reactome mapping on approve: KE=%s, Reactome=%s",
+                ke_id, reactome_id,
+            )
+            return None
+        except Exception as e:
+            logger.error("Error creating approved Reactome mapping: %s", e)
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def delete_mapping(self, mapping_id: int) -> bool:
+        """Delete a mapping row by id. Used to roll back on partial failure
+        of the approve flow if the proposal-status update fails after the
+        mapping has been created (Phase 25 review H-1).
+        """
+        conn = self.db.get_connection()
+        try:
+            conn.execute(
+                "DELETE FROM ke_reactome_mappings WHERE id = ?", (mapping_id,)
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(
+                "Error deleting Reactome mapping %s during rollback: %s",
+                mapping_id, e,
+            )
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
     def get_all_mappings(self) -> List[Dict]:
         """Get all KE-Reactome mappings"""
         conn = self.db.get_connection()

@@ -275,6 +275,67 @@ class TestApproveReactomeProposal:
         )
         assert response.status_code == 404
 
+    def test_approve_rolls_back_mapping_on_status_update_failure(self, admin_client):
+        """Phase 25 review H-1: if update_proposal_status returns False
+        after the mapping has been created, the approve route must:
+        (i) return an error status (not 200),
+        (ii) delete the mapping row so the proposal can be retried,
+        (iii) leave the proposal in pending state.
+
+        Pre-fix behavior was non-transactional and ignored the return
+        value, so a partial failure would silently leave a half-approved
+        mapping with carry-fields set but the proposal still pending —
+        any retry would then hit the UNIQUE(ke_id, reactome_id) constraint
+        and 500 forever.
+        """
+        client, rm, rpm, db = admin_client
+        pid = _seed_proposal(
+            rpm,
+            ke_id="KE 9201",
+            reactome_id="R-HSA-9201",
+            pathway_name="Stress response",
+            confidence_level="medium",
+            provider_username="github:curator2",
+            suggestion_score=0.91,
+        )
+
+        # Patch update_proposal_status on the bound model instance to fail.
+        original = rpm.update_proposal_status
+        rpm.update_proposal_status = lambda **kw: False
+        try:
+            response = client.post(
+                f"/admin/reactome-proposals/{pid}/approve",
+                data={"admin_notes": "should roll back"},
+            )
+        finally:
+            rpm.update_proposal_status = original
+
+        # (i) Error status, NOT 200.
+        assert response.status_code == 500, response.get_data(as_text=True)
+        body = response.get_json()
+        assert "rolled back" in body.get("error", "").lower() or \
+               "failed" in body.get("error", "").lower()
+
+        # (ii) No mapping row exists for this pair (rolled back).
+        conn = db.get_connection()
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM ke_reactome_mappings "
+                "WHERE ke_id = ? AND reactome_id = ?",
+                ("KE 9201", "R-HSA-9201"),
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        assert count == 0, (
+            "H-1 regression: approve route did not roll back the mapping "
+            "after update_proposal_status failed; orphan row remains."
+        )
+
+        # (iii) Proposal still pending — caller can retry once the
+        # transient cause of the status-update failure is fixed.
+        proposal = rpm.get_proposal_by_id(pid)
+        assert proposal["status"] == "pending"
+
     def test_approve_no_dimension_score_columns_used(self, admin_client):
         """D-02: Reactome approval must NOT touch connection_score / specificity_score / evidence_score
         and the resulting mapping row must NOT have those columns at all (schema lacks them)."""
