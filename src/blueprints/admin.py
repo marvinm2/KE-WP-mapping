@@ -791,6 +791,147 @@ def admin_reactome_proposal_detail(proposal_id: int):
         return jsonify({"error": "Failed to load Reactome proposal"}), 500
 
 
+@admin_bp.route("/reactome-proposals/<int:proposal_id>/approve", methods=["POST"])
+@admin_required
+@submission_rate_limit
+def approve_reactome_proposal(proposal_id: int):
+    """
+    Approve a Reactome proposal: create the live mapping and write provenance.
+
+    All Reactome proposals are new-pair (mapping_id IS NULL). Confidence is
+    straight pass-through from proposal -> mapping (D-02). No dimension scores.
+    """
+    try:
+        admin_data = {"admin_notes": request.form.get("admin_notes", "")}
+
+        is_valid, validated_data, errors = validate_request_data(
+            AdminNotesSchema, admin_data
+        )
+        if not is_valid:
+            logger.warning("Invalid admin notes in Reactome approve: %s", errors)
+            return jsonify({"error": "Invalid input data", "details": errors}), 400
+
+        admin_notes = SecurityValidation.sanitize_string(
+            validated_data["admin_notes"], max_length=1000
+        )
+        admin_username = session.get("user", {}).get("username")
+
+        if not SecurityValidation.validate_username(admin_username):
+            logger.error("Invalid admin username in Reactome approve: %s",
+                         sanitize_log(str(admin_username)))
+            return jsonify({"error": "Authentication error"}), 401
+
+        proposal = reactome_proposal_model.get_proposal_by_id(proposal_id)
+        if not proposal:
+            return jsonify({"error": "Reactome proposal not found"}), 404
+
+        if proposal["status"] != "pending":
+            return jsonify({"error": f"Reactome proposal is already {proposal['status']}"}), 400
+
+        approved_at = datetime.utcnow().isoformat()
+        proposal_score = proposal.get("suggestion_score")
+
+        # Confidence is straight pass-through (D-02). No dimension-score branch.
+        confidence_level = (
+            proposal.get("new_pair_confidence_level")
+            or proposal.get("proposed_confidence")
+            or proposal.get("confidence_level")
+        )
+
+        new_mapping_id = reactome_mapping_model.create_mapping(
+            ke_id=proposal["ke_id"],
+            ke_title=proposal["ke_title"],
+            reactome_id=proposal["reactome_id"],
+            pathway_name=proposal["pathway_name"],
+            species=proposal.get("species") or "Homo sapiens",
+            confidence_level=confidence_level,
+            suggestion_score=proposal_score,
+            created_by=proposal.get("provider_username") or admin_username,
+        )
+
+        if new_mapping_id:
+            reactome_mapping_model.update_reactome_mapping(
+                mapping_id=new_mapping_id,
+                approved_by_curator=admin_username,
+                approved_at_curator=approved_at,
+                suggestion_score=proposal_score,
+                proposed_by=proposal.get("provider_username"),
+            )
+            reactome_proposal_model.update_proposal_status(
+                proposal_id=proposal_id,
+                status="approved",
+                admin_username=admin_username,
+                admin_notes=admin_notes,
+            )
+            logger.info(
+                "Reactome proposal %s approved by %s, mapping %s created",
+                proposal_id, sanitize_log(admin_username), new_mapping_id,
+            )
+            return jsonify({
+                "message": "Reactome proposal approved successfully. Mapping created.",
+                "action": "created",
+            }), 200
+        else:
+            return jsonify({"error": "Failed to create Reactome mapping (pair may already exist)"}), 500
+
+    except Exception as e:
+        logger.error("Error approving Reactome proposal %s: %s",
+                     proposal_id, sanitize_log(str(e)))
+        return jsonify({"error": "Failed to approve Reactome proposal"}), 500
+
+
+@admin_bp.route("/reactome-proposals/<int:proposal_id>/reject", methods=["POST"])
+@admin_required
+@submission_rate_limit
+def reject_reactome_proposal(proposal_id: int):
+    """Reject a Reactome proposal with optional admin notes."""
+    try:
+        admin_data = {"admin_notes": request.form.get("admin_notes", "")}
+
+        is_valid, validated_data, errors = validate_request_data(
+            AdminNotesSchema, admin_data
+        )
+        if not is_valid:
+            logger.warning("Invalid admin notes in Reactome reject: %s", errors)
+            return jsonify({"error": "Invalid input data", "details": errors}), 400
+
+        admin_notes = SecurityValidation.sanitize_string(
+            validated_data["admin_notes"], max_length=1000
+        )
+        admin_username = session.get("user", {}).get("username")
+
+        if not SecurityValidation.validate_username(admin_username):
+            logger.error("Invalid admin username in Reactome reject: %s",
+                         sanitize_log(str(admin_username)))
+            return jsonify({"error": "Authentication error"}), 401
+
+        proposal = reactome_proposal_model.get_proposal_by_id(proposal_id)
+        if not proposal:
+            return jsonify({"error": "Reactome proposal not found"}), 404
+
+        if proposal["status"] != "pending":
+            return jsonify({"error": f"Reactome proposal is already {proposal['status']}"}), 400
+
+        success = reactome_proposal_model.update_proposal_status(
+            proposal_id=proposal_id,
+            status="rejected",
+            admin_username=admin_username,
+            admin_notes=admin_notes or "No reason provided",
+        )
+
+        if success:
+            logger.info("Reactome proposal %s rejected by %s",
+                        proposal_id, sanitize_log(admin_username))
+            return jsonify({"message": "Reactome proposal rejected successfully."}), 200
+        else:
+            return jsonify({"error": "Failed to reject Reactome proposal"}), 500
+
+    except Exception as e:
+        logger.error("Error rejecting Reactome proposal %s: %s",
+                     proposal_id, sanitize_log(str(e)))
+        return jsonify({"error": "Failed to reject Reactome proposal"}), 500
+
+
 @admin_bp.route("/guest-codes")
 @admin_required
 @monitor_performance
