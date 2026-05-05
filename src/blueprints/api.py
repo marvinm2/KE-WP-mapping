@@ -21,6 +21,8 @@ from src.core.schemas import (
     GoMappingSchema,
     MappingSchema,
     ProposalSchema,
+    ReactomeCheckEntrySchema,
+    ReactomeMappingSchema,
     SecurityValidation,
     validate_request_data,
 )
@@ -47,15 +49,21 @@ go_proposal_model = None
 ke_metadata = None
 pathway_metadata = None
 ke_aop_membership = None
+reactome_suggestion_service = None
+reactome_mapping_model = None
+reactome_proposal_model = None
 
 
 def set_models(mapping, proposal, cache, suggestion_service=None,
                go_suggestion_svc=None, go_mapping=None, go_proposal=None,
-               ke_meta=None, pathway_meta=None, ke_aop_membership_data=None):
+               ke_meta=None, pathway_meta=None, ke_aop_membership_data=None,
+               reactome_suggestion_svc=None, reactome_mapping=None,
+               reactome_proposal=None):
     """Set the model instances"""
     global mapping_model, proposal_model, cache_model, pathway_suggestion_service
     global go_suggestion_service, go_mapping_model, go_proposal_model
     global ke_metadata, pathway_metadata, ke_aop_membership
+    global reactome_suggestion_service, reactome_mapping_model, reactome_proposal_model
     mapping_model = mapping
     proposal_model = proposal
     cache_model = cache
@@ -66,6 +74,9 @@ def set_models(mapping, proposal, cache, suggestion_service=None,
     ke_metadata = ke_meta
     pathway_metadata = pathway_meta
     ke_aop_membership = ke_aop_membership_data
+    reactome_suggestion_service = reactome_suggestion_svc
+    reactome_mapping_model = reactome_mapping
+    reactome_proposal_model = reactome_proposal
 
 
 def login_required(f):
@@ -1460,6 +1471,217 @@ def check_go_entry():
     except Exception as e:
         logger.error("Error checking GO entry: %s", e)
         return jsonify({"error": "Failed to check GO entry"}), 500
+
+
+# ==============================================================================
+# KE-Reactome Mapping Endpoints
+# ==============================================================================
+
+
+@api_bp.route("/submit_reactome_mapping", methods=["POST"])
+@submission_rate_limit
+@login_required
+def submit_reactome_mapping():
+    """Submit a new KE-Reactome mapping proposal (Phase 25)."""
+    try:
+        submit_data = {
+            "ke_id": request.form.get("ke_id"),
+            "ke_title": request.form.get("ke_title"),
+            "reactome_id": request.form.get("reactome_id"),
+            "pathway_name": request.form.get("pathway_name"),
+            "species": request.form.get("species", "Homo sapiens"),
+            "confidence_level": request.form.get("confidence_level"),
+        }
+
+        is_valid, validated_data, errors = validate_request_data(
+            ReactomeMappingSchema, submit_data
+        )
+
+        if not is_valid:
+            logger.warning("Invalid Reactome submit request: %s", errors)
+            return jsonify({"error": "Invalid input data", "details": errors}), 400
+
+        ke_id = SecurityValidation.sanitize_string(validated_data["ke_id"])
+        ke_title = SecurityValidation.sanitize_string(validated_data["ke_title"])
+        reactome_id = SecurityValidation.sanitize_string(validated_data["reactome_id"])
+        pathway_name = SecurityValidation.sanitize_string(validated_data["pathway_name"])
+        species = SecurityValidation.sanitize_string(
+            validated_data.get("species", "Homo sapiens")
+        )
+        confidence_level = validated_data["confidence_level"]
+
+        created_by = session.get("user", {}).get("username", "anonymous")
+
+        if created_by != "anonymous" and not SecurityValidation.validate_username(created_by):
+            return jsonify({"error": "Authentication error"}), 401
+
+        if not reactome_proposal_model:
+            return jsonify({"error": "Reactome mapping service unavailable"}), 503
+
+        suggestion_score_raw = request.form.get("suggestion_score")
+        try:
+            suggestion_score = float(suggestion_score_raw) if suggestion_score_raw else None
+        except (ValueError, TypeError):
+            suggestion_score = None
+
+        proposal_id = reactome_proposal_model.create_new_pair_reactome_proposal(
+            ke_id=ke_id,
+            ke_title=ke_title,
+            reactome_id=reactome_id,
+            pathway_name=pathway_name,
+            confidence_level=confidence_level,
+            species=species,
+            provider_username=created_by,
+            suggestion_score=suggestion_score,
+        )
+
+        if proposal_id:
+            logger.info(
+                "New Reactome mapping proposal created: %s -> %s by %s (proposal #%s)",
+                sanitize_log(ke_id), sanitize_log(reactome_id),
+                sanitize_log(created_by), proposal_id,
+            )
+            return jsonify({
+                "message": "Reactome mapping proposal submitted and is pending admin review.",
+                "proposal_id": proposal_id,
+            }), 200
+        else:
+            return jsonify({"error": "Failed to create Reactome mapping proposal"}), 500
+
+    except Exception as e:
+        logger.error("Error submitting Reactome mapping: %s", sanitize_log(str(e)))
+        return jsonify({"error": "Failed to submit Reactome mapping"}), 500
+
+
+@api_bp.route("/check_reactome_entry", methods=["POST"])
+@general_rate_limit
+def check_reactome_entry():
+    """Check if the KE-Reactome pair already exists (approved or pending)."""
+    try:
+        check_data = {
+            "ke_id": request.form.get("ke_id"),
+            "reactome_id": request.form.get("reactome_id"),
+        }
+
+        is_valid, validated_data, errors = validate_request_data(
+            ReactomeCheckEntrySchema, check_data
+        )
+
+        if not is_valid:
+            return jsonify({"error": "Invalid input data", "details": errors}), 400
+
+        if not reactome_mapping_model:
+            return jsonify({"error": "Reactome mapping service unavailable"}), 503
+
+        result = reactome_mapping_model.check_reactome_mapping_exists_with_proposals(
+            validated_data["ke_id"], validated_data["reactome_id"]
+        )
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error("Error checking Reactome entry: %s", sanitize_log(str(e)))
+        return jsonify({"error": "Failed to check Reactome entry"}), 500
+
+
+@api_bp.route("/suggest_reactome/<ke_id>", methods=["GET"])
+@sparql_rate_limit
+def suggest_reactome(ke_id):
+    """Get Reactome pathway suggestions for a Key Event."""
+    try:
+        if not reactome_suggestion_service:
+            logger.error("Reactome suggestion service not available")
+            return jsonify({"error": "Reactome suggestion service unavailable"}), 503
+
+        ke_title = request.args.get('ke_title', '')
+        limit = request.args.get('limit', 20, type=int)
+        limit = max(1, min(50, limit))
+
+        if not ke_id or len(ke_id.strip()) == 0:
+            return jsonify({"error": "Invalid Key Event ID"}), 400
+
+        logger.info(
+            "Getting Reactome suggestions for KE: %s", sanitize_log(ke_id)
+        )
+
+        result = reactome_suggestion_service.get_reactome_suggestions(
+            ke_id, ke_title, limit
+        )
+
+        if "error" in result:
+            return jsonify(result), 500
+
+        result["request_info"] = {
+            "ke_id": ke_id,
+            "ke_title": ke_title,
+            "limit": limit,
+            "timestamp": int(time.time()),
+        }
+
+        logger.info(
+            "Returned %d Reactome suggestions for KE %s",
+            len(result.get('suggestions', [])), sanitize_log(ke_id),
+        )
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(
+            "Error getting Reactome suggestions for %s: %s",
+            sanitize_log(ke_id), sanitize_log(str(e)),
+        )
+        return jsonify({"error": "Failed to get Reactome suggestions"}), 500
+
+
+@api_bp.route("/search_reactome", methods=["GET"])
+@sparql_rate_limit
+def search_reactome():
+    """Search Reactome pathways with fuzzy matching."""
+    try:
+        if not reactome_suggestion_service:
+            logger.error("Reactome suggestion service not available")
+            return jsonify({"error": "Search service unavailable"}), 503
+
+        query = request.args.get('q', '').strip()
+        threshold = request.args.get('threshold', 0.4, type=float)
+        limit = request.args.get('limit', 10, type=int)
+
+        if not query:
+            return jsonify({"error": "Search query is required"}), 400
+
+        if threshold < 0.1 or threshold > 1.0:
+            threshold = 0.4
+
+        if limit > 100:
+            limit = 100
+        elif limit < 1:
+            limit = 10
+
+        logger.info(
+            "Searching Reactome pathways with query: '%s', threshold: %s",
+            sanitize_log(query), threshold,
+        )
+
+        results = reactome_suggestion_service.search_reactome_terms(
+            query, threshold, limit
+        )
+
+        response = {
+            "query": query,
+            "threshold": threshold,
+            "limit": limit,
+            "results": results,
+            "total_results": len(results),
+            "timestamp": int(time.time()),
+        }
+
+        logger.info(
+            "Found %d Reactome pathways matching '%s'",
+            len(results), sanitize_log(query),
+        )
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error("Error searching Reactome pathways: %s", sanitize_log(str(e)))
+        return jsonify({"error": "Failed to search Reactome pathways"}), 500
 
 
 @api_bp.route("/flag_proposal_stale", methods=["POST"])

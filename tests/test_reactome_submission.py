@@ -1,0 +1,491 @@
+"""
+Tests for Reactome submission, check, suggest, and search endpoints (Phase 25 Plan 02).
+
+Mirrors tests/test_app.py:TestSubmitGoCreatesProposal fixture pattern.
+"""
+import os
+import tempfile
+
+import pytest
+
+
+class TestSubmitReactomeCreatesProposal:
+    """Verify /submit_reactome_mapping creates a pending proposal, not a direct mapping."""
+
+    @pytest.fixture
+    def submit_reactome_client(self):
+        """
+        Test client that re-wires the api blueprint to a fresh temp-file DB so
+        reactome_proposal_model.create_new_pair_reactome_proposal() can persist
+        rows. Mirrors the GO submit fixture pattern.
+        """
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+        from src.core.models import (
+            CacheModel,
+            Database,
+            ReactomeMappingModel,
+            ReactomeProposalModel,
+        )
+
+        fd, db_path = tempfile.mkstemp()
+        db = Database(db_path)
+        rm = ReactomeMappingModel(db)
+        rpm = ReactomeProposalModel(db)
+        cm = CacheModel(db)
+
+        # Save originals
+        orig_rm = api_mod.reactome_mapping_model
+        orig_rpm = api_mod.reactome_proposal_model
+        orig_cm = api_mod.cache_model
+
+        # Inject fresh models
+        api_mod.reactome_mapping_model = rm
+        api_mod.reactome_proposal_model = rpm
+        api_mod.cache_model = cm
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+        os.environ["ADMIN_USERS"] = "github:testuser"
+
+        with flask_app.test_client() as test_client:
+            with flask_app.app_context():
+                with test_client.session_transaction() as sess:
+                    sess["user"] = {
+                        "username": "github:testuser",
+                        "email": "test@example.com",
+                    }
+                yield test_client
+
+        # Restore originals
+        api_mod.reactome_mapping_model = orig_rm
+        api_mod.reactome_proposal_model = orig_rpm
+        api_mod.cache_model = orig_cm
+
+        os.close(fd)
+        os.unlink(db_path)
+
+    @pytest.fixture
+    def unauthenticated_client(self):
+        """Test client with no session user — for 401 tests."""
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+        from src.core.models import (
+            CacheModel,
+            Database,
+            ReactomeMappingModel,
+            ReactomeProposalModel,
+        )
+
+        fd, db_path = tempfile.mkstemp()
+        db = Database(db_path)
+        rm = ReactomeMappingModel(db)
+        rpm = ReactomeProposalModel(db)
+
+        orig_rm = api_mod.reactome_mapping_model
+        orig_rpm = api_mod.reactome_proposal_model
+        api_mod.reactome_mapping_model = rm
+        api_mod.reactome_proposal_model = rpm
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+
+        with flask_app.test_client() as test_client:
+            yield test_client
+
+        api_mod.reactome_mapping_model = orig_rm
+        api_mod.reactome_proposal_model = orig_rpm
+        os.close(fd)
+        os.unlink(db_path)
+
+    @pytest.fixture
+    def unwired_client(self):
+        """Test client where reactome_proposal_model is None — for 503 tests."""
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+
+        orig_rpm = api_mod.reactome_proposal_model
+        orig_rm = api_mod.reactome_mapping_model
+        api_mod.reactome_proposal_model = None
+        api_mod.reactome_mapping_model = None
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+
+        with flask_app.test_client() as test_client:
+            with flask_app.app_context():
+                with test_client.session_transaction() as sess:
+                    sess["user"] = {"username": "github:testuser"}
+                yield test_client
+
+        api_mod.reactome_proposal_model = orig_rpm
+        api_mod.reactome_mapping_model = orig_rm
+
+    def test_submit_reactome_creates_proposal_not_mapping(self, submit_reactome_client):
+        """POST /submit_reactome_mapping returns 200 with proposal_id."""
+        response = submit_reactome_client.post(
+            "/submit_reactome_mapping",
+            data={
+                "ke_id": "KE 12345",
+                "ke_title": "Test KE for Reactome",
+                "reactome_id": "R-HSA-1234",
+                "pathway_name": "MAPK signaling",
+                "species": "Homo sapiens",
+                "confidence_level": "high",
+                "suggestion_score": "0.80",
+            },
+        )
+        assert response.status_code == 200, response.get_json()
+        data = response.get_json()
+        assert "proposal_id" in data, f"Expected proposal_id, got: {data}"
+        assert data["proposal_id"] is not None
+        assert "pending" in data.get("message", "").lower()
+
+    def test_submit_reactome_no_live_mapping_created(self, submit_reactome_client):
+        """After submit, ke_reactome_mappings table must remain empty."""
+        import src.blueprints.api as api_mod
+
+        response = submit_reactome_client.post(
+            "/submit_reactome_mapping",
+            data={
+                "ke_id": "KE 11111",
+                "ke_title": "Another Test KE",
+                "reactome_id": "R-HSA-5555",
+                "pathway_name": "Apoptosis",
+                "species": "Homo sapiens",
+                "confidence_level": "medium",
+            },
+        )
+        assert response.status_code == 200
+
+        conn = api_mod.reactome_mapping_model.db.get_connection()
+        try:
+            mapping_count = conn.execute(
+                "SELECT COUNT(*) FROM ke_reactome_mappings"
+            ).fetchone()[0]
+            proposal_count = conn.execute(
+                "SELECT COUNT(*) FROM ke_reactome_proposals WHERE status='pending'"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+
+        assert mapping_count == 0, (
+            f"Expected 0 live mappings after submit, found {mapping_count}"
+        )
+        assert proposal_count >= 1, (
+            f"Expected >=1 pending proposal, found {proposal_count}"
+        )
+
+    def test_submit_reactome_invalid_id_returns_400(self, submit_reactome_client):
+        """POST with malformed reactome_id returns 400."""
+        response = submit_reactome_client.post(
+            "/submit_reactome_mapping",
+            data={
+                "ke_id": "KE 22222",
+                "ke_title": "Bad Reactome ID Test",
+                "reactome_id": "HSA-1234",  # missing R- prefix
+                "pathway_name": "Some pathway",
+                "species": "Homo sapiens",
+                "confidence_level": "high",
+            },
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data.get("error") == "Invalid input data"
+        assert "details" in data
+
+    def test_submit_reactome_unauthenticated_returns_401(self, unauthenticated_client):
+        """Without a session user, /submit_reactome_mapping returns 401."""
+        response = unauthenticated_client.post(
+            "/submit_reactome_mapping",
+            data={
+                "ke_id": "KE 33333",
+                "ke_title": "Test",
+                "reactome_id": "R-HSA-1234",
+                "pathway_name": "Test pathway",
+                "species": "Homo sapiens",
+                "confidence_level": "high",
+            },
+        )
+        # login_required decorator returns 401 for unauth
+        assert response.status_code == 401
+
+    def test_submit_reactome_unwired_returns_503(self, unwired_client):
+        """When reactome_proposal_model is None, returns 503."""
+        response = unwired_client.post(
+            "/submit_reactome_mapping",
+            data={
+                "ke_id": "KE 44444",
+                "ke_title": "Unwired test",
+                "reactome_id": "R-HSA-1234",
+                "pathway_name": "Some pathway",
+                "species": "Homo sapiens",
+                "confidence_level": "high",
+            },
+        )
+        assert response.status_code == 503
+        data = response.get_json()
+        assert "unavailable" in data.get("error", "").lower()
+
+
+class TestCheckReactomeEntry:
+    """Verify /check_reactome_entry duplicate detection contract."""
+
+    @pytest.fixture
+    def check_client(self):
+        """Test client wired to a fresh DB."""
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+        from src.core.models import (
+            Database,
+            ReactomeMappingModel,
+            ReactomeProposalModel,
+        )
+
+        fd, db_path = tempfile.mkstemp()
+        db = Database(db_path)
+        rm = ReactomeMappingModel(db)
+        rpm = ReactomeProposalModel(db)
+
+        orig_rm = api_mod.reactome_mapping_model
+        orig_rpm = api_mod.reactome_proposal_model
+        api_mod.reactome_mapping_model = rm
+        api_mod.reactome_proposal_model = rpm
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+
+        with flask_app.test_client() as test_client:
+            with flask_app.app_context():
+                yield test_client, rm, rpm, db
+
+        api_mod.reactome_mapping_model = orig_rm
+        api_mod.reactome_proposal_model = orig_rpm
+        os.close(fd)
+        os.unlink(db_path)
+
+    def test_check_reactome_entry_empty_db_returns_pair_not_exists(self, check_client):
+        """On an empty DB, no pair exists."""
+        client, rm, rpm, db = check_client
+        response = client.post(
+            "/check_reactome_entry",
+            data={"ke_id": "KE 1", "reactome_id": "R-HSA-1234"},
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["pair_exists"] is False
+        assert data["blocking_type"] is None
+
+    def test_check_reactome_entry_approved_mapping_blocks(self, check_client):
+        """After seeding an approved mapping, the same pair is blocked as approved_mapping."""
+        client, rm, rpm, db = check_client
+        # Seed an approved mapping
+        mapping_id = rm.create_mapping(
+            ke_id="KE 999",
+            ke_title="Seeded KE",
+            reactome_id="R-HSA-9999",
+            pathway_name="Seeded pathway",
+            species="Homo sapiens",
+            confidence_level="high",
+            suggestion_score=0.9,
+            created_by="curator",
+        )
+        assert mapping_id is not None
+        rm.update_reactome_mapping(
+            mapping_id=mapping_id,
+            approved_by_curator="github:admin",
+            approved_at_curator="2026-05-05T00:00:00",
+        )
+
+        response = client.post(
+            "/check_reactome_entry",
+            data={"ke_id": "KE 999", "reactome_id": "R-HSA-9999"},
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["pair_exists"] is True
+        assert data["blocking_type"] == "approved_mapping"
+        assert data["existing"]["ke_id"] == "KE 999"
+        assert data["existing"]["reactome_id"] == "R-HSA-9999"
+
+    def test_check_reactome_entry_invalid_id_returns_400(self, check_client):
+        """Malformed reactome_id returns 400."""
+        client, rm, rpm, db = check_client
+        response = client.post(
+            "/check_reactome_entry",
+            data={"ke_id": "KE 1", "reactome_id": "HSA-1234"},  # missing R-
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data.get("error") == "Invalid input data"
+
+
+class _FakeReactomeSuggestionService:
+    """Minimal fake mirroring the public surface used by the api endpoints."""
+
+    def __init__(self):
+        self.calls = []
+
+    def get_reactome_suggestions(self, ke_id, ke_title=None, limit=20):
+        self.calls.append(("suggest", ke_id, ke_title, limit))
+        return {
+            "ke_id": ke_id,
+            "ke_title": ke_title or "",
+            "suggestions": [
+                {
+                    "reactome_id": "R-HSA-1234",
+                    "pathway_name": "MAPK signaling",
+                    "species": "Homo sapiens",
+                    "suggestion_score": 0.8,
+                }
+            ],
+            "total_results": 1,
+        }
+
+    def search_reactome_terms(self, query, threshold=0.4, limit=10):
+        self.calls.append(("search", query, threshold, limit))
+        return [
+            {
+                "reactome_id": "R-HSA-1234",
+                "pathway_name": "MAPK signaling pathway",
+                "species": "Homo sapiens",
+                "description": "MAPK cascade",
+                "name_similarity": 0.9,
+                "relevance_score": 0.9,
+            }
+        ]
+
+
+class TestSuggestReactomeEndpoint:
+    """Verify GET /suggest_reactome/<ke_id> wraps Phase 24 suggestions."""
+
+    @pytest.fixture
+    def suggest_client(self):
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+
+        fake = _FakeReactomeSuggestionService()
+        orig = api_mod.reactome_suggestion_service
+        api_mod.reactome_suggestion_service = fake
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+
+        with flask_app.test_client() as test_client:
+            yield test_client, fake
+
+        api_mod.reactome_suggestion_service = orig
+
+    @pytest.fixture
+    def unwired_suggest_client(self):
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+
+        orig = api_mod.reactome_suggestion_service
+        api_mod.reactome_suggestion_service = None
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+
+        with flask_app.test_client() as test_client:
+            yield test_client
+
+        api_mod.reactome_suggestion_service = orig
+
+    def test_suggest_reactome_returns_payload_with_request_info(self, suggest_client):
+        client, fake = suggest_client
+        response = client.get("/suggest_reactome/KE%2012345?ke_title=Test&limit=20")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "suggestions" in data
+        assert "request_info" in data
+        info = data["request_info"]
+        assert info["ke_id"] == "KE 12345"
+        assert info["ke_title"] == "Test"
+        assert info["limit"] == 20
+        assert "timestamp" in info
+
+    def test_suggest_reactome_clamps_limit_to_50(self, suggest_client):
+        client, fake = suggest_client
+        response = client.get("/suggest_reactome/KE%201?limit=999")
+        assert response.status_code == 200
+        # Verify limit was clamped before the service call
+        assert fake.calls[-1][3] == 50  # the limit passed to the service
+
+    def test_suggest_reactome_unwired_returns_503(self, unwired_suggest_client):
+        response = unwired_suggest_client.get("/suggest_reactome/KE%201")
+        assert response.status_code == 503
+
+    def test_suggest_reactome_blank_id_returns_400(self, suggest_client):
+        client, _ = suggest_client
+        # `/suggest_reactome/` (no ke_id) -> 404 from Flask routing.
+        # `/suggest_reactome/%20` (whitespace ke_id) -> validated to 400.
+        response = client.get("/suggest_reactome/%20")
+        assert response.status_code == 400
+
+
+class TestSearchReactomeEndpoint:
+    """Verify GET /search_reactome wraps fuzzy search."""
+
+    @pytest.fixture
+    def search_client(self):
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+
+        fake = _FakeReactomeSuggestionService()
+        orig = api_mod.reactome_suggestion_service
+        api_mod.reactome_suggestion_service = fake
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+
+        with flask_app.test_client() as test_client:
+            yield test_client, fake
+
+        api_mod.reactome_suggestion_service = orig
+
+    @pytest.fixture
+    def unwired_search_client(self):
+        from app import app as flask_app
+        import src.blueprints.api as api_mod
+
+        orig = api_mod.reactome_suggestion_service
+        api_mod.reactome_suggestion_service = None
+
+        flask_app.config["TESTING"] = True
+        flask_app.config["WTF_CSRF_ENABLED"] = False
+
+        with flask_app.test_client() as test_client:
+            yield test_client
+
+        api_mod.reactome_suggestion_service = orig
+
+    def test_search_reactome_returns_results_envelope(self, search_client):
+        client, fake = search_client
+        response = client.get("/search_reactome?q=MAPK&threshold=0.4&limit=5")
+        assert response.status_code == 200
+        data = response.get_json()
+        for key in ("query", "threshold", "limit", "results", "total_results", "timestamp"):
+            assert key in data, f"Missing key {key} in response: {data}"
+        assert data["query"] == "MAPK"
+        assert data["total_results"] == len(data["results"])
+
+    def test_search_reactome_no_query_returns_400(self, search_client):
+        client, _ = search_client
+        response = client.get("/search_reactome")
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "required" in data.get("error", "").lower()
+
+    def test_search_reactome_clamps_threshold(self, search_client):
+        client, fake = search_client
+        response = client.get("/search_reactome?q=MAPK&threshold=99")
+        assert response.status_code == 200
+        # The clamped threshold (0.4) appears in the response envelope
+        assert response.get_json()["threshold"] == 0.4
+        # And was passed to the service
+        assert fake.calls[-1][2] == 0.4
+
+    def test_search_reactome_unwired_returns_503(self, unwired_search_client):
+        response = unwired_search_client.get("/search_reactome?q=MAPK")
+        assert response.status_code == 503
