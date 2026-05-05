@@ -3022,3 +3022,68 @@ class ReactomeProposalModel:
             return dict(row) if row else None
         finally:
             conn.close()
+
+    def get_all_proposals(self, status: str = None) -> List[Dict]:
+        """Get all Reactome proposals, optionally filtered by status."""
+        conn = self.db.get_connection()
+        try:
+            query = """
+                SELECT p.*,
+                       m.ke_id as mapping_ke_id,
+                       m.ke_title as mapping_ke_title,
+                       m.reactome_id as mapping_reactome_id,
+                       m.pathway_name as mapping_pathway_name,
+                       m.confidence_level as current_confidence_level,
+                       m.species as current_species
+                FROM ke_reactome_proposals p
+                LEFT JOIN ke_reactome_mappings m ON p.mapping_id = m.id
+            """
+            params = ()
+            if status:
+                query += " WHERE p.status = ?"
+                params = (status,)
+            query += " ORDER BY p.created_at DESC"
+            cursor = conn.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def update_proposal_status(
+        self,
+        proposal_id: int,
+        status: str,
+        admin_username: str = None,
+        admin_notes: str = None,
+    ) -> bool:
+        """Update Reactome proposal status and admin information."""
+        if status not in ["approved", "rejected"]:
+            logger.error("Invalid Reactome proposal status: %s", status)
+            return False
+
+        conn = self.db.get_connection()
+        try:
+            if status == "approved":
+                query = """
+                    UPDATE ke_reactome_proposals
+                    SET status = ?, approved_by = ?, admin_notes = ?, approved_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """
+            else:
+                query = """
+                    UPDATE ke_reactome_proposals
+                    SET status = ?, rejected_by = ?, admin_notes = ?, rejected_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """
+            conn.execute(query, (status, admin_username, admin_notes, proposal_id))
+            conn.commit()
+            logger.info(
+                "Updated Reactome proposal %s to %s by %s",
+                proposal_id, status, admin_username,
+            )
+            return True
+        except Exception as e:
+            logger.error("Error updating Reactome proposal %s: %s", proposal_id, e)
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
