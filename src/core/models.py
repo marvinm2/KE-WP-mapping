@@ -2887,6 +2887,210 @@ class ReactomeMappingModel:
         finally:
             conn.close()
 
+    def update_reactome_mapping(
+        self,
+        mapping_id: int,
+        approved_by_curator: str = None,
+        approved_at_curator: str = None,
+        suggestion_score: float = None,
+        proposed_by: str = None,
+    ) -> bool:
+        """Update a KE-Reactome mapping at proposal-approval time.
+
+        Drops connection_type and confidence_level from the GO equivalent —
+        Reactome has no connection_type, and confidence is locked at proposal
+        creation (Phase 25 CONTEXT D-02). Also drops updated_by: the
+        ke_reactome_mappings schema (Phase 24, models.py:204-226) intentionally
+        omits an updated_by column, so attribution lives only in
+        approved_by_curator + proposed_by. Uses an ALLOWED_FIELDS whitelist
+        to prevent SQL injection.
+        """
+        ALLOWED_FIELDS = {
+            "approved_by_curator": "approved_by_curator",
+            "approved_at_curator": "approved_at_curator",
+            "suggestion_score": "suggestion_score",
+            "proposed_by": "proposed_by",
+        }
+        conn = self.db.get_connection()
+        try:
+            update_clauses = []
+            params = []
+            update_data = {
+                "approved_by_curator": approved_by_curator,
+                "approved_at_curator": approved_at_curator,
+                "suggestion_score": suggestion_score,
+                "proposed_by": proposed_by,
+            }
+            for field_name, field_value in update_data.items():
+                if field_value is not None and field_name in ALLOWED_FIELDS:
+                    update_clauses.append(f"{ALLOWED_FIELDS[field_name]} = ?")
+                    params.append(field_value)
+            update_clauses.append("updated_at = CURRENT_TIMESTAMP")
+            if len(update_clauses) <= 1:  # only the timestamp clause
+                return False
+            query = (
+                f"UPDATE ke_reactome_mappings SET {', '.join(update_clauses)} "
+                "WHERE id = ?"
+            )
+            params.append(mapping_id)
+            conn.execute(query, params)
+            conn.commit()
+            logger.info(
+                "Updated Reactome mapping %s by curator %s",
+                mapping_id, approved_by_curator,
+            )
+            return True
+        except Exception as e:
+            logger.error("Error updating Reactome mapping: %s", e)
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
+    def check_reactome_mapping_exists_with_proposals(
+        self, ke_id: str, reactome_id: str
+    ) -> Dict:
+        """Enriched duplicate check for KE-Reactome pairs.
+
+        Mirrors GoMappingModel.check_go_mapping_exists_with_proposals but
+        omits connection_type from the existing dict (Reactome has none).
+        Returned `existing` payload for pending_proposal intentionally
+        excludes admin_notes (info-disclosure mitigation, Phase 25
+        threat_model).
+
+        Priority order:
+        1. pending_proposal — open proposal already covers this pair
+        2. approved_mapping — approved mapping exists
+        3. ke_exists — KE exists with a different Reactome pathway
+        4. nothing found
+        """
+        conn = self.db.get_connection()
+        try:
+            # 1. Check for pending new-pair proposal
+            cursor = conn.execute(
+                """
+                SELECT id, new_pair_confidence_level, proposed_confidence,
+                       provider_username, created_at, ke_id, reactome_id,
+                       ke_title, pathway_name
+                FROM ke_reactome_proposals
+                WHERE ke_id = ? AND reactome_id = ?
+                  AND mapping_id IS NULL AND status = 'pending'
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (ke_id, reactome_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "pair_exists": True,
+                    "blocking_type": "pending_proposal",
+                    "existing": {
+                        "proposal_id": row["id"],
+                        "ke_id": row["ke_id"],
+                        "reactome_id": row["reactome_id"],
+                        "ke_title": row["ke_title"],
+                        "pathway_name": row["pathway_name"],
+                        "proposed_confidence": (
+                            row["new_pair_confidence_level"]
+                            or row["proposed_confidence"]
+                        ),
+                        "submitted_by": row["provider_username"],
+                        "submitted_at": row["created_at"],
+                    },
+                    "actions": ["flag_stale"],
+                }
+
+            # 2. Check for pending proposal linked to an existing mapping
+            cursor = conn.execute(
+                """
+                SELECT p.id, p.new_pair_confidence_level, p.proposed_confidence,
+                       p.provider_username, p.created_at,
+                       m.ke_id, m.reactome_id, m.ke_title, m.pathway_name
+                FROM ke_reactome_proposals p
+                JOIN ke_reactome_mappings m ON p.mapping_id = m.id
+                WHERE m.ke_id = ? AND m.reactome_id = ? AND p.status = 'pending'
+                ORDER BY p.created_at DESC LIMIT 1
+                """,
+                (ke_id, reactome_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "pair_exists": True,
+                    "blocking_type": "pending_proposal",
+                    "existing": {
+                        "proposal_id": row["id"],
+                        "ke_id": row["ke_id"],
+                        "reactome_id": row["reactome_id"],
+                        "ke_title": row["ke_title"],
+                        "pathway_name": row["pathway_name"],
+                        "proposed_confidence": (
+                            row["new_pair_confidence_level"]
+                            or row["proposed_confidence"]
+                        ),
+                        "submitted_by": row["provider_username"],
+                        "submitted_at": row["created_at"],
+                    },
+                    "actions": ["flag_stale"],
+                }
+
+            # 3. Check for approved mapping (exact ke_id + reactome_id pair)
+            cursor = conn.execute(
+                """
+                SELECT id, ke_id, ke_title, reactome_id, pathway_name,
+                       species, confidence_level,
+                       approved_by_curator, approved_at_curator, uuid
+                FROM ke_reactome_mappings
+                WHERE ke_id = ? AND reactome_id = ?
+                """,
+                (ke_id, reactome_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "pair_exists": True,
+                    "blocking_type": "approved_mapping",
+                    "existing": {
+                        "ke_id": row["ke_id"],
+                        "reactome_id": row["reactome_id"],
+                        "ke_title": row["ke_title"],
+                        "pathway_name": row["pathway_name"],
+                        "species": row["species"],
+                        "confidence_level": row["confidence_level"],
+                        "approved_by_curator": row["approved_by_curator"],
+                        "approved_at_curator": row["approved_at_curator"],
+                        "uuid": row["uuid"],
+                        "id": row["id"],
+                    },
+                    "actions": ["submit_revision"],
+                }
+
+            # 4. Check if KE exists with a different Reactome pathway
+            cursor = conn.execute(
+                "SELECT * FROM ke_reactome_mappings WHERE ke_id = ?",
+                (ke_id,),
+            )
+            ke_matches = [dict(row) for row in cursor.fetchall()]
+            if ke_matches:
+                return {
+                    "pair_exists": False,
+                    "blocking_type": None,
+                    "existing": None,
+                    "ke_exists": True,
+                    "ke_matches": ke_matches,
+                    "actions": [],
+                }
+
+            return {
+                "pair_exists": False,
+                "blocking_type": None,
+                "existing": None,
+                "ke_exists": False,
+                "actions": [],
+            }
+        finally:
+            conn.close()
+
 
 class ReactomeProposalModel:
     """Model for KE-Reactome mapping proposals"""

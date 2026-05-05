@@ -262,19 +262,21 @@ class TestReactomeMappingUpdate:
 
     def test_unknown_kwarg_silently_dropped(self, reactome_mapping_model, temp_db):
         mapping_id = self._create_mapping(reactome_mapping_model)
-        # confidence_level is not in ALLOWED_FIELDS — call signature does not
-        # accept it. Caller passing only unknown fields would have to use kwargs;
-        # since the method signature does not declare confidence_level, attempting
-        # to pass it via **{...} raises TypeError. We therefore assert that
-        # confidence_level is not in the public update signature.
+        # confidence_level and connection_type are NOT in the public update
+        # signature — Reactome confidence is locked at proposal creation
+        # (CONTEXT D-02) and Reactome has no connection_type at all. The
+        # ke_reactome_mappings schema also has no updated_by column, so the
+        # public signature deliberately omits it.
         import inspect
 
         sig = inspect.signature(reactome_mapping_model.update_reactome_mapping)
         assert "confidence_level" not in sig.parameters
         assert "connection_type" not in sig.parameters
-        # Existing confidence persists unchanged when only updated_by is provided.
+        assert "updated_by" not in sig.parameters
+        # Existing confidence persists unchanged when only approval-time
+        # provenance fields are written.
         ok = reactome_mapping_model.update_reactome_mapping(
-            mapping_id=mapping_id, updated_by="github:admin"
+            mapping_id=mapping_id, approved_by_curator="github:admin"
         )
         assert ok is True
         conn = temp_db.get_connection()
