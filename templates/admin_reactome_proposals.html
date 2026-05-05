@@ -125,6 +125,20 @@
         let currentReactomeProposalId = null;
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+        // Escape user-controlled values before injecting into innerHTML to
+        // prevent stored XSS (Phase 25 review C-1). pathway_name, ke_title,
+        // species, admin_notes, and provider_username flow into the detail
+        // modal and are curator-controlled at proposal-submit time.
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         $(document).ready(function() {
             $('#reactomeProposalsTable').DataTable(
                 DataTableConfig.merge('base', {
@@ -168,27 +182,39 @@
             const approveBtn = document.getElementById('reactomeModalApproveBtn');
             const rejectBtn = document.getElementById('reactomeModalRejectBtn');
 
+            // Score is numeric; coerce defensively before formatting.
+            const scoreText = (proposal.suggestion_score !== null && proposal.suggestion_score !== undefined)
+                ? Number(proposal.suggestion_score).toFixed(3)
+                : '&mdash;';
+            // Status is a DB enum (pending/approved/rejected) but escape both
+            // the class fragment and display text for defense-in-depth.
+            const statusRaw = proposal.status || '';
+            const statusEsc = escapeHtml(statusRaw);
+            const confidence = proposal.new_pair_confidence_level || proposal.proposed_confidence;
+            const submittedBy = proposal.provider_username || proposal.user_name;
+            const submittedAt = proposal.created_at_formatted || proposal.created_at;
+
             content.innerHTML = `
                 <div style="margin-bottom: 20px;">
                     <h4>Mapping Information</h4>
-                    <div><strong>KE ID:</strong> ${proposal.ke_id || '&mdash;'}</div>
-                    <div><strong>KE Title:</strong> ${proposal.ke_title || '&mdash;'}</div>
-                    <div><strong>Reactome ID:</strong> ${proposal.reactome_id || '&mdash;'}</div>
-                    <div><strong>Pathway Name:</strong> ${proposal.pathway_name || '&mdash;'}</div>
-                    <div><strong>Species:</strong> ${proposal.species || 'Homo sapiens'}</div>
+                    <div><strong>KE ID:</strong> ${proposal.ke_id ? escapeHtml(proposal.ke_id) : '&mdash;'}</div>
+                    <div><strong>KE Title:</strong> ${proposal.ke_title ? escapeHtml(proposal.ke_title) : '&mdash;'}</div>
+                    <div><strong>Reactome ID:</strong> ${proposal.reactome_id ? escapeHtml(proposal.reactome_id) : '&mdash;'}</div>
+                    <div><strong>Pathway Name:</strong> ${proposal.pathway_name ? escapeHtml(proposal.pathway_name) : '&mdash;'}</div>
+                    <div><strong>Species:</strong> ${escapeHtml(proposal.species || 'Homo sapiens')}</div>
                 </div>
                 <div style="margin-bottom: 20px;">
                     <h4>Proposed Values</h4>
-                    <div><strong>Confidence Level:</strong> ${proposal.new_pair_confidence_level || proposal.proposed_confidence || '&mdash;'}</div>
-                    <div><strong>Suggestion Score:</strong> ${proposal.suggestion_score !== null && proposal.suggestion_score !== undefined ? Number(proposal.suggestion_score).toFixed(3) : '&mdash;'}</div>
+                    <div><strong>Confidence Level:</strong> ${confidence ? escapeHtml(confidence) : '&mdash;'}</div>
+                    <div><strong>Suggestion Score:</strong> ${scoreText}</div>
                 </div>
                 <div style="margin-bottom: 20px;">
                     <h4>Submission Details</h4>
-                    <div><strong>Submitted By:</strong> ${proposal.provider_username || proposal.user_name || '&mdash;'}</div>
-                    <div><strong>Submitted At:</strong> ${proposal.created_at_formatted || proposal.created_at || '&mdash;'}</div>
-                    <div><strong>Status:</strong> <span class="status-${proposal.status}">${proposal.status}</span></div>
-                    ${proposal.admin_notes ? `<div><strong>Admin Notes:</strong> ${proposal.admin_notes}</div>` : ''}
-                    ${proposal.approved_at_formatted ? `<div><strong>Reviewed At:</strong> ${proposal.approved_at_formatted}</div>` : ''}
+                    <div><strong>Submitted By:</strong> ${submittedBy ? escapeHtml(submittedBy) : '&mdash;'}</div>
+                    <div><strong>Submitted At:</strong> ${submittedAt ? escapeHtml(submittedAt) : '&mdash;'}</div>
+                    <div><strong>Status:</strong> <span class="status-${statusEsc}">${statusEsc}</span></div>
+                    ${proposal.admin_notes ? `<div><strong>Admin Notes:</strong> ${escapeHtml(proposal.admin_notes)}</div>` : ''}
+                    ${proposal.approved_at_formatted ? `<div><strong>Reviewed At:</strong> ${escapeHtml(proposal.approved_at_formatted)}</div>` : ''}
                 </div>
             `;
 

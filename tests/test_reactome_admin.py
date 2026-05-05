@@ -531,6 +531,69 @@ class TestAdminReactomeStatusBadge:
                 f"admin_reactome_proposals.html"
             )
 
+    def test_admin_modal_escapes_pathway_name_xss(self, admin_client):
+        """Phase 25 review C-1: detail-modal renderer must HTML-escape
+        curator-controlled fields before injecting into innerHTML.
+
+        Two-layer regression sentinel:
+        1. The JSON detail endpoint correctly returns the raw payload (JSON
+           is the wire format; escaping happens browser-side).
+        2. The template ships an `escapeHtml` helper AND wraps each curator-
+           controlled interpolation with it. A static grep on the template
+           is the cheapest way to lock this contract — a future refactor
+           that drops the helper would silently re-introduce the XSS sink.
+        """
+        client, rm, rpm, db = admin_client
+        # Seed a proposal whose pathway_name carries a raw <script> payload.
+        # The submission-time sanitizer (SecurityValidation.sanitize_string)
+        # only strips control chars; angle brackets pass through unchanged.
+        xss_payload = "<script>alert('xss')</script>"
+        pid = _seed_proposal(
+            rpm,
+            ke_id="KE 9101",
+            reactome_id="R-HSA-9101",
+            pathway_name=xss_payload,
+        )
+
+        # 1. JSON endpoint returns the raw value (JSON, not HTML; safe).
+        r = client.get(f"/admin/reactome-proposals/{pid}")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["pathway_name"] == xss_payload, (
+            "JSON detail endpoint should return raw text — escaping is a "
+            "browser-side concern in the modal renderer."
+        )
+
+        # 2. Static check on the template: escapeHtml helper is defined AND
+        #    wraps the curator-controlled interpolations in the modal block.
+        import os
+        tpl_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "templates",
+            "admin_reactome_proposals.html",
+        )
+        with open(tpl_path, encoding="utf-8") as fh:
+            tpl = fh.read()
+
+        assert "function escapeHtml(" in tpl, (
+            "templates/admin_reactome_proposals.html must define an "
+            "escapeHtml helper (Phase 25 review C-1 regression sentinel)."
+        )
+        # Curator-controlled fields that flow into innerHTML — every one
+        # must be wrapped in escapeHtml(...) somewhere in the template's
+        # inline script.
+        for field in (
+            "escapeHtml(proposal.ke_title)",
+            "escapeHtml(proposal.pathway_name)",
+            "escapeHtml(proposal.species",  # may be inside a default-fallback
+            "escapeHtml(proposal.admin_notes)",
+        ):
+            assert field in tpl, (
+                f"Phase 25 review C-1: admin Reactome modal must wrap "
+                f"`{field.split('(')[1].rstrip(')')}` with escapeHtml() "
+                f"before injecting into innerHTML."
+            )
+
     def test_admin_reactome_status_badge_renders_in_template(self, admin_client):
         """Alias-named gap-fill mirroring PLAN's grep for the badge contract.
 
