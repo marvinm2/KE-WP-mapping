@@ -181,6 +181,67 @@ class GoCheckEntrySchema(Schema):
     )
 
 
+class ReactomeMappingSchema(Schema):
+    """Schema for KE-Reactome mapping submissions (Phase 25)."""
+
+    ke_id = fields.Str(
+        required=True,
+        validate=[
+            validate.Length(min=3, max=50),
+            validate.Regexp(
+                r"^KE\s+\d+$", error="KE ID must be in format 'KE number'"
+            ),
+        ],
+    )
+    ke_title = fields.Str(required=True, validate=validate.Length(min=1, max=500))
+    reactome_id = fields.Str(
+        required=True,
+        validate=[
+            validate.Length(min=8, max=30),
+            validate.Regexp(
+                r"^R-HSA-\d+$",
+                error="Reactome ID must be in format 'R-HSA-NNNN'",
+            ),
+        ],
+    )
+    pathway_name = fields.Str(
+        required=True, validate=validate.Length(min=1, max=500)
+    )
+    species = fields.Str(
+        load_default="Homo sapiens", validate=validate.Length(max=100)
+    )
+    confidence_level = fields.Str(
+        required=True,
+        validate=validate.OneOf(
+            ["low", "medium", "high"], error="Invalid confidence level"
+        ),
+    )
+
+
+class ReactomeCheckEntrySchema(Schema):
+    """Schema for checking existing KE-Reactome entries (Phase 25)."""
+
+    ke_id = fields.Str(
+        required=True,
+        validate=[
+            validate.Length(min=3, max=50),
+            validate.Regexp(
+                r"^KE\s+\d+$", error="KE ID must be in format 'KE number'"
+            ),
+        ],
+    )
+    reactome_id = fields.Str(
+        required=True,
+        validate=[
+            validate.Length(min=8, max=30),
+            validate.Regexp(
+                r"^R-HSA-\d+$",
+                error="Reactome ID must be in format 'R-HSA-NNNN'",
+            ),
+        ],
+    )
+
+
 class AdminNotesSchema(Schema):
     """Schema for admin notes in proposal management"""
 

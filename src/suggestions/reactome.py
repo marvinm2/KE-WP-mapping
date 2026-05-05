@@ -6,6 +6,8 @@ pre-computed BioBERT embeddings and gene annotation overlap.
 import json
 import logging
 import os
+import re
+from difflib import SequenceMatcher
 from typing import Dict, List
 
 import numpy as np
@@ -465,3 +467,80 @@ class ReactomeSuggestionService:
                 "ke_id": ke_id,
                 "ke_title": ke_title,
             }
+
+    def search_reactome_terms(
+        self, query: str, threshold: float = 0.4, limit: int = 10
+    ) -> List[Dict]:
+        """Search Reactome pathways using SequenceMatcher fuzzy matching.
+
+        Mirrors GoSuggestionService.search_go_terms (src/suggestions/go.py)
+        but searches the in-memory ``self.reactome_metadata`` dict loaded from
+        ``data/reactome_pathway_metadata.json`` (Phase 23 output).
+
+        Scoring formula (Phase 25-01):
+            name_sim   = SequenceMatcher(query, name).ratio()
+                         max-boosted to 0.85 if query is a substring of name
+            desc_sim   = SequenceMatcher(query, description[:200]).ratio()
+            relevance  = max(name_sim, 0.5 * desc_sim)
+
+        Returns list of dicts (sorted descending by relevance_score, capped
+        at ``limit``) with keys: reactome_id, pathway_name, species,
+        description, name_similarity, relevance_score.
+        """
+        try:
+            if not query or not query.strip():
+                return []
+
+            # Direct ID lookup branch (R-HSA-NNNN; tolerates separators).
+            id_match = re.match(
+                r"^R[-_]?HSA[-_]?(\d+)$", query.strip(), re.IGNORECASE
+            )
+            if id_match:
+                normalized = f"R-HSA-{id_match.group(1)}"
+                if normalized in self.reactome_metadata:
+                    meta = self.reactome_metadata[normalized]
+                    return [{
+                        "reactome_id": normalized,
+                        "pathway_name": meta.get(
+                            "name", meta.get("pathway_name", "")
+                        ),
+                        "species": meta.get("species", "Homo sapiens"),
+                        "description": meta.get("description", ""),
+                        "name_similarity": 1.0,
+                        "relevance_score": 1.0,
+                    }]
+                return []
+
+            query_clean = query.strip().lower()
+            results: List[Dict] = []
+            for rid, meta in self.reactome_metadata.items():
+                name = (meta.get("name") or meta.get("pathway_name") or "").lower()
+                desc = (meta.get("description") or "").lower()
+                name_sim = (
+                    SequenceMatcher(None, query_clean, name).ratio() if name else 0.0
+                )
+                # Substring boost mirrors search_go_terms behavior.
+                if name and query_clean in name:
+                    name_sim = max(name_sim, 0.85)
+                desc_sim = (
+                    SequenceMatcher(None, query_clean, desc[:200]).ratio()
+                    if desc else 0.0
+                )
+                relevance = max(name_sim, 0.5 * desc_sim)
+                if relevance >= threshold:
+                    results.append({
+                        "reactome_id": rid,
+                        "pathway_name": meta.get(
+                            "name", meta.get("pathway_name", "")
+                        ),
+                        "species": meta.get("species", "Homo sapiens"),
+                        "description": meta.get("description", ""),
+                        "name_similarity": round(name_sim, 4),
+                        "relevance_score": round(relevance, 4),
+                    })
+
+            results.sort(key=lambda x: x["relevance_score"], reverse=True)
+            return results[:limit]
+        except Exception as e:
+            logger.error("Error in Reactome term search: %s", e)
+            return []
