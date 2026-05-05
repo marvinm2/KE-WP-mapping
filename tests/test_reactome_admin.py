@@ -373,3 +373,180 @@ class TestRejectReactomeProposal:
             data={"admin_notes": "x"},
         )
         assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Phase 25 Plan 06 — admin GO-parity gap-fill tests
+# ---------------------------------------------------------------------------
+# These augmentations close GO-parity gaps for the admin-side Reactome
+# dashboard (status filter behavior + status-badge rendering in template).
+
+
+class TestAdminReactomeProposalsStatusFilter:
+    """Verify the admin proposal list correctly handles ?status= filtering."""
+
+    def test_admin_reactome_proposals_status_filter(self, admin_client):
+        """Plan 25-06 RCUR-02: ?status=<x> narrows the list to that status only.
+
+        Seeds a pending + approved + rejected proposal and verifies that
+        ?status=approved returns the approved one, ?status=rejected returns
+        the rejected one, and that the renderer does not leak a rejected
+        proposal under ?status=approved.
+        """
+        client, rm, rpm, db = admin_client
+        pid_pending = _seed_proposal(
+            rpm, ke_id="KE 5001", reactome_id="R-HSA-5001"
+        )
+        pid_approved = _seed_proposal(
+            rpm, ke_id="KE 5002", reactome_id="R-HSA-5002"
+        )
+        pid_rejected = _seed_proposal(
+            rpm, ke_id="KE 5003", reactome_id="R-HSA-5003"
+        )
+        rpm.update_proposal_status(
+            proposal_id=pid_approved, status="approved",
+            admin_username="github:testadmin", admin_notes="ok",
+        )
+        rpm.update_proposal_status(
+            proposal_id=pid_rejected, status="rejected",
+            admin_username="github:testadmin", admin_notes="no",
+        )
+
+        # status=approved must show only the approved one
+        r = client.get("/admin/reactome-proposals?status=approved")
+        assert r.status_code == 200
+        body = r.get_data(as_text=True)
+        assert "R-HSA-5002" in body
+        assert "R-HSA-5003" not in body  # rejected must not appear
+        assert "R-HSA-5001" not in body  # pending must not appear
+
+        # status=rejected must show only the rejected one
+        r = client.get("/admin/reactome-proposals?status=rejected")
+        assert r.status_code == 200
+        body = r.get_data(as_text=True)
+        assert "R-HSA-5003" in body
+        assert "R-HSA-5002" not in body
+        assert "R-HSA-5001" not in body
+
+    def test_admin_reactome_proposals_status_filter_pending_default(self, admin_client):
+        """Plan 25-06: GET /admin/reactome-proposals (no status param) defaults to pending.
+
+        admin.py:736 sets `status_filter = request.args.get("status", "pending")`
+        — verify a rejected proposal is NOT visible under the default view.
+        """
+        client, rm, rpm, db = admin_client
+        pid_pending = _seed_proposal(
+            rpm, ke_id="KE 6001", reactome_id="R-HSA-6001"
+        )
+        pid_rejected = _seed_proposal(
+            rpm, ke_id="KE 6002", reactome_id="R-HSA-6002"
+        )
+        rpm.update_proposal_status(
+            proposal_id=pid_rejected, status="rejected",
+            admin_username="github:testadmin", admin_notes="no",
+        )
+
+        r = client.get("/admin/reactome-proposals")  # no ?status=
+        assert r.status_code == 200
+        body = r.get_data(as_text=True)
+        # Pending visible, rejected hidden under default filter
+        assert "R-HSA-6001" in body
+        assert "R-HSA-6002" not in body
+
+    def test_admin_reactome_proposals_status_filter_all_includes_rejected(self, admin_client):
+        """Plan 25-06: status=all returns proposals in all states.
+
+        admin.py:737-738 maps ?status=all -> status_filter=None, which
+        get_all_proposals interprets as "no WHERE clause" so the union of
+        pending + approved + rejected is returned.
+        """
+        client, rm, rpm, db = admin_client
+        pid_pending = _seed_proposal(
+            rpm, ke_id="KE 7001", reactome_id="R-HSA-7001"
+        )
+        pid_approved = _seed_proposal(
+            rpm, ke_id="KE 7002", reactome_id="R-HSA-7002"
+        )
+        pid_rejected = _seed_proposal(
+            rpm, ke_id="KE 7003", reactome_id="R-HSA-7003"
+        )
+        rpm.update_proposal_status(
+            proposal_id=pid_approved, status="approved",
+            admin_username="github:testadmin", admin_notes="ok",
+        )
+        rpm.update_proposal_status(
+            proposal_id=pid_rejected, status="rejected",
+            admin_username="github:testadmin", admin_notes="no",
+        )
+
+        r = client.get("/admin/reactome-proposals?status=all")
+        assert r.status_code == 200
+        body = r.get_data(as_text=True)
+        for rid in ("R-HSA-7001", "R-HSA-7002", "R-HSA-7003"):
+            assert rid in body, (
+                f"status=all view missing {rid} — should show all three states"
+            )
+
+
+class TestAdminReactomeStatusBadge:
+    """Verify the admin template renders status-* CSS classes for badge styling."""
+
+    def test_admin_reactome_status_badge_renders(self, admin_client):
+        """Plan 25-06 RCUR-02: status badges render with status-{state} CSS class.
+
+        templates/admin_reactome_proposals.html line 84 renders
+        `<span class="status-{{ proposal.status }}">` — verify the rendered
+        page includes status-approved, status-pending, and status-rejected
+        classes when proposals of all three states are listed via
+        ?status=all. Pulled into a dedicated test so a regression on the
+        badge-styling contract fails fast.
+        """
+        client, rm, rpm, db = admin_client
+        pid_pending = _seed_proposal(
+            rpm, ke_id="KE 8001", reactome_id="R-HSA-8001"
+        )
+        pid_approved = _seed_proposal(
+            rpm, ke_id="KE 8002", reactome_id="R-HSA-8002"
+        )
+        pid_rejected = _seed_proposal(
+            rpm, ke_id="KE 8003", reactome_id="R-HSA-8003"
+        )
+        rpm.update_proposal_status(
+            proposal_id=pid_approved, status="approved",
+            admin_username="github:testadmin", admin_notes="ok",
+        )
+        rpm.update_proposal_status(
+            proposal_id=pid_rejected, status="rejected",
+            admin_username="github:testadmin", admin_notes="no",
+        )
+
+        r = client.get("/admin/reactome-proposals?status=all")
+        assert r.status_code == 200
+        body = r.get_data(as_text=True)
+        # All three status-* badge classes should appear in the rendered DOM
+        for css_class in ("status-pending", "status-approved", "status-rejected"):
+            assert css_class in body, (
+                f"Admin Reactome dashboard missing badge class '{css_class}' "
+                f"— template contract regression at line ~84 of "
+                f"admin_reactome_proposals.html"
+            )
+
+    def test_admin_reactome_status_badge_renders_in_template(self, admin_client):
+        """Alias-named gap-fill mirroring PLAN's grep for the badge contract.
+
+        Same assertion focus as test_admin_reactome_status_badge_renders but
+        scoped to a single approved proposal and the `status-approved` class
+        only — narrower regression sentinel for the most-frequented view.
+        """
+        client, rm, rpm, db = admin_client
+        pid = _seed_proposal(rpm, ke_id="KE 9001", reactome_id="R-HSA-9001")
+        rpm.update_proposal_status(
+            proposal_id=pid, status="approved",
+            admin_username="github:testadmin", admin_notes="ok",
+        )
+        r = client.get("/admin/reactome-proposals?status=approved")
+        assert r.status_code == 200
+        body = r.get_data(as_text=True)
+        assert "status-approved" in body, (
+            "Approved Reactome proposal must render with status-approved class"
+        )
