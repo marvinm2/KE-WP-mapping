@@ -53,11 +53,17 @@ go_mapping_model = None
 go_proposal_model = None
 cache_model_ref = None
 ke_override_model = None
+reactome_mapping_model = None
+reactome_proposal_model = None
 
 
-def set_models(proposal, mapping, guest_code=None, go_mapping=None, go_proposal=None, cache_model=None, ke_override=None):
+def set_models(proposal, mapping, guest_code=None, go_mapping=None, go_proposal=None,
+               cache_model=None, ke_override=None,
+               reactome_mapping=None, reactome_proposal=None):
     """Set the model instances"""
-    global proposal_model, mapping_model, guest_code_model, go_mapping_model, go_proposal_model, cache_model_ref, ke_override_model
+    global proposal_model, mapping_model, guest_code_model, go_mapping_model, go_proposal_model
+    global cache_model_ref, ke_override_model
+    global reactome_mapping_model, reactome_proposal_model
     proposal_model = proposal
     mapping_model = mapping
     guest_code_model = guest_code
@@ -65,6 +71,8 @@ def set_models(proposal, mapping, guest_code=None, go_mapping=None, go_proposal=
     go_proposal_model = go_proposal
     cache_model_ref = cache_model
     ke_override_model = ke_override
+    reactome_mapping_model = reactome_mapping
+    reactome_proposal_model = reactome_proposal
 
 
 def _compute_confidence_from_dimensions(conn_score, spec_score, ev_score, ke_go_config):
@@ -717,6 +725,70 @@ def reject_go_proposal(proposal_id: int):
     except Exception as e:
         logger.error("Error rejecting GO proposal %s: %s", proposal_id, sanitize_log(str(e)))
         return jsonify({"error": "Failed to reject GO proposal"}), 500
+
+
+@admin_bp.route("/reactome-proposals")
+@admin_required
+@monitor_performance
+def admin_reactome_proposals():
+    """Admin dashboard for managing KE-Reactome proposals."""
+    try:
+        status_filter = request.args.get("status", "pending")
+        if status_filter == "all":
+            status_filter = None
+
+        proposals = reactome_proposal_model.get_all_proposals(status=status_filter)
+
+        for proposal in proposals:
+            if proposal.get("created_at"):
+                try:
+                    utc_dt = datetime.fromisoformat(proposal["created_at"].replace("Z", "+00:00"))
+                    local_dt = utc_to_local(utc_dt)
+                    proposal["created_at_formatted"] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                except (ValueError, TypeError):
+                    proposal["created_at_formatted"] = proposal["created_at"]
+
+        return render_template(
+            "admin_reactome_proposals.html",
+            proposals=proposals,
+            status_filter=status_filter or "all",
+        )
+
+    except Exception as e:
+        logger.error("Error loading Reactome proposals dashboard: %s", sanitize_log(str(e)))
+        return render_template(
+            "admin_reactome_proposals.html",
+            proposals=[],
+            status_filter="pending",
+            error=str(e),
+        )
+
+
+@admin_bp.route("/reactome-proposals/<int:proposal_id>")
+@admin_required
+@monitor_performance
+def admin_reactome_proposal_detail(proposal_id: int):
+    """Return JSON details for a specific Reactome proposal (used by detail modal)."""
+    try:
+        proposal = reactome_proposal_model.get_proposal_by_id(proposal_id)
+        if not proposal:
+            return jsonify({"error": "Reactome proposal not found"}), 404
+
+        for ts_field in ("created_at", "approved_at", "rejected_at"):
+            if proposal.get(ts_field):
+                try:
+                    utc_dt = datetime.fromisoformat(proposal[ts_field].replace("Z", "+00:00"))
+                    local_dt = utc_to_local(utc_dt)
+                    proposal[ts_field + "_formatted"] = local_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                except (ValueError, TypeError):
+                    proposal[ts_field + "_formatted"] = proposal[ts_field]
+
+        return jsonify(proposal)
+
+    except Exception as e:
+        logger.error("Error getting Reactome proposal %s: %s",
+                     proposal_id, sanitize_log(str(e)))
+        return jsonify({"error": "Failed to load Reactome proposal"}), 500
 
 
 @admin_bp.route("/guest-codes")

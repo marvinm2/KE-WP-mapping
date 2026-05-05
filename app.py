@@ -143,7 +143,12 @@ def create_app(config_name: str = None):
         reactome_mapping=services.reactome_mapping_model,
         reactome_proposal=services.reactome_proposal_model,
     )
-    set_admin_models(services.proposal_model, services.mapping_model, guest_code=services.guest_code_model, go_mapping=services.go_mapping_model, go_proposal=services.go_proposal_model, cache_model=services.cache_model, ke_override=services.ke_override_model)
+    set_admin_models(services.proposal_model, services.mapping_model,
+                     guest_code=services.guest_code_model,
+                     go_mapping=services.go_mapping_model, go_proposal=services.go_proposal_model,
+                     cache_model=services.cache_model, ke_override=services.ke_override_model,
+                     reactome_mapping=services.reactome_mapping_model,
+                     reactome_proposal=services.reactome_proposal_model)
     set_main_models(services.mapping_model, go_mapping=services.go_mapping_model, cache_model=services.cache_model, ker_adjacency_data=services.ker_adjacency)
     set_v1_api_models(
         mapping=services.mapping_model,

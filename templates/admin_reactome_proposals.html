@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin: Reactome Proposal Management - Molecular AOP Builder</title>
+</head>
+<body>
+    <div class="admin-header-banner">
+        <h2>Admin: KE-Reactome Proposal Management</h2>
+    </div>
+    {% if error %}<div>Error: {{ error }}</div>{% endif %}
+    <p>{{ proposals|length }} proposal(s) found</p>
+</body>
+</html>
