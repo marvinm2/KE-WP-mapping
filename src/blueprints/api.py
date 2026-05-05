@@ -1535,6 +1535,20 @@ def submit_reactome_mapping():
             suggestion_score=suggestion_score,
         )
 
+        # Phase 25 review H-2: the partial-unique index on
+        # ke_reactome_proposals(ke_id, reactome_id) WHERE status='pending'
+        # rejects concurrent duplicate submits. Surface as a clear 409.
+        from src.core.models import ReactomeProposalModel
+        if proposal_id == ReactomeProposalModel.DUPLICATE_PENDING:
+            return jsonify({
+                "error": (
+                    "A pending proposal for this KE-Reactome pair already "
+                    "exists. Wait for it to be reviewed before submitting "
+                    "another."
+                ),
+                "blocking_type": "pending_proposal",
+            }), 409
+
         if proposal_id:
             logger.info(
                 "New Reactome mapping proposal created: %s -> %s by %s (proposal #%s)",

@@ -312,6 +312,11 @@ class Database:
             # Migrate ke_go_proposals to add go_namespace column (Phase 21)
             self._migrate_proposals_go_namespace(conn)
 
+            # Phase 25 review H-2: partial-unique index on pending Reactome
+            # proposals so concurrent submits cannot create duplicate
+            # pending rows for the same (ke_id, reactome_id) pair.
+            self._migrate_reactome_proposals_pending_unique_index(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -963,6 +968,42 @@ class Database:
 
         except Exception as e:
             logger.error("Error migrating ke_go_mappings dimension scores: %s", e)
+            raise
+
+    def _migrate_reactome_proposals_pending_unique_index(self, conn):
+        """Phase 25 review H-2: enforce DB-level uniqueness on pending
+        Reactome proposals.
+
+        ke_reactome_mappings already has UNIQUE(ke_id, reactome_id) so
+        approved-side duplicates are impossible, but ke_reactome_proposals
+        had no equivalent — two concurrent submits could each pass the
+        application-level check_reactome_mapping_exists_with_proposals
+        TOCTOU window and create duplicate pending rows for the same pair.
+
+        SQLite supports partial indexes, so scope the constraint to rows
+        that are pending AND not linked to an existing mapping (i.e. the
+        new-pair flow exercised by /submit_reactome_mapping). With this in
+        place, the second concurrent INSERT raises sqlite3.IntegrityError,
+        which the model layer catches and surfaces as a duplicate marker.
+        """
+        try:
+            conn.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS
+                    idx_reactome_proposals_pending_pair
+                ON ke_reactome_proposals (ke_id, reactome_id)
+                WHERE status = 'pending' AND mapping_id IS NULL
+                """
+            )
+            logger.info(
+                "Migrated ke_reactome_proposals: added partial-unique "
+                "index on (ke_id, reactome_id) for pending new-pair rows"
+            )
+        except Exception as e:
+            logger.error(
+                "Error creating partial-unique index on "
+                "ke_reactome_proposals: %s", e
+            )
             raise
 
 
@@ -3224,6 +3265,13 @@ class ReactomeProposalModel:
         finally:
             conn.close()
 
+    # Sentinel returned from create_new_pair_reactome_proposal when the
+    # partial-unique index on (ke_id, reactome_id) WHERE status='pending'
+    # rejects a concurrent insert (Phase 25 review H-2). The route layer
+    # maps this to a "duplicate pending" 409-style response so the user
+    # gets a clear error instead of a generic 500.
+    DUPLICATE_PENDING = "duplicate_pending"
+
     def create_new_pair_reactome_proposal(
         self,
         ke_id: str,
@@ -3234,10 +3282,17 @@ class ReactomeProposalModel:
         species: str = 'Homo sapiens',
         provider_username: str = None,
         suggestion_score: float = None,
-    ) -> Optional[int]:
+    ):
         """
         Create a new-pair Reactome proposal where no existing mapping_id exists yet.
         The mapping is created only after admin approval. mapping_id is NULL.
+
+        Returns:
+            int          — the newly inserted proposal id on success
+            "duplicate_pending" — IntegrityError on the partial-unique index
+                          (Phase 25 H-2): another pending proposal already
+                          covers this (ke_id, reactome_id) pair
+            None         — any other failure
         """
         proposal_uuid = str(uuid_lib.uuid4())
         conn = self.db.get_connection()
@@ -3267,6 +3322,18 @@ class ReactomeProposalModel:
                 ke_id, reactome_id, provider_username, proposal_uuid,
             )
             return cursor.lastrowid
+        except sqlite3.IntegrityError as e:
+            # Partial-unique index on (ke_id, reactome_id) WHERE
+            # status='pending' AND mapping_id IS NULL fired — concurrent
+            # submit beat us. Return a sentinel the route layer can map
+            # to the same blocking-pending response /check_reactome_entry
+            # serves (Phase 25 review H-2).
+            logger.warning(
+                "Duplicate pending Reactome proposal blocked: "
+                "KE=%s Reactome=%s (%s)", ke_id, reactome_id, e,
+            )
+            conn.rollback()
+            return self.DUPLICATE_PENDING
         except Exception as e:
             logger.error("Error creating Reactome proposal: %s", e)
             conn.rollback()

@@ -387,3 +387,154 @@ class TestReactomeCheckExistsWithProposals:
         )
         ex = result["existing"]
         assert "admin_notes" not in ex
+
+
+# ---------------------------------------------------------------------------
+# Phase 25 review H-2 — partial-unique index on pending proposals
+# ---------------------------------------------------------------------------
+
+
+class TestReactomeProposalsPendingUniqueIndex:
+    """Phase 25 review H-2: a partial-unique index on
+    ke_reactome_proposals(ke_id, reactome_id) WHERE status='pending'
+    AND mapping_id IS NULL must reject duplicate concurrent submits.
+
+    Pre-fix: two concurrent /submit_reactome_mapping calls could each
+    pass the application-level check_reactome_mapping_exists_with_proposals
+    TOCTOU window and both INSERT, leaving two pending rows for the same
+    (ke_id, reactome_id). Post-fix: the second INSERT raises IntegrityError
+    on the partial-unique index, the model layer surfaces it as the
+    DUPLICATE_PENDING sentinel, and the route layer maps that to a 409.
+    """
+
+    def test_partial_unique_index_exists(self, temp_db):
+        """The migration must have created the partial-unique index."""
+        conn = temp_db.get_connection()
+        try:
+            row = conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' "
+                "AND name = 'idx_reactome_proposals_pending_pair'"
+            ).fetchone()
+        finally:
+            conn.close()
+        assert row is not None, (
+            "H-2 regression: partial-unique index "
+            "idx_reactome_proposals_pending_pair was not created by "
+            "_migrate_reactome_proposals_pending_unique_index"
+        )
+        sql = row["sql"]
+        assert "ke_reactome_proposals" in sql
+        assert "(ke_id, reactome_id)" in sql or "(ke_id,reactome_id)" in sql
+        assert "status" in sql and "pending" in sql
+
+    def test_duplicate_pending_returns_sentinel(self, reactome_proposal_model):
+        """Second concurrent submit for the same pair must return the
+        DUPLICATE_PENDING sentinel, NOT silently insert another row."""
+        first = reactome_proposal_model.create_new_pair_reactome_proposal(
+            ke_id="KE 9301",
+            ke_title="Race test",
+            reactome_id="R-HSA-9301",
+            pathway_name="Some pathway",
+            confidence_level="medium",
+            species="Homo sapiens",
+            provider_username="github:racer1",
+            suggestion_score=0.5,
+        )
+        assert isinstance(first, int) and first > 0
+
+        # Simulate a concurrent insert: same (ke_id, reactome_id), still
+        # pending, still mapping_id IS NULL — must hit the partial-unique
+        # index and return the sentinel.
+        second = reactome_proposal_model.create_new_pair_reactome_proposal(
+            ke_id="KE 9301",
+            ke_title="Race test",
+            reactome_id="R-HSA-9301",
+            pathway_name="Some pathway",
+            confidence_level="medium",
+            species="Homo sapiens",
+            provider_username="github:racer2",
+            suggestion_score=0.5,
+        )
+        assert second == ReactomeProposalModel.DUPLICATE_PENDING, (
+            f"H-2 regression: expected DUPLICATE_PENDING sentinel, got "
+            f"{second!r} — a second pending row was silently inserted."
+        )
+
+    def test_duplicate_pending_does_not_insert_second_row(
+        self, reactome_proposal_model, temp_db
+    ):
+        """After a duplicate-rejected submit, only ONE pending row exists."""
+        reactome_proposal_model.create_new_pair_reactome_proposal(
+            ke_id="KE 9302",
+            ke_title="Race test 2",
+            reactome_id="R-HSA-9302",
+            pathway_name="Some pathway",
+            confidence_level="low",
+            species="Homo sapiens",
+            provider_username="github:racer1",
+        )
+        reactome_proposal_model.create_new_pair_reactome_proposal(
+            ke_id="KE 9302",
+            ke_title="Race test 2",
+            reactome_id="R-HSA-9302",
+            pathway_name="Some pathway",
+            confidence_level="low",
+            species="Homo sapiens",
+            provider_username="github:racer2",
+        )
+
+        conn = temp_db.get_connection()
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM ke_reactome_proposals "
+                "WHERE ke_id = ? AND reactome_id = ? "
+                "AND status = 'pending' AND mapping_id IS NULL",
+                ("KE 9302", "R-HSA-9302"),
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        assert count == 1, (
+            f"H-2 regression: expected 1 pending row for the pair, found "
+            f"{count} — partial-unique index did not block the duplicate."
+        )
+
+    def test_resubmission_allowed_after_rejection(
+        self, reactome_proposal_model
+    ):
+        """Once a pending proposal is rejected, the partial-unique index
+        no longer covers it (status != 'pending'), so a fresh submit for
+        the same pair must succeed — the index must NOT block the
+        legitimate "resubmit after rejection" workflow."""
+        first = reactome_proposal_model.create_new_pair_reactome_proposal(
+            ke_id="KE 9303",
+            ke_title="Resubmit test",
+            reactome_id="R-HSA-9303",
+            pathway_name="Some pathway",
+            confidence_level="low",
+            species="Homo sapiens",
+            provider_username="github:user1",
+        )
+        assert isinstance(first, int)
+
+        # Reject the first proposal
+        ok = reactome_proposal_model.update_proposal_status(
+            proposal_id=first,
+            status="rejected",
+            admin_username="github:admin",
+            admin_notes="not relevant",
+        )
+        assert ok is True
+
+        # Resubmit must succeed — partial index ignores rejected rows
+        second = reactome_proposal_model.create_new_pair_reactome_proposal(
+            ke_id="KE 9303",
+            ke_title="Resubmit test",
+            reactome_id="R-HSA-9303",
+            pathway_name="Some pathway",
+            confidence_level="medium",
+            species="Homo sapiens",
+            provider_username="github:user2",
+        )
+        assert isinstance(second, int) and second > 0, (
+            f"Resubmission after rejection must be allowed; got {second!r}"
+        )
