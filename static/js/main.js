@@ -90,6 +90,10 @@ class KEWPApp {
         this.goSuggestionsPage = 0;
         this.goSuggestionsPerPage = 10;
 
+        // Reactome mapping state
+        this.selectedReactomePathway = null;     // {reactomeId, pathwayName, species, suggestionScore}
+        this.selectedReactomeConfidence = null;  // 'low' | 'medium' | 'high'
+
         // Gene pre-fetch cache for mapping modal highlights
         this._cachedKeGenes = {};
 
@@ -278,6 +282,86 @@ class KEWPApp {
             const level = $(e.currentTarget).data('value');
             $('#confidence_level').val(level);
             $('#confidence-select-error').hide();
+        });
+
+        // ---- Reactome tab event wiring (Phase 25 Plan 05) ----
+
+        // Reactome Step 2 sub-tab toggle (Suggested / Search)
+        $(document).on('click', '.reactome-step2-subtab', function() {
+            const sub = $(this).data('subtab');
+            $('.reactome-step2-subtab').removeClass('active');
+            $(this).addClass('active');
+            $('#reactome-step2-panel-suggested, #reactome-step2-panel-search').hide();
+            $('#reactome-step2-panel-' + sub).show();
+        });
+
+        // Click "Select" on a suggestion card -> set selected pathway
+        $(document).on('click', '#reactome-suggestions-container .btn-select-reactome', (e) => {
+            const $card = $(e.currentTarget).closest('.suggestion-card');
+            const reactomeId = $card.data('reactome-id');
+            const pathwayName = $card.data('pathway-name');
+            const species = $card.data('species');
+            const score = $card.data('score');
+            this.selectReactomePathway({
+                reactomeId: reactomeId,
+                pathwayName: pathwayName,
+                species: species,
+                suggestionScore: (score === '' || score == null) ? null : Number(score),
+            });
+        });
+
+        // Reactome search input — debounced type-ahead, min 2 chars
+        let reactomeSearchTimer = null;
+        $(document).on('input', '#reactome-pathway-search', (e) => {
+            const query = String(e.target.value || '').trim();
+            clearTimeout(reactomeSearchTimer);
+            if (query.length < 2) {
+                $('#reactome-search-results').empty().hide();
+                return;
+            }
+            reactomeSearchTimer = setTimeout(() => {
+                $.getJSON('/search_reactome', { q: query, threshold: 0.4, limit: 10 })
+                    .done((data) => {
+                        this.renderReactomeSearchResults((data && data.results) || []);
+                    })
+                    .fail(() => {
+                        $('#reactome-search-results').empty().hide();
+                    });
+            }, 250);
+        });
+
+        // Click a Reactome search result -> populate input and select pathway
+        $(document).on('click', '.reactome-search-result-item', (e) => {
+            const $item = $(e.currentTarget);
+            const reactomeId = $item.data('reactome-id');
+            const pathwayName = $item.data('pathway-name');
+            const species = $item.data('species');
+            const relevance = $item.data('relevance');
+            $('#reactome-search-results').empty().hide();
+            $('#reactome-pathway-search').val(`${reactomeId} — ${pathwayName}`);
+            this.selectReactomePathway({
+                reactomeId: reactomeId,
+                pathwayName: pathwayName,
+                species: species,
+                suggestionScore: (relevance === '' || relevance == null) ? null : Number(relevance),
+            });
+        });
+
+        // Reactome confidence button click
+        $(document).on('click', '#reactome-confidence-select-group .btn-option', (e) => {
+            const $btn = $(e.currentTarget);
+            $('#reactome-confidence-select-group .btn-option').removeClass('selected');
+            $btn.addClass('selected');
+            this.selectedReactomeConfidence = $btn.data('value');
+            $('#reactome-confidence-select-error').hide();
+            $('#reactome-step-submit').show();
+            this.enableReactomeSubmitIfReady();
+        });
+
+        // Reactome submit form
+        $(document).on('submit', '#reactome-mapping-form', (e) => {
+            e.preventDefault();
+            this.handleReactomeFormSubmission(e);
         });
 
         // WikiPathways mapping modal close handlers
@@ -1213,10 +1297,16 @@ class KEWPApp {
                 this.goMethodFilter = 'all';
                 this.goAspectFilter = 'all';
                 this.loadGoSuggestions(keId, title, 'all', 'all');
+            } else if (this.activeTab === 'reactome') {
+                this.loadReactomeSuggestions(keId, title);
             }
         } else {
             this.hidePathwaySuggestions();
             this.hideGoSuggestions();
+            // Reset Reactome suggestions panel to default if KE is cleared
+            $('#reactome-suggestions-container').html(
+                '<p class="text-muted-italic">Select a Key Event above to see Reactome pathway suggestions.</p>'
+            );
         }
     }
 
@@ -3478,21 +3568,26 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const keId = $('#ke_id').val();
         const keTitle = $('#ke_id option:selected').data('title');
 
+        // Hide all three panels first; show the selected one below
+        $('#wp-tab-content, #go-tab-content, #reactome-tab-content').hide();
+
         if (tab === 'wp') {
             $('#wp-tab-content').show();
-            $('#go-tab-content').hide();
-
             // Reload WP suggestions if a KE is selected
             if (keId && keTitle) {
                 this.loadPathwaySuggestions(keId, keTitle, this.currentMethodFilter);
             }
-        } else {
-            $('#wp-tab-content').hide();
+        } else if (tab === 'go') {
             $('#go-tab-content').show();
-
             // Load GO suggestions if a KE is already selected
             if (keId && keTitle) {
                 this.loadGoSuggestions(keId, keTitle, this.goMethodFilter, this.goAspectFilter);
+            }
+        } else if (tab === 'reactome') {
+            $('#reactome-tab-content').show();
+            // Load Reactome suggestions if a KE is already selected
+            if (keId && keTitle) {
+                this.loadReactomeSuggestions(keId, keTitle);
             }
         }
     }
@@ -4290,6 +4385,306 @@ This helps identify gaps in existing pathways for future development.">❓</span
         if (type === "success") {
             setTimeout(() => { $("#go-message").fadeOut(); }, 5000);
         }
+    }
+
+    // =========================================================================
+    // KE-Reactome Mapping Tab Methods (Phase 25 Plan 05)
+    // =========================================================================
+
+    loadReactomeSuggestions(keId, keTitle) {
+        const $container = $('#reactome-suggestions-container');
+        $container.html(`
+            <div style="text-align: center; padding: 20px;">
+                <div class="spinner spinner--md"></div>
+                <p class="text-muted" style="margin-top: 10px;">Loading Reactome pathway suggestions for this Key Event...</p>
+            </div>
+        `);
+        const encodedKeId = encodeURIComponent(keId);
+        const encodedKeTitle = encodeURIComponent(keTitle || '');
+        $.getJSON(`/suggest_reactome/${encodedKeId}?ke_title=${encodedKeTitle}&limit=20`)
+            .done((data) => { this.displayReactomeSuggestions(data); })
+            .fail((xhr, status, error) => {
+                console.error('Failed to load Reactome suggestions:', error || (xhr && xhr.statusText));
+                $container.html(`
+                    <div class="login-warning" style="padding: 15px; text-align: center;">
+                        <p style="font-weight: bold;">Failed to load suggestions. Check your connection and try again.</p>
+                    </div>
+                `);
+            });
+    }
+
+    displayReactomeSuggestions(data) {
+        const $container = $('#reactome-suggestions-container');
+        const suggestions = (data && data.suggestions) || [];
+        const esc = (v) => this.escapeHtml(v == null ? '' : String(v));
+
+        if (suggestions.length === 0) {
+            $container.html(`
+                <div class="empty-state panel-outlined" style="padding: 20px; text-align: center;">
+                    <h4 style="margin-top: 0;">No Reactome pathway suggestions found</h4>
+                    <p class="text-muted">Try searching for a pathway by name using the Search tab, or select a different Key Event.</p>
+                </div>
+            `);
+            return;
+        }
+
+        const cards = suggestions.map((s) => {
+            const reactomeId = esc(s.reactome_id || '');
+            const pathwayName = esc(s.pathway_name || '');
+            const species = esc(s.species || 'Homo sapiens');
+            const score = (s.suggestion_score != null) ? Number(s.suggestion_score) : (s.hybrid_score != null ? Number(s.hybrid_score) : null);
+            const scoreText = score != null ? score.toFixed(3) : '—';
+            // store machine-readable values via data-* (jQuery handles escaping when reading later)
+            return `
+                <div class="suggestion-card panel-outlined" style="padding: 12px; margin-bottom: 10px; border-radius: 6px;"
+                     data-reactome-id="${reactomeId}"
+                     data-pathway-name="${pathwayName}"
+                     data-species="${species}"
+                     data-score="${score != null ? score : ''}">
+                    <h4 style="margin: 0 0 4px 0;">${pathwayName}</h4>
+                    <div class="text-muted" style="font-size: 13px;">
+                        <span style="font-family: monospace;">${reactomeId}</span> &middot; ${species}
+                    </div>
+                    <div class="text-muted" style="font-size: 13px; margin-top: 4px;">Score: ${scoreText}</div>
+                    <button type="button" class="btn-select-reactome" style="margin-top: 8px;">Select</button>
+                </div>
+            `;
+        }).join('');
+
+        $container.html(`<div class="reactome-suggestions-list">${cards}</div>`);
+    }
+
+    // -------------------------------------------------------------------------
+    // Reactome duplicate detection
+    // -------------------------------------------------------------------------
+
+    checkForDuplicatePair_reactome() {
+        const keId = $('#ke_id').val();
+        const reactomeId = this.selectedReactomePathway ? this.selectedReactomePathway.reactomeId : '';
+        if (!keId || !reactomeId) return;
+        $('#duplicate-warning-reactome').hide().empty();
+        $.post('/check_reactome_entry', {
+            ke_id: keId,
+            reactome_id: reactomeId,
+            csrf_token: this.csrfToken
+        }, (result) => {
+            if (result && result.pair_exists && result.blocking_type) {
+                this.renderDuplicateWarning_reactome(result);
+                this.disableReactomeSubmit();
+            } else {
+                this.enableReactomeSubmitIfReady();
+            }
+        }).fail((xhr) => {
+            console.warn('Reactome duplicate check failed:', xhr && xhr.statusText);
+        });
+    }
+
+    renderDuplicateWarning_reactome(result) {
+        const ex = result.existing || {};
+        const esc = (v) => this.escapeHtml(v == null ? '' : String(v));
+
+        let html = '<div class="alert alert-warning" style="border: 2px solid var(--color-status-medium); padding: 16px; border-radius: 6px; margin: 12px 0;">';
+        if (result.blocking_type === 'approved_mapping') {
+            html += '<h4 style="margin-top:0;">This KE-Reactome pair already has an approved mapping.</h4>';
+            html += '<dl style="margin: 8px 0;">';
+            html += '<dt>KE</dt><dd>' + esc(ex.ke_id) + ' &mdash; ' + esc(ex.ke_title) + '</dd>';
+            html += '<dt>Pathway</dt><dd>' + esc(ex.reactome_id) + ' &mdash; ' + esc(ex.pathway_name) + '</dd>';
+            html += '<dt>Confidence</dt><dd>' + esc(ex.confidence_level) + '</dd>';
+            html += '<dt>Curator</dt><dd>' + esc(ex.approved_by_curator || 'unknown') + '</dd>';
+            html += '</dl>';
+            html += '<p style="margin-top:8px; font-style: italic;">To request a change, contact an admin.</p>';
+        } else if (result.blocking_type === 'pending_proposal') {
+            html += '<h4 style="margin-top:0;">A pending proposal already exists for this pair.</h4>';
+            html += '<dl style="margin: 8px 0;">';
+            html += '<dt>KE</dt><dd>' + esc(ex.ke_id) + ' &mdash; ' + esc(ex.ke_title) + '</dd>';
+            html += '<dt>Pathway</dt><dd>' + esc(ex.reactome_id) + ' &mdash; ' + esc(ex.pathway_name) + '</dd>';
+            html += '<dt>Submitted by</dt><dd>' + esc(ex.submitted_by || 'unknown') + '</dd>';
+            html += '<dt>Submitted</dt><dd>' + esc(ex.submitted_at) + '</dd>';
+            html += '</dl>';
+        }
+        html += '</div>';
+        $('#duplicate-warning-reactome').html(html).show();
+        const el = $('#duplicate-warning-reactome')[0];
+        if (el && el.scrollIntoView) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    disableReactomeSubmit() {
+        $('#reactome-mapping-form button[type=submit]').prop('disabled', true);
+    }
+
+    enableReactomeSubmitIfReady() {
+        const dupVisible = $('#duplicate-warning-reactome').is(':visible');
+        const ready = !!(this.selectedReactomePathway && this.selectedReactomeConfidence) && !dupVisible;
+        const $btn = $('#reactome-mapping-form button[type=submit]');
+        $btn.prop('disabled', !ready);
+        if (ready) {
+            $btn.text('Submit KE-Reactome Mapping');
+        } else if (!this.selectedReactomePathway || !this.selectedReactomeConfidence) {
+            $btn.text('Complete Steps 2–3 First');
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Reactome pathway selection (from Suggested or Search) and step reveal
+    // -------------------------------------------------------------------------
+
+    selectReactomePathway({ reactomeId, pathwayName, species, suggestionScore }) {
+        this.selectedReactomePathway = {
+            reactomeId: reactomeId,
+            pathwayName: pathwayName,
+            species: species || 'Homo sapiens',
+            suggestionScore: suggestionScore != null ? suggestionScore : null,
+        };
+        // Highlight the matching suggestion card if present
+        $('#reactome-suggestions-container .suggestion-card').removeClass('go-suggestion-item--selected');
+        $(`#reactome-suggestions-container .suggestion-card[data-reactome-id="${this.escapeHtml(reactomeId)}"]`)
+            .addClass('go-suggestion-item--selected');
+
+        this.checkForDuplicatePair_reactome();
+        this.revealReactomeConfidenceStep();
+    }
+
+    revealReactomeConfidenceStep() {
+        $('#reactome-confidence-guide').show();
+        // Scroll to confidence section so curator sees the next step
+        setTimeout(() => {
+            const section = document.getElementById('reactome-confidence-guide');
+            if (section && section.scrollIntoView) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 80);
+    }
+
+    // -------------------------------------------------------------------------
+    // Reactome search type-ahead rendering
+    // -------------------------------------------------------------------------
+
+    renderReactomeSearchResults(results) {
+        const $dd = $('#reactome-search-results');
+        $dd.empty();
+        if (!results || results.length === 0) {
+            $dd.hide();
+            return;
+        }
+        const esc = (v) => this.escapeHtml(v == null ? '' : String(v));
+        const items = results.map((r) => {
+            const reactomeId = esc(r.reactome_id || '');
+            const pathwayName = esc(r.pathway_name || '');
+            const species = esc(r.species || 'Homo sapiens');
+            const relevance = r.relevance_score != null ? Number(r.relevance_score) : null;
+            const relText = relevance != null ? relevance.toFixed(3) : '';
+            return `
+                <div class="search-result-item reactome-search-result-item" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--color-border-light);"
+                     data-reactome-id="${reactomeId}"
+                     data-pathway-name="${pathwayName}"
+                     data-species="${species}"
+                     data-relevance="${relevance != null ? relevance : ''}">
+                    <div><strong>${pathwayName}</strong></div>
+                    <div class="text-muted" style="font-size: 12px;">
+                        <span style="font-family: monospace;">${reactomeId}</span> &middot; ${species}${relText ? ` &middot; score ${relText}` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        $dd.html(items).show();
+    }
+
+    // -------------------------------------------------------------------------
+    // Reactome submit + reset
+    // -------------------------------------------------------------------------
+
+    handleReactomeFormSubmission(event) {
+        if (event && event.preventDefault) event.preventDefault();
+
+        if (!this.selectedReactomePathway) {
+            $('#reactome-message').text('Please select a Reactome pathway first.')
+                .css('color', 'var(--color-status-low)');
+            return;
+        }
+        if (!this.selectedReactomeConfidence) {
+            $('#reactome-confidence-select-error').show();
+            return;
+        }
+        if (!this.isLoggedIn) {
+            $('#reactome-message').text('Please log in to submit mappings.')
+                .css('color', 'var(--color-status-low)');
+            setTimeout(() => {
+                this.saveFormState();
+                window.location.href = '/auth/login';
+            }, 2000);
+            return;
+        }
+
+        const keId = $('#ke_id').val();
+        const keTitle = $('#ke_id option:selected').data('title') || '';
+        const csrfToken = this.csrfToken
+            || $('meta[name="csrf-token"]').attr('content')
+            || $('#reactome-mapping-form input[name="csrf_token"]').val();
+
+        const payload = {
+            ke_id: keId,
+            ke_title: keTitle,
+            reactome_id: this.selectedReactomePathway.reactomeId,
+            pathway_name: this.selectedReactomePathway.pathwayName,
+            species: this.selectedReactomePathway.species || 'Homo sapiens',
+            confidence_level: this.selectedReactomeConfidence,
+            suggestion_score: this.selectedReactomePathway.suggestionScore != null
+                ? String(this.selectedReactomePathway.suggestionScore) : '',
+            csrf_token: csrfToken,
+        };
+
+        const $btn = $('#reactome-mapping-form button[type=submit]');
+        $btn.prop('disabled', true).text('Submitting...');
+        $('#reactome-message').empty();
+
+        $.post('/submit_reactome_mapping', payload)
+            .done(() => {
+                $('#thankYouModal').css('display', 'flex');
+                $('#closeThankYouModal').off('click').on('click', () => $('#thankYouModal').hide());
+                this.resetReactomeTab();
+            })
+            .fail((xhr) => {
+                if (xhr && (xhr.status === 401 || xhr.status === 403)) {
+                    $('#reactome-message').text('Please log in to submit mappings.')
+                        .css('color', 'var(--color-status-low)');
+                    setTimeout(() => {
+                        this.saveFormState();
+                        window.location.href = '/auth/login';
+                    }, 2000);
+                } else {
+                    const msg = (xhr && xhr.responseJSON && xhr.responseJSON.error)
+                        || 'Failed to submit mapping. Please try again.';
+                    $('#reactome-message').text(msg).css('color', 'var(--color-status-low)');
+                }
+                $btn.prop('disabled', false).text('Submit KE-Reactome Mapping');
+            });
+    }
+
+    resetReactomeTab() {
+        this.selectedReactomePathway = null;
+        this.selectedReactomeConfidence = null;
+        $('#reactome-confidence-select-group .btn-option').removeClass('selected');
+        $('#reactome-confidence-select-error').hide();
+        $('#reactome-confidence-guide').hide();
+        $('#reactome-step-submit').hide();
+        $('#duplicate-warning-reactome').hide().empty();
+        $('#reactome-message').empty();
+        $('#reactome-pathway-search').val('');
+        $('#reactome-search-results').empty().hide();
+        // Re-render default suggestions panel state
+        const keId = $('#ke_id').val();
+        const keTitle = $('#ke_id option:selected').data('title');
+        if (keId && keTitle) {
+            this.loadReactomeSuggestions(keId, keTitle);
+        } else {
+            $('#reactome-suggestions-container').html(
+                '<p class="text-muted-italic">Select a Key Event above to see Reactome pathway suggestions.</p>'
+            );
+        }
+        const $btn = $('#reactome-mapping-form button[type=submit]');
+        $btn.prop('disabled', true).text('Complete Steps 2–3 First');
     }
 
     saveFormState() {

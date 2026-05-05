@@ -489,3 +489,139 @@ class TestSearchReactomeEndpoint:
     def test_search_reactome_unwired_returns_503(self, unwired_search_client):
         response = unwired_search_client.get("/search_reactome?q=MAPK")
         assert response.status_code == 503
+
+
+# ---------------------------------------------------------------------------
+# Phase 25 Plan 05 — top-level functional + static-source tests
+# ---------------------------------------------------------------------------
+# These tests verify the JS frontend (Plan 25-05) integrates correctly with
+# the Plan 25-02 endpoints. The check_entry test is named to match the Plan
+# 25-05 verify command (top-level discoverability via
+# `tests/test_reactome_submission.py::test_check_reactome_entry_blocks_approved_mapping`).
+
+
+@pytest.fixture
+def _plan_05_check_client():
+    """Module-level fixture mirroring TestCheckReactomeEntry.check_client."""
+    from app import app as flask_app
+    import src.blueprints.api as api_mod
+    from src.core.models import (
+        Database,
+        ReactomeMappingModel,
+        ReactomeProposalModel,
+    )
+
+    fd, db_path = tempfile.mkstemp()
+    db = Database(db_path)
+    rm = ReactomeMappingModel(db)
+    rpm = ReactomeProposalModel(db)
+
+    orig_rm = api_mod.reactome_mapping_model
+    orig_rpm = api_mod.reactome_proposal_model
+    api_mod.reactome_mapping_model = rm
+    api_mod.reactome_proposal_model = rpm
+
+    flask_app.config["TESTING"] = True
+    flask_app.config["WTF_CSRF_ENABLED"] = False
+
+    with flask_app.test_client() as test_client:
+        with flask_app.app_context():
+            yield test_client, rm, rpm, db
+
+    api_mod.reactome_mapping_model = orig_rm
+    api_mod.reactome_proposal_model = orig_rpm
+    os.close(fd)
+    os.unlink(db_path)
+
+
+def test_check_reactome_entry_blocks_approved_mapping(_plan_05_check_client):
+    """Plan 25-05 Task 2 — POST /check_reactome_entry returns blocking_type=approved_mapping
+    when an approved mapping exists for the (KE, Reactome) pair, and the `existing` payload
+    contains the documented fields but not admin_notes."""
+    client, rm, rpm, db = _plan_05_check_client
+    mapping_id = rm.create_mapping(
+        ke_id="KE 1",
+        ke_title="Increase, Oxidative Stress",
+        reactome_id="R-HSA-1234",
+        pathway_name="MAPK signaling",
+        species="Homo sapiens",
+        confidence_level="medium",
+        suggestion_score=0.72,
+        created_by="curator",
+    )
+    assert mapping_id is not None
+    rm.update_reactome_mapping(
+        mapping_id=mapping_id,
+        approved_by_curator="github:admin",
+        approved_at_curator="2026-05-05T00:00:00",
+    )
+
+    response = client.post(
+        "/check_reactome_entry",
+        data={"ke_id": "KE 1", "reactome_id": "R-HSA-1234"},
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["pair_exists"] is True
+    assert data["blocking_type"] == "approved_mapping"
+    existing = data["existing"]
+    # Documented carry-fields per Plan 25-05 threat model
+    for key in (
+        "ke_id",
+        "ke_title",
+        "reactome_id",
+        "pathway_name",
+        "confidence_level",
+        "approved_by_curator",
+        "approved_at_curator",
+    ):
+        assert key in existing, f"missing {key} in existing payload"
+    # admin_notes is NOT exposed via /check_reactome_entry
+    assert "admin_notes" not in existing
+
+
+def test_submit_reactome_form_field_set_matches_schema():
+    """Plan 25-05 Task 3 — Static-source verification that the JS submit handler's
+    payload object contains exactly the fields the /submit_reactome_mapping endpoint
+    and ReactomeMappingSchema accept (per CONTEXT.md D-18). Pure regex over the JS source.
+    """
+    import re
+    here = os.path.dirname(os.path.abspath(__file__))
+    js_path = os.path.normpath(os.path.join(here, "..", "static", "js", "main.js"))
+    with open(js_path, "r", encoding="utf-8") as fh:
+        src = fh.read()
+
+    # Locate the handleReactomeFormSubmission method body.
+    m = re.search(
+        r"handleReactomeFormSubmission\s*\([^)]*\)\s*\{(.*?)\n    \}",
+        src,
+        re.DOTALL,
+    )
+    assert m, "handleReactomeFormSubmission method not found in static/js/main.js"
+    body = m.group(1)
+
+    # Locate the payload object literal inside the method body.
+    payload_m = re.search(r"const\s+payload\s*=\s*\{(.+?)\};", body, re.DOTALL)
+    assert payload_m, "payload object not found inside handleReactomeFormSubmission"
+    payload_src = payload_m.group(1)
+
+    required_keys = {
+        "ke_id",
+        "ke_title",
+        "reactome_id",
+        "pathway_name",
+        "species",
+        "confidence_level",
+        "suggestion_score",
+        "csrf_token",
+    }
+    for key in required_keys:
+        # Match `key:` at start of token (ignoring whitespace)
+        assert re.search(r"\b" + re.escape(key) + r"\s*:", payload_src), (
+            f"submit payload is missing field '{key}': {payload_src}"
+        )
+
+    # The POST URL must be /submit_reactome_mapping
+    assert "/submit_reactome_mapping" in body, (
+        "handleReactomeFormSubmission should POST to /submit_reactome_mapping"
+    )
