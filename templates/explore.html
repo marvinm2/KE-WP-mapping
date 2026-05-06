@@ -36,6 +36,9 @@
             <button type="button" class="explore-tab tab-btn" data-tab="go">
                 KE-GO Mappings ({{ go_dataset|length }})
             </button>
+            <button type="button" class="explore-tab tab-btn" data-tab="reactome">
+                KE-Reactome Mappings ({{ reactome_count }})
+            </button>
             <button type="button" class="explore-tab tab-btn" data-tab="gaps">
                 Coverage Gaps
             </button>
@@ -113,6 +116,43 @@
                     </tr>
                     {% endfor %}
                 </tbody>
+            </table>
+        </div>
+
+        <!-- KE-Reactome Mappings Table (lazy-init AJAX DataTable) -->
+        <div id="reactome-explore-content" style="display: none;">
+            <div style="display:flex; gap:16px; align-items:flex-end; margin-bottom:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:200px; max-width:360px;">
+                    <label for="reactome-aop-filter-select" class="form-label" style="font-size:13px;">Filter by AOP</label>
+                    <select id="reactome-aop-filter-select" style="width:100%;">
+                        <option value="">All AOPs</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size:13px;">Confidence</label>
+                    <div id="reactome-confidence-filter-btns" style="display:flex;gap:4px;">
+                        <button type="button" class="conf-filter-btn active" data-conf="">All</button>
+                        <button type="button" class="conf-filter-btn" data-conf="High">High</button>
+                        <button type="button" class="conf-filter-btn" data-conf="Medium">Medium</button>
+                        <button type="button" class="conf-filter-btn" data-conf="Low">Low</button>
+                    </div>
+                </div>
+            </div>
+            <div id="reactome-active-filter-chips" class="filter-chips"></div>
+            <table id="reactomeDatasetTable" class="display" width="100%">
+                <thead>
+                    <tr>
+                        <th>KE ID</th>
+                        <th>KE Title</th>
+                        <th>Reactome ID</th>
+                        <th>Pathway Name</th>
+                        <th>Confidence</th>
+                        <th>Proposer</th>
+                        <th>Curator</th>
+                        <th>Approved</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
             </table>
         </div>
 
@@ -507,7 +547,11 @@
             // KE-GO DataTable (lazy init, server-rendered rows)
             var goTableInitialized = false;
 
-            // Tab switching (3 tabs: wp, go, gaps)
+            // KE-Reactome filter state + lazy-init flag
+            var reactomeState = { aopId: null, aopLabel: null, confidence: null };
+            var reactomeTableInitialized = false;
+
+            // Tab switching (4 tabs: wp, go, reactome, gaps)
             $('.explore-tab').on('click', function() {
                 var tab = $(this).data('tab');
 
@@ -520,10 +564,12 @@
                 if (tab === 'wp') {
                     $('#wp-explore-content').show();
                     $('#go-explore-content').hide();
+                    $('#reactome-explore-content').hide();
                     $('#gaps-explore-content').hide();
                 } else if (tab === 'go') {
                     $('#wp-explore-content').hide();
                     $('#go-explore-content').show();
+                    $('#reactome-explore-content').hide();
                     $('#gaps-explore-content').hide();
 
                     if (!goTableInitialized) {
@@ -543,11 +589,152 @@
                         );
                         goTableInitialized = true;
                     }
+                } else if (tab === 'reactome') {
+                    $('#wp-explore-content').hide();
+                    $('#go-explore-content').hide();
+                    $('#reactome-explore-content').show();
+                    $('#gaps-explore-content').hide();
+
+                    if (!reactomeTableInitialized) {
+                        $('#reactomeDatasetTable').DataTable({
+                            serverSide: true,
+                            processing: true,
+                            pageLength: 25,
+                            ajax: function(data, callback) {
+                                var params = new URLSearchParams({
+                                    page: Math.floor(data.start / data.length) + 1,
+                                    per_page: data.length
+                                });
+                                if (reactomeState.aopId) params.set('aop_id', reactomeState.aopId);
+                                if (reactomeState.confidence) params.set('confidence_level', reactomeState.confidence);
+                                fetch('/api/v1/reactome-mappings?' + params.toString(), { headers: { 'Accept': 'application/json' } })
+                                    .then(function(r) { return r.json(); })
+                                    .then(function(json) {
+                                        callback({
+                                            draw: data.draw,
+                                            recordsTotal: json.pagination ? json.pagination.total : 0,
+                                            recordsFiltered: json.pagination ? json.pagination.total : 0,
+                                            data: json.data || []
+                                        });
+                                    })
+                                    .catch(function() {
+                                        callback({ draw: data.draw, recordsTotal: 0, recordsFiltered: 0, data: [] });
+                                    });
+                            },
+                            columns: [
+                                { data: 'ke_id' },
+                                { data: 'ke_name' },
+                                { data: 'reactome_id',
+                                  render: function(data, type, row) {
+                                      if (type !== 'display' || !data) return data || '';
+                                      return '<a href="https://reactome.org/PathwayBrowser/#/' + data + '" target="_blank" rel="noopener">' + data + '</a>';
+                                  }
+                                },
+                                { data: 'pathway_name' },
+                                { data: 'confidence_level' },
+                                { data: 'provenance.proposed_by', defaultContent: '-',
+                                  render: function(data) {
+                                      if (!data) return '-';
+                                      var idx = data.indexOf(':');
+                                      return idx > -1 ? data.substring(idx + 1) : data;
+                                  }
+                                },
+                                { data: 'provenance.approved_by', defaultContent: '-',
+                                  render: function(data) {
+                                      if (!data) return '-';
+                                      var idx = data.indexOf(':');
+                                      return idx > -1 ? data.substring(idx + 1) : data;
+                                  }
+                                },
+                                { data: 'provenance.approved_at', defaultContent: '-',
+                                  render: function(d) { return d ? d.split('T')[0] : '-'; } }
+                            ]
+                        });
+                        reactomeTableInitialized = true;
+                    }
                 } else if (tab === 'gaps') {
                     $('#wp-explore-content').hide();
                     $('#go-explore-content').hide();
+                    $('#reactome-explore-content').hide();
                     $('#gaps-explore-content').show();
                 }
+            });
+
+            // Reactome filter wiring (D-13): mirrors WP filter handlers
+            function renderReactomeFilterChips() {
+                var chips = [];
+                if (reactomeState.aopId) {
+                    chips.push('<span class="filter-chip">AOP: ' + $('#reactome-aop-filter-select option:selected').text() +
+                        ' <button class="filter-chip-remove" onclick="clearReactomeAopFilter()">&times;</button></span>');
+                }
+                if (reactomeState.confidence) {
+                    chips.push('<span class="filter-chip">Confidence: ' + reactomeState.confidence +
+                        ' <button class="filter-chip-remove" onclick="clearReactomeConfidenceFilter()">&times;</button></span>');
+                }
+                if (chips.length > 0) {
+                    chips.push('<button class="filter-chips-clear" onclick="clearReactomeAllFilters()">Clear all</button>');
+                }
+                $('#reactome-active-filter-chips').html(chips.join(''));
+            }
+
+            window.clearReactomeAopFilter = function() {
+                reactomeState.aopId = null;
+                reactomeState.aopLabel = null;
+                $('#reactome-aop-filter-select').val('').trigger('change.select2');
+                applyReactomeFilters();
+            };
+
+            window.clearReactomeConfidenceFilter = function() {
+                reactomeState.confidence = null;
+                $('#reactome-confidence-filter-btns .conf-filter-btn').removeClass('active');
+                $('#reactome-confidence-filter-btns .conf-filter-btn[data-conf=""]').addClass('active');
+                applyReactomeFilters();
+            };
+
+            window.clearReactomeAllFilters = function() {
+                clearReactomeAopFilter();
+                clearReactomeConfidenceFilter();
+            };
+
+            function applyReactomeFilters() {
+                if (reactomeTableInitialized) {
+                    $('#reactomeDatasetTable').DataTable().ajax.reload();
+                }
+                renderReactomeFilterChips();
+            }
+
+            // Populate Reactome AOP Select2 from same /get_aop_options source as WP/gaps selects.
+            // Note: the WP loader (above) already fetches and appends to #aop-filter-select and
+            // #gaps-aop-select; we duplicate the request here so the Reactome select gets the same
+            // option list and a Select2 init. Cheap enough — endpoint is fast and cached client-side.
+            $.getJSON('/get_aop_options').done(function(options) {
+                options.forEach(function(opt) {
+                    var id = opt.aopId || '';
+                    var label = opt.aopTitle || opt.aopLabel || id;
+                    if (id) {
+                        $('#reactome-aop-filter-select').append(new Option(label, id, false, false));
+                    }
+                });
+                $('#reactome-aop-filter-select').select2({
+                    placeholder: 'Search AOP by name or ID...',
+                    allowClear: true,
+                    width: '100%'
+                });
+            });
+
+            $('#reactome-aop-filter-select').on('change', function() {
+                var val = $(this).val();
+                reactomeState.aopId = val || null;
+                reactomeState.aopLabel = val ? $(this).find('option:selected').text() : null;
+                applyReactomeFilters();
+            });
+
+            // Reactome confidence toggle buttons
+            $('#reactome-confidence-filter-btns .conf-filter-btn').on('click', function() {
+                $('#reactome-confidence-filter-btns .conf-filter-btn').removeClass('active');
+                $(this).addClass('active');
+                reactomeState.confidence = $(this).data('conf') || null;
+                applyReactomeFilters();
             });
 
             // Propose Change modal - event delegation for AJAX-rendered rows
