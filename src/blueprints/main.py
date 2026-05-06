@@ -684,6 +684,7 @@ def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
     from src.exporters.gmt_exporter import (
         generate_ke_wp_gmt, generate_ke_go_gmt,
         generate_ke_centric_wp_gmt, generate_ke_centric_go_gmt,
+        generate_ke_reactome_gmt, generate_ke_centric_reactome_gmt,
     )
     today = datetime.today().date().isoformat()
     tier = min_confidence.capitalize() if min_confidence else "All"
@@ -700,6 +701,12 @@ def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
         elif mapping_type == "go-centric":
             mappings = go_mapping_model.get_all_mappings() if go_mapping_model else []
             content = generate_ke_centric_go_gmt(mappings, min_confidence=min_confidence)
+        elif mapping_type == "reactome":
+            mappings = reactome_mapping_model.get_all_mappings() if reactome_mapping_model else []
+            content = generate_ke_reactome_gmt(mappings, min_confidence=min_confidence)
+        elif mapping_type == "reactome-centric":
+            mappings = reactome_mapping_model.get_all_mappings() if reactome_mapping_model else []
+            content = generate_ke_centric_reactome_gmt(mappings, min_confidence=min_confidence)
         else:
             mappings = go_mapping_model.get_all_mappings() if go_mapping_model else []
             content = generate_ke_go_gmt(mappings, min_confidence=min_confidence)
