@@ -59,6 +59,23 @@
             </div>
         </div>
 
+        <!-- Card 2a: KE-Reactome GMT -->
+        <div class="download-card download-card--orange">
+            <div class="download-card__header">
+                <h2 class="download-card__title">KE-Reactome GMT</h2>
+                <span class="download-card__badge download-card__badge--orange">.gmt</span>
+            </div>
+            <p class="download-card__desc">
+                Key Event to Reactome pathway mappings in GMT format. One row per KE-pathway pair.
+                Gene symbols from Reactome (HGNC). Directly loadable by clusterProfiler
+                <code>enricher()</code> and fgsea <code>gmtPathways()</code>.
+            </p>
+            <div class="download-card__actions">
+                <a href="/exports/gmt/ke-reactome" class="btn-link-orange">All mappings</a>
+                <a href="/exports/gmt/ke-reactome?min_confidence=High" class="btn-link-orange">High confidence only</a>
+            </div>
+        </div>
+
         <!-- Card 3: KE-Centric WP GMT -->
         <div class="download-card download-card--blue">
             <div class="download-card__header">
@@ -92,6 +109,23 @@
             </div>
         </div>
 
+        <!-- Card 4a: KE-Centric Reactome GMT -->
+        <div class="download-card download-card--orange">
+            <div class="download-card__header">
+                <h2 class="download-card__title">KE-Centric Reactome GMT</h2>
+                <span class="download-card__badge download-card__badge--orange">.gmt</span>
+            </div>
+            <p class="download-card__desc">
+                One row per Key Event. Genes unioned across all Reactome mappings for that KE,
+                deduplicated. Useful for KE-level enrichment analyses where pathway granularity
+                is collapsed.
+            </p>
+            <div class="download-card__actions">
+                <a href="/exports/gmt/ke-reactome-centric" class="btn-link-orange">All mappings</a>
+                <a href="/exports/gmt/ke-reactome-centric?min_confidence=High" class="btn-link-orange">High confidence only</a>
+            </div>
+        </div>
+
         <!-- Card 5: KE-WP RDF/Turtle -->
         <div class="download-card download-card--dark">
             <div class="download-card__header">
@@ -120,6 +154,22 @@
             </p>
             <div>
                 <a href="/exports/rdf/ke-go" class="btn-link-dark">Download ke-go-mappings.ttl</a>
+            </div>
+        </div>
+
+        <!-- Card 6a: KE-Reactome RDF/Turtle -->
+        <div class="download-card download-card--dark">
+            <div class="download-card__header">
+                <h2 class="download-card__title">KE-Reactome RDF/Turtle</h2>
+                <span class="download-card__badge download-card__badge--dark">.ttl</span>
+            </div>
+            <p class="download-card__desc">
+                Full KE-Reactome provenance in RDF/Turtle format. Includes curator identity,
+                approval timestamp, confidence level, suggestion score, species, and pathway
+                description per mapping. Parseable by rdflib, Protege, and any Turtle-compatible tool.
+            </p>
+            <div>
+                <a href="/exports/rdf/ke-reactome" class="btn-link-dark">Download ke-reactome-mappings.ttl</a>
             </div>
         </div>
 
