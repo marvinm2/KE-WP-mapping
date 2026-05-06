@@ -186,13 +186,20 @@ def create_app(config_name: str = None):
                      cache_model=services.cache_model, ke_override=services.ke_override_model,
                      reactome_mapping=services.reactome_mapping_model,
                      reactome_proposal=services.reactome_proposal_model)
-    set_main_models(services.mapping_model, go_mapping=services.go_mapping_model, cache_model=services.cache_model, ker_adjacency_data=services.ker_adjacency)
-
     # Phase 26 D-06/D-10: load Reactome enrichment data once at startup so
     # the v1 Reactome serializer can resolve pathway_description and
     # reactome_gene_count in O(1) per row.
     reactome_metadata_dict = _load_reactome_metadata(app)
     reactome_gene_counts_dict = _load_reactome_gene_counts(app)
+
+    set_main_models(
+        services.mapping_model,
+        go_mapping=services.go_mapping_model,
+        cache_model=services.cache_model,
+        ker_adjacency_data=services.ker_adjacency,
+        reactome_mapping=services.reactome_mapping_model,
+        reactome_meta=reactome_metadata_dict,
+    )
 
     set_v1_api_models(
         mapping=services.mapping_model,
