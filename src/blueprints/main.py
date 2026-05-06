@@ -125,11 +125,27 @@ def explore():
                 go_data = go_mapping_model.get_all_mappings()
             except Exception as e:
                 logger.warning("Failed to load GO mappings: %s", e)
-        return render_template("explore.html", go_dataset=go_data, user_info=user_info)
+        reactome_count = 0
+        try:
+            if reactome_mapping_model:
+                reactome_count = len(reactome_mapping_model.get_all_mappings())
+        except Exception as e:
+            logger.warning("Failed to load Reactome mapping count: %s", e)
+            reactome_count = 0
+        return render_template(
+            "explore.html",
+            go_dataset=go_data,
+            user_info=user_info,
+            reactome_count=reactome_count,
+        )
     except Exception as e:
         logger.error("Error loading dataset: %s", e)
         return render_template(
-            "explore.html", go_dataset=[], user_info={}, error="Failed to load dataset"
+            "explore.html",
+            go_dataset=[],
+            user_info={},
+            reactome_count=0,
+            error="Failed to load dataset",
         )
 
 
