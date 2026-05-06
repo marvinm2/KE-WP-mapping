@@ -11,7 +11,7 @@ from rdflib.namespace import DCTERMS, XSD
 
 logger = logging.getLogger(__name__)
 
-KEWP = Namespace("https://ke-wp-mapping.org/vocab#")
+VOCAB = Namespace("https://ke-wp-mapping.org/vocab#")
 MAPPING = Namespace("https://ke-wp-mapping.org/mapping/")
 
 
@@ -42,7 +42,7 @@ def generate_ke_wp_turtle(mappings, min_confidence=None) -> str:
         ]
 
     g = Graph()
-    g.bind("ke-wp", KEWP)
+    g.bind("ke-wp", VOCAB)
     g.bind("dcterms", DCTERMS)
     g.bind("mapping", MAPPING)
 
@@ -51,13 +51,13 @@ def generate_ke_wp_turtle(mappings, min_confidence=None) -> str:
             continue
 
         uri = MAPPING[row["uuid"]]
-        g.add((uri, RDF.type, KEWP.KeyEventPathwayMapping))
+        g.add((uri, RDF.type, VOCAB.KeyEventPathwayMapping))
         g.add((uri, DCTERMS.identifier, Literal(row["uuid"])))
-        g.add((uri, KEWP.keyEventId, Literal(row["ke_id"])))
-        g.add((uri, KEWP.keyEventName, Literal(row["ke_title"])))
-        g.add((uri, KEWP.pathwayId, Literal(row["wp_id"])))
-        g.add((uri, KEWP.pathwayTitle, Literal(row["wp_title"])))
-        g.add((uri, KEWP.confidenceLevel, Literal(row["confidence_level"])))
+        g.add((uri, VOCAB.keyEventId, Literal(row["ke_id"])))
+        g.add((uri, VOCAB.keyEventName, Literal(row["ke_title"])))
+        g.add((uri, VOCAB.pathwayId, Literal(row["wp_id"])))
+        g.add((uri, VOCAB.pathwayTitle, Literal(row["wp_title"])))
+        g.add((uri, VOCAB.confidenceLevel, Literal(row["confidence_level"])))
 
         if row.get("approved_by_curator"):
             g.add((uri, DCTERMS.creator, Literal(row["approved_by_curator"])))
@@ -72,7 +72,7 @@ def generate_ke_wp_turtle(mappings, min_confidence=None) -> str:
         if row.get("suggestion_score") is not None:
             g.add((
                 uri,
-                KEWP.suggestionScore,
+                VOCAB.suggestionScore,
                 Literal(float(row["suggestion_score"]), datatype=XSD.decimal),
             ))
 
@@ -104,7 +104,7 @@ def generate_ke_go_turtle(mappings, min_confidence=None) -> str:
         ]
 
     g = Graph()
-    g.bind("ke-wp", KEWP)
+    g.bind("ke-wp", VOCAB)
     g.bind("dcterms", DCTERMS)
     g.bind("mapping", MAPPING)
 
@@ -113,13 +113,13 @@ def generate_ke_go_turtle(mappings, min_confidence=None) -> str:
             continue
 
         uri = MAPPING[row["uuid"]]
-        g.add((uri, RDF.type, KEWP.KeyEventGOMapping))
+        g.add((uri, RDF.type, VOCAB.KeyEventGOMapping))
         g.add((uri, DCTERMS.identifier, Literal(row["uuid"])))
-        g.add((uri, KEWP.keyEventId, Literal(row["ke_id"])))
-        g.add((uri, KEWP.keyEventName, Literal(row["ke_title"])))
-        g.add((uri, KEWP.goTermId, Literal(row["go_id"])))
-        g.add((uri, KEWP.goTermName, Literal(row["go_name"])))
-        g.add((uri, KEWP.confidenceLevel, Literal(row["confidence_level"])))
+        g.add((uri, VOCAB.keyEventId, Literal(row["ke_id"])))
+        g.add((uri, VOCAB.keyEventName, Literal(row["ke_title"])))
+        g.add((uri, VOCAB.goTermId, Literal(row["go_id"])))
+        g.add((uri, VOCAB.goTermName, Literal(row["go_name"])))
+        g.add((uri, VOCAB.confidenceLevel, Literal(row["confidence_level"])))
 
         if row.get("approved_by_curator"):
             g.add((uri, DCTERMS.creator, Literal(row["approved_by_curator"])))
@@ -134,14 +134,14 @@ def generate_ke_go_turtle(mappings, min_confidence=None) -> str:
         if row.get("suggestion_score") is not None:
             g.add((
                 uri,
-                KEWP.suggestionScore,
+                VOCAB.suggestionScore,
                 Literal(float(row["suggestion_score"]), datatype=XSD.decimal),
             ))
 
         if row.get("go_direction"):
-            g.add((uri, KEWP.goDirection, Literal(row["go_direction"])))
+            g.add((uri, VOCAB.goDirection, Literal(row["go_direction"])))
 
         if row.get("go_namespace"):
-            g.add((uri, KEWP.goNamespace, Literal(row["go_namespace"])))
+            g.add((uri, VOCAB.goNamespace, Literal(row["go_namespace"])))
 
     return g.serialize(format="turtle")
