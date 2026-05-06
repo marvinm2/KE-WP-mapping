@@ -163,7 +163,7 @@ var ReactomeDiagramEmbed = {
             this._diagram = window.Reactome.Diagram.create({
                 placeHolder: this._FRAME_ID,
                 width: width,
-                height: 280,
+                height: 500,
                 toHide: []
             });
         } catch (e) {
