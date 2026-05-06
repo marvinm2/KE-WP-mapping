@@ -272,3 +272,174 @@ def test_turtle_empty_input():
     g.parse(data=out, format="turtle")
     # No rdf:type KeyEventReactomeMapping triples
     assert list(g.subjects(RDF.type, VOCAB.KeyEventReactomeMapping)) == []
+
+
+# ---- Plan 26-06: route handlers + _get_or_generate_gmt extension --------------
+
+import os
+import tempfile
+
+from app import app as flask_app
+import src.blueprints.main as main_bp_mod
+from src.core.models import Database, ReactomeMappingModel
+
+
+@pytest.fixture
+def export_seeded(tmp_path, monkeypatch):
+    """Wire main blueprint Reactome model + metadata to a fresh temp-file DB
+    with two seeded rows. Stubs the gene-annotations loader and clears any
+    cached export files so each test exercises fresh generation."""
+    fd, db_path = tempfile.mkstemp()
+    db = Database(db_path)
+    rm = ReactomeMappingModel(db)
+
+    rows = [
+        {
+            "uuid": "u1", "ke_id": "KE 1", "ke_title": "Apop",
+            "reactome_id": "R-HSA-100", "pathway_name": "p53",
+            "species": "Homo sapiens", "confidence_level": "High",
+            "approved_by_curator": "github:a",
+            "approved_at_curator": "2026-01-01T00:00:00",
+            "suggestion_score": 0.9, "proposed_by": "github:a",
+        },
+        {
+            "uuid": "u2", "ke_id": "KE 5", "ke_title": "Cell",
+            "reactome_id": "R-HSA-200", "pathway_name": "DNA",
+            "species": "Homo sapiens", "confidence_level": "Medium",
+            "approved_by_curator": "github:b",
+            "approved_at_curator": "2026-01-02T00:00:00",
+            "suggestion_score": 0.7, "proposed_by": "github:b",
+        },
+    ]
+    conn = rm.db.get_connection()
+    try:
+        for r in rows:
+            cols = ",".join(r.keys())
+            ph = ",".join(["?"] * len(r))
+            conn.execute(
+                f"INSERT INTO ke_reactome_mappings ({cols}) VALUES ({ph})",
+                list(r.values()),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Clear any cached export files so we exercise fresh generation
+    for fname in ("ke-reactome-mappings.ttl",):
+        p = main_bp_mod.EXPORT_CACHE_DIR / fname
+        if p.exists():
+            p.unlink()
+    if main_bp_mod.EXPORT_CACHE_DIR.exists():
+        for p in main_bp_mod.EXPORT_CACHE_DIR.glob("KE-REACTOME*.gmt"):
+            p.unlink()
+
+    # Stub gene annotations via monkeypatched gmt_exporter loader
+    gene_annotations = {"R-HSA-100": ["TP53", "MDM2"], "R-HSA-200": ["BRCA1"]}
+    from src.exporters import gmt_exporter
+    monkeypatch.setattr(
+        gmt_exporter,
+        "_load_reactome_annotations",
+        lambda path=None: gene_annotations,
+    )
+
+    # Wire model + metadata onto the main blueprint
+    monkeypatch.setattr(main_bp_mod, "reactome_mapping_model", rm)
+    monkeypatch.setattr(
+        main_bp_mod,
+        "reactome_metadata",
+        {"R-HSA-100": {"description": "p53 pathway desc"}},
+    )
+
+    flask_app.config["TESTING"] = True
+    flask_app.config["WTF_CSRF_ENABLED"] = False
+
+    with flask_app.test_client() as test_client:
+        with flask_app.app_context():
+            yield test_client
+
+    os.close(fd)
+    os.unlink(db_path)
+
+
+def test_download_ke_reactome_gmt_route(export_seeded):
+    client = export_seeded
+    resp = client.get("/exports/gmt/ke-reactome")
+    assert resp.status_code == 200
+    assert resp.mimetype == "text/plain"
+    assert "attachment" in resp.headers.get("Content-Disposition", "")
+    body = resp.get_data(as_text=True)
+    assert "R-HSA-100" in body
+    assert "TP53" in body
+    # Format: KE{N}_{Slug}_R-HSA-XXX
+    first_line = body.splitlines()[0]
+    tokens = first_line.split("\t")
+    assert tokens[0].startswith("KE1_") and tokens[0].endswith("_R-HSA-100")
+
+
+def test_download_ke_reactome_gmt_min_confidence(export_seeded):
+    client = export_seeded
+    resp = client.get("/exports/gmt/ke-reactome?min_confidence=High")
+    body = resp.get_data(as_text=True)
+    # Only u1 (High) survives
+    lines = [l for l in body.splitlines() if l]
+    assert len(lines) == 1
+    assert "p53" in lines[0]
+
+
+def test_download_ke_reactome_centric_gmt_route(export_seeded):
+    client = export_seeded
+    resp = client.get("/exports/gmt/ke-reactome-centric")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    lines = [l for l in body.splitlines() if l]
+    # KE 1 and KE 5, each one line
+    assert any(l.startswith("KE1\t") for l in lines)
+    assert any(l.startswith("KE5\t") for l in lines)
+
+
+def test_download_ke_reactome_gmt_503_when_empty(client, monkeypatch):
+    class _Empty:
+        def get_all_mappings(self):
+            return []
+    monkeypatch.setattr(main_bp_mod, "reactome_mapping_model", _Empty())
+    # Clear cache so the empty content is regenerated
+    if main_bp_mod.EXPORT_CACHE_DIR.exists():
+        for p in main_bp_mod.EXPORT_CACHE_DIR.glob("KE-REACTOME*.gmt"):
+            p.unlink()
+    resp = client.get("/exports/gmt/ke-reactome")
+    assert resp.status_code == 503
+    assert "No KE-Reactome mappings available" in resp.get_json()["error"]
+
+
+def test_download_ke_reactome_rdf_route(export_seeded):
+    client = export_seeded
+    resp = client.get("/exports/rdf/ke-reactome")
+    assert resp.status_code == 200
+    assert resp.mimetype == "text/turtle"
+    body = resp.get_data(as_text=True)
+    g = Graph()
+    g.parse(data=body, format="turtle")
+    types = list(g.triples((None, RDF.type, VOCAB.KeyEventReactomeMapping)))
+    assert len(types) == 2
+
+
+def test_download_ke_reactome_rdf_pathway_description(export_seeded):
+    client = export_seeded
+    resp = client.get("/exports/rdf/ke-reactome")
+    body = resp.get_data(as_text=True)
+    # The "p53 pathway desc" string should appear because reactome_metadata is wired
+    assert "p53 pathway desc" in body
+
+
+def test_download_ke_reactome_rdf_503_when_empty(client, monkeypatch):
+    class _Empty:
+        def get_all_mappings(self):
+            return []
+    monkeypatch.setattr(main_bp_mod, "reactome_mapping_model", _Empty())
+    # Clear RDF cache
+    p = main_bp_mod.EXPORT_CACHE_DIR / "ke-reactome-mappings.ttl"
+    if p.exists():
+        p.unlink()
+    resp = client.get("/exports/rdf/ke-reactome")
+    assert resp.status_code == 503
+    assert "No KE-Reactome mappings available" in resp.get_json()["error"]

@@ -816,8 +816,12 @@ def download_ke_reactome_rdf():
     if not cache_path.exists():
         EXPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         mappings = reactome_mapping_model.get_all_mappings() if reactome_mapping_model else []
-        content = generate_ke_reactome_turtle(mappings, reactome_metadata=reactome_metadata)
-        cache_path.write_text(content or "", encoding="utf-8")
+        if mappings:
+            content = generate_ke_reactome_turtle(mappings, reactome_metadata=reactome_metadata)
+            cache_path.write_text(content or "", encoding="utf-8")
+        else:
+            # No mappings → write empty placeholder so the 503 branch fires below
+            cache_path.write_text("", encoding="utf-8")
     if not cache_path.exists() or cache_path.stat().st_size == 0:
         return jsonify({"error": "No KE-Reactome mappings available for RDF export"}), 503
     return send_file(str(cache_path), as_attachment=True, download_name="ke-reactome-mappings.ttl", mimetype="text/turtle")
