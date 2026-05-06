@@ -758,6 +758,26 @@ def download_ke_go_centric_gmt():
     return send_file(str(cache_path), as_attachment=True, download_name=filename, mimetype="text/plain")
 
 
+@main_bp.route("/exports/gmt/ke-reactome")
+def download_ke_reactome_gmt():
+    """Download KE-Reactome GMT file. ?min_confidence=High|Medium|Low for filtered versions."""
+    min_conf = request.args.get("min_confidence", "").lower() or None
+    cache_path, filename = _get_or_generate_gmt("reactome", min_conf)
+    if not cache_path.exists() or cache_path.stat().st_size == 0:
+        return jsonify({"error": "No KE-Reactome mappings available"}), 503
+    return send_file(str(cache_path), as_attachment=True, download_name=filename, mimetype="text/plain")
+
+
+@main_bp.route("/exports/gmt/ke-reactome-centric")
+def download_ke_reactome_centric_gmt():
+    """KE-centric Reactome GMT: one row per KE, genes unioned across all Reactome mappings."""
+    min_conf = request.args.get("min_confidence", "").lower() or None
+    cache_path, filename = _get_or_generate_gmt("reactome-centric", min_conf)
+    if not cache_path.exists() or cache_path.stat().st_size == 0:
+        return jsonify({"error": "No KE-Reactome mappings available"}), 503
+    return send_file(str(cache_path), as_attachment=True, download_name=filename, mimetype="text/plain")
+
+
 @main_bp.route("/exports/rdf/ke-wp")
 def download_ke_wp_rdf():
     """Download KE-WP RDF/Turtle file."""
@@ -786,6 +806,21 @@ def download_ke_go_rdf():
     if not cache_path.exists() or cache_path.stat().st_size == 0:
         return jsonify({"error": "No KE-GO mappings available for RDF export"}), 503
     return send_file(str(cache_path), as_attachment=True, download_name="ke-go-mappings.ttl", mimetype="text/turtle")
+
+
+@main_bp.route("/exports/rdf/ke-reactome")
+def download_ke_reactome_rdf():
+    """Download KE-Reactome RDF/Turtle file."""
+    from src.exporters.rdf_exporter import generate_ke_reactome_turtle
+    cache_path = EXPORT_CACHE_DIR / "ke-reactome-mappings.ttl"
+    if not cache_path.exists():
+        EXPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        mappings = reactome_mapping_model.get_all_mappings() if reactome_mapping_model else []
+        content = generate_ke_reactome_turtle(mappings, reactome_metadata=reactome_metadata)
+        cache_path.write_text(content or "", encoding="utf-8")
+    if not cache_path.exists() or cache_path.stat().st_size == 0:
+        return jsonify({"error": "No KE-Reactome mappings available for RDF export"}), 503
+    return send_file(str(cache_path), as_attachment=True, download_name="ke-reactome-mappings.ttl", mimetype="text/turtle")
 
 
 @main_bp.route("/documentation")
