@@ -28,13 +28,18 @@ ke_aop_membership = None
 go_hierarchy = None
 go_bp_metadata = None
 go_mf_metadata = None
+reactome_mapping_model = None
+reactome_metadata = None       # {reactome_id: {description: str, ...}}
+reactome_gene_counts = None    # {reactome_id: int}
 
 
 def set_models(mapping, go_mapping, cache, ke_meta_index=None,
-               ke_aop_data=None, go_hier=None, go_bp_meta=None, go_mf_meta=None):
+               ke_aop_data=None, go_hier=None, go_bp_meta=None, go_mf_meta=None,
+               reactome_mapping=None, reactome_meta=None, reactome_counts=None):
     """Inject model instances from create_app()."""
     global mapping_model, go_mapping_model, cache_model
     global ke_metadata_index, ke_aop_membership, go_hierarchy, go_bp_metadata, go_mf_metadata
+    global reactome_mapping_model, reactome_metadata, reactome_gene_counts
     mapping_model = mapping
     go_mapping_model = go_mapping
     cache_model = cache
@@ -43,6 +48,9 @@ def set_models(mapping, go_mapping, cache, ke_meta_index=None,
     go_hierarchy = go_hier
     go_bp_metadata = go_bp_meta
     go_mf_metadata = go_mf_meta
+    reactome_mapping_model = reactome_mapping
+    reactome_metadata = reactome_meta
+    reactome_gene_counts = reactome_counts
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +196,11 @@ _GO_MAPPING_CSV_FIELDS = [
     "confidence_level", "go_direction", "suggestion_score", "approved_by", "approved_at", "proposed_by",
     "connection_type", "ke_aop_context", "ke_bio_level", "go_definition", "go_ic", "go_depth",
 ]
+_REACTOME_MAPPING_CSV_FIELDS = [
+    "uuid", "ke_id", "ke_name", "reactome_id", "pathway_name", "species",
+    "confidence_level", "suggestion_score", "approved_by", "approved_at", "proposed_by",
+    "ke_aop_context", "ke_bio_level", "pathway_description", "reactome_gene_count",
+]
 
 
 def _flatten_for_csv(obj):
@@ -202,6 +215,44 @@ def _flatten_for_csv(obj):
     aop_ctx = flat.get("ke_aop_context")
     flat["ke_aop_context"] = ";".join(aop_ctx) if aop_ctx else ""
     return flat
+
+
+def _serialize_reactome_mapping(row):
+    """Convert a DB row dict to the v1 Reactome mapping object shape (Phase 26 D-05)."""
+    ke_id = row["ke_id"]
+    reactome_id = row["reactome_id"]
+
+    # KE context enrichment (same plumbing as GO/WP)
+    aop_entries = (ke_aop_membership or {}).get(ke_id, [])
+    ke_aop_context = [entry["aop_id"] for entry in aop_entries]
+
+    ke_meta = (ke_metadata_index or {}).get(ke_id)
+    ke_bio_level = ke_meta.get("biolevel") if ke_meta else None
+
+    # Reactome enrichment from precomputed JSON dicts
+    rmeta = (reactome_metadata or {}).get(reactome_id) or {}
+    pathway_description = rmeta.get("description")
+    gene_count = (reactome_gene_counts or {}).get(reactome_id, 0)
+
+    return {
+        "uuid": row["uuid"],
+        "ke_id": ke_id,
+        "ke_name": row["ke_title"],
+        "reactome_id": reactome_id,
+        "pathway_name": row["pathway_name"],
+        "species": row.get("species"),
+        "confidence_level": row["confidence_level"],
+        "pathway_description": pathway_description,
+        "reactome_gene_count": gene_count,
+        "ke_aop_context": ke_aop_context,
+        "ke_bio_level": ke_bio_level,
+        "provenance": {
+            "suggestion_score": row.get("suggestion_score"),
+            "approved_by": row.get("approved_by_curator"),
+            "approved_at": row.get("approved_at_curator"),
+            "proposed_by": row.get("proposed_by"),
+        },
+    }
 
 
 def _respond_collection(serialized_rows, pagination, csv_fields):
