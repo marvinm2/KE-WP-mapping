@@ -165,3 +165,110 @@ def test_generate_ke_centric_reactome_gmt_min_confidence(sample_mappings, gene_a
     # Only u2 (Medium) survives the filter -> KE 1 with BRCA1/BRCA2/TP53
     assert len(lines) == 1
     assert lines[0].startswith("KE1\t")
+
+
+# ---- generate_ke_reactome_turtle (RDF/Turtle) --------------------------------
+
+
+from rdflib import Graph, Literal
+from rdflib.namespace import DCTERMS, RDF, XSD
+
+from src.exporters.rdf_exporter import (
+    MAPPING,
+    VOCAB,
+    generate_ke_reactome_turtle,
+)
+
+
+def _row(uuid="u1", **overrides):
+    base = {
+        "uuid": uuid,
+        "ke_id": "KE 1",
+        "ke_title": "Apoptosis",
+        "reactome_id": "R-HSA-100",
+        "pathway_name": "p53 signaling",
+        "species": "Homo sapiens",
+        "confidence_level": "High",
+        "suggestion_score": 0.9,
+        "approved_by_curator": "github:alice",
+        "approved_at_curator": "2026-01-01T00:00:00",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_turtle_parses_with_rdflib():
+    out = generate_ke_reactome_turtle([_row()])
+    g = Graph()
+    g.parse(data=out, format="turtle")
+    subject = MAPPING["u1"]
+    assert (subject, RDF.type, VOCAB.KeyEventReactomeMapping) in g
+    assert (subject, VOCAB.keyEventId, Literal("KE 1")) in g
+    assert (subject, VOCAB.reactomeId, Literal("R-HSA-100")) in g
+    assert (subject, VOCAB.pathwayName, Literal("p53 signaling")) in g
+    assert (subject, VOCAB.species, Literal("Homo sapiens")) in g
+    assert (subject, VOCAB.confidenceLevel, Literal("High")) in g
+    assert (subject, DCTERMS.creator, Literal("github:alice")) in g
+
+
+def test_turtle_provenance_typed_literals():
+    out = generate_ke_reactome_turtle([_row()])
+    g = Graph()
+    g.parse(data=out, format="turtle")
+    subject = MAPPING["u1"]
+    # dcterms:date is xsd:dateTime
+    date_lit = Literal("2026-01-01T00:00:00", datatype=XSD.dateTime)
+    assert (subject, DCTERMS.date, date_lit) in g
+    # suggestionScore is xsd:decimal
+    score_lit = Literal(0.9, datatype=XSD.decimal)
+    assert (subject, VOCAB.suggestionScore, score_lit) in g
+
+
+def test_turtle_no_go_predicates():
+    out = generate_ke_reactome_turtle([_row()])
+    # Predicates from GO must not appear
+    assert "goDirection" not in out
+    assert "goNamespace" not in out
+
+
+def test_turtle_pathway_description_emitted_when_metadata_present():
+    meta = {"R-HSA-100": {"description": "Tumor suppressor pathway"}}
+    out = generate_ke_reactome_turtle([_row()], reactome_metadata=meta)
+    g = Graph()
+    g.parse(data=out, format="turtle")
+    subject = MAPPING["u1"]
+    assert (
+        subject,
+        VOCAB.pathwayDescription,
+        Literal("Tumor suppressor pathway"),
+    ) in g
+
+
+def test_turtle_pathway_description_omitted_when_metadata_absent():
+    out = generate_ke_reactome_turtle([_row()])
+    g = Graph()
+    g.parse(data=out, format="turtle")
+    subject = MAPPING["u1"]
+    # No triples with predicate pathwayDescription on this subject
+    assert list(g.triples((subject, VOCAB.pathwayDescription, None))) == []
+
+
+def test_turtle_min_confidence_filter():
+    rows = [
+        _row("u_high", confidence_level="High"),
+        _row("u_med", confidence_level="Medium"),
+    ]
+    out = generate_ke_reactome_turtle(rows, min_confidence="high")
+    g = Graph()
+    g.parse(data=out, format="turtle")
+    # Only u_high survives
+    types = list(g.subjects(RDF.type, VOCAB.KeyEventReactomeMapping))
+    assert types == [MAPPING["u_high"]]
+
+
+def test_turtle_empty_input():
+    out = generate_ke_reactome_turtle([])
+    g = Graph()
+    g.parse(data=out, format="turtle")
+    # No rdf:type KeyEventReactomeMapping triples
+    assert list(g.subjects(RDF.type, VOCAB.KeyEventReactomeMapping)) == []
