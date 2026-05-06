@@ -231,6 +231,120 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /reactome-mappings:
+    get:
+      operationId: listReactomeMappings
+      summary: List KE-to-Reactome pathway mappings
+      description: |
+        Returns a paginated list of curated KE-to-Reactome pathway mappings.
+        All query parameters are optional and combinable.
+        Set `?format=csv` to download a CSV file instead of JSON.
+      tags:
+        - KE-Reactome Mappings
+      parameters:
+        - name: ke_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filter by Key Event ID (e.g. 'KE 55')"
+        - name: reactome_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filter by Reactome pathway ID (e.g. 'R-HSA-1234')"
+        - name: confidence_level
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [High, Medium, Low]
+          description: "Filter by confidence level"
+        - name: aop_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filter to KEs belonging to this AOP (numeric or 'AOP N')"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: "Page number (1-based)"
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: "Results per page (max 200)"
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [csv]
+          description: "Set to 'csv' to receive a CSV download instead of JSON"
+      responses:
+        "200":
+          description: "Paginated list of KE-Reactome mappings"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactomeMappingsResponse"
+            text/csv:
+              schema:
+                type: string
+                description: "CSV with flattened provenance columns"
+        "400":
+          description: "Invalid AOP ID or SPARQL unavailable"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /reactome-mappings/{uuid}:
+    get:
+      operationId: getReactomeMapping
+      summary: Get a single KE-Reactome mapping by UUID
+      description: "Returns a single curated KE-to-Reactome mapping identified by its stable UUID."
+      tags:
+        - KE-Reactome Mappings
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: "Stable UUID of the Reactome mapping"
+      responses:
+        "200":
+          description: "Single KE-Reactome mapping"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ReactomeMapping"
+        "404":
+          description: "Reactome mapping not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
 components:
 
   schemas:
@@ -402,6 +516,74 @@ components:
             $ref: "#/components/schemas/GoMapping"
         pagination:
           $ref: "#/components/schemas/Pagination"
+
+    ReactomeMapping:
+      type: object
+      description: "A curated mapping between a Key Event and a Reactome pathway"
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          description: "Stable unique identifier"
+        ke_id:
+          type: string
+          description: "Key Event identifier (e.g. 'KE 55')"
+        ke_name:
+          type: string
+          description: "Key Event title"
+        reactome_id:
+          type: string
+          pattern: "^R-HSA-[0-9]+$"
+          description: "Reactome pathway identifier (e.g. 'R-HSA-1234')"
+        pathway_name:
+          type: string
+          description: "Reactome pathway display name"
+        species:
+          type: string
+          nullable: true
+          description: "Species label associated with the pathway (typically 'Homo sapiens')"
+        confidence_level:
+          type: string
+          enum: [High, Medium, Low]
+          description: "Curator-assessed confidence level"
+        pathway_description:
+          type: string
+          nullable: true
+          description: "Reactome pathway description text (from precomputed metadata; null when unavailable)"
+        reactome_gene_count:
+          type: integer
+          description: "Number of HGNC gene symbols associated with the Reactome pathway in the precomputed gene set"
+        ke_aop_context:
+          type: array
+          items:
+            type: string
+          description: "AOP IDs containing this Key Event (e.g. ['AOP 1', 'AOP 23']). Empty array when no membership data available."
+        ke_bio_level:
+          type: string
+          nullable: true
+          description: "Biological organization level of the Key Event (e.g. 'Molecular', 'Cellular', 'Tissue')"
+        provenance:
+          $ref: "#/components/schemas/Provenance"
+      required:
+        - uuid
+        - ke_id
+        - reactome_id
+        - pathway_name
+        - confidence_level
+
+    ReactomeMappingsResponse:
+      type: object
+      description: "Paginated list of KE-Reactome mappings"
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReactomeMapping"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - data
+        - pagination
 
     ErrorResponse:
       type: object
