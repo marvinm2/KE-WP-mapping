@@ -4859,6 +4859,13 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $('#reactome-confidence-guide').hide();
         $('#reactome-step-submit').hide();
         $('#duplicate-warning-reactome').hide().empty();
+        // Phase 27 (RVIEW-01 / D-09): hide inline DiagramJS embed and clear stale flags.
+        // Mirrors the WP analog at hidePathwaySuggestions where #wp-inline-embed is hidden
+        // alongside the suggestion-banner reset. The embed utility's hide() also defensively
+        // calls resetFlaggedItems() so a previous pathway's flags do not leak across selections.
+        if (window.ReactomeDiagramEmbed) {
+            window.ReactomeDiagramEmbed.hide();
+        }
         $('#reactome-message').empty();
         $('#reactome-pathway-search').val('');
         $('#reactome-search-results').empty().hide();
