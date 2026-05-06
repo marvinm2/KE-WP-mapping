@@ -58,6 +58,43 @@ for var in required_vars:
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 
+def _load_reactome_metadata(app):
+    """Load data/reactome_pathway_metadata.json into a {reactome_id: {...}} dict.
+
+    Used by the v1 Reactome serializer to populate pathway_description.
+    Returns {} on missing/malformed file (graceful fallback for dev/test envs).
+    """
+    import json as _json
+    path = os.path.join(os.path.dirname(__file__), "data", "reactome_pathway_metadata.json")
+    try:
+        with open(path) as f:
+            return _json.load(f)
+    except (OSError, _json.JSONDecodeError) as exc:
+        app.logger.warning(
+            "Could not load Reactome pathway metadata from %s: %s", path, exc
+        )
+        return {}
+
+
+def _load_reactome_gene_counts(app):
+    """Compute {reactome_id: gene_count} from data/reactome_gene_annotations.json.
+
+    Used by the v1 Reactome serializer to populate reactome_gene_count.
+    Returns {} on missing/malformed file (graceful fallback for dev/test envs).
+    """
+    import json as _json
+    path = os.path.join(os.path.dirname(__file__), "data", "reactome_gene_annotations.json")
+    try:
+        with open(path) as f:
+            ann = _json.load(f)
+        return {rid: len(genes) for rid, genes in ann.items()}
+    except (OSError, _json.JSONDecodeError) as exc:
+        app.logger.warning(
+            "Could not load Reactome gene annotations from %s: %s", path, exc
+        )
+        return {}
+
+
 def create_app(config_name: str = None):
     """
     Application factory function
@@ -150,6 +187,13 @@ def create_app(config_name: str = None):
                      reactome_mapping=services.reactome_mapping_model,
                      reactome_proposal=services.reactome_proposal_model)
     set_main_models(services.mapping_model, go_mapping=services.go_mapping_model, cache_model=services.cache_model, ker_adjacency_data=services.ker_adjacency)
+
+    # Phase 26 D-06/D-10: load Reactome enrichment data once at startup so
+    # the v1 Reactome serializer can resolve pathway_description and
+    # reactome_gene_count in O(1) per row.
+    reactome_metadata_dict = _load_reactome_metadata(app)
+    reactome_gene_counts_dict = _load_reactome_gene_counts(app)
+
     set_v1_api_models(
         mapping=services.mapping_model,
         go_mapping=services.go_mapping_model,
@@ -159,6 +203,9 @@ def create_app(config_name: str = None):
         go_hier=services.go_hierarchy,
         go_bp_meta=services.go_bp_metadata,
         go_mf_meta=services.go_mf_metadata,
+        reactome_mapping=services.reactome_mapping_model,
+        reactome_meta=reactome_metadata_dict,
+        reactome_counts=reactome_gene_counts_dict,
     )
 
     # Context processor to make is_admin available to all templates
