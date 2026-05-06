@@ -31,3 +31,28 @@ def test_reactome_inline_embed_block_placement(client):
         f"Expected order duplicate-warning-reactome < reactome-inline-embed < "
         f"reactome-confidence-guide; got positions {idx_dup}, {idx_embed}, {idx_guide}"
     )
+
+
+def test_reactome_diagram_embed_call_shape():
+    """RVIEW-01 #2/#3 Wave-0: assert ReactomeDiagramEmbed utility uses the
+    documented DiagramJS call shape (per-gene flagItems, resetFlaggedItems,
+    un-versioned CDN URL, error-state PathwayBrowser link)."""
+    from pathlib import Path
+    js_path = Path(__file__).parent.parent / "static" / "js" / "main.js"
+    src = js_path.read_text(encoding="utf-8")
+
+    landmarks = [
+        "window.ReactomeDiagramEmbed = ReactomeDiagramEmbed",
+        "https://reactome.org/DiagramJs/diagram/diagram.nocache.js",
+        "window.onReactomeDiagramReady",
+        "Reactome.Diagram.create(",
+        "flagItems(",
+        "resetFlaggedItems(",
+        "reactome-embed-error",
+        "reactome.org/PathwayBrowser/#/",
+    ]
+    for needle in landmarks:
+        assert needle in src, (
+            f"ReactomeDiagramEmbed call-shape regression: "
+            f"missing landmark {needle!r} in {js_path}"
+        )
