@@ -340,3 +340,139 @@ def generate_ke_centric_go_gmt(mappings, go_annotations_path=None, min_confidenc
         buf.write(line + "\n")
 
     return buf.getvalue()
+
+
+def _load_reactome_annotations(path=None) -> dict:
+    """Load {reactome_id: [hgnc, ...]} from data/reactome_gene_annotations.json.
+
+    Single-file analog of _load_go_annotations_merged. Returns {} on
+    OSError / JSONDecodeError so callers can degrade gracefully.
+    """
+    if path is None:
+        path = os.path.join(
+            os.path.dirname(__file__), '..', '..',
+            'data', 'reactome_gene_annotations.json',
+        )
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.info("Could not load Reactome annotations from %s: %s", path, e)
+        return {}
+
+
+def generate_ke_reactome_gmt(mappings, gene_annotations_path=None, min_confidence=None) -> str:
+    """Generate per-mapping GMT content for KE-Reactome mappings.
+
+    Each row: ``KE{N}_{Slug}_R-HSA-NNNN \\t pathway_name \\t gene1 \\t gene2 ...``
+
+    Genes are loaded from ``data/reactome_gene_annotations.json`` (overridable
+    via ``gene_annotations_path``). Rows whose ``reactome_id`` has no entry in
+    that file are silently skipped to avoid emitting malformed lines.
+
+    Parameters
+    ----------
+    mappings:
+        List of dicts (e.g. from ``ReactomeMappingModel.get_all_mappings``).
+        Each dict must contain at least ``ke_id``, ``ke_title``, ``reactome_id``,
+        ``pathway_name``, ``confidence_level``.
+    gene_annotations_path:
+        Optional override for the Reactome gene-annotations JSON path.
+    min_confidence:
+        Optional lowercase string (e.g. ``"high"``). Rows whose
+        ``confidence_level`` does not match are excluded.
+
+    Returns
+    -------
+    str
+        GMT-formatted string (tab-separated). Empty string if no rows survive.
+    """
+    reactome_annotations = _load_reactome_annotations(path=gene_annotations_path)
+
+    # Apply confidence filter
+    if min_confidence:
+        mappings = [
+            r for r in mappings
+            if r.get("confidence_level", "").lower() == min_confidence
+        ]
+
+    if not mappings:
+        return ""
+
+    buf = io.StringIO()
+    for row in mappings:
+        reactome_id = row["reactome_id"]
+        genes = reactome_annotations.get(reactome_id, [])
+        if not genes:
+            # Skip rows with no annotation entry
+            continue
+        # Deduplicate while preserving order
+        genes = list(dict.fromkeys(genes))
+        ke_slug = _make_ke_slug(row["ke_id"], row["ke_title"])
+        term_name = f"{ke_slug}_{reactome_id}"
+        description = row["pathway_name"]
+        # No direction suffix — Reactome has no direction concept (per D-05).
+        line = "\t".join([term_name, description] + genes)
+        buf.write(line + "\n")
+
+    return buf.getvalue()
+
+
+def generate_ke_centric_reactome_gmt(mappings, gene_annotations_path=None, min_confidence=None) -> str:
+    """Generate KE-centric GMT content for KE-Reactome mappings.
+
+    One row per Key Event. Gene symbols are unioned (order-preserving dedup)
+    across all approved Reactome mappings for that KE. Field 1 is just
+    ``KE{N}`` (e.g. ``KE55``), suitable for KE-level enrichment with fgsea or
+    clusterProfiler.
+
+    Parameters
+    ----------
+    mappings:
+        List of dicts. Each dict must contain at least ``ke_id``, ``ke_title``,
+        ``reactome_id``, ``confidence_level``.
+    gene_annotations_path:
+        Optional override for the Reactome gene-annotations JSON path.
+    min_confidence:
+        Optional lowercase string for confidence filtering.
+
+    Returns
+    -------
+    str
+        GMT-formatted string (tab-separated, one row per KE).
+        Empty string if no rows survive filtering or no genes are found.
+    """
+    reactome_annotations = _load_reactome_annotations(path=gene_annotations_path)
+
+    if min_confidence:
+        mappings = [
+            r for r in mappings
+            if r.get("confidence_level", "").lower() == min_confidence
+        ]
+
+    if not mappings:
+        return ""
+
+    # Group Reactome IDs by KE, preserving KE metadata
+    ke_to_reactome = defaultdict(list)
+    ke_meta = {}
+    for row in mappings:
+        ke_to_reactome[row["ke_id"]].append(row["reactome_id"])
+        ke_meta[row["ke_id"]] = (row["ke_id"], row["ke_title"])
+
+    buf = io.StringIO()
+    for ke_id in sorted(ke_to_reactome.keys(), key=lambda k: int(re.sub(r'\D', '', k) or '0')):
+        all_genes = []
+        for rid in ke_to_reactome[ke_id]:
+            all_genes.extend(reactome_annotations.get(rid, []))
+        genes = list(dict.fromkeys(all_genes))  # deduplicate, preserve order
+        if not genes:
+            continue
+        ke_id_raw, ke_title = ke_meta[ke_id]
+        num = re.sub(r'\D', '', ke_id_raw)
+        term_name = f"KE{num}"  # Field 1: JUST "KE55" — locked decision
+        description = ke_title  # Field 2: KE title
+        line = "\t".join([term_name, description] + genes)
+        buf.write(line + "\n")
+
+    return buf.getvalue()
