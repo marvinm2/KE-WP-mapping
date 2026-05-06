@@ -2954,6 +2954,99 @@ class ReactomeMappingModel:
         finally:
             conn.close()
 
+    def get_reactome_mappings_paginated(
+        self,
+        page: int = 1,
+        per_page: int = 50,
+        ke_id: str = None,
+        reactome_id: str = None,
+        confidence_level: str = None,
+        ke_ids: list = None,
+    ) -> tuple:
+        """Return (List[Dict], total_count) for approved KE-Reactome mappings.
+
+        Mirrors GoMappingModel.get_go_mappings_paginated (src/core/models.py:2133)
+        with `direction` dropped (Reactome has no direction field) and `ke_ids`
+        added (Phase 26 D-08: AOP-resolved KE filter).
+
+        Filters (all optional, combinable):
+          ke_id            — exact match on ke_reactome_mappings.ke_id
+          reactome_id      — exact match on ke_reactome_mappings.reactome_id
+          confidence_level — case-insensitive match on ke_reactome_mappings.confidence_level
+          ke_ids           — list-or-None. None = no AOP filter; [] = AOP resolved
+                             but no KEs found, returns ([], 0) without SQL;
+                             [ids...] = parametrised IN clause AND-combined with
+                             other filters.
+
+        Returns rows with columns:
+          uuid, ke_id, ke_title, reactome_id, pathway_name, species,
+          confidence_level, approved_by_curator, approved_at_curator,
+          suggestion_score, proposed_by
+        Ordered by created_at DESC.
+        """
+        # Short-circuit: AOP resolved but no KEs => empty result without SQL.
+        if ke_ids is not None and not ke_ids:
+            return [], 0
+
+        conditions = []
+        params = []
+
+        if ke_id:
+            conditions.append("ke_id = ?")
+            params.append(ke_id)
+        if ke_ids:
+            placeholders = ",".join("?" * len(ke_ids))
+            conditions.append(f"ke_id IN ({placeholders})")
+            params.extend(ke_ids)
+        if reactome_id:
+            conditions.append("reactome_id = ?")
+            params.append(reactome_id)
+        if confidence_level:
+            conditions.append("LOWER(confidence_level) = LOWER(?)")
+            params.append(confidence_level)
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        offset = (page - 1) * per_page
+
+        conn = self.db.get_connection()
+        try:
+            total = conn.execute(
+                f"SELECT COUNT(*) FROM ke_reactome_mappings {where}", params
+            ).fetchone()[0]
+            rows = conn.execute(
+                f"""SELECT uuid, ke_id, ke_title, reactome_id, pathway_name, species,
+                           confidence_level, approved_by_curator, approved_at_curator,
+                           suggestion_score, proposed_by
+                    FROM ke_reactome_mappings {where}
+                    ORDER BY created_at DESC
+                    LIMIT ? OFFSET ?""",
+                params + [per_page, offset],
+            ).fetchall()
+            return [dict(r) for r in rows], total
+        finally:
+            conn.close()
+
+    def get_reactome_mapping_by_uuid(self, mapping_uuid: str) -> Optional[Dict]:
+        """Return a single approved KE-Reactome mapping dict, or None.
+
+        SELECT column list mirrors get_reactome_mappings_paginated so the
+        v1_api serialiser (Phase 26 D-05) sees the same shape from both
+        list and detail routes.
+        """
+        conn = self.db.get_connection()
+        try:
+            row = conn.execute(
+                """SELECT uuid, ke_id, ke_title, reactome_id, pathway_name, species,
+                          confidence_level, approved_by_curator, approved_at_curator,
+                          suggestion_score, proposed_by
+                   FROM ke_reactome_mappings
+                   WHERE uuid = ?""",
+                (mapping_uuid,),
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
     def get_mappings_by_ke(self, ke_id: str) -> List[Dict]:
         """Get all Reactome mappings for a specific Key Event"""
         conn = self.db.get_connection()
