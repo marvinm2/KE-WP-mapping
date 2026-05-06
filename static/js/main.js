@@ -64,6 +64,179 @@ var PathwayEmbed = {
 
 window.PathwayEmbed = PathwayEmbed;
 
+/**
+ * ReactomeDiagramEmbed — Utility object for embedding the Reactome DiagramJS widget.
+ *
+ * Lifecycle:
+ *   1. loadScriptOnce() — lazily injects the un-versioned CDN bundle on first use (D-07).
+ *      Reactome publishes only a rolling `diagram.nocache.js`; no version-pinning is possible
+ *      and no SRI hash is feasible. See RESEARCH §1 / Finding 1.
+ *   2. init(containerId) — shows the parent and constructs the Diagram instance EXACTLY ONCE
+ *      (D-04 reuse-instance). The parent must be visible before construct, otherwise the
+ *      widget reads width=0 and renders into an empty canvas (Pitfall 6).
+ *   3. load(reactomeId, genes) — diagram.loadDiagram(stId), then on the diagram-loaded
+ *      signal, resetFlaggedItems() + per-gene flagItems loop (D-05 corrected: flagItems
+ *      accepts a single string per call; arrays silently fail).
+ *   4. hide() — $('#reactome-inline-embed').hide(); instance stays alive (no destroy()
+ *      method exists in DiagramJS).
+ *
+ * Three-layer failure detection (D-08):
+ *   (a) <script>.onerror — hard CDN unreachable
+ *   (b) 10s setTimeout fallback — stalled load (matches WP timeout at main.js:43)
+ *   (c) try/catch around Diagram.create() and loadDiagram() — runtime exceptions
+ *
+ * Exposed at window.ReactomeDiagramEmbed for parity with window.PathwayEmbed.
+ */
+var ReactomeDiagramEmbed = {
+    _scriptPromise: null,
+    _failed: false,
+    _diagram: null,
+    // CDN URL is intentionally un-versioned — Reactome publishes only a rolling
+    // `diagram.nocache.js` build; no version pin and no SRI hash are available.
+    // See .planning/phases/27-reactome-pathway-viewer/27-RESEARCH.md §1.
+    _CDN_URL: 'https://reactome.org/DiagramJs/diagram/diagram.nocache.js',
+    _CONTAINER_ID: 'reactome-inline-embed',
+    _FRAME_ID: 'reactome-inline-embed-frame',
+    _LOAD_TIMEOUT_MS: 10000,
+
+    /**
+     * Idempotent script-tag injection. Returns a memoized Promise that resolves when
+     * window.Reactome.Diagram.create is callable. Subsequent calls return the same
+     * Promise. After a hard failure, returns a fast-rejecting Promise without
+     * re-injecting (D-08 sticky-failure).
+     */
+    loadScriptOnce: function() {
+        if (this._scriptPromise) return this._scriptPromise;
+        if (this._failed) return Promise.reject(new Error('Reactome CDN previously failed'));
+
+        var self = this;
+        this._scriptPromise = new Promise(function(resolve, reject) {
+            var settled = false;
+            var timer = null;
+            var fail = function(err) {
+                if (settled) return;
+                settled = true;
+                if (timer) clearTimeout(timer);
+                self._failed = true;
+                self._scriptPromise = null;
+                reject(err);
+            };
+            var ok = function() {
+                if (settled) return;
+                settled = true;
+                if (timer) clearTimeout(timer);
+                resolve();
+            };
+            // GWT bundle calls this global once Reactome.Diagram.create is callable.
+            // Distinct from script.onload, which fires too early. RESEARCH §2.6.
+            window.onReactomeDiagramReady = ok;
+
+            var s = document.createElement('script');
+            s.src = self._CDN_URL;
+            s.async = true;
+            s.onerror = function() { fail(new Error('Reactome CDN unreachable')); };
+            document.head.appendChild(s);
+
+            // Stall fallback — matches WP iframe timeout at main.js:43.
+            timer = setTimeout(function() {
+                if (typeof window.Reactome === 'undefined' ||
+                    typeof window.Reactome.Diagram === 'undefined' ||
+                    typeof window.Reactome.Diagram.create !== 'function') {
+                    fail(new Error('Reactome CDN load timed out'));
+                }
+            }, self._LOAD_TIMEOUT_MS);
+        });
+        return this._scriptPromise;
+    },
+
+    /**
+     * Show the parent container, then construct the Diagram instance exactly once.
+     * Returns the diagram instance. Subsequent calls return the cached instance (D-04).
+     * IMPORTANT: caller must invoke this only after loadScriptOnce() resolves.
+     */
+    init: function() {
+        // Pitfall 6: parent must be visible BEFORE create() so width is read correctly.
+        $('#' + this._CONTAINER_ID).show();
+        if (this._diagram) return this._diagram;
+        try {
+            var width = $('#' + this._FRAME_ID).width() || 950;
+            this._diagram = window.Reactome.Diagram.create({
+                placeHolder: this._FRAME_ID,
+                width: width,
+                height: 280,
+                toHide: []
+            });
+        } catch (e) {
+            this._failed = true;
+            throw e;
+        }
+        return this._diagram;
+    },
+
+    /**
+     * Race-tolerant per-gene flag loop (D-05 corrected per RESEARCH §2.3).
+     * flagItems accepts a SINGLE string per call; arrays silently fail.
+     * resetFlaggedItems clears the cumulative state from any prior pathway.
+     */
+    flagGenes: function(genes) {
+        if (!this._diagram) return;
+        try { this._diagram.resetFlaggedItems(); } catch (_) { /* defensive */ }
+        (genes || []).forEach(function(g) {
+            if (!g) return;
+            try { this._diagram.flagItems(g); } catch (_) { /* per-gene swallow */ }
+        }, this);
+    },
+
+    /**
+     * Top-level orchestration. Returns a Promise that rejects on the three-layer
+     * failure path so callers can render the error card.
+     */
+    load: function(reactomeId, genes) {
+        var self = this;
+        return this.loadScriptOnce().then(function() {
+            var diagram = self.init();   // may throw; caught by Promise chain
+            diagram.loadDiagram(reactomeId);
+            diagram.onDiagramLoaded(function(/* loadedStId */) {
+                self.flagGenes(genes);
+            });
+            return diagram;
+        });
+    },
+
+    /**
+     * Hide the inline embed and clear flags. Instance stays alive — DiagramJS exports
+     * no destroy() method (RESEARCH §2.4 / §6). Next load() will reuse the same diagram.
+     */
+    hide: function() {
+        $('#' + this._CONTAINER_ID).hide();
+        if (this._diagram) {
+            try { this._diagram.resetFlaggedItems(); } catch (_) { /* defensive */ }
+        }
+    },
+
+    /**
+     * Failure-state HTML. Mirrors PathwayEmbed.buildErrorState shape (main.js:57-62)
+     * with the Reactome PathwayBrowser fallback link (Phase 25 D-15 / Phase 26 D-15
+     * convention). The reactomeId is HTML-escaped on principle even though
+     * server-validated `^R-HSA-[0-9]+$` IDs cannot contain metacharacters.
+     */
+    buildErrorState: function(reactomeId) {
+        var safe = String(reactomeId || '').replace(/[<>&"']/g, function(c) {
+            return ({
+                '<': '&lt;', '>': '&gt;', '&': '&amp;',
+                '"': '&quot;', "'": '&#39;'
+            })[c];
+        });
+        return '<div class="reactome-embed-error">'
+            + '<p>Pathway viewer unavailable.</p>'
+            + '<a href="https://reactome.org/PathwayBrowser/#/' + safe
+            + '" target="_blank" rel="noopener noreferrer">Open in Reactome PathwayBrowser</a>'
+            + '</div>';
+    }
+};
+
+window.ReactomeDiagramEmbed = ReactomeDiagramEmbed;
+
 class KEWPApp {
     constructor() {
         this.isLoggedIn = false;
