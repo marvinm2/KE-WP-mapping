@@ -533,3 +533,101 @@ def get_go_mapping(uuid):
         return jsonify({"error": f"GO mapping not found: {uuid}"}), 404
 
     return jsonify({"data": _serialize_go_mapping(row)})
+
+
+# ---------------------------------------------------------------------------
+# Routes: KE-Reactome Mappings
+# ---------------------------------------------------------------------------
+
+@v1_api_bp.route("/reactome-mappings", methods=["GET"])
+def list_reactome_mappings():
+    """
+    GET /api/v1/reactome-mappings
+
+    Paginated list of approved KE-to-Reactome pathway mappings.
+
+    Query params (all optional, combinable):
+      ke_id            — filter by KE ID (comma-separated for multiple; first token used)
+      reactome_id      — filter by Reactome stable ID (comma-separated; first token used)
+      confidence_level — filter by confidence level (High/Medium/Low, case-insensitive)
+      aop_id           — filter to KEs belonging to this AOP (numeric or "AOP N")
+      page             — page number (default 1)
+      per_page         — results per page (default 50, max 200)
+      format           — "csv" to force CSV; default returns JSON
+
+    Accept header:
+      application/json (default) — {"data": [...], "pagination": {...}}
+      text/csv                   — flattened provenance CSV
+    """
+    page, per_page = _parse_pagination_params()
+
+    ke_id_raw = request.args.get("ke_id")
+    reactome_id_raw = request.args.get("reactome_id")
+    confidence_level = request.args.get("confidence_level")
+    aop_id = request.args.get("aop_id")
+
+    ke_id = ke_id_raw.split(",")[0].strip() if ke_id_raw else None
+    reactome_id = reactome_id_raw.split(",")[0].strip() if reactome_id_raw else None
+
+    # AOP filter: resolve AOP -> list of KE IDs (mirrors WP list_mappings, D-08).
+    ke_ids = None  # None = no AOP filter; [] = AOP valid but no KEs
+    if aop_id:
+        try:
+            ke_ids = _resolve_aop_ke_ids(aop_id.strip())
+        except ValueError as exc:
+            logger.warning(
+                "AOP resolution failed for '%s': %s", sanitize_log(aop_id), exc
+            )
+            return jsonify(
+                {"error": f"AOP ID not found or SPARQL unavailable: {aop_id}"}
+            ), 400
+
+    try:
+        rows, total = reactome_mapping_model.get_reactome_mappings_paginated(
+            page=page,
+            per_page=per_page,
+            ke_id=ke_id,
+            reactome_id=reactome_id,
+            confidence_level=confidence_level,
+            ke_ids=ke_ids,
+        )
+    except Exception as exc:
+        logger.error("Error in list_reactome_mappings: %s", exc)
+        return jsonify({"error": "Failed to retrieve Reactome mappings"}), 500
+
+    serialized = [_serialize_reactome_mapping(r) for r in rows]
+    base_url = request.url_root.rstrip("/") + "/api/v1/reactome-mappings"
+    extra_params = {}
+    if ke_id_raw:
+        extra_params["ke_id"] = ke_id_raw
+    if reactome_id_raw:
+        extra_params["reactome_id"] = reactome_id_raw
+    if confidence_level:
+        extra_params["confidence_level"] = confidence_level
+    if aop_id:
+        extra_params["aop_id"] = aop_id
+    pagination = _make_pagination(page, per_page, total, base_url, extra_params)
+
+    return _respond_collection(serialized, pagination, _REACTOME_MAPPING_CSV_FIELDS)
+
+
+@v1_api_bp.route("/reactome-mappings/<uuid>", methods=["GET"])
+def get_reactome_mapping(uuid):
+    """
+    GET /api/v1/reactome-mappings/<uuid>
+
+    Returns a single KE-Reactome mapping by its stable UUID.
+    Returns 404 if the UUID does not exist.
+    """
+    try:
+        row = reactome_mapping_model.get_reactome_mapping_by_uuid(uuid)
+    except Exception as exc:
+        logger.error(
+            "Error in get_reactome_mapping uuid=%s: %s", sanitize_log(uuid), exc
+        )
+        return jsonify({"error": "Failed to retrieve Reactome mapping"}), 500
+
+    if row is None:
+        return jsonify({"error": f"Reactome mapping not found: {uuid}"}), 404
+
+    return jsonify({"data": _serialize_reactome_mapping(row)})
