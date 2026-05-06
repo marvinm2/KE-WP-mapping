@@ -12,3 +12,11 @@ Both failures predate the worktree base (`4736009`) and reproduce before any 26-
 | `tests/test_app.py::TestGuestAuth::test_guest_login_page_renders` | (same area, login pages) | Same area as above; likely the guest-login route is no longer at the path the test expects, or the test client lacks an auth provider config. |
 
 Both should be triaged separately; they do not block any 26-x plan.
+
+## Visual verification scope (observed during 26-07 / 26-08 checkpoints)
+
+The `/explore` Reactome tab and the three new `/downloads` cards both render correctly with empty data. Populating the Reactome tables and exercising the full curator → approved-mapping flow requires GitHub/ORCID OAuth, which only works against the deployed app at `https://molaop-builder.vhp4safety.nl`. Local dev cannot exercise data-bearing rendering; structural and behavioural correctness in dev is covered by the 36-test pytest suite (`test_v1_api_reactome.py` + `test_reactome_exports.py`) plus visual sign-off on tab switcher / DataTable wiring / card styling against an empty DB.
+
+## RDF empty-mappings 503 bug (observed during 26-06)
+
+`download_ke_reactome_rdf` was fixed inline by 26-06 to return 503 on empty mappings (rdflib serialises an empty graph as `"\n"` which would otherwise pass through as a 200). The same latent bug exists in `download_ke_go_rdf` and `download_ke_wp_rdf` and is left out of scope for phase 26.
