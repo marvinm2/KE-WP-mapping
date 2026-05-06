@@ -1906,6 +1906,7 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
 .download-card--blue { border-top: 4px solid var(--color-primary-blue); }
 .download-card--teal { border-top: 4px solid var(--color-teal-accent); }
 .download-card--dark { border-top: 4px solid var(--color-primary-dark); }
+.download-card--orange { border-top: 4px solid var(--color-secondary-orange); }
 
 .download-card__header {
     display: flex;
@@ -1930,6 +1931,7 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
 .download-card__badge--blue { background: #e8f0fb; color: var(--color-primary-blue); }
 .download-card__badge--teal { background: #e5f5f6; color: var(--color-teal-accent); }
 .download-card__badge--dark { background: #edeaf5; color: var(--color-primary-dark); }
+.download-card__badge--orange { background: #fdece4; color: var(--color-secondary-orange); }
 
 .download-card__desc {
     font-size: 13px;
@@ -1983,6 +1985,19 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
 }
 
 .btn-link-dark:hover { opacity: 0.9; color: white; }
+
+.btn-link-orange {
+    background: var(--color-secondary-orange);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 0;
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    display: inline-block;
+    font-weight: 600;
+}
+
+.btn-link-orange:hover { opacity: 0.9; color: white; }
 
 .btn-link-outline-blue {
     background: white;
