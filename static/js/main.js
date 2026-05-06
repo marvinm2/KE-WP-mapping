@@ -4717,6 +4717,22 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         this.checkForDuplicatePair_reactome();
         this.revealReactomeConfidenceStep();
+
+        // Phase 27 (RVIEW-01): inline DiagramJS embed.
+        // - D-03: single hook covers both suggestion-card and search-result selection paths.
+        // - D-06: race-tolerant flagging — pass cached genes (possibly empty) and let
+        //   ReactomeDiagramEmbed apply flags inside its onDiagramLoaded callback.
+        // - D-09: any failure (CDN unreachable, stalled, runtime exception) renders the
+        //   error card; submission flow is never blocked. RVIEW-01 #3.
+        if (window.ReactomeDiagramEmbed) {
+            const keId = $('#ke_id').val();
+            const genes = (keId && this._cachedKeGenes[keId]) ? this._cachedKeGenes[keId] : [];
+            window.ReactomeDiagramEmbed.load(reactomeId, genes).catch(() => {
+                $('#reactome-inline-embed')
+                    .html(window.ReactomeDiagramEmbed.buildErrorState(reactomeId))
+                    .show();
+            });
+        }
     }
 
     revealReactomeConfidenceStep() {
@@ -4843,6 +4859,13 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $('#reactome-confidence-guide').hide();
         $('#reactome-step-submit').hide();
         $('#duplicate-warning-reactome').hide().empty();
+        // Phase 27 (RVIEW-01 / D-09): hide inline DiagramJS embed and clear stale flags.
+        // Mirrors the WP analog at hidePathwaySuggestions where #wp-inline-embed is hidden
+        // alongside the suggestion-banner reset. The embed utility's hide() also defensively
+        // calls resetFlaggedItems() so a previous pathway's flags do not leak across selections.
+        if (window.ReactomeDiagramEmbed) {
+            window.ReactomeDiagramEmbed.hide();
+        }
         $('#reactome-message').empty();
         $('#reactome-pathway-search').val('');
         $('#reactome-search-results').empty().hide();
