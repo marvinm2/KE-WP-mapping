@@ -4717,6 +4717,22 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         this.checkForDuplicatePair_reactome();
         this.revealReactomeConfidenceStep();
+
+        // Phase 27 (RVIEW-01): inline DiagramJS embed.
+        // - D-03: single hook covers both suggestion-card and search-result selection paths.
+        // - D-06: race-tolerant flagging — pass cached genes (possibly empty) and let
+        //   ReactomeDiagramEmbed apply flags inside its onDiagramLoaded callback.
+        // - D-09: any failure (CDN unreachable, stalled, runtime exception) renders the
+        //   error card; submission flow is never blocked. RVIEW-01 #3.
+        if (window.ReactomeDiagramEmbed) {
+            const keId = $('#ke_id').val();
+            const genes = (keId && this._cachedKeGenes[keId]) ? this._cachedKeGenes[keId] : [];
+            window.ReactomeDiagramEmbed.load(reactomeId, genes).catch(() => {
+                $('#reactome-inline-embed')
+                    .html(window.ReactomeDiagramEmbed.buildErrorState(reactomeId))
+                    .show();
+            });
+        }
     }
 
     revealReactomeConfidenceStep() {
