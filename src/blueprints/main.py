@@ -28,19 +28,25 @@ export_manager = None
 metadata_manager = None
 cache_model_ref = None
 ker_adjacency = None
+reactome_mapping_model = None
+reactome_metadata = None  # {reactome_id: {description: str, ...}} — passed to the RDF generator for pathway_description triples
 
 EXPORT_CACHE_DIR = Path("static/exports")
 
 
-def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None, cache_model=None, ker_adjacency_data=None):
+def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None, cache_model=None, ker_adjacency_data=None,
+               reactome_mapping=None, reactome_meta=None):
     """Set the model instances"""
     global mapping_model, export_manager, metadata_manager, go_mapping_model, cache_model_ref, ker_adjacency
+    global reactome_mapping_model, reactome_metadata
     mapping_model = mapping
     export_manager = export_mgr
     metadata_manager = metadata_mgr
     go_mapping_model = go_mapping
     cache_model_ref = cache_model
     ker_adjacency = ker_adjacency_data
+    reactome_mapping_model = reactome_mapping
+    reactome_metadata = reactome_meta
 
 
 def get_mapping_stats():
