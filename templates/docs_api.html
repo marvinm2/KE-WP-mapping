@@ -15,7 +15,7 @@
 
     <h1 style="margin-bottom:8px;">API Consumer Guide</h1>
     <p class="text-muted" style="margin-bottom:32px; font-size:15px;">
-        This guide shows how to retrieve KE-WP and KE-GO mappings programmatically.
+        This guide shows how to retrieve KE-WP, KE-GO, and KE-Reactome mappings programmatically.
         The base URL is <code>/api/v1</code>. All endpoints are read-only and require no
         authentication. See the <a href="/api/docs">Interactive API Docs</a>
         for an in-browser explorer.
@@ -46,6 +46,14 @@
             <tr style="background:var(--color-bg-lighter);">
                 <td style="padding:10px 12px; border:1px solid var(--color-border-light); font-family:monospace;">GET /api/v1/go-mappings/{uuid}</td>
                 <td style="padding:10px 12px; border:1px solid var(--color-border-light);">Single KE-GO mapping by UUID</td>
+            </tr>
+            <tr>
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light); font-family:monospace;">GET /api/v1/reactome-mappings</td>
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light);">List KE-Reactome mappings (filterable, paginated)</td>
+            </tr>
+            <tr style="background:var(--color-bg-lighter);">
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light); font-family:monospace;">GET /api/v1/reactome-mappings/{uuid}</td>
+                <td style="padding:10px 12px; border:1px solid var(--color-border-light);">Single KE-Reactome mapping by UUID</td>
             </tr>
         </tbody>
     </table>
@@ -79,6 +87,27 @@ with open("ke_wp_mappings.csv", "wb") as f:
     <h3 style="font-size:15px; margin-top:20px;">5. KE-GO mappings</h3>
     <pre><code class="language-python" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">resp = requests.get(f"{base}/go-mappings", params={"ke_id": "KE 55", "confidence_level": "High"})
 go_mappings = resp.json()["data"]</code></pre>
+
+    <h3 style="font-size:15px; margin-top:20px;">6. KE-Reactome mappings</h3>
+    <pre><code class="language-python" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">import requests
+
+base = "https://molaop-builder.vhp4safety.nl/api/v1"
+
+# Fetch all approved KE-Reactome mappings (paginated)
+resp = requests.get(f"{base}/reactome-mappings", params={"per_page": 100})
+data = resp.json()
+for mapping in data["data"]:
+    print(f"{mapping['ke_id']} -&gt; {mapping['reactome_id']} ({mapping['pathway_name']})")
+
+# Filter by AOP and confidence
+resp = requests.get(f"{base}/reactome-mappings",
+                    params={"aop_id": 42, "confidence_level": "High"})
+high_conf = resp.json()["data"]
+
+# Download CSV
+resp = requests.get(f"{base}/reactome-mappings", params={"format": "csv"})
+with open("ke_reactome_mappings.csv", "wb") as f:
+    f.write(resp.content)</code></pre>
 
     <!-- R Examples -->
     <h2 style="border-bottom:2px solid var(--color-border-light); padding-bottom:8px; margin-top:40px;">R (httr2) Examples</h2>
@@ -122,6 +151,20 @@ df &lt;- readr::read_csv(rawToChar(resp_body_raw(resp)))</code></pre>
   req_perform() |&gt;
   resp_body_json()
 go_mappings &lt;- resp$data</code></pre>
+
+    <h3 style="font-size:15px; margin-top:20px;">6. KE-Reactome mappings</h3>
+    <pre><code class="language-r" style="background:var(--color-bg-light); display:block; padding:16px; border-radius:6px; overflow-x:auto; font-size:13px; line-height:1.6;">library(httr2)
+resp &lt;- request("https://molaop-builder.vhp4safety.nl/api/v1/reactome-mappings") |&gt;
+  req_url_query(per_page = 100) |&gt;
+  req_perform() |&gt;
+  resp_body_json()
+reactome_mappings &lt;- resp$data
+
+# Filter by AOP
+resp &lt;- request("https://molaop-builder.vhp4safety.nl/api/v1/reactome-mappings") |&gt;
+  req_url_query(aop_id = 42, confidence_level = "High") |&gt;
+  req_perform() |&gt;
+  resp_body_json()</code></pre>
 
     <!-- Rate Limit Policy -->
     <h2 style="border-bottom:2px solid var(--color-border-light); padding-bottom:8px; margin-top:40px;">Rate Limit Policy</h2>
