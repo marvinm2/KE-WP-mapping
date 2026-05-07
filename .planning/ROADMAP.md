@@ -71,7 +71,7 @@ Full details: `.planning/milestones/v1.3-ROADMAP.md`
 - [x] **Phase 25: Proposal Workflow and Admin UI** — Submission, duplicate detection, admin approve/reject, and Reactome tab in mapping workflow (completed 2026-05-05)
 - [x] **Phase 26: Public API and Exports** — Versioned API endpoint, GMT export, RDF export, and explore page integration (completed 2026-05-06)
 - [x] **Phase 27: Reactome Pathway Viewer** — DiagramJS embed in mapping workflow with gene highlighting (completed 2026-05-06)
-- [ ] **Phase 28: KE Gene SPARQL Returns Symbols** — Fix shared `ke_genes.py` SPARQL helper to return HGNC symbols (not numeric accession IDs) so flagItems and gene-overlap scoring work across Reactome, WP, and GO suggestion services
+- [ ] **Phase 28: KE Gene SPARQL Returns Persistent Identifiers** — Rewrite shared ke_genes.py SPARQL helper to return strict {ncbi, hgnc, symbol} triples from a single non-federated AOP-Wiki query; carry persistent IDs through three suggestion services and add genes_full to /ke_genes/<ke_id> while preserving Phase 27 frontend's genes field
 
 ## Phase Details
 
@@ -143,23 +143,29 @@ Plans:
   3. If the DiagramJS CDN is unavailable, the tab remains functional for submission without throwing a JavaScript error
 **Plans**: TBD
 
-### Phase 28: KE Gene SPARQL Returns Symbols
-**Goal**: The shared `get_genes_from_ke()` helper in `src/suggestions/ke_genes.py` returns HGNC gene symbols (e.g. `"SNAI1"`) instead of numeric HGNC accession IDs (e.g. `"11128"`), so downstream consumers in Reactome, WikiPathways, and GO suggestion services produce correct gene-overlap scores and Phase 27's `flagItems()` actually highlights pathway entities.
+### Phase 28: KE Gene SPARQL Returns Persistent Identifiers
+**Goal**: The shared `get_genes_from_ke()` helper in `src/suggestions/ke_genes.py` returns a strict-shape list of dicts `{ncbi, hgnc, symbol}` (NCBI Gene ID + HGNC accession + HGNC symbol) sourced from a single non-federated SPARQL query against AOP-Wiki RDF; downstream consumers in Reactome, WikiPathways, and GO suggestion services consume the dict shape and restore non-empty gene-overlap signals; the public `/ke_genes/<ke_id>` endpoint adds a `genes_full` field while preserving the legacy `genes` (list of symbol strings) for Phase 27's `flagItems()`.
 **Depends on**: Phase 27
-**Requirements**: TBD (to be added during planning — likely a new `KEGENE-01` requirement)
+**Requirements**: KEGENE-01
 **Context**:
-  - Defect predates Phase 27. The SPARQL `?object edam:data_2298 ?hgnc` returns numeric HGNC accession IDs; gene symbols live on `rdfs:label` of the same node.
-  - First introduced in commit `a325411` (2025-08-08).
-  - All three downstream services (`pathway.py` `_find_pathways_by_genes` → invalid `hgnc.symbol/{numeric}` URIs; `reactome.py` `_compute_gene_overlap_scores` → numeric ∩ symbols = ∅; `go.py` likewise) have been silently producing zero gene-overlap signal since they were built.
-  - Phase 27's `ReactomeDiagramEmbed.flagItems()` is the most visible symptom: the embedded diagram shows "0" flagged because Reactome's flagItems API requires symbols, not numeric IDs.
+  - Defect predates Phase 27. The pre-Phase-28 SPARQL `?object edam:data_2298 ?hgnc` returns numeric HGNC accession IDs (`"11892"` for TNF), but the variable was named `?hgnc` and labeled "symbol" downstream. First introduced in commit `a325411` (2025-08-08).
+  - All three suggestion services have silently produced empty gene-overlap signal since then. Phase 27's `flagItems()` is the most visible symptom.
+  - Persistent IDs (NCBI Gene + HGNC accession) were chosen over a symbols-only fix because HGNC routinely renames genes (e.g. `C11orf95 -> ZFTA`); persistent IDs don't drift.
+  - Empirically confirmed via live AOP-Wiki SPARQL probes (2026-05-07): all three identifiers are natively present on every gene node (96.4% complete coverage; 100% on the two test KEs). No federated query, no local cross-ref table needed.
 **Success Criteria** (what must be TRUE):
-  1. `GET /ke_genes/<ke_id>` returns HGNC gene symbols (e.g. `"SNAI1"`, `"IL6"`), not numeric accession IDs
-  2. Reactome inline embed (Phase 27) flags entities for any KE whose associated genes overlap the selected pathway
-  3. WikiPathways `_find_pathways_by_genes` returns non-empty results for KEs with gene-rich pathway overlap (was returning ∅)
-  4. Reactome `_compute_gene_overlap_scores` produces non-zero `gene_overlap_ratio` for KE/pathway pairs that genuinely overlap (was always 0.0)
-  5. Existing GO suggestion service continues to work (no regression in gene-overlap-driven GO term ranking)
-  6. SPARQL response cache is cleared (or cache key includes a version bump) so existing curators don't continue to receive numeric IDs from cache
-**Plans**: TBD
+  1. `get_genes_from_ke()` returns `List[Dict[str, str]]` with strict `{ncbi, hgnc, symbol}` shape; bindings missing any field are dropped silently (D-04).
+  2. `GET /ke_genes/<ke_id>` returns JSON with both `genes` (legacy list of HGNC symbol strings) and `genes_full` (list of `{ncbi, hgnc, symbol}` dicts).
+  3. WikiPathways `_find_pathways_by_genes` returns non-empty pathway results for KEs whose genes overlap WP pathway annotations.
+  4. Reactome `_compute_gene_overlap_scores` produces non-zero `gene_overlap` for KE/pathway pairs that share genes.
+  5. GO `_compute_gene_overlap_scores_for` produces non-zero gene-driven GO suggestion scores.
+  6. Phase 27's `flagItems()` continues to receive HGNC symbol strings via the `genes` field (no Phase 27 frontend regression); embedded diagram now flags non-zero entities.
+  7. SPARQL response cache automatically invalidates via the version-comment trick (`# ke-genes-query-v2 ...` inside the f-string changes `md5(query)`); no DB migration required.
+**Plans:** 4 plans
+Plans:
+- [ ] 28A-PLAN.md — Rewrite get_genes_from_ke() helper with strict-triple SPARQL and version-comment cache bust; new tests/test_ke_genes.py with five parser unit tests
+- [ ] 28B-PLAN.md — Update three suggestion-service consumers (pathway.py, reactome.py, go.py) to consume List[Dict] and extract symbol field at call sites
+- [ ] 28C-PLAN.md — Add genes_full field to GET /ke_genes/<ke_id> response while preserving legacy genes (list of symbol strings)
+- [ ] 28D-PLAN.md — Update .planning/ROADMAP.md Phase 28 entry and add KEGENE-01 to .planning/REQUIREMENTS.md
 
 ## Progress
 
@@ -192,5 +198,5 @@ Plans:
 | 25. Proposal Workflow and Admin UI | v1.4 | 6/6 | Complete   | 2026-05-05 |
 | 26. Public API and Exports | v1.4 | 8/8 | Complete    | 2026-05-06 |
 | 27. Reactome Pathway Viewer | v1.4 | 4/4 | Complete   | 2026-05-06 |
-| 28. KE Gene SPARQL Returns Symbols | v1.4 | 0/0 | Not Started | — |
+| 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 0/4 | Not Started | — |
 
