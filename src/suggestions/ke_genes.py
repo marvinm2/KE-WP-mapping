@@ -81,16 +81,16 @@ def get_genes_from_ke(
 
             for binding in data.get("results", {}).get("bindings", []):
                 try:
-                    hgnc = binding["hgnc"]["value"]
-                    symbol = binding["symbol"]["value"]
-                    ncbi_iri = binding["ncbi"]["value"]
+                    hgnc = binding["hgnc"]["value"].strip()
+                    symbol = binding["symbol"]["value"].strip()
+                    ncbi_iri = binding["ncbi"]["value"].strip()
                 except KeyError:
                     continue  # D-04 strict skip — missing any of the three fields
 
                 if not (hgnc and symbol and ncbi_iri):
                     continue  # D-04 strict skip — empty literal
 
-                ncbi = ncbi_iri.rsplit("/", 1)[-1]
+                ncbi = ncbi_iri.rsplit("/", 1)[-1].strip()
                 if not ncbi:
                     continue
 
