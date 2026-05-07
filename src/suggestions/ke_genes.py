@@ -114,6 +114,9 @@ def get_genes_from_ke(
             )
             return []
 
-    except Exception as e:
-        logger.error("Error extracting genes from KE %s: %s", ke_id, e)
+    except Exception:
+        # Keep returning [] for backward compatibility with consumers that treat
+        # the helper as fail-soft, but emit a full traceback so silent fetch /
+        # parse failures stay distinguishable from "KE genuinely has no genes."
+        logger.exception("Error extracting genes from KE %s", ke_id)
         return []
