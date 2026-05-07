@@ -355,7 +355,7 @@ class PathwaySuggestionService:
         return confidence
 
     def _process_gene_pathway_results(
-        self, sparql_data: Dict, input_genes: List[str]
+        self, sparql_data: Dict, input_genes: List[Dict[str, str]]
     ) -> List[Dict[str, any]]:
         """Process SPARQL results and calculate gene overlap statistics"""
         pathway_map = {}
