@@ -1,12 +1,15 @@
 """
-Shared service for extracting HGNC gene symbols from AOP-Wiki Key Events.
+Shared service for extracting persistent gene identifiers from AOP-Wiki Key Events.
 
-Used by both PathwaySuggestionService and GoSuggestionService.
+Used by both PathwaySuggestionService and GoSuggestionService (and indirectly the
+Reactome and GO suggestion services). Returns a strict-shape list of dicts
+``{ncbi, hgnc, symbol}`` so downstream consumers can match against either the
+NCBI Gene ID, the HGNC accession, or the HGNC symbol without re-querying.
 """
 import hashlib
 import json
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import requests
 
@@ -17,9 +20,9 @@ def get_genes_from_ke(
     ke_id: str,
     aop_wiki_endpoint: str,
     cache_model=None
-) -> List[str]:
+) -> List[Dict[str, str]]:
     """
-    Extract HGNC gene symbols associated with a Key Event via AOP-Wiki SPARQL.
+    Extract genes (NCBI Gene ID + HGNC accession + HGNC symbol) for a Key Event.
 
     Args:
         ke_id: Key Event ID (e.g., "Event:123" or "KE 55")
@@ -27,23 +30,27 @@ def get_genes_from_ke(
         cache_model: Optional cache model with get_cached_response/cache_response methods
 
     Returns:
-        List of HGNC gene symbols
+        List of dicts with strict shape {"ncbi": str, "hgnc": str, "symbol": str}.
+        Genes missing any of the three identifiers are dropped silently (Phase 28 D-04).
     """
     try:
         sparql_query = f"""
+        # ke-genes-query-v2 — returns ncbi+hgnc+symbol triples (Phase 28)
         PREFIX aopo: <http://aopkb.org/aop_ontology#>
         PREFIX edam: <http://edamontology.org/>
-        PREFIX dc: <http://purl.org/dc/elements/1.1/>
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX owl:  <http://www.w3.org/2002/07/owl#>
 
-        SELECT DISTINCT ?keid ?ketitle ?hgnc
+        SELECT DISTINCT ?keid ?hgnc ?symbol ?ncbi
         WHERE {{
             ?ke a aopo:KeyEvent;
-                edam:data_1025 ?object;
-                dc:title ?ketitle;
+                edam:data_1025 ?gene;
                 rdfs:label ?keid.
-            ?object edam:data_2298 ?hgnc.
+            ?gene edam:data_2298 ?hgnc;
+                  rdfs:label ?symbol;
+                  owl:sameAs ?ncbi.
             FILTER(?keid = "{ke_id}")
+            FILTER(STRSTARTS(STR(?ncbi), "https://identifiers.org/ncbigene/"))
         }}
         """
 
@@ -69,14 +76,29 @@ def get_genes_from_ke(
 
         if response.status_code == 200:
             data = response.json()
-            genes = []
+            genes: List[Dict[str, str]] = []
+            seen = set()
 
-            if "results" in data and "bindings" in data["results"]:
-                for binding in data["results"]["bindings"]:
-                    if "hgnc" in binding:
-                        gene = binding["hgnc"]["value"]
-                        if gene and gene not in genes:
-                            genes.append(gene)
+            for binding in data.get("results", {}).get("bindings", []):
+                try:
+                    hgnc = binding["hgnc"]["value"]
+                    symbol = binding["symbol"]["value"]
+                    ncbi_iri = binding["ncbi"]["value"]
+                except KeyError:
+                    continue  # D-04 strict skip — missing any of the three fields
+
+                if not (hgnc and symbol and ncbi_iri):
+                    continue  # D-04 strict skip — empty literal
+
+                ncbi = ncbi_iri.rsplit("/", 1)[-1]
+                if not ncbi:
+                    continue
+
+                key = (ncbi, hgnc, symbol)
+                if key in seen:
+                    continue
+                seen.add(key)
+                genes.append({"ncbi": ncbi, "hgnc": hgnc, "symbol": symbol})
 
             # Cache the results
             if cache_model:
