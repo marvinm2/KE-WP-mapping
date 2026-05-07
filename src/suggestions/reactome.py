@@ -102,8 +102,8 @@ class ReactomeSuggestionService:
         else:
             logger.info("%s file not found: %s", label, path)
 
-    def _get_genes_from_ke(self, ke_id: str) -> List[str]:
-        """Extract HGNC gene symbols associated with a Key Event."""
+    def _get_genes_from_ke(self, ke_id: str) -> List[Dict[str, str]]:
+        """Extract gene identifier triples ({ncbi, hgnc, symbol}) for a Key Event."""
         return get_genes_from_ke(ke_id, self.aop_wiki_endpoint, self.cache_model)
 
     # ------------------------------------------------------------------
@@ -244,7 +244,7 @@ class ReactomeSuggestionService:
             logger.error("Embedding-based Reactome suggestion failed: %s", e)
             return []
 
-    def _compute_gene_overlap_scores(self, ke_genes: List[str]) -> List[Dict]:
+    def _compute_gene_overlap_scores(self, ke_genes: List[Dict[str, str]]) -> List[Dict]:
         """Compute gene overlap between KE genes and Reactome pathway annotations.
 
         Uses weighted KE overlap + Jaccard similarity with dampening for small
@@ -266,7 +266,10 @@ class ReactomeSuggestionService:
                 if reactome_cfg else 10
             )
 
-            ke_gene_set = set(ke_genes)
+            # Reactome annotations are HGNC-symbol-keyed (Phase 23 — sourced from
+            # ReactomePathways.gmt which carries symbols only). Intersect on the
+            # symbol field of each gene dict.
+            ke_gene_set = {g['symbol'] for g in ke_genes}
             results = []
 
             for reactome_id, pathway_genes in self.reactome_gene_annotations.items():
