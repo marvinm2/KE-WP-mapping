@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Reactome Integration
 status: executing
-stopped_at: Phase 27 context gathered
-last_updated: "2026-05-06T17:37:20.477Z"
-last_activity: 2026-05-06 -- Phase 27 execution started
+stopped_at: Completed 28D-PLAN.md
+last_updated: "2026-05-07T09:19:56.327Z"
+last_activity: 2026-05-07
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 23
-  completed_plans: 19
-  percent: 83
+  total_phases: 6
+  completed_phases: 5
+  total_plans: 27
+  completed_plans: 25
+  percent: 93
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Curators can efficiently produce a high-quality, reusable KE-pathway/GO mapping database that external tools can consume for toxicological pathway analysis.
-**Current focus:** Phase 27 — reactome-pathway-viewer
+**Current focus:** Phase 28 — ke-gene-sparql-symbols
 
 ## Current Position
 
-Phase: 27 (reactome-pathway-viewer) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 27
-Last activity: 2026-05-06 -- Phase 27 execution started
+Phase: 28 (ke-gene-sparql-symbols) — EXECUTING
+Plan: 3 of 4
+Status: Ready to execute
+Last activity: 2026-05-07
 
 ```
 [Phase 23] [ ] [Phase 24] [ ] [Phase 25] [ ] [Phase 26] [ ] [Phase 27]
@@ -78,6 +78,7 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 25]: Plan 25-05 deviation pattern: Tasks 1+2+3 collapsed to one source-code commit (595133e) — interleaved methods in same JS module, splitting required no architectural benefit (mirrors Plan 25-02's 1+2 collapse rationale)
 - [Phase 25-proposal-workflow-and-admin-ui]: Plan 25-06 e2e tests landed; 4 RCUR-anchored tests + 8 gap-fill tests; all 4 e2e tests passed first run confirming Plans 25-01..25-05 wiring is correct end-to-end
 - [Phase 25-proposal-workflow-and-admin-ui]: Plan 25-06 closed Plan 25-05's deferred steps 5-10 via Flask test client (bypasses OAuth); production smoke remains the only outstanding verification on molaop-builder.vhp4safety.nl
+- [Phase 28]: Phase 28A: locked SPARQL block from RESEARCH §Empirical SPARQL Findings; client-side NCBI tail extraction via rsplit; strict-skip on partial bindings (D-04); ke-genes-query-v2 version comment baked into f-string for automatic md5 cache-bust (D-05)
 
 ### Pending Todos
 
@@ -98,7 +99,7 @@ All decisions logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-**Last session:** 2026-05-06T12:46:25.854Z
-**Stopped at:** Phase 27 context gathered
-**Resume file:** .planning/phases/27-reactome-pathway-viewer/27-CONTEXT.md
+**Last session:** 2026-05-07T09:19:56.321Z
+**Stopped at:** Completed 28D-PLAN.md
+**Resume file:** None
 **Next action:** `/gsd-plan-phase 26` — plan the 4 deliverables: /api/v1/reactome-mappings (with AOP filter), per-mapping + KE-centric Reactome GMT, RDF/Turtle export, and the AJAX-driven Reactome tab on explore.html (consumes /api/v1/reactome-mappings directly). Key new model method needed: ReactomeMappingModel.get_reactome_mappings_paginated.

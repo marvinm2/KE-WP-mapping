@@ -41,7 +41,7 @@ Requirements for v1.4 Reactome Integration. Each maps to roadmap phases.
 
 ### Helper Library
 
-- [ ] **KEGENE-01**: `get_genes_from_ke()` returns a strict-shape `List[Dict[str, str]]` with fields `{ncbi, hgnc, symbol}` (NCBI Gene ID + HGNC accession + HGNC symbol), sourced from a single non-federated AOP-Wiki SPARQL query; the public `GET /ke_genes/<ke_id>` adds a `genes_full` dict-list field while preserving `genes` as `[symbol]` for Phase 27 backward-compat; downstream gene-overlap signals across Reactome, WP, and GO suggestion services become non-empty for KEs with overlapping genes
+- [x] **KEGENE-01**: `get_genes_from_ke()` returns a strict-shape `List[Dict[str, str]]` with fields `{ncbi, hgnc, symbol}` (NCBI Gene ID + HGNC accession + HGNC symbol), sourced from a single non-federated AOP-Wiki SPARQL query; the public `GET /ke_genes/<ke_id>` adds a `genes_full` dict-list field while preserving `genes` as `[symbol]` for Phase 27 backward-compat; downstream gene-overlap signals across Reactome, WP, and GO suggestion services become non-empty for KEs with overlapping genes
 
 ## Future Requirements
 
@@ -96,7 +96,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REXP-03 | Phase 26 | Complete |
 | REXP-04 | Phase 26 | Complete |
 | RVIEW-01 | Phase 27 | Pending |
-| KEGENE-01 | Phase 28 | Pending |
+| KEGENE-01 | Phase 28 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 18 total
