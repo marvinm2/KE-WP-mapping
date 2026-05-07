@@ -9,11 +9,16 @@ NCBI Gene ID, the HGNC accession, or the HGNC symbol without re-querying.
 import hashlib
 import json
 import logging
+import re
 from typing import Dict, List, Optional
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+# Allowlist for KE ID literals interpolated into SPARQL FILTER clauses.
+# Accepts both AOP-Wiki "Event:1234" and legacy "KE 55" styles, plus dashes/underscores.
+_KE_ID_ALLOWED = re.compile(r"^[A-Za-z0-9 :_\-]+$")
 
 
 def get_genes_from_ke(
@@ -33,6 +38,10 @@ def get_genes_from_ke(
         List of dicts with strict shape {"ncbi": str, "hgnc": str, "symbol": str}.
         Genes missing any of the three identifiers are dropped silently (Phase 28 D-04).
     """
+    if not ke_id or not _KE_ID_ALLOWED.match(ke_id):
+        logger.warning("Rejecting invalid KE ID for SPARQL interpolation: %r", ke_id)
+        return []
+
     try:
         sparql_query = f"""
         # ke-genes-query-v2 — returns ncbi+hgnc+symbol triples (Phase 28)
