@@ -829,17 +829,20 @@ def get_ke_genes(ke_id):
             
         logger.info("Getting genes for KE: %s", sanitize_log(ke_id))
         
-        # Get genes from service
-        genes = pathway_suggestion_service._get_genes_from_ke(ke_id)
-        
+        # Get genes from service (Phase 28: returns List[Dict] with {ncbi, hgnc, symbol})
+        genes_full = pathway_suggestion_service._get_genes_from_ke(ke_id)
+        # Backward-compat: legacy `genes` is a list of HGNC symbol strings (Phase 27 frontend reads this)
+        genes = [g["symbol"] for g in genes_full]
+
         response = {
             "ke_id": ke_id,
             "genes": genes,
-            "gene_count": len(genes),
+            "genes_full": genes_full,
+            "gene_count": len(genes_full),
             "timestamp": int(time.time())
         }
-        
-        logger.info("Found %d genes for KE %s", len(genes), sanitize_log(ke_id))
+
+        logger.info("Found %d genes for KE %s", len(genes_full), sanitize_log(ke_id))
         return jsonify(response), 200
         
     except Exception as e:
