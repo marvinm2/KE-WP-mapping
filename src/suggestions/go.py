@@ -562,8 +562,8 @@ class GoSuggestionService:
         cleaned = re.sub(r"\s+", " ", cleaned)
         return cleaned.strip().lower()
 
-    def _get_genes_from_ke(self, ke_id: str) -> List[str]:
-        """Extract HGNC gene symbols associated with a Key Event"""
+    def _get_genes_from_ke(self, ke_id: str) -> List[Dict[str, str]]:
+        """Extract gene identifier triples ({ncbi, hgnc, symbol}) for a Key Event."""
         return get_genes_from_ke(ke_id, self.aop_wiki_endpoint, self.cache_model)
 
     def _compute_embedding_scores_for(self, ke_id: str, ke_title: str, ns_data: _NamespaceData) -> List[Dict]:
@@ -658,7 +658,7 @@ class GoSuggestionService:
             logger.error("Embedding-based GO suggestion failed: %s", e)
             return []
 
-    def _compute_gene_overlap_scores_for(self, ke_genes: List[str], ns_data: _NamespaceData) -> List[Dict]:
+    def _compute_gene_overlap_scores_for(self, ke_genes: List[Dict[str, str]], ns_data: _NamespaceData) -> List[Dict]:
         """
         Compute gene overlap between KE genes and GO term gene annotations for a namespace.
 
@@ -672,7 +672,9 @@ class GoSuggestionService:
             min_threshold = getattr(go_config, 'gene_min_threshold', 0.05) if go_config else 0.05
             min_term_size = getattr(go_config, 'gene_min_term_size', 10) if go_config else 10
 
-            ke_gene_set = set(ke_genes)
+            # GO annotations (GAF-derived JSON) are HGNC-symbol-keyed. Intersect on
+            # the symbol field of each gene dict.
+            ke_gene_set = {g['symbol'] for g in ke_genes}
             results = []
 
             for go_id, go_genes in ns_data.annotations.items():
