@@ -94,18 +94,18 @@ class PathwaySuggestionService:
                 "ke_title": ke_title,
             }
 
-    def _get_genes_from_ke(self, ke_id: str) -> List[str]:
-        """Extract HGNC gene symbols associated with a Key Event"""
+    def _get_genes_from_ke(self, ke_id: str) -> List[Dict[str, str]]:
+        """Extract gene identifier triples ({ncbi, hgnc, symbol}) for a Key Event."""
         return get_genes_from_ke(ke_id, self.aop_wiki_endpoint, self.cache_model)
 
     def _find_pathways_by_genes(
-        self, genes: List[str], limit: int = 20
+        self, genes: List[Dict[str, str]], limit: int = 20
     ) -> List[Dict[str, any]]:
         """
         Find WikiPathways containing specific genes
 
         Args:
-            genes: List of HGNC gene symbols
+            genes: List of gene-identifier dicts {ncbi, hgnc, symbol}
             limit: Maximum number of pathways to return
 
         Returns:
@@ -116,7 +116,8 @@ class PathwaySuggestionService:
 
         try:
             # Create VALUES clause for SPARQL query with URIs (WikiPathways uses identifiers.org URIs)
-            gene_values = " ".join([f'<https://identifiers.org/hgnc.symbol/{gene}>' for gene in genes])
+            # WP indexes wp:bdbHgncSymbol against hgnc.symbol/{SYMBOL}; pull symbol from gene dict.
+            gene_values = " ".join([f'<https://identifiers.org/hgnc.symbol/{g["symbol"]}>' for g in genes])
 
             sparql_query = f"""
             PREFIX wp: <http://vocabularies.wikipathways.org/wp#>
