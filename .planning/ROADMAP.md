@@ -71,7 +71,7 @@ Full details: `.planning/milestones/v1.3-ROADMAP.md`
 - [x] **Phase 25: Proposal Workflow and Admin UI** — Submission, duplicate detection, admin approve/reject, and Reactome tab in mapping workflow (completed 2026-05-05)
 - [x] **Phase 26: Public API and Exports** — Versioned API endpoint, GMT export, RDF export, and explore page integration (completed 2026-05-06)
 - [x] **Phase 27: Reactome Pathway Viewer** — DiagramJS embed in mapping workflow with gene highlighting (completed 2026-05-06)
-- [ ] **Phase 28: KE Gene SPARQL Returns Persistent Identifiers** — Rewrite shared ke_genes.py SPARQL helper to return strict {ncbi, hgnc, symbol} triples from a single non-federated AOP-Wiki query; carry persistent IDs through three suggestion services and add genes_full to /ke_genes/<ke_id> while preserving Phase 27 frontend's genes field
+- [x] **Phase 28: KE Gene SPARQL Returns Persistent Identifiers** — Rewrite shared ke_genes.py SPARQL helper to return strict {ncbi, hgnc, symbol} triples from a single non-federated AOP-Wiki query; carry persistent IDs through three suggestion services and add genes_full to /ke_genes/<ke_id> while preserving Phase 27 frontend's genes field (completed 2026-05-07)
 
 ## Phase Details
 
@@ -160,11 +160,11 @@ Plans:
   5. GO `_compute_gene_overlap_scores_for` produces non-zero gene-driven GO suggestion scores.
   6. Phase 27's `flagItems()` continues to receive HGNC symbol strings via the `genes` field (no Phase 27 frontend regression); embedded diagram now flags non-zero entities.
   7. SPARQL response cache automatically invalidates via the version-comment trick (`# ke-genes-query-v2 ...` inside the f-string changes `md5(query)`); no DB migration required.
-**Plans:** 2/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 28A-PLAN.md — Rewrite get_genes_from_ke() helper with strict-triple SPARQL and version-comment cache bust; new tests/test_ke_genes.py with five parser unit tests
-- [ ] 28B-PLAN.md — Update three suggestion-service consumers (pathway.py, reactome.py, go.py) to consume List[Dict] and extract symbol field at call sites
-- [ ] 28C-PLAN.md — Add genes_full field to GET /ke_genes/<ke_id> response while preserving legacy genes (list of symbol strings)
+- [x] 28B-PLAN.md — Update three suggestion-service consumers (pathway.py, reactome.py, go.py) to consume List[Dict] and extract symbol field at call sites
+- [x] 28C-PLAN.md — Add genes_full field to GET /ke_genes/<ke_id> response while preserving legacy genes (list of symbol strings)
 - [x] 28D-PLAN.md — Update .planning/ROADMAP.md Phase 28 entry and add KEGENE-01 to .planning/REQUIREMENTS.md
 
 ## Progress
@@ -198,5 +198,5 @@ Plans:
 | 25. Proposal Workflow and Admin UI | v1.4 | 6/6 | Complete   | 2026-05-05 |
 | 26. Public API and Exports | v1.4 | 8/8 | Complete    | 2026-05-06 |
 | 27. Reactome Pathway Viewer | v1.4 | 4/4 | Complete   | 2026-05-06 |
-| 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 2/4 | In Progress|  |
+| 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 4/4 | Complete   | 2026-05-07 |
 
