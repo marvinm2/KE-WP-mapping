@@ -1626,6 +1626,20 @@ select:focus:not(:focus-visible),
 .reactome-embed-error a {
     color: var(--color-primary-blue);
 }
+
+#reactome-inline-embed-frame button,
+#reactome-inline-embed-frame button:hover,
+#reactome-inline-embed-frame button:disabled {
+    background: none;
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    font-size: inherit;
+    font-weight: inherit;
+    opacity: 1;
+}
 .wp-preview-btn {
     background: none;
     border: none;
