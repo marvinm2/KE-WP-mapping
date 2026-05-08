@@ -1,8 +1,23 @@
 ---
 phase: 27-reactome-pathway-viewer
 verified: 2026-05-06T19:00:00Z
-status: human_needed
-score: 3/3 must-haves verified (static); 3 success criteria require deploy verification
+post_deploy_verified: 2026-05-08T00:00:00Z
+status: passed
+score: 3/3 must-haves verified (static); 2/3 success criteria confirmed in browser, 1/3 (gene flagItems) accepted as structural-only per Plan 27-CONTEXT
+post_deploy_results:
+  - sc: "RVIEW-01 #1 — inline diagram renders"
+    status: confirmed
+    method: "Browser session — diagram canvas rendered inside #reactome-inline-embed-frame after suggestion-card click"
+  - sc: "RVIEW-01 #2 — genes flagged via flagItems"
+    status: structural_only_accepted
+    method: "Browser session — visual gene highlight not observed; per Plan 27-CONTEXT 'zero highlights is acceptable if upstream HGNC↔internal-entity mismatch occurs — the call being made is the success criterion'. Static call-shape was already verified."
+  - sc: "RVIEW-01 #3 — CDN failure leaves submission flow functional"
+    status: confirmed
+    method: "Browser DevTools — blocked reactome.org/DiagramJs/* via Network panel; 'Pathway viewer unavailable' fallback card with PathwayBrowser link rendered correctly"
+post_deploy_followups:
+  - issue: "DiagramJS native zoom/fit/fullscreen icon buttons rendered as oversized magenta slabs due to global button selector cascade"
+    fix: "Scoped CSS reset on #reactome-inline-embed-frame button (commit 09426fa, static/css/main.css:1629-1641)"
+    status: landed_on_main
 human_verification:
   - test: "Inline Reactome diagram renders for a selected pathway"
     expected: "After login, selecting a Reactome suggestion on the mapper tab causes the DiagramJS canvas to render inside #reactome-inline-embed-frame (280px tall), positioned between the duplicate-warning card and the confidence guide."
