@@ -81,7 +81,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 
 ### 🔄 v1.5 Scoring & Polish (Phases 29–33) — ACTIVE
 
-- [ ] **Phase 29: Pure-Semantic Ranking Shift** — Switch WP/GO/Reactome suggestion ranking to BioBERT similarity only; demote gene-overlap to display-only chip
+- [x] **Phase 29: Pure-Semantic Ranking Shift** — Switch WP/GO/Reactome suggestion ranking to BioBERT similarity only; demote gene-overlap to display-only chip (completed 2026-05-10)
 - [ ] **Phase 30: Reactome Suggestion Card Parity and Threshold Tuning** — Bring Reactome suggestion-card layout to WP standard; re-tune Reactome thresholds for the new pure-semantic regime
 - [ ] **Phase 31: Reactome Viewer Polish** — Fix Phase 27 carry-forward issues in `ReactomeDiagramEmbed` (WR-01..04 + prefetch race)
 - [ ] **Phase 32: GO/WP Sibling Debt Sweep** — Port Reactome's C-1 XSS fix, H-2 partial-unique pending index, and empty-mappings 503 guard to GO/WP equivalents
@@ -104,7 +104,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
   - [x] 29-02-PLAN.md — Refactor PathwaySuggestionService (WP) to embedding-only ranking with ontology post-combine boost
   - [x] 29-03-PLAN.md — Refactor GoSuggestionService (BP + MF) to embedding-only ranking; preserve IC boost + directionality
   - [x] 29-04-PLAN.md — Refactor ReactomeSuggestionService to embedding-only ranking; add method_filter deprecation log on three suggestion endpoints
-  - [ ] 29-05-PLAN.md — Frontend: gene-overlap chip on WP / GO / Reactome cards; remove method-filter UI and scoring breakdown; drop method_filter from outbound fetches
+  - [x] 29-05-PLAN.md — Frontend: gene-overlap chip on WP / GO / Reactome cards; remove method-filter UI and scoring breakdown; drop method_filter from outbound fetches
   - [x] 29-06-PLAN.md — v1.5 dismissible migration banner + CHANGELOG.md v1.5 entry
 
 ### Phase 30: Reactome Suggestion Card Parity and Threshold Tuning
@@ -115,7 +115,9 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
   1. The Reactome suggestion card visually matches the WP suggestion card — same panel chrome, same arrangement of signal chips, same score badge, same info density (verified by side-by-side screenshot comparison on a single KE)
   2. On a representative sample of at least five KEs covering different bio levels, a curator confirms that the top-N Reactome suggestions feel comparable in quality to the top-N WP suggestions for the same KE
   3. The `reactome_suggestion:` block in `scoring_config.yaml` has updated min-similarity and top-N-cap values, and the resulting suggestion lists are visibly tighter than the pre-tuning baseline (no long tails of low-similarity noise)
-**Plans**: TBD
+**Plans**: 2 plans
+  - [x] 30-01-PLAN.md — Empirical distribution dump on 5 calibration KEs; tune `scoring_config.yaml::reactome_suggestion` thresholds (`embedding_min_threshold`, `min_threshold`, `max_results: 10`, demote `gene_min_threshold`); curator spot-check (REASCORE-01, REASCORE-02)
+  - [ ] 30-02-PLAN.md — Refactor `displayReactomeSuggestions` to WP card chrome (reuse `createFinalScoreBar`, `renderGeneOverlapChip`, collapse-after-3); side-by-side visual parity check (SUGDISP-02)
 
 ### Phase 31: Reactome Viewer Polish
 **Goal**: The Reactome inline pathway viewer recovers cleanly from CDN failures, pathway swaps, and gene-prefetch races without leaving the user with a broken mount, accumulating handlers, or empty gene highlights.
@@ -182,8 +184,8 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 | 26. Public API and Exports | v1.4 | 8/8 | Complete    | 2026-05-06 |
 | 27. Reactome Pathway Viewer | v1.4 | 4/4 | Complete   | 2026-05-06 |
 | 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 4/4 | Complete    | 2026-05-07 |
-| 29. Pure-Semantic Ranking Shift | v1.5 | 5/6 | In Progress|  |
-| 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 0/TBD | Not started | — |
+| 29. Pure-Semantic Ranking Shift | v1.5 | 6/6 | Complete    | 2026-05-10 |
+| 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 1/2 | In Progress|  |
 | 31. Reactome Viewer Polish | v1.5 | 0/TBD | Not started | — |
 | 32. GO/WP Sibling Debt Sweep | v1.5 | 0/TBD | Not started | — |
 | 33. Baseline Cleanup | v1.5 | 0/TBD | Not started | — |

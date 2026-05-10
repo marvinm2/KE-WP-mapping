@@ -4504,34 +4504,61 @@ This helps identify gaps in existing pathways for future development.">❓</span
             return;
         }
 
-        const cards = suggestions.map((s) => {
+        let cardsHtml = '';
+        suggestions.forEach((s, index) => {
             const reactomeId = esc(s.reactome_id || '');
             const pathwayName = esc(s.pathway_name || '');
             const species = esc(s.species || 'Homo sapiens');
-            const score = (s.suggestion_score != null) ? Number(s.suggestion_score) : (s.hybrid_score != null ? Number(s.hybrid_score) : null);
-            const scoreText = score != null ? score.toFixed(3) : '—';
+            const scoreNumeric = (s.suggestion_score != null) ? Number(s.suggestion_score)
+                               : (s.hybrid_score != null ? Number(s.hybrid_score) : null);
+
+            // Adapter: inject scores.final_score so createFinalScoreBar reads the right field
+            s.scores = { final_score: scoreNumeric != null ? scoreNumeric : 0 };
+
+            const matchTypeBadges  = this.getMatchTypeBadges([]);         // Reactome has no match_types — pure-semantic
+            const borderClass      = this.getBorderClassForMatch([]);     // constant — WP "no badges" treatment
+            const finalScoreBar    = this.createFinalScoreBar(s);
             const reactomeGeneChip = this.renderGeneOverlapChip(s, data.genes_found || 0);
-            // store machine-readable values via data-* (jQuery handles escaping when reading later)
-            return `
-                <div class="suggestion-card panel-outlined" style="padding: 12px; margin-bottom: 10px; border-radius: 6px;"
+            const hiddenClass      = index >= 3 ? 'suggestion-item-hidden' : '';
+
+            cardsHtml += `
+                <div class="suggestion-card panel-outlined ${borderClass} ${hiddenClass}"
+                     style="padding: 12px; margin-bottom: 10px; border-radius: 6px;"
                      data-reactome-id="${reactomeId}"
                      data-pathway-name="${pathwayName}"
                      data-species="${species}"
-                     data-score="${score != null ? score : ''}">
-                    <h4 style="margin: 0 0 4px 0;">${pathwayName}</h4>
-                    <div class="text-muted" style="font-size: 13px;">
-                        <span style="font-family: monospace;">${reactomeId}</span> &middot; ${species}
+                     data-score="${scoreNumeric != null ? scoreNumeric : ''}">
+                    <div style="display: flex; gap: 12px; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <div>
+                                    <strong style="font-size: 14px;">${pathwayName}</strong>
+                                    ${matchTypeBadges}
+                                    ${reactomeGeneChip}
+                                </div>
+                                ${finalScoreBar}
+                            </div>
+                            <div class="text-muted" style="font-size: 12px; margin-bottom: 8px;">
+                                ID: <span style="font-family: monospace;">${reactomeId}</span> | <a href="https://reactome.org/PathwayBrowser/#/${reactomeId}" target="_blank" onclick="event.stopPropagation();">View on Reactome</a>
+                            </div>
+                            <button type="button" class="btn-select-reactome" style="margin-top: 4px;">Select</button>
+                        </div>
                     </div>
-                    <div class="text-muted" style="font-size: 13px; margin-top: 4px; display: flex; align-items: center; gap: 8px;">
-                        <span>Score: ${scoreText}</span>
-                        ${reactomeGeneChip}
-                    </div>
-                    <button type="button" class="btn-select-reactome" style="margin-top: 8px;">Select</button>
                 </div>
             `;
-        }).join('');
+        });
 
-        $container.html(`<div class="reactome-suggestions-list">${cards}</div>`);
+        let html = `<div class="reactome-suggestions-list">${cardsHtml}</div>`;
+
+        if (suggestions.length > 3) {
+            html += `
+                <button class="show-more-reactome-suggestions show-more-btn" type="button">
+                    Show ${suggestions.length - 3} more suggestions
+                </button>
+            `;
+        }
+
+        $container.html(html);
     }
 
     // -------------------------------------------------------------------------

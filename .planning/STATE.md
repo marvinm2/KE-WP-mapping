@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Scoring & Polish
 status: executing
-stopped_at: Completed 29-pure-semantic-ranking-shift/29-06-PLAN.md
-last_updated: "2026-05-10T11:08:04.797Z"
-last_activity: "2026-05-10 — Completed plan 29-03: GO pure-semantic ranking (SEMRANK-02)"
+stopped_at: Completed Phase 30 Plan 01 (30-01-PLAN.md) — all 3 tasks done, REASCORE-01 + REASCORE-02 satisfied
+last_updated: "2026-05-10T13:05:05.010Z"
+last_activity: 2026-05-10
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_phases: 1
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -25,16 +25,16 @@ See: .planning/PROJECT.md (updated 2026-05-10 for v1.5 scoping)
 
 ## Current Position
 
-Phase: 29 — Pure-Semantic Ranking Shift (in progress)
-Plan: 03 (completed)
+Phase: 30
+Plan: Not started
 Status: Ready to execute plan 29-04
-Last activity: 2026-05-10 — Completed plan 29-03: GO pure-semantic ranking (SEMRANK-02)
+Last activity: 2026-05-10
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
 
-- Total plans completed: 106 (v1.0: 28, v1.1: 18, v1.2: 9, v1.3: 12, v1.4: 27 + carryforward)
+- Total plans completed: 112 (v1.0: 28, v1.1: 18, v1.2: 9, v1.3: 12, v1.4: 27 + carryforward)
 - Total phases completed: 28
 - Latest milestone v1.4: 6 phases / 27 plans / 32 tasks / 35 days / +11K LOC
 
@@ -66,6 +66,9 @@ v1.5 phase ordering decisions:
 - [Phase 29-pure-semantic-ranking-shift]: multi_evidence_bonus now config-driven (0.0 in v1.5) not hardcoded 0.05 in PathwaySuggestionService
 - [Phase 29-pure-semantic-ranking-shift]: primary_evidence defaults to semantic_similarity in v1.5 (was gene_overlap in v1.4); ontology_tags only when boost fired
 - [Phase 29-pure-semantic-ranking-shift]: Used --color-primary-pink CSS variable (existing in :root) for banner magenta accent rather than non-existent --color-magenta; added .info-banner--v15 modifier class to avoid clobbering existing generic .info-banner blue-border style
+- [Phase 29-pure-semantic-ranking-shift]: Reactome under-development notice uses blue (#307BBF) left-border accent (distinct from v1.5 magenta banner); initReactomeDevBanner() mirrors initV15Banner() pattern with localStorage key kewp_reactome_dev_notice_dismissed
+- [Phase 30-reactome-suggestion-card-parity-and-threshold-tuning]: embedding_min_threshold=0.84 for Reactome suggestions: score transformation (power_exponent=4.0) compresses cosine similarity into 0.45-0.85 range; original 0.30-0.55 expected range was pre-calibration assumption; at 0.84 narrow KEs give 1-2 suggestions and broad KE 129 gives exactly 10 (cap is binding)
+- [Phase 30]: embedding_min_threshold=0.83 for Reactome suggestions: initial calibration selected 0.84 but left KE 1395 with 0 suggestions; one step down to 0.83 restored coverage (2 suggestions) while keeping narrow KEs at 2-5 and capping broad KEs at 10
 
 ### Pending Todos
 
@@ -93,7 +96,7 @@ v1.5 phase ordering decisions:
 
 ## Session Continuity
 
-**Last session:** 2026-05-10T11:08:04.788Z
-**Stopped at:** Completed 29-pure-semantic-ranking-shift/29-06-PLAN.md
+**Last session:** 2026-05-10T13:05:05.001Z
+**Stopped at:** Completed Phase 30 Plan 01 (30-01-PLAN.md) — all 3 tasks done, REASCORE-01 + REASCORE-02 satisfied
 **Resume file:** None
 **Next action:** Execute plan 29-04 (Reactome pure-semantic ranking, SEMRANK-03)
