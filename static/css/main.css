@@ -2059,6 +2059,46 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
     color: var(--color-primary-dark);
 }
 
+/* v1.5 Pure-Semantic Migration Banner */
+.info-banner--v15 {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 12px 0 16px 0;
+    border: none;
+    border-left: 4px solid var(--color-primary-pink, #E6007E);
+    background: #fdf4f9;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.info-banner--v15.is-dismissed { display: none; }
+.info-banner__icon {
+    flex: 0 0 24px;
+    height: 24px;
+    width: 24px;
+    border-radius: 50%;
+    background: var(--color-primary-pink, #E6007E);
+    color: #fff;
+    text-align: center;
+    font-weight: bold;
+    line-height: 24px;
+    font-style: italic;
+}
+.info-banner__body { flex: 1; }
+.info-banner__dismiss {
+    flex: 0 0 auto;
+    background: transparent;
+    border: 0;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    padding: 0 4px;
+}
+.info-banner__dismiss:hover { color: var(--color-primary-dark, #29235C); }
+
 /* Warning Banner */
 .warning-banner {
     background: #fffbeb;
@@ -2559,6 +2599,25 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
     border: 1px solid var(--color-border-light);
     border-radius: 3px;
     white-space: nowrap;
+}
+
+/* Gene-overlap chip — informational display on suggestion cards */
+.gene-overlap-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    background: var(--color-bg-lighter, #f8f9fa);
+    border: 1px solid var(--color-border-light);
+    border-radius: 10px;
+    cursor: help;
+    white-space: nowrap;
+}
+.gene-overlap-chip--empty {
+    opacity: 0.6;
 }
 
 /* Confirmation Dialog Overlay */

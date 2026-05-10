@@ -371,6 +371,9 @@ class KEWPApp {
 
         // Restore form state if returning from login
         this.restoreFormState();
+
+        // Show v1.5 pure-semantic migration banner (dismissible)
+        this.initV15Banner();
     }
 
     setupCSRF() {
@@ -2477,8 +2480,8 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const encodedBioLevel = encodeURIComponent(this.selectedBiolevel || '');
         const encodedMethodFilter = encodeURIComponent(filter);
 
-        // Make AJAX request for suggestions with biological level context and method filter
-        $.getJSON(`/suggest_pathways/${encodedKeId}?ke_title=${encodedKeTitle}&bio_level=${encodedBioLevel}&limit=8&method_filter=${encodedMethodFilter}`)
+        // Make AJAX request for suggestions with biological level context
+        $.getJSON(`/suggest_pathways/${encodedKeId}?ke_title=${encodedKeTitle}&bio_level=${encodedBioLevel}&limit=8`)
             .done((data) => {
                 // Pathway suggestions loaded successfully
                 this.displayPathwaySuggestions(data, filter);
@@ -2517,33 +2520,13 @@ This helps identify gaps in existing pathways for future development.">❓</span
         let suggestionsHtml = `
                 <h3 style="margin: 0 0 15px 0;" class="text-dark-heading">Suggested Pathways for Selected KE</h3>
 
-                <!-- Method Filter Toggle -->
-                <div id="methodFilterContainer" style="margin: 0 0 15px 0; padding: 12px; background: var(--color-white); border: 1px solid var(--color-border-light); border-radius: 6px;">
-                    <label style="font-weight: bold; margin-right: 10px; display: block; margin-bottom: 8px;" class="text-dark-heading">View Results By:</label>
-                    <div class="btn-group" role="group" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" class="method-filter-btn method-filter-btn--active active" data-method="all">
-                            All Methods (Combined)
-                        </button>
-                        <button type="button" class="method-filter-btn method-filter-btn--inactive" data-method="gene">
-                            Gene-based Only
-                        </button>
-                        <button type="button" class="method-filter-btn method-filter-btn--inactive" data-method="semantic">
-                            Semantic-based Only
-                        </button>
-                    </div>
-                    <div id="filterInfo" class="text-muted" style="margin-top: 8px; font-size: 12px; font-style: italic;"></div>
-                </div>
-
                 <!-- Scoring Information Box -->
                 <details class="panel-outlined" style="margin: 0 0 15px 0; padding: 10px;">
                     <summary style="cursor: pointer; font-weight: bold; font-size: 14px;" class="text-dark-heading">
                         How are suggestions scored?
                     </summary>
                     <div style="margin-top: 10px; font-size: 13px; line-height: 1.6;" class="text-subtle">
-                        <p style="margin: 8px 0;"><strong>Gene-based (35%)</strong>: Measures overlap between genes associated with the Key Event and genes in each pathway. Higher overlap = stronger match.</p>
-                        <p style="margin: 8px 0;"><strong>Semantic (50%)</strong>: Uses BioBERT embeddings to measure deep semantic similarity between KE and pathway descriptions, capturing meaning beyond keyword matching.</p>
-                        <p style="margin: 8px 0;"><strong>Ontology (15%)</strong>: Matches pathway ontology classification tags against KE biological concepts.</p>
-                        <p style="margin: 8px 0; padding-top: 8px; border-top: 1px solid var(--color-border-light);"><em>The combined score merges all signals. Pathways found by multiple methods receive a bonus. Scores are shown as percentages.</em></p>
+                        <p style="margin: 8px 0;">Suggestions are ranked by BioBERT semantic similarity to the Key Event. Gene overlap is shown for context but does not influence rank order.</p>
                     </div>
                 </details>
         `;
@@ -2567,7 +2550,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
             suggestions.forEach((suggestion, index) => {
                 const matchTypeBadges = this.getMatchTypeBadges(suggestion.match_types || []);
-                const scoreDetails = this.getScoreDetails(suggestion.scores || {}, suggestion);
+                const geneOverlapChip = this.renderGeneOverlapChip(suggestion, data.genes_found || 0);
                 const borderClass = this.getBorderClassForMatch(suggestion.match_types || []);
                 const finalScoreBar = this.createFinalScoreBar(suggestion);
                 const primaryEvidence = this.formatPrimaryEvidence(suggestion.primary_evidence);
@@ -2600,6 +2583,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
                                     <div>
                                         <strong style="font-size: 14px;">${suggestion.pathwayTitle}</strong>
                                         ${matchTypeBadges}
+                                        ${geneOverlapChip}
                                     </div>
                                     ${finalScoreBar}
                                 </div>
@@ -2608,7 +2592,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
                                     ID: ${suggestion.pathwayID} | Primary: ${primaryEvidence} | <a href="https://www.wikipathways.org/pathways/${suggestion.pathwayID}" target="_blank" onclick="event.stopPropagation();">View on WikiPathways</a>
                                 </div>
                                 ${publicationsHtml}
-                                ${scoreDetails}
                                 <button class="pathway-preview-btn pathway-preview-trigger">
                                     Preview Pathway
                                 </button>
@@ -2643,9 +2626,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         // Auto-switch to Suggested tab
         this.switchToSubTab('suggested');
-
-        // Set up method filter buttons
-        this.setupMethodFilterButtons(filter, totalCount, filteredCount);
 
         // Bind click handlers using data attributes instead of inline onclick
         $('.suggestion-item').off('click').on('click', (e) => {
@@ -2726,10 +2706,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
         let message = "No pathway suggestions found for this Key Event.";
         let details = "";
 
-        if (filter !== 'all') {
-            message = `No ${filter}-based suggestions found.`;
-            details = `Try a different method filter or use "All Methods (Combined)" to see other results.`;
-        } else if (data && data.genes_found === 0) {
+        if (data && data.genes_found === 0) {
             details = "No associated genes were found in the AOP-Wiki data. Try using the Search or Browse All tabs.";
         } else if (data && data.genes_found > 0) {
             details = `Found ${data.genes_found} associated gene${data.genes_found !== 1 ? 's' : ''} (${data.gene_list.join(', ')}) but no matching pathways were identified.`;
@@ -2737,25 +2714,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         let noSuggestionsHtml = `
                 <h3 style="margin: 0 0 15px 0;" class="text-dark-heading">Suggested Pathways for Selected KE</h3>
-
-                <!-- Method Filter Toggle -->
-                <div id="methodFilterContainer" style="margin: 0 0 15px 0; padding: 12px; background: var(--color-white); border: 1px solid var(--color-border-light); border-radius: 6px;">
-                    <label style="font-weight: bold; margin-right: 10px; display: block; margin-bottom: 8px;" class="text-dark-heading">View Results By:</label>
-                    <div class="btn-group" role="group" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" class="method-filter-btn ${filter === 'all' ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-method="all">
-                            All Methods (Combined)
-                        </button>
-                        <button type="button" class="method-filter-btn ${filter === 'gene' ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-method="gene">
-                            Gene-based Only
-                        </button>
-                        <button type="button" class="method-filter-btn ${filter === 'semantic' ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-method="semantic">
-                            Semantic-based Only
-                        </button>
-                    </div>
-                    <div id="filterInfo" class="text-muted" style="margin-top: 8px; font-size: 12px; font-style: italic;">
-                        ${filter === 'all' ? 'Showing all results (combined ranking)' : `Showing ${filter}-based suggestions`}
-                    </div>
-                </div>
         `;
 
         // Show gene information if available
@@ -2782,9 +2740,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
         // Auto-switch to Suggested tab
         this.switchToSubTab('suggested');
-
-        // Set up filter button click handlers
-        this.setupMethodFilterButtons(filter, 0, 0);
     }
 
     showPathwaySuggestionsError(errorMessage) {
@@ -2834,6 +2789,25 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
 
         return badges.join(' ');
+    }
+
+    /**
+     * Render a muted chip showing matched/total KE genes for a suggestion card.
+     * @param {object} suggestion - suggestion item from API response
+     * @param {number} totalKeGenes - denominator (data.genes_found)
+     * @returns {string} HTML string for the chip (empty string if no KE genes)
+     */
+    renderGeneOverlapChip(suggestion, totalKeGenes) {
+        const matchedGenes = suggestion.matching_genes || [];
+        const matchedCount = matchedGenes.length;
+        const total = totalKeGenes || 0;
+        if (total === 0) return '';  // No KE genes → no chip
+        const fractionLabel = `${matchedCount}/${total}`;
+        const tooltipText = matchedCount > 0
+            ? `Matched HGNC: ${matchedGenes.join(', ')}`
+            : 'No KE genes overlap this pathway';
+        const emptyClass = matchedCount === 0 ? ' gene-overlap-chip--empty' : '';
+        return `<span class="gene-overlap-chip${emptyClass}" title="${this.escapeHtml(tooltipText)}">Genes: ${fractionLabel}</span>`;
     }
 
     getScoreDetails(scores, suggestion) {
@@ -3781,7 +3755,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
         const encodedKeId = encodeURIComponent(keId);
         const encodedKeTitle = encodeURIComponent(keTitle);
 
-        $.getJSON(`/suggest_go_terms/${encodedKeId}?ke_title=${encodedKeTitle}&limit=20&method_filter=${encodeURIComponent(methodFilter)}&aspect_filter=${encodeURIComponent(aspectFilter)}`)
+        $.getJSON(`/suggest_go_terms/${encodedKeId}?ke_title=${encodedKeTitle}&limit=20&aspect_filter=${encodeURIComponent(aspectFilter)}`)
             .done((data) => {
                 this.displayGoSuggestions(data, methodFilter, aspectFilter);
             })
@@ -4036,12 +4010,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     buildGoMethodFilterHtml(currentFilter, currentAspect = 'all') {
-        const methodFilters = [
-            { value: 'all', label: 'All Methods' },
-            { value: 'text', label: 'Semantic Only' },
-            { value: 'gene', label: 'Gene-based Only' }
-        ];
-
         const aspectFilters = [
             { value: 'all', label: 'All GO' },
             { value: 'bp', label: 'BP only' },
@@ -4051,23 +4019,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
         let html = `
             <div style="padding: 10px; background: var(--color-white); border: 1px solid var(--color-border-light); border-radius: 6px; margin-bottom: 10px;">
                 <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;">
-                    <div>
-                        <label style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 12px;" class="text-dark-heading">Method:</label>
-                        <div class="btn-group" role="group" style="display: flex; gap: 6px; flex-wrap: wrap;">
-        `;
-
-        methodFilters.forEach(f => {
-            const isActive = f.value === currentFilter;
-            html += `
-                <button type="button" class="go-method-filter-btn method-filter-btn ${isActive ? 'method-filter-btn--active active' : 'method-filter-btn--inactive'}" data-method="${f.value}">
-                    ${f.label}
-                </button>
-            `;
-        });
-
-        html += `
-                        </div>
-                    </div>
                     <div>
                         <label style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 12px;" class="text-dark-heading">Aspect:</label>
                         <div class="btn-group" role="group" style="display: flex; gap: 6px; flex-wrap: wrap;">
@@ -4092,19 +4043,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     setupGoFilterButtons(currentFilter, currentAspect = 'all') {
-        // Method filter buttons
-        $('.go-method-filter-btn').off('click').on('click', (e) => {
-            const method = $(e.currentTarget).data('method');
-            $('.go-method-filter-btn').removeClass('active method-filter-btn--active').addClass('method-filter-btn--inactive');
-            $(e.currentTarget).removeClass('method-filter-btn--inactive').addClass('active method-filter-btn--active');
-
-            const keId = $('#ke_id').val();
-            const keTitle = $('#ke_id option:selected').data('title');
-            if (keId && keTitle) {
-                this.loadGoSuggestions(keId, keTitle, method, this.goAspectFilter);
-            }
-        });
-
         // Aspect filter buttons
         $('.go-aspect-filter-btn').off('click').on('click', (e) => {
             const aspect = $(e.currentTarget).data('aspect');
@@ -4881,6 +4819,24 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
         const $btn = $('#reactome-mapping-form button[type=submit]');
         $btn.prop('disabled', true).text('Complete Steps 2–3 First');
+    }
+
+    initV15Banner() {
+        const STORAGE_KEY = 'kewp_v15_banner_dismissed';
+        const $banner = $('#v15-pure-semantic-banner');
+        if (!$banner.length) return;
+        // Hide if already dismissed in a previous session
+        try {
+            if (localStorage.getItem(STORAGE_KEY) === '1') {
+                $banner.addClass('is-dismissed');
+                return;
+            }
+        } catch (e) { /* localStorage may be blocked; show banner anyway */ }
+        // Bind dismiss button
+        $('#v15-banner-dismiss').on('click', () => {
+            $banner.addClass('is-dismissed');
+            try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}
+        });
     }
 
     saveFormState() {

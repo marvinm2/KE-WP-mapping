@@ -38,6 +38,21 @@
             </button>
         </div>
 
+        <!-- v1.5 migration banner — dismissible, persists via localStorage -->
+        <div id="v15-pure-semantic-banner" class="info-banner info-banner--v15" role="status" aria-live="polite">
+            <div class="info-banner__icon" aria-hidden="true">i</div>
+            <div class="info-banner__body">
+                <strong>Suggestion ranking updated.</strong>
+                Pathway and GO term suggestions are now ranked by BioBERT semantic similarity to the selected Key Event.
+                Gene overlap is still computed and shown on each card as a &ldquo;Genes: N/M&rdquo; chip — it just no longer reorders the list.
+                Matched genes remain queryable via the public API.
+            </div>
+            <button type="button"
+                    class="info-banner__dismiss"
+                    id="v15-banner-dismiss"
+                    aria-label="Dismiss banner">&times;</button>
+        </div>
+
         <section>
             <h2 id="step1-header">Step 1: Select Key Event</h2>
 
