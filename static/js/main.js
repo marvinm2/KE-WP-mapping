@@ -4559,6 +4559,34 @@ This helps identify gaps in existing pathways for future development.">❓</span
         }
 
         $container.html(html);
+
+        // Bind Reactome-scoped show-more handler (off+on prevents accumulation across KE swaps)
+        $('.show-more-reactome-suggestions').off('click').on('click', function() {
+            const $button = $(this);
+            const $allCards = $('#reactome-suggestions-container .suggestion-card');
+            const isExpanded = $button.data('expanded') === true;
+
+            if (isExpanded) {
+                // Collapse: hide cards after index 2
+                $allCards.each((index, card) => {
+                    if (index >= 3) $(card).addClass('suggestion-item-hidden');
+                });
+                const hiddenCount = $allCards.length - 3;
+                $button.text(`Show ${hiddenCount} more suggestions`);
+                $button.data('expanded', false);
+
+                // Scroll back to top of Reactome suggestions container
+                const $rc = $('#reactome-suggestions-container');
+                if ($rc.length && $rc.offset()) {
+                    $('html, body').animate({ scrollTop: $rc.offset().top - 100 }, 300);
+                }
+            } else {
+                // Expand: show all cards
+                $allCards.removeClass('suggestion-item-hidden');
+                $button.text('Show less');
+                $button.data('expanded', true);
+            }
+        });
     }
 
     // -------------------------------------------------------------------------
