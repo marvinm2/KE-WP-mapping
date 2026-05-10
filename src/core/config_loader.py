@@ -303,6 +303,18 @@ class HybridWeights:
 
 
 @dataclass
+class OntologyPostCombineBoost:
+    """Post-combine ontology boost for pathway suggestions (v1.5).
+
+    Applied AFTER ranking by embedding, mirrors the GO IC boost pattern.
+    ontology_score in [0..1] from the ontology-tag matcher;
+    final = embedding_score * (1 + boost_weight * ontology_score)
+    """
+    enabled: bool = True
+    boost_weight: float = 0.15
+
+
+@dataclass
 class PathwaySuggestionConfig:
     """Pathway suggestion scoring configuration"""
     gene_scoring: GeneScoring = field(default_factory=GeneScoring)
@@ -314,6 +326,7 @@ class PathwaySuggestionConfig:
     embedding_based_matching: EmbeddingBasedMatching = field(default_factory=EmbeddingBasedMatching)
     ontology_tag_matching: OntologyTagMatching = field(default_factory=OntologyTagMatching)
     hybrid_weights: HybridWeights = field(default_factory=HybridWeights)
+    ontology_post_combine_boost: OntologyPostCombineBoost = field(default_factory=OntologyPostCombineBoost)
 
 
 @dataclass
@@ -595,6 +608,12 @@ class ConfigLoader:
 
             hybrid_weights = HybridWeights(**pathway_dict.get('hybrid_weights', {}))
 
+            # v1.5: parse ontology_post_combine_boost if present; fall back to
+            # dataclass defaults (enabled=True, boost_weight=0.15) when absent
+            # so old YAML without this key continues to load without error.
+            boost_dict = pathway_dict.get('ontology_post_combine_boost', {})
+            ontology_post_combine_boost = OntologyPostCombineBoost(**boost_dict)
+
             pathway_config = PathwaySuggestionConfig(
                 gene_scoring=gene_scoring,
                 text_similarity=text_similarity,
@@ -603,7 +622,8 @@ class ConfigLoader:
                 biological_level_multipliers=bio_level_mult,
                 substring_scoring=substring_scoring,
                 embedding_based_matching=embedding_matching,
-                hybrid_weights=hybrid_weights
+                hybrid_weights=hybrid_weights,
+                ontology_post_combine_boost=ontology_post_combine_boost,
             )
 
             # Build KE-pathway assessment config
