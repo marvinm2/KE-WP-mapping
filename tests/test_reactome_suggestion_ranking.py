@@ -88,8 +88,12 @@ class TestReactomePureEmbeddingRanking:
 
     def test_A_pure_embedding_rank_order(self):
         """
-        Test A (pure-embedding ordering): embedding=[R-001 0.9, R-002 0.8, R-003 0.7],
+        Test A (pure-embedding ordering): embedding=[R-001 0.95, R-002 0.90, R-003 0.85],
         gene=[R-001 0.0, R-002 0.95, R-003 0.0].
+
+        Values are above the v1.5 reactome_suggestion.min_threshold (0.83 per
+        scoring_config.yaml after the Phase 30-01 calibration), so all three
+        items pass the post-combine threshold filter.
 
         After _combine_reactome_scores, rank order must be [R-001, R-002, R-003]
         — i.e. driven solely by text_similarity, NOT by gene_overlap.
@@ -97,9 +101,9 @@ class TestReactomePureEmbeddingRanking:
         svc = _make_svc()
 
         embedding_scores = [
-            _emb('R-HSA-001', 0.9),
-            _emb('R-HSA-002', 0.8),
-            _emb('R-HSA-003', 0.7),
+            _emb('R-HSA-001', 0.95),
+            _emb('R-HSA-002', 0.90),
+            _emb('R-HSA-003', 0.85),
         ]
         gene_scores = [
             _gene('R-HSA-001', 0.0),
@@ -121,13 +125,14 @@ class TestReactomePureEmbeddingRanking:
         """
         Test B (gene data still on items): R-002 has gene_overlap=0.95, matching_genes=['TP53'],
         reactome_pathway_gene_count=30. These must all appear on the result item even though
-        gene signal doesn't affect rank.
+        gene signal doesn't affect rank. Embedding values are above the
+        post-combine min_threshold (0.83) so the items survive filtering.
         """
         svc = _make_svc()
 
         embedding_scores = [
-            _emb('R-HSA-001', 0.9),
-            _emb('R-HSA-002', 0.8),
+            _emb('R-HSA-001', 0.95),
+            _emb('R-HSA-002', 0.90),
         ]
         gene_scores = [
             _gene('R-HSA-002', 0.95, matching_genes=['TP53'], reactome_pathway_gene_count=30),
@@ -171,22 +176,25 @@ class TestReactomePureEmbeddingRanking:
 
     def test_D_no_multi_evidence_bonus(self):
         """
-        Test D (no multi_evidence_bonus): An item with text_similarity=0.5 and
+        Test D (no multi_evidence_bonus): An item with text_similarity=0.9 and
         gene_overlap=0.5. Under v1.5 weights (embedding=1.0, gene=0.0, bonus=0.0):
-          hybrid_score = 0.5 * 1.0 + 0.5 * 0.0 = 0.5 exactly.
-        NOT 0.55 (which would indicate the old +0.05 multi_evidence_bonus leaked in).
+          hybrid_score = 0.9 * 1.0 + 0.5 * 0.0 = 0.9 exactly.
+        NOT 0.95 (which would indicate the old +0.05 multi_evidence_bonus leaked in).
+
+        text_similarity is set above min_threshold (0.83) so the item survives
+        the post-combine filter.
         """
         svc = _make_svc()
 
-        embedding_scores = [_emb('R-HSA-BOTH', 0.5)]
+        embedding_scores = [_emb('R-HSA-BOTH', 0.9)]
         gene_scores = [_gene('R-HSA-BOTH', 0.5, matching_genes=['TP53'])]
 
         results = svc._combine_reactome_scores(embedding_scores, gene_scores)
 
         r_both = next((r for r in results if r['reactome_id'] == 'R-HSA-BOTH'), None)
-        assert r_both is not None, "R-HSA-BOTH should appear in results (hybrid_score=0.5 > threshold)"
+        assert r_both is not None, "R-HSA-BOTH should appear in results (hybrid_score=0.9 > threshold)"
 
-        expected = 0.5  # text_similarity * 1.0 + gene_overlap * 0.0
+        expected = 0.9  # text_similarity * 1.0 + gene_overlap * 0.0
         assert abs(r_both['hybrid_score'] - expected) < 1e-4, (
             f"hybrid_score should be exactly {expected} (no multi_evidence_bonus), "
             f"got {r_both['hybrid_score']}. Old +0.05 bonus may have leaked in."

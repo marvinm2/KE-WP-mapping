@@ -127,8 +127,8 @@ class ReactomeSuggestionService:
                 if reactome_cfg else 0.3
             )
             name_weight = (
-                getattr(reactome_cfg, 'name_weight', 0.70)
-                if reactome_cfg else 0.70
+                getattr(reactome_cfg, 'name_weight', 0.85)
+                if reactome_cfg else 0.85
             )
             def_weight = 1.0 - name_weight
 
@@ -150,14 +150,24 @@ class ReactomeSuggestionService:
                 global_toggle, ke_id in disabled_kes, use_desc,
             )
 
-            # Get KE embedding (toggle-aware)
-            ke_emb = self.embedding_service.get_ke_embedding_for_matching(
-                ke_id, ke_title_clean, use_description=use_desc
-            )
-            ke_norm = np.linalg.norm(ke_emb)
-
-            # Use split name + definition embeddings if available
+            # Use split name + definition embeddings if available.
+            # Mirror the WP path (src/services/embedding.py:565-660): pair
+            # the name channel (name-only pathway embedding) with a
+            # title-only KE embedding, and pair the description channel
+            # (name+description joint pathway embedding) with the
+            # toggle-aware full KE embedding. This avoids the asymmetry
+            # of comparing a title-only pathway vector against a
+            # title+description KE vector and vice-versa.
             if self.reactome_name_embeddings:
+                ke_name_emb = self.embedding_service.get_ke_embedding_for_matching(
+                    ke_id, ke_title_clean, use_description=False
+                )
+                ke_full_emb = self.embedding_service.get_ke_embedding_for_matching(
+                    ke_id, ke_title_clean, use_description=use_desc
+                )
+                ke_name_norm = np.linalg.norm(ke_name_emb)
+                ke_full_norm = np.linalg.norm(ke_full_emb)
+
                 pathway_ids = [
                     rid for rid in self.reactome_embeddings.keys()
                     if rid in self.reactome_name_embeddings
@@ -170,11 +180,11 @@ class ReactomeSuggestionService:
                     [self.reactome_embeddings[rid] for rid in pathway_ids]
                 )
 
-                raw_name_sim = np.dot(name_emb_array, ke_emb) / (
-                    np.linalg.norm(name_emb_array, axis=1) * ke_norm + 1e-8
+                raw_name_sim = np.dot(name_emb_array, ke_name_emb) / (
+                    np.linalg.norm(name_emb_array, axis=1) * ke_name_norm + 1e-8
                 )
-                raw_def_sim = np.dot(def_emb_array, ke_emb) / (
-                    np.linalg.norm(def_emb_array, axis=1) * ke_norm + 1e-8
+                raw_def_sim = np.dot(def_emb_array, ke_full_emb) / (
+                    np.linalg.norm(def_emb_array, axis=1) * ke_full_norm + 1e-8
                 )
 
                 transformed_name = self.embedding_service._transform_similarity_batch(
@@ -192,6 +202,13 @@ class ReactomeSuggestionService:
                     name_weight * 100, def_weight * 100,
                 )
             else:
+                # Fallback: only the joint name+description embedding is
+                # available. Use a single toggle-aware KE embedding against it.
+                ke_emb = self.embedding_service.get_ke_embedding_for_matching(
+                    ke_id, ke_title_clean, use_description=use_desc
+                )
+                ke_norm = np.linalg.norm(ke_emb)
+
                 pathway_ids = list(self.reactome_embeddings.keys())
                 emb_array = np.array(
                     [self.reactome_embeddings[rid] for rid in pathway_ids]
