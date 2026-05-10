@@ -3872,14 +3872,17 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 }
             }
 
+            const goGeneOverlapChip = this.renderGeneOverlapChip(suggestion, data.genes_found || 0);
+
             html += `
                 <div class="go-suggestion-item go-suggestion-item--${scoreTier}" data-go-id="${suggestion.go_id}" data-go-name="${this.escapeHtml(suggestion.go_name)}" data-go-namespace="${this.escapeHtml(ns)}">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div style="flex: 1;">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
                                 ${namespaceBadge}
                                 <strong style="font-size: 14px;" class="text-dark-heading">${this.escapeHtml(suggestion.go_name)}</strong>
                                 ${matchBadges}${depthBadge}${directionBadge}
+                                ${goGeneOverlapChip}
                             </div>
                             <div class="text-muted" style="font-size: 12px; margin-bottom: 6px;">
                                 <a href="${suggestion.quickgo_link}" target="_blank" onclick="event.stopPropagation();">${suggestion.go_id}</a>
@@ -3898,47 +3901,6 @@ This helps identify gaps in existing pathways for future development.">❓</span
                 html += `
                     <div class="text-xsmall-muted" style="margin-bottom: 6px;">
                         Also known as: ${exactSynonyms.map(s => this.escapeHtml(s)).join(', ')}
-                    </div>
-                `;
-            }
-
-            // Score details - split name/definition similarity if available
-            if (suggestion.name_similarity > 0 || suggestion.definition_similarity > 0) {
-                if (suggestion.name_similarity > 0) {
-                    html += `
-                        <div class="score-detail--semantic-inline">
-                            Name: ${Math.round(suggestion.name_similarity * 100)}%
-                        </div>
-                    `;
-                }
-                if (suggestion.definition_similarity > 0) {
-                    html += `
-                        <div class="score-detail--definition-inline">
-                            Definition: ${Math.round(suggestion.definition_similarity * 100)}%
-                        </div>
-                    `;
-                }
-            } else if (suggestion.text_similarity > 0) {
-                html += `
-                    <div class="score-detail--semantic-inline">
-                        Semantic: ${Math.round(suggestion.text_similarity * 100)}%
-                    </div>
-                `;
-            }
-            if (suggestion.gene_overlap > 0) {
-                const matchCount = suggestion.matching_genes ? suggestion.matching_genes.length : 0;
-                const goGeneCount = suggestion.go_gene_count || 0;
-                const geneDetail = goGeneCount > 0 ? ` (${matchCount}/${goGeneCount} genes)` : '';
-                html += `
-                    <div class="score-detail--gene-inline">
-                        Gene: ${Math.round(suggestion.gene_overlap * 100)}%${geneDetail}
-                    </div>
-                `;
-            }
-            if (suggestion.matching_genes && suggestion.matching_genes.length > 0) {
-                html += `
-                    <div class="text-subtle" style="font-size: 10px; margin-top: 4px;">
-                        Matching genes: ${suggestion.matching_genes.join(', ')}
                     </div>
                 `;
             }
@@ -4545,6 +4507,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
             const species = esc(s.species || 'Homo sapiens');
             const score = (s.suggestion_score != null) ? Number(s.suggestion_score) : (s.hybrid_score != null ? Number(s.hybrid_score) : null);
             const scoreText = score != null ? score.toFixed(3) : '—';
+            const reactomeGeneChip = this.renderGeneOverlapChip(s, data.genes_found || 0);
             // store machine-readable values via data-* (jQuery handles escaping when reading later)
             return `
                 <div class="suggestion-card panel-outlined" style="padding: 12px; margin-bottom: 10px; border-radius: 6px;"
@@ -4556,7 +4519,10 @@ This helps identify gaps in existing pathways for future development.">❓</span
                     <div class="text-muted" style="font-size: 13px;">
                         <span style="font-family: monospace;">${reactomeId}</span> &middot; ${species}
                     </div>
-                    <div class="text-muted" style="font-size: 13px; margin-top: 4px;">Score: ${scoreText}</div>
+                    <div class="text-muted" style="font-size: 13px; margin-top: 4px; display: flex; align-items: center; gap: 8px;">
+                        <span>Score: ${scoreText}</span>
+                        ${reactomeGeneChip}
+                    </div>
                     <button type="button" class="btn-select-reactome" style="margin-top: 8px;">Select</button>
                 </div>
             `;
