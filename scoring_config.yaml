@@ -607,8 +607,14 @@ reactome_suggestion:
     gene: 0.0           # Display-only chip
     multi_evidence_bonus: 0.0
 
-  min_threshold: 0.83      # v1.5: with ranking now embedding-only, min_threshold and embedding_min_threshold gate on the same value
-  embedding_min_threshold: 0.83  # v1.5: empirically tuned from per-KE distribution on 5 calibration KEs — see .planning/phases/30-reactome-suggestion-card-parity-and-threshold-tuning/calibration-distributions.txt
+  # Aligned with WP's pathway_suggestion.min_threshold = 0.4 (line 170).
+  # Phase 30-01 had calibrated these to 0.83 from a 5-KE per-KE distribution,
+  # but at 0.83 effectively no candidate clears the post-transform bar
+  # (raw cosine ≥ ~0.92 required after the ^4 power transform), so the
+  # Reactome tab returned 0 suggestions for every KE tested live. Dropping
+  # to 0.4 to match WP's posture; full re-calibration tracked in Phase 30.
+  min_threshold: 0.4
+  embedding_min_threshold: 0.4
   # ----------------------------------------------------------------------------
   # DEPRECATED (v1.4): gene_min_threshold gated suggestions on a minimum gene-
   # overlap score. Under v1.5 pure-semantic ranking (Phase 29), gene overlap is
