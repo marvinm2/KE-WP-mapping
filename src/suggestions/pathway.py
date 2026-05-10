@@ -698,23 +698,36 @@ class PathwaySuggestionService:
         limit: int
     ) -> List[Dict]:
         """
-        Combine scoring signals with transparent hybrid scoring
+        Combine scoring signals with transparent hybrid scoring.
+
+        v1.5 pure-semantic: ranking is driven by BioBERT embedding similarity only.
+        Gene overlap is computed and surfaced on each item (for chip rendering) but
+        does not affect rank. Ontology-tag matches are applied as a post-combine
+        multiplicative boost (mirroring GO IC boost) rather than as a hybrid weight.
 
         Returns:
             List of suggestions with all scores visible
         """
-        # Get weights from config
+        # Get weights from config (v1.5: embedding=1.0, gene=0.0, ontology=0.0)
         hybrid_weights = getattr(
             self.config.pathway_suggestion,
             'hybrid_weights',
             None
         )
 
-        gene_weight = getattr(hybrid_weights, 'gene', 0.35) if hybrid_weights else 0.35
-        embedding_weight = getattr(hybrid_weights, 'embedding', 0.50) if hybrid_weights else 0.50
-        ontology_weight = getattr(hybrid_weights, 'ontology', 0.15) if hybrid_weights else 0.15
+        gene_weight = getattr(hybrid_weights, 'gene', 0.0) if hybrid_weights else 0.0
+        embedding_weight = getattr(hybrid_weights, 'embedding', 1.0) if hybrid_weights else 1.0
+        # Ontology weight is 0.0 in v1.5 — signal applied as post-combine boost instead.
+        ontology_weight = 0.0
+        multi_evidence_bonus = getattr(hybrid_weights, 'multi_evidence_bonus', 0.0) if hybrid_weights else 0.0
 
         final_threshold = self.config.pathway_suggestion.dynamic_thresholds.base_threshold
+
+        # Build ontology score map once — used by both _apply_ontology_boost and scores dict
+        ontology_map = {
+            o['pathwayID']: o.get('confidence_score', 0.0)
+            for o in (ontology_suggestions or [])
+        }
 
         combined = combine_scored_items(
             scored_lists={
@@ -729,35 +742,47 @@ class PathwaySuggestionService:
                 'embedding': 'confidence_score',
                 'ontology': 'confidence_score',
             },
-            multi_evidence_bonus=0.05,
+            multi_evidence_bonus=multi_evidence_bonus,
             min_threshold=final_threshold,
             max_score=0.98,
         )
+
+        # Apply ontology post-combine boost BEFORE per-pathway post-processing.
+        # Mirrors go.py::_apply_ic_boost — adjusts hybrid_score multiplicatively
+        # and re-sorts. Gene overlap does NOT influence hybrid_score.
+        combined = self._apply_ontology_boost(combined, ontology_map)
 
         # WP-specific post-processing: build scores dict, primary_evidence, embedding_details
         for pathway in combined:
             sig = pathway.pop('signal_scores', {})
             gene_score = sig.get('gene', 0.0)
             emb_score = sig.get('embedding', 0.0)
-            ontology_score = sig.get('ontology', 0.0)
+
+            # Restore gene-overlap chip data from per-signal raw item (if present)
+            gene_signal_item = pathway.get('_signal_data', {}).get('gene', {})
+            if gene_signal_item:
+                pathway.setdefault('matching_genes', gene_signal_item.get('matching_genes', []))
+                pathway.setdefault('matching_gene_count', gene_signal_item.get('matching_gene_count', 0))
+                pathway.setdefault('gene_overlap_ratio', gene_signal_item.get('gene_overlap_ratio', 0.0))
+
+            # ontology_confidence is sourced from the pre-built map (display-only; not in weighted sum)
+            ont_score = ontology_map.get(pathway['pathwayID'], 0.0)
 
             pathway['scores'] = {
                 'gene_confidence': gene_score,
                 'embedding_similarity': emb_score,
-                'ontology_confidence': ontology_score,
+                'ontology_confidence': ont_score,
                 'final_score': pathway['hybrid_score'],
             }
 
-            # Determine primary evidence source
-            max_signal = max(gene_score, emb_score, ontology_score)
-            if max_signal == gene_score and gene_score > 0:
-                pathway['primary_evidence'] = 'gene_overlap'
-            elif max_signal == emb_score and emb_score > 0:
-                pathway['primary_evidence'] = 'semantic_similarity'
-            elif max_signal == ontology_score and ontology_score > 0:
+            # Primary evidence: v1.5 default is 'semantic_similarity' (embedding drives rank).
+            # Override to 'ontology_tags' only when the post-combine boost actually fired.
+            if pathway.get('ontology_boost_applied', False):
                 pathway['primary_evidence'] = 'ontology_tags'
+            elif emb_score > 0:
+                pathway['primary_evidence'] = 'semantic_similarity'
             else:
-                pathway['primary_evidence'] = 'gene_overlap'
+                pathway['primary_evidence'] = 'semantic_similarity'
 
             # Add embedding_details from per-signal data
             if 'embedding' in pathway.get('match_types', []):
@@ -768,10 +793,40 @@ class PathwaySuggestionService:
                     'combined': emb_data.get('embedding_similarity', 0)
                 }
 
-            # Clean up internal per-signal data
+            # Clean up internal per-signal data and boost flag
             pathway.pop('_signal_data', None)
+            pathway.pop('ontology_boost_applied', None)
 
         return combined[:limit]
+
+    def _apply_ontology_boost(self, suggestions: List[Dict], ontology_map: Dict[str, float]) -> List[Dict]:
+        """Apply ontology-tag post-combine boost to WP suggestions.
+
+        Mirrors go.py::_apply_ic_boost — adjusts hybrid_score multiplicatively
+        for pathways that have an ontology-tag match, then re-sorts descending.
+
+        Formula: hybrid_score *= (1 + boost_weight * ontology_score)
+
+        Args:
+            suggestions: Combined list from combine_scored_items (already above threshold).
+            ontology_map: pathwayID -> ontology confidence_score (pre-built by caller).
+
+        Returns:
+            suggestions sorted descending by updated hybrid_score.
+        """
+        cfg = getattr(self.config.pathway_suggestion, 'ontology_post_combine_boost', None)
+        if not cfg or not getattr(cfg, 'enabled', False):
+            return suggestions
+
+        boost_weight = getattr(cfg, 'boost_weight', 0.15)
+
+        for s in suggestions:
+            ont_score = ontology_map.get(s['pathwayID'], 0.0)
+            s['hybrid_score'] = round(s['hybrid_score'] * (1 + boost_weight * ont_score), 4)
+            s['ontology_boost_applied'] = ont_score > 0.0
+
+        suggestions.sort(key=lambda x: x['hybrid_score'], reverse=True)
+        return suggestions
 
     def search_pathways(
         self, query: str, threshold: float = 0.4, limit: int = 20
