@@ -142,7 +142,7 @@ curl https://molaop-builder.vhp4safety.nl/export/rdf -o mappings.ttl</code></pre
 <h3>Authentication</h3>
 <p>The v1 public API requires no authentication. Internal mutation endpoints (POST /submit, POST /submit_go_mapping, POST /submit_reactome_mapping, POST /submit_proposal) require:</p>
 <ul>
-    <li>OAuth / OIDC sign-in via GitHub, ORCID, LS Login, or SURFconext, or</li>
+    <li>GitHub OAuth sign-in, or</li>
     <li>Guest authentication via a workshop access code</li>
     <li>CSRF token in request headers</li>
 </ul>

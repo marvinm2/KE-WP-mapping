@@ -77,9 +77,10 @@ hybrid material remains there to confuse the audience.
 - **FAIR exports**: GMT for fgsea/clusterProfiler, RDF/TTL for SPARQL,
   CSV/JSON for everything else. Public REST API. No login needed to
   read.
-- **Multi-provider OAuth** (GitHub, ORCID, LS Login, SURFconext) — so
-  curators can sign in with whatever institutional identity they
-  already use.
+- **OAuth sign-in** is GitHub today; ORCID / LS Login / SURFconext are
+  wired up in code and activate as soon as the corresponding client
+  credentials are provisioned. Worth mentioning if asked about
+  institutional identity / federation roadmap.
 - **Curator-in-the-loop**, not LLM-in-the-loop: every approved mapping
   is a human decision backed by a structured 4-question rubric.
 

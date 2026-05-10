@@ -65,8 +65,8 @@ exportable as GMT (for fgsea/clusterProfiler) and RDF/TTL (for SPARQL).
 
 ### Security & Authentication
 
-- **Multi-Provider OAuth**: GitHub, ORCID, LS Login, and SURFconext authentication via OIDC
-- **Provider-Prefixed Identity**: Usernames stored as `provider:name` to prevent cross-provider collision
+- **OAuth Sign-in**: GitHub OAuth in production today; the codebase also supports ORCID, LS Login, and SURFconext OIDC providers — they activate automatically once their respective `*_CLIENT_ID` / `*_CLIENT_SECRET` environment variables are set.
+- **Provider-Prefixed Identity**: Usernames stored as `provider:name` (e.g. `github:alice`) to prevent collisions when additional providers are enabled
 - **Role-based Access Control**: Admin dashboard for proposal management with proper Docker deployment support
 - **CSRF Protection**: Comprehensive security against cross-site attacks
 - **Rate Limiting**: API protection with intelligent throttling
@@ -191,7 +191,7 @@ All workflows run automatically on push to main branch and can be triggered manu
 
 7. **Access the application:**
    - Open: http://localhost:5000
-   - Click "Login" and choose a provider (GitHub, ORCID, LS Login, or SURFconext)
+   - Click "Login" and sign in with GitHub (or with whichever additional OAuth providers you have configured — see the `*_CLIENT_ID` env vars below)
    - Start mapping KE-WP relationships!
 
 ### Run with Docker
@@ -305,7 +305,7 @@ tests/                  # Pytest test suite
 
 ## Security Features
 
-- **OAuth 2.0 / OIDC**: Multi-provider authentication (GitHub, ORCID, LS Login, SURFconext)
+- **OAuth 2.0 / OIDC**: GitHub today; ORCID, LS Login, and SURFconext supported in code and activated by setting their `*_CLIENT_ID` / `*_CLIENT_SECRET` env vars
 - **CSRF Protection**: All forms protected with tokens
 - **Input Validation**: Marshmallow schema validation
 - **SQL Injection Prevention**: Parameterized queries

@@ -106,7 +106,7 @@
 <h3>User Management</h3>
 <p>User access is managed through:</p>
 <ul>
-    <li>OAuth / OIDC sign-in via GitHub, ORCID, LS Login, or SURFconext (provider-prefixed identities, e.g. <code>github:alice</code> or <code>orcid:0000-0001-...</code>, prevent cross-provider collisions)</li>
+    <li>GitHub OAuth sign-in. Identities are stored with a provider prefix (e.g. <code>github:alice</code>) so the database is forward-compatible with additional providers (ORCID, LS Login, SURFconext) when their credentials are provisioned.</li>
     <li>Guest access codes for workshop participants (admin-managed at <code>/admin/guest-codes</code>)</li>
     <li>Environment variable whitelist (<code>ADMIN_USERS</code>) for admin privileges; supports the same provider prefixes</li>
 </ul>
