@@ -811,7 +811,14 @@
             if (isLoggedIn && userInfo) {
                 var userNameField = document.getElementById('userName');
                 var userEmailField = document.getElementById('userEmail');
-                if (userNameField && userInfo.username) { userNameField.value = userInfo.username; }
+                if (userNameField && userInfo.username) {
+                    // Strip provider prefix (e.g. "github:marvinm2" -> "marvinm2")
+                    // because the userName field's regex rejects colons.
+                    var idx = userInfo.username.indexOf(':');
+                    userNameField.value = idx > -1
+                        ? userInfo.username.substring(idx + 1)
+                        : userInfo.username;
+                }
                 if (userEmailField && userInfo.email) { userEmailField.value = userInfo.email; }
             }
         }
