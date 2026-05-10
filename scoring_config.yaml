@@ -252,16 +252,30 @@ pathway_suggestion:
     # Max confidence from ontology tags
     max_confidence: 0.90
 
-  # Hybrid Scoring Weights (Multi-Signal Combination)
+  # ----------------------------------------------------------------------------
+  # DEPRECATED (v1.4): hybrid_weights below were a multi-signal mix.
+  # Pure-semantic shift v1.5 — see CHANGELOG.md for rationale.
+  # Prior v1.4 values (kept here for traceability only; not read by code):
+  #   gene: 0.35
+  #   text: 0.0
+  #   embedding: 0.50
+  #   ontology: 0.15
+  #   multi_evidence_bonus: 0.05
+  # v1.5 defaults below: rank by embedding only (gene = display-only chip).
   # ----------------------------------------------------------------------------
   hybrid_weights:
-    gene: 0.35          # Gene-based scoring weight (mechanistic overlap)
-    text: 0.0           # Text-based scoring removed (kept for backward compatibility)
-    embedding: 0.50     # Embedding-based scoring weight (semantic similarity)
-    ontology: 0.15      # Ontology-based scoring weight (pathway classification)
+    gene: 0.0          # Pure-semantic v1.5 — gene is display-only (chip)
+    text: 0.0          # Removed in v1.4
+    embedding: 1.0     # Sole ranking signal
+    ontology: 0.0      # Lifted to post-combine boost (see ontology_post_combine_boost below)
+    multi_evidence_bonus: 0.0
 
-    # Bonus for multiple evidence types
-    multi_evidence_bonus: 0.05
+  # Post-combine ontology boost: applied AFTER ranking by embedding,
+  # mirrors the GO IC boost pattern. ontology_score in [0..1] from the
+  # ontology-tag matcher; final = embedding_score * (1 + boost_weight * ontology_score)
+  ontology_post_combine_boost:
+    enabled: true
+    boost_weight: 0.15   # Was a hybrid weight in v1.4; now an additive multiplier on rank
 
 
 # ==============================================================================
@@ -369,10 +383,19 @@ go_bp:
   # ----------------------------------------------------------------------------
   # Hybrid Scoring Weights (Embedding + Gene signals)
   # ----------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------
+  # DEPRECATED (v1.4): hybrid_weights below were a multi-signal mix.
+  # Pure-semantic shift v1.5 — see CHANGELOG.md for rationale.
+  # Prior v1.4 values (kept here for traceability only; not read by code):
+  #   embedding: 0.55
+  #   gene: 0.45
+  #   multi_evidence_bonus: 0.05
+  # v1.5 defaults below: rank by embedding only (gene = display-only chip).
+  # ----------------------------------------------------------------------------
   hybrid_weights:
-    embedding: 0.55        # Embedding-based scoring weight (semantic similarity)
-    gene: 0.45             # Gene-based scoring weight (gene overlap)
-    multi_evidence_bonus: 0.05
+    embedding: 1.0      # Pure-semantic v1.5 — sole ranking signal
+    gene: 0.0           # Display-only chip; IC boost + directionality stay as post-combine
+    multi_evidence_bonus: 0.0
 
   # ----------------------------------------------------------------------------
   # Minimum Thresholds
@@ -428,10 +451,19 @@ go_bp:
 # lower thresholds and higher embedding weight improve recall.
 
 go_mf:
+  # ----------------------------------------------------------------------------
+  # DEPRECATED (v1.4): hybrid_weights below were a multi-signal mix.
+  # Pure-semantic shift v1.5 — see CHANGELOG.md for rationale.
+  # Prior v1.4 values (kept here for traceability only; not read by code):
+  #   embedding: 0.60
+  #   gene: 0.40
+  #   multi_evidence_bonus: 0.05
+  # v1.5 defaults below: rank by embedding only (gene = display-only chip).
+  # ----------------------------------------------------------------------------
   hybrid_weights:
-    embedding: 0.60
-    gene: 0.40
-    multi_evidence_bonus: 0.05
+    embedding: 1.0      # Pure-semantic v1.5 — sole ranking signal
+    gene: 0.0           # Display-only chip; IC boost + directionality stay as post-combine
+    multi_evidence_bonus: 0.0
   min_threshold: 0.12
   embedding_min_threshold: 0.25
   gene_min_threshold: 0.05
@@ -561,10 +593,19 @@ ke_go_assessment:
 reactome_suggestion:
 
   # Hybrid scoring weights for combining embedding and gene signals
+  # ----------------------------------------------------------------------------
+  # DEPRECATED (v1.4): hybrid_weights below were a multi-signal mix.
+  # Pure-semantic shift v1.5 — see CHANGELOG.md for rationale.
+  # Prior v1.4 values (kept here for traceability only; not read by code):
+  #   embedding: 0.60
+  #   gene: 0.40
+  #   multi_evidence_bonus: 0.05
+  # v1.5 defaults below: rank by embedding only (gene = display-only chip).
+  # ----------------------------------------------------------------------------
   hybrid_weights:
-    embedding: 0.60        # Embedding-based scoring weight (semantic similarity)
-    gene: 0.40             # Gene-based scoring weight (gene overlap)
-    multi_evidence_bonus: 0.05
+    embedding: 1.0      # Pure-semantic v1.5 — sole ranking signal
+    gene: 0.0           # Display-only chip
+    multi_evidence_bonus: 0.0
 
   min_threshold: 0.15      # Minimum hybrid score to include in results
   embedding_min_threshold: 0.3   # Minimum embedding similarity
@@ -584,8 +625,8 @@ reactome_suggestion:
 # ==============================================================================
 
 metadata:
-  version: "1.4.0"
-  last_modified: "2026-04-03"
+  version: "1.5.0"
+  last_modified: "2026-05-10"
   modified_by: "system"
   description: |
     Scoring configuration for KE-WP and KE-GO Mapping application.
@@ -610,6 +651,7 @@ metadata:
     - Keep backups before making changes for easy rollback
 
   changelog:
+    - "2026-05-10: Pure-semantic ranking shift v1.5 — embedding becomes sole ranking signal across WP / GO / Reactome; gene becomes display-only chip; WP ontology lifted to post-combine boost. See CHANGELOG.md."
     - "2026-04-03: Added Reactome pathway suggestion scoring section"
     - "2026-02-04: Added GO suggestion and KE-GO assessment sections"
     - "2026-01-23: Raised base_threshold from 0.25 to 0.30 to filter noise"
