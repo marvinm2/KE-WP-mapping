@@ -6,21 +6,28 @@
 <p>The Molecular AOP Builder enables you to:</p>
 <ul>
     <li>Map Key Events (KEs) from AOP-Wiki to WikiPathways</li>
-    <li>Map Key Events to Gene Ontology Biological Process (GO BP) terms using gene-based and semantic scoring</li>
+    <li>Map Key Events to Gene Ontology Biological Process (GO BP) terms</li>
+    <li>Map Key Events to Reactome pathways (in active refinement)</li>
     <li>Assess mapping confidence using a structured 4-question workflow</li>
-    <li>Explore existing mappings created by the community</li>
-    <li>Download mapping data in multiple formats</li>
+    <li>Explore existing mappings created by the community, with coverage-gap analysis per AOP</li>
+    <li>Download mapping data as GMT, RDF/TTL, CSV or JSON</li>
     <li>Propose changes to existing mappings</li>
 </ul>
 
+<p>Suggestions across all three resources are ranked by BioBERT
+semantic similarity to the Key Event description. Approved mappings
+are exposed via a public REST API and feed the
+<a href="https://molaop-analyser.vhp4safety.nl" target="_blank" rel="noopener">Molecular AOP Analyser</a>,
+which uses them for KE-level enrichment of gene-expression data.</p>
+
 <h3>Quick Start</h3>
 <ol>
-    <li><strong>Optional: Login with GitHub</strong> - Required only if you want to submit new mappings or propose changes. Workshop participants can use a guest access code instead.</li>
-    <li><strong>Navigate to Mapping</strong> - Go to the main mapping interface</li>
-    <li><strong>Select a Key Event</strong> - A details panel shows the KE description, biological level, and AOP-Wiki link; a context panel loads AOP membership and any existing WP/GO mappings</li>
-    <li><strong>Select Pathway or GO Term</strong> - Use the <strong>KE-WP Mapping</strong> tab (Suggested / Search / Browse All sub-tabs) or the <strong>KE-GO Mapping</strong> tab for GO BP terms</li>
-    <li><strong>Complete Confidence Assessment</strong> - Answer 4 questions to determine mapping quality</li>
-    <li><strong>Submit Mapping</strong> - Your mapping is saved to the database</li>
+    <li><strong>Login (optional)</strong> — sign in with GitHub, ORCID, LS Login, or SURFconext to submit mappings or propose changes. Workshop participants can use a guest access code instead.</li>
+    <li><strong>Navigate to Mapping</strong> — go to the main mapping interface</li>
+    <li><strong>Select a Key Event</strong> — a details panel shows the KE description, biological level, and AOP-Wiki link; an inline AOP-context graph fans out from the KE; a context panel lists AOP membership and any existing WP/GO/Reactome mappings</li>
+    <li><strong>Select a target</strong> — pick a pathway or GO term from the <strong>KE-WP Mapping</strong>, <strong>KE-GO Mapping</strong>, or <strong>KE-Reactome Mapping</strong> tab (each offers Suggested / Search / Browse sub-tabs)</li>
+    <li><strong>Complete Confidence Assessment</strong> — answer 4 questions to determine mapping quality</li>
+    <li><strong>Submit Mapping</strong> — your submission enters the proposal queue and is published once an admin approves it</li>
 </ol>
 
 <div class="info-box">
@@ -30,6 +37,16 @@
 <h3>System Requirements</h3>
 <ul>
     <li>Modern web browser (Chrome, Firefox, Safari, Edge)</li>
-    <li>GitHub account (optional, for submitting mappings)</li>
-    <li>Internet connection (for SPARQL queries to AOP-Wiki and WikiPathways)</li>
+    <li>An institutional or social login (GitHub, ORCID, LS Login, or SURFconext) — only required for submitting / proposing mappings</li>
+    <li>Internet connection (for live SPARQL queries to AOP-Wiki and WikiPathways)</li>
+</ul>
+
+<h3>Live tool &amp; related resources</h3>
+<ul>
+    <li><strong>Live instance:</strong> <a href="https://molaop-builder.vhp4safety.nl" target="_blank" rel="noopener">molaop-builder.vhp4safety.nl</a></li>
+    <li><strong>AOP network graph:</strong> <a href="/aop-network">/aop-network</a> — interactive view of AOPs and KE coverage</li>
+    <li><strong>Statistics:</strong> <a href="/stats">/stats</a> — mapping counts and coverage by confidence level</li>
+    <li><strong>Downloads:</strong> <a href="/downloads">/downloads</a> — GMT, RDF/TTL, CSV and JSON exports</li>
+    <li><strong>Public REST API:</strong> <a href="/api/docs">/api/docs</a> (Swagger UI), with <a href="/docs">/docs</a> for Python &amp; R consumer examples</li>
+    <li><strong>Sister tool:</strong> <a href="https://molaop-analyser.vhp4safety.nl" target="_blank" rel="noopener">Molecular AOP Analyser</a> consumes these mappings for KE-level enrichment of gene-expression data</li>
 </ul>

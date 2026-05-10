@@ -58,6 +58,12 @@
 <p>GO mapping proposals are managed separately. Access via the <strong>GO Proposals</strong> link on the admin page, or navigate directly to <code>/admin/go-proposals</code>.</p>
 <p>The workflow is the same as KE-WP proposals: review, approve (creates/updates GO mapping), or reject with notes.</p>
 
+<h3>KE-Reactome Proposal Management</h3>
+<p>KE-Reactome proposals live at <code>/admin/reactome-proposals</code>, accessible from the admin page. The workflow mirrors KE-WP and KE-GO: review the proposal payload, approve (creates / updates the Reactome mapping) or reject with notes.</p>
+<div class="info-box">
+    <strong>Note:</strong> the curator-side Reactome tab shows an "under development" notice while suggestion thresholds are being calibrated. The proposal pipeline itself is fully functional.
+</div>
+
 <h3>Guest Code Management</h3>
 <p>Workshop participants can log in with temporary access codes instead of GitHub OAuth. Manage codes at <strong>Guest Codes</strong> in the navigation or <code>/admin/guest-codes</code>.</p>
 
@@ -88,6 +94,8 @@
     <tr><td><code>proposals</code></td><td>Change proposals for KE-WP mappings</td></tr>
     <tr><td><code>ke_go_mappings</code></td><td>KE-GO BP mapping entries with UUID and provenance</td></tr>
     <tr><td><code>ke_go_proposals</code></td><td>Change proposals for KE-GO mappings</td></tr>
+    <tr><td><code>ke_reactome_mappings</code></td><td>KE-Reactome mapping entries with UUID and provenance</td></tr>
+    <tr><td><code>ke_reactome_proposals</code></td><td>Change proposals for KE-Reactome mappings</td></tr>
     <tr><td><code>sparql_cache</code></td><td>Cached SPARQL query responses (24-hour expiry)</td></tr>
 </table>
 
@@ -98,7 +106,7 @@
 <h3>User Management</h3>
 <p>User access is managed through:</p>
 <ul>
-    <li>GitHub OAuth for authentication (primary)</li>
-    <li>Guest access codes for workshop participants (admin-managed)</li>
-    <li>Environment variable whitelist for admin privileges</li>
+    <li>OAuth / OIDC sign-in via GitHub, ORCID, LS Login, or SURFconext (provider-prefixed identities, e.g. <code>github:alice</code> or <code>orcid:0000-0001-...</code>, prevent cross-provider collisions)</li>
+    <li>Guest access codes for workshop participants (admin-managed at <code>/admin/guest-codes</code>)</li>
+    <li>Environment variable whitelist (<code>ADMIN_USERS</code>) for admin privileges; supports the same provider prefixes</li>
 </ul>

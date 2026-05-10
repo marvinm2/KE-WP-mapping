@@ -13,9 +13,9 @@
 
 <h4>GET /api/v1/mappings</h4>
 <p>List KE-WP mappings with pagination and optional filters.</p>
-<pre><code>curl "https://your-domain.com/api/v1/mappings?page=1&per_page=50"
-curl "https://your-domain.com/api/v1/mappings?confidence=High&aop_id=1"
-curl "https://your-domain.com/api/v1/mappings?format=csv" -o mappings.csv</code></pre>
+<pre><code>curl "https://molaop-builder.vhp4safety.nl/api/v1/mappings?page=1&per_page=50"
+curl "https://molaop-builder.vhp4safety.nl/api/v1/mappings?confidence=High&aop_id=1"
+curl "https://molaop-builder.vhp4safety.nl/api/v1/mappings?format=csv" -o mappings.csv</code></pre>
 
 <p><strong>Parameters:</strong></p>
 <ul>
@@ -28,16 +28,31 @@ curl "https://your-domain.com/api/v1/mappings?format=csv" -o mappings.csv</code>
 
 <h4>GET /api/v1/mappings/&lt;uuid&gt;</h4>
 <p>Get a single KE-WP mapping by its UUID.</p>
-<pre><code>curl https://your-domain.com/api/v1/mappings/abc12345-...</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/api/v1/mappings/abc12345-...</code></pre>
 
 <h4>GET /api/v1/go-mappings</h4>
 <p>List KE-GO mappings with pagination and optional filters.</p>
-<pre><code>curl "https://your-domain.com/api/v1/go-mappings?page=1&per_page=50"
-curl "https://your-domain.com/api/v1/go-mappings?format=csv" -o go_mappings.csv</code></pre>
+<pre><code>curl "https://molaop-builder.vhp4safety.nl/api/v1/go-mappings?page=1&per_page=50"
+curl "https://molaop-builder.vhp4safety.nl/api/v1/go-mappings?format=csv" -o go_mappings.csv</code></pre>
 
 <h4>GET /api/v1/go-mappings/&lt;uuid&gt;</h4>
 <p>Get a single KE-GO mapping by its UUID.</p>
-<pre><code>curl https://your-domain.com/api/v1/go-mappings/def67890-...</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/api/v1/go-mappings/def67890-...</code></pre>
+
+<h4>GET /api/v1/reactome-mappings</h4>
+<p>List KE-Reactome mappings with pagination and optional filters. The Reactome ranker uses the same v1.5 pure-semantic approach; the underlying tab in the curator UI is in active refinement.</p>
+<pre><code>curl "https://molaop-builder.vhp4safety.nl/api/v1/reactome-mappings?page=1&per_page=50"
+curl "https://molaop-builder.vhp4safety.nl/api/v1/reactome-mappings?format=csv" -o reactome_mappings.csv</code></pre>
+
+<p><strong>Parameters:</strong> same shape as <code>/api/v1/mappings</code> — <code>page</code>, <code>per_page</code>, <code>confidence_level</code>, <code>aop_id</code>, <code>format</code>.</p>
+
+<h4>GET /api/v1/reactome-mappings/&lt;uuid&gt;</h4>
+<p>Get a single KE-Reactome mapping by its UUID.</p>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/api/v1/reactome-mappings/abc12345-...</code></pre>
+
+<h4>GET /api/v1/spec</h4>
+<p>Returns the raw OpenAPI 3.0 spec (YAML) used to render the Swagger UI at <a href="/api/docs">/api/docs</a>. CORS-enabled, no rate limiting.</p>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/api/v1/spec -o openapi.yaml</code></pre>
 
 <h3>Internal Endpoints</h3>
 
@@ -45,7 +60,7 @@ curl "https://your-domain.com/api/v1/go-mappings?format=csv" -o go_mappings.csv<
 
 <h4>GET /get_ke_options</h4>
 <p>Fetch available Key Events from pre-computed metadata.</p>
-<pre><code>curl https://your-domain.com/get_ke_options</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/get_ke_options</code></pre>
 
 <p><strong>Response:</strong> JSON array of Key Event objects</p>
 <pre><code>[
@@ -59,19 +74,19 @@ curl "https://your-domain.com/api/v1/go-mappings?format=csv" -o go_mappings.csv<
 
 <h4>GET /get_pathway_options</h4>
 <p>Fetch available WikiPathways from pre-computed metadata.</p>
-<pre><code>curl https://your-domain.com/get_pathway_options</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/get_pathway_options</code></pre>
 
 <p><strong>Response:</strong> JSON array of pathway objects</p>
 
 <h4>GET /suggest_pathways/&lt;ke_id&gt;</h4>
 <p>Get AI-powered pathway suggestions for a specific Key Event.</p>
-<pre><code>curl https://your-domain.com/suggest_pathways/55</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/suggest_pathways/55</code></pre>
 
 <p><strong>Response:</strong> JSON object with ranked suggestions</p>
 
 <h4>GET /search_pathways</h4>
 <p>Search for pathways with fuzzy matching.</p>
-<pre><code>curl "https://your-domain.com/search_pathways?query=apoptosis&limit=10"</code></pre>
+<pre><code>curl "https://molaop-builder.vhp4safety.nl/search_pathways?query=apoptosis&limit=10"</code></pre>
 
 <p><strong>Parameters:</strong></p>
 <ul>
@@ -82,22 +97,22 @@ curl "https://your-domain.com/api/v1/go-mappings?format=csv" -o go_mappings.csv<
 
 <h4>GET /suggest_go_terms/&lt;ke_id&gt;</h4>
 <p>Get GO Biological Process term suggestions for a specific Key Event, ranked by BioBERT semantic similarity (v1.5). Gene overlap is returned for display purposes but does not influence the ordering.</p>
-<pre><code>curl https://your-domain.com/suggest_go_terms/55</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/suggest_go_terms/55</code></pre>
 
 <p><strong>Response:</strong> JSON object with ranked GO term suggestions including scores and matched genes.</p>
 
 <h4>GET /search_go_terms</h4>
 <p>Search GO terms by name or GO ID (e.g. <code>GO:0006915</code>) with fuzzy matching.</p>
-<pre><code>curl "https://your-domain.com/search_go_terms?query=apoptosis&limit=10"
-curl "https://your-domain.com/search_go_terms?query=GO:0006915"</code></pre>
+<pre><code>curl "https://molaop-builder.vhp4safety.nl/search_go_terms?query=apoptosis&limit=10"
+curl "https://molaop-builder.vhp4safety.nl/search_go_terms?query=GO:0006915"</code></pre>
 
 <h4>GET /ke_genes/&lt;ke_id&gt;</h4>
 <p>Get gene associations for a specific Key Event.</p>
-<pre><code>curl https://your-domain.com/ke_genes/55</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/ke_genes/55</code></pre>
 
 <h4>GET /api/ke_context/&lt;ke_id&gt;</h4>
 <p>Get KE context: associated AOPs and any existing WP/GO mappings for a Key Event.</p>
-<pre><code>curl https://your-domain.com/api/ke_context/55</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/api/ke_context/55</code></pre>
 
 <p><strong>Response:</strong></p>
 <pre><code>{
@@ -109,26 +124,26 @@ curl "https://your-domain.com/search_go_terms?query=GO:0006915"</code></pre>
 
 <h4>GET /api/scoring-config</h4>
 <p>Retrieve the current KE-WP assessment scoring configuration.</p>
-<pre><code>curl https://your-domain.com/api/scoring-config</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/api/scoring-config</code></pre>
 
 <h4>GET /api/go-scoring-config</h4>
 <p>Retrieve the current KE-GO assessment scoring configuration.</p>
-<pre><code>curl https://your-domain.com/api/go-scoring-config</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/api/go-scoring-config</code></pre>
 
 <h4>GET /export/&lt;format&gt;</h4>
 <p>Export the mapping dataset in the specified format.</p>
-<pre><code>curl https://your-domain.com/export/csv -o mappings.csv
-curl https://your-domain.com/export/json -o mappings.json
-curl https://your-domain.com/export/excel -o mappings.xlsx
-curl https://your-domain.com/export/rdf -o mappings.ttl</code></pre>
+<pre><code>curl https://molaop-builder.vhp4safety.nl/export/csv -o mappings.csv
+curl https://molaop-builder.vhp4safety.nl/export/json -o mappings.json
+curl https://molaop-builder.vhp4safety.nl/export/excel -o mappings.xlsx
+curl https://molaop-builder.vhp4safety.nl/export/rdf -o mappings.ttl</code></pre>
 
 <p><strong>Supported formats:</strong> <code>csv</code>, <code>tsv</code>, <code>json</code>, <code>excel</code>, <code>rdf</code></p>
 
 <h3>Authentication</h3>
-<p>The v1 public API requires no authentication. Internal mutation endpoints (POST /submit, POST /submit_go_mapping, POST /submit_proposal) require:</p>
+<p>The v1 public API requires no authentication. Internal mutation endpoints (POST /submit, POST /submit_go_mapping, POST /submit_reactome_mapping, POST /submit_proposal) require:</p>
 <ul>
-    <li>GitHub OAuth authentication, or</li>
-    <li>Guest authentication via workshop access code</li>
+    <li>OAuth / OIDC sign-in via GitHub, ORCID, LS Login, or SURFconext, or</li>
+    <li>Guest authentication via a workshop access code</li>
     <li>CSRF token in request headers</li>
 </ul>
 

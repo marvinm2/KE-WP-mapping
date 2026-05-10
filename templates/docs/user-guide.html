@@ -10,7 +10,7 @@
     <li>Key Event ID (e.g., "KE 55")</li>
     <li>Key Event title or keywords</li>
 </ul>
-<p>After selecting a KE, a details panel appears showing the KE description, biological level, and a link to measurement methods on AOP-Wiki. A context panel also loads showing AOP membership and any existing WP/GO mappings.</p>
+<p>After selecting a KE, a details panel appears showing the KE description, biological level, and a link to measurement methods on AOP-Wiki. A context panel lists AOP membership and any existing WP / GO / Reactome mappings, and an inline AOP-context graph (Cytoscape) fans out from the chosen KE so you can see the upstream Molecular Initiating Event and downstream Adverse Outcome at a glance.</p>
 
 <h4>Step 2: Select WikiPathway — KE-WP Mapping</h4>
 <p>Choose a related WikiPathway using the <strong>KE-WP Mapping</strong> tab. The system provides three sub-tabs:</p>
@@ -27,6 +27,12 @@
     <li><strong>Suggested</strong> - GO BP term suggestions ranked by BioBERT semantic similarity (v1.5, 2026-05-10), enriched with IC-based specificity boost and ancestor redundancy filtering. Cards show GO term name, definition, matched genes (informational), and similarity score.</li>
     <li><strong>Search</strong> - Search for GO terms by name or GO ID (e.g. <code>GO:0006915</code>)</li>
 </ul>
+
+<h4>Step 2 (alternative): Select Reactome Pathway — KE-Reactome Mapping</h4>
+<p>To map a KE to a Reactome pathway, use the <strong>KE-Reactome Mapping</strong> tab. Suggestions follow the same BioBERT pure-semantic ranker (v1.5) used for WP and GO; cards show the Reactome pathway name, the gene-overlap chip (informational), and a similarity score.</p>
+<div class="info-box">
+    <strong>Active refinement:</strong> the Reactome tab carries a small "under development" notice. The proposal flow and exports are functional; suggestion thresholds are being calibrated.
+</div>
 
 <h4>Step 3: Confidence Assessment (4 Questions)</h4>
 <p>Answer four questions to evaluate mapping quality:</p>
@@ -76,20 +82,30 @@
 </div>
 
 <h3>Exploring Existing Mappings</h3>
-<p>Navigate to <strong>Explore</strong> to view all mappings in an interactive AJAX-powered DataTable with:</p>
+<p>Navigate to <strong>Explore</strong> to view all approved mappings in an interactive DataTable with:</p>
 <ul>
-    <li>Filtering by AOP and confidence level</li>
-    <li>Coverage gaps tab showing unmapped KEs</li>
+    <li>Tabs for KE-WP, KE-GO and KE-Reactome mappings</li>
+    <li>Client-side search and column sorting; AOP and confidence-level filters round-trip to the API</li>
+    <li><strong>Coverage Gaps</strong> tab — pick an AOP to see which of its Key Events have no approved KE-WP mapping yet. Useful for steering curation effort.</li>
     <li>Inline WikiPathways embed viewer (click the eye icon to preview a pathway diagram)</li>
-    <li>Export to CSV, Excel, PDF formats</li>
-    <li>Proposal system for suggesting changes</li>
+    <li>Export to CSV, Excel and PDF</li>
+    <li>"Propose Change" on any row opens a proposal modal for admin review</li>
 </ul>
 
 <h3>Proposing Changes</h3>
 <p>If you notice an issue with an existing mapping:</p>
 <ol>
-    <li>Login with GitHub</li>
-    <li>Click "Propose Change" on the mapping</li>
-    <li>Describe your proposed change</li>
+    <li>Sign in (GitHub, ORCID, LS Login, SURFconext, or guest code)</li>
+    <li>Click <strong>Propose Change</strong> on the mapping row</li>
+    <li>Describe the change (delete, change confidence, change connection type)</li>
     <li>Submit for admin review</li>
 </ol>
+
+<h3>Downloads &amp; exports</h3>
+<p>The <a href="/downloads">/downloads</a> page provides ready-to-consume exports of all approved mappings:</p>
+<ul>
+    <li><strong>GMT</strong> — KE-centric gene sets for fgsea / clusterProfiler, with one file per resource and confidence tier</li>
+    <li><strong>RDF / TTL</strong> — Turtle exports for SPARQL federation</li>
+    <li><strong>CSV / JSON</strong> — flat tables for spreadsheets and notebooks</li>
+</ul>
+<p>For programmatic access, prefer the <a href="/api/docs">public REST API</a> — it supports pagination, filtering, and JSON / CSV output without needing to download a snapshot file.</p>
