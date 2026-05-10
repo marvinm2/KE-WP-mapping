@@ -82,7 +82,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 ### 🔄 v1.5 Scoring & Polish (Phases 29–33) — ACTIVE
 
 - [x] **Phase 29: Pure-Semantic Ranking Shift** — Switch WP/GO/Reactome suggestion ranking to BioBERT similarity only; demote gene-overlap to display-only chip (completed 2026-05-10)
-- [ ] **Phase 30: Reactome Suggestion Card Parity and Threshold Tuning** — Bring Reactome suggestion-card layout to WP standard; re-tune Reactome thresholds for the new pure-semantic regime
+- [x] **Phase 30: Reactome Suggestion Card Parity and Threshold Tuning** — Bring Reactome suggestion-card layout to WP standard; re-tune Reactome thresholds for the new pure-semantic regime (completed 2026-05-10)
 - [ ] **Phase 31: Reactome Viewer Polish** — Fix Phase 27 carry-forward issues in `ReactomeDiagramEmbed` (WR-01..04 + prefetch race)
 - [ ] **Phase 32: GO/WP Sibling Debt Sweep** — Port Reactome's C-1 XSS fix, H-2 partial-unique pending index, and empty-mappings 503 guard to GO/WP equivalents
 - [ ] **Phase 33: Baseline Cleanup** — Resolve dead routes, baseline test failures, and coverage threshold
@@ -117,7 +117,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
   3. The `reactome_suggestion:` block in `scoring_config.yaml` has updated min-similarity and top-N-cap values, and the resulting suggestion lists are visibly tighter than the pre-tuning baseline (no long tails of low-similarity noise)
 **Plans**: 2 plans
   - [x] 30-01-PLAN.md — Empirical distribution dump on 5 calibration KEs; tune `scoring_config.yaml::reactome_suggestion` thresholds (`embedding_min_threshold`, `min_threshold`, `max_results: 10`, demote `gene_min_threshold`); curator spot-check (REASCORE-01, REASCORE-02)
-  - [ ] 30-02-PLAN.md — Refactor `displayReactomeSuggestions` to WP card chrome (reuse `createFinalScoreBar`, `renderGeneOverlapChip`, collapse-after-3); side-by-side visual parity check (SUGDISP-02)
+  - [x] 30-02-PLAN.md — Refactor `displayReactomeSuggestions` to WP card chrome (reuse `createFinalScoreBar`, `renderGeneOverlapChip`, collapse-after-3); side-by-side visual parity check (SUGDISP-02)
 
 ### Phase 31: Reactome Viewer Polish
 **Goal**: The Reactome inline pathway viewer recovers cleanly from CDN failures, pathway swaps, and gene-prefetch races without leaving the user with a broken mount, accumulating handlers, or empty gene highlights.
@@ -129,7 +129,10 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
   3. An async failure inside `loadDiagram` surfaces the same error-card path as a synchronous failure — failures are never silent (WR-03)
   4. After a failed load on KE A, switching to KE B starts a clean attempt — the `_failed` flag is scoped to the previous attempt, not sticky (WR-04)
   5. When a curator opens a KE that has genes, `flagItems` is invoked with the resolved gene list — no race condition leaves the diagram with an empty highlight set (VIEWFIX-05)
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 31-01-PLAN.md — DOM scaffolding (sibling error overlay) + state-shape refactor (`_failed` → `_scriptFailed` + `_lastLoadFailed`) + KE-change reset hook (VIEWFIX-01, VIEWFIX-04 substrate)
+  - [ ] 31-02-PLAN.md — Promise-wrapped `loadDiagram` + bind-once `onDiagramLoaded` with token-guard + `_flagGenesInvocations` counter + sibling-overlay failure path (VIEWFIX-01, VIEWFIX-02, VIEWFIX-03, VIEWFIX-04)
+  - [ ] 31-03-PLAN.md — `prefetchKeGenes` as memoised `Promise<string[]>`; race-tolerant gene-flag application in `selectReactomePathway`; modal awaits gene Promise (VIEWFIX-05)
 
 ### Phase 32: GO/WP Sibling Debt Sweep
 **Goal**: GO and WP admin/proposal/RDF surfaces have the same security and robustness posture as Reactome — XSS-safe modal rendering, race-safe pending-duplicate detection, and graceful empty-graph responses.
@@ -185,7 +188,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 | 27. Reactome Pathway Viewer | v1.4 | 4/4 | Complete   | 2026-05-06 |
 | 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 4/4 | Complete    | 2026-05-07 |
 | 29. Pure-Semantic Ranking Shift | v1.5 | 6/6 | Complete    | 2026-05-10 |
-| 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 1/2 | In Progress|  |
-| 31. Reactome Viewer Polish | v1.5 | 0/TBD | Not started | — |
+| 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 2/2 | Complete    | 2026-05-10 |
+| 31. Reactome Viewer Polish | v1.5 | 0/3 | Not started | — |
 | 32. GO/WP Sibling Debt Sweep | v1.5 | 0/TBD | Not started | — |
 | 33. Baseline Cleanup | v1.5 | 0/TBD | Not started | — |
