@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Scoring & Polish
 status: "Ready for `/gsd:plan-phase 29`"
-stopped_at: Completed 29-pure-semantic-ranking-shift/29-01-PLAN.md
-last_updated: "2026-05-10T10:49:33.025Z"
-last_activity: "2026-05-10 — v1.5 ROADMAP created (5 phases: 29–33, 24/24 requirements mapped)"
+stopped_at: Completed 29-pure-semantic-ranking-shift/29-03-PLAN.md
+last_updated: "2026-05-10T10:56:09.000Z"
+last_activity: "2026-05-10 — Completed plan 29-03 (GO pure-semantic ranking, SEMRANK-02)"
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 6
-  completed_plans: 1
-  percent: 17
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-10 for v1.5 scoping)
 
 ## Current Position
 
-Phase: 29 — Pure-Semantic Ranking Shift (not started)
-Plan: —
-Status: Ready for `/gsd:plan-phase 29`
-Last activity: 2026-05-10 — v1.5 ROADMAP created (5 phases: 29–33, 24/24 requirements mapped)
+Phase: 29 — Pure-Semantic Ranking Shift (in progress)
+Plan: 03 (completed)
+Status: Ready to execute plan 29-04
+Last activity: 2026-05-10 — Completed plan 29-03: GO pure-semantic ranking (SEMRANK-02)
 
 ## Performance Metrics
 
@@ -58,6 +58,8 @@ v1.5 phase ordering decisions:
 - Phases 31 (viewer polish), 32 (sibling debt), 33 (baseline cleanup) are independent of the scoring shift and may run in parallel with Phases 29/30 if desired.
 - [Phase 29-pure-semantic-ranking-shift]: WP ontology signal lifted from hybrid weight to post-combine boost block (ontology_post_combine_boost.boost_weight=0.15) — mirrors GO IC boost pattern
 - [Phase 29-pure-semantic-ranking-shift]: ConfigLoader dataclass defaults left at v1.4 values (document history); runtime values come from YAML; parser tolerant of missing ontology_post_combine_boost key
+- [Phase 29-pure-semantic-ranking-shift/29-03]: multi_evidence_bonus fallback default in _combine_go_scores_for changed from 0.05 to 0.0 — safer than relying solely on YAML when config object absent
+- [Phase 29-pure-semantic-ranking-shift/29-03]: test fixtures must use load_config() not get_default_config() — dataclass defaults preserve v1.4 values intentionally; load_config() reads YAML v1.5 values
 
 ### Pending Todos
 
@@ -85,7 +87,7 @@ v1.5 phase ordering decisions:
 
 ## Session Continuity
 
-**Last session:** 2026-05-10T10:49:33.015Z
-**Stopped at:** Completed 29-pure-semantic-ranking-shift/29-01-PLAN.md
+**Last session:** 2026-05-10T10:56:09Z
+**Stopped at:** Completed 29-pure-semantic-ranking-shift/29-03-PLAN.md
 **Resume file:** None
-**Next action:** `/gsd:plan-phase 29` (Pure-Semantic Ranking Shift)
+**Next action:** Execute plan 29-04 (Reactome pure-semantic ranking, SEMRANK-03)

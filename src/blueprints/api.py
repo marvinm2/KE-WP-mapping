@@ -91,6 +91,23 @@ def login_required(f):
     return decorated_function
 
 
+def _log_method_filter_deprecation(filter_value: str, endpoint_name: str) -> None:
+    """Log a deprecation warning when method_filter is used with a non-default value.
+
+    Called once per request right after method_filter is read from query args.
+    Default value ('all') does NOT log — avoids spam from normal frontend traffic.
+    Non-default values still work (backward compatible) but emit one WARNING per
+    request so external scripts can be updated before v2 removes the parameter.
+    """
+    if filter_value and filter_value != 'all':
+        logger.warning(
+            "DEPRECATED: method_filter=%s on %s — this query parameter is deprecated "
+            "and will be removed in v2. Frontend no longer sends it; backend still honors "
+            "it for backward compatibility. Pure-semantic ranking is the v1.5 default.",
+            filter_value, endpoint_name,
+        )
+
+
 @api_bp.route("/check", methods=["POST"])
 @general_rate_limit
 def check_entry():
@@ -681,6 +698,8 @@ def suggest_pathways(ke_id):
         if method_filter not in valid_methods:
             method_filter = 'all'
 
+        _log_method_filter_deprecation(method_filter, '/suggest_pathways')
+
         # Validate limit
         if limit > 50:
             limit = 50
@@ -1263,6 +1282,8 @@ def suggest_go_terms(ke_id):
         if method_filter not in ('all', 'text', 'gene'):
             method_filter = 'all'
 
+        _log_method_filter_deprecation(method_filter, '/suggest_go_terms')
+
         # Validate aspect filter
         if aspect_filter not in ('all', 'bp', 'mf'):
             aspect_filter = 'all'
@@ -1612,12 +1633,20 @@ def suggest_reactome(ke_id):
         ke_title = request.args.get('ke_title', '')
         limit = request.args.get('limit', 20, type=int)
         limit = max(1, min(50, limit))
+        method_filter = request.args.get('method_filter', 'all')
+
+        # Validate method filter (accepted values mirror WP endpoint)
+        if method_filter not in ('all', 'text', 'gene'):
+            method_filter = 'all'
+
+        _log_method_filter_deprecation(method_filter, '/suggest_reactome')
 
         if not ke_id or len(ke_id.strip()) == 0:
             return jsonify({"error": "Invalid Key Event ID"}), 400
 
         logger.info(
-            "Getting Reactome suggestions for KE: %s", sanitize_log(ke_id)
+            "Getting Reactome suggestions for KE: %s (method_filter: %s)",
+            sanitize_log(ke_id), sanitize_log(method_filter),
         )
 
         result = reactome_suggestion_service.get_reactome_suggestions(
@@ -1631,6 +1660,7 @@ def suggest_reactome(ke_id):
             "ke_id": ke_id,
             "ke_title": ke_title,
             "limit": limit,
+            "method_filter": method_filter,
             "timestamp": int(time.time()),
         }
 
