@@ -607,8 +607,8 @@ reactome_suggestion:
     gene: 0.0           # Display-only chip
     multi_evidence_bonus: 0.0
 
-  min_threshold: 0.84      # v1.5: with ranking now embedding-only, min_threshold and embedding_min_threshold gate on the same value
-  embedding_min_threshold: 0.84  # v1.5: empirically tuned from per-KE distribution on 5 calibration KEs — see .planning/phases/30-reactome-suggestion-card-parity-and-threshold-tuning/calibration-distributions.txt
+  min_threshold: 0.83      # v1.5: with ranking now embedding-only, min_threshold and embedding_min_threshold gate on the same value
+  embedding_min_threshold: 0.83  # v1.5: empirically tuned from per-KE distribution on 5 calibration KEs — see .planning/phases/30-reactome-suggestion-card-parity-and-threshold-tuning/calibration-distributions.txt
   # ----------------------------------------------------------------------------
   # DEPRECATED (v1.4): gene_min_threshold gated suggestions on a minimum gene-
   # overlap score. Under v1.5 pure-semantic ranking (Phase 29), gene overlap is
