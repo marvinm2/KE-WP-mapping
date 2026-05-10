@@ -4826,13 +4826,29 @@ This helps identify gaps in existing pathways for future development.">❓</span
         //   ReactomeDiagramEmbed apply flags inside its onDiagramLoaded callback.
         // - D-09: any failure (CDN unreachable, stalled, runtime exception) renders the
         //   error card; submission flow is never blocked. RVIEW-01 #3.
+        // Phase 31 / D-01: clear the sibling error overlay and show the frame before
+        // attempting load(); the next outcome (success render or fresh error card)
+        // replaces the previous state cleanly. The mount itself is never destroyed
+        // (D-04 reuse-instance preserved).
         if (window.ReactomeDiagramEmbed) {
             const keId = $('#ke_id').val();
             const genes = (keId && this._cachedKeGenes[keId]) ? this._cachedKeGenes[keId] : [];
-            window.ReactomeDiagramEmbed.load(reactomeId, genes).catch(() => {
-                $('#reactome-inline-embed')
+            $('#reactome-inline-embed-error').hide().empty();
+            $('#reactome-inline-embed-frame').show();
+            $('#reactome-inline-embed').show();
+            window.ReactomeDiagramEmbed.load(reactomeId, genes).catch((err) => {
+                // D-01: render error into the SIBLING overlay, never replace the parent.
+                // D-03: this catch fires for sync init failures, sync loadDiagram throws,
+                //       AND per-load timeouts — all paths now surface the same UI.
+                $('#reactome-inline-embed-frame').hide();
+                $('#reactome-inline-embed-error')
                     .html(window.ReactomeDiagramEmbed.buildErrorState(reactomeId))
                     .show();
+                $('#reactome-inline-embed').show();
+                // Log the error class for support diagnostics.
+                if (window.console && console.warn) {
+                    console.warn('[ReactomeDiagramEmbed] load failed:', err && err.message);
+                }
             });
         }
     }
