@@ -2074,6 +2074,23 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
     line-height: 1.5;
 }
 .info-banner--v15.is-dismissed { display: none; }
+
+/* Reactome Under-Development Notice Banner */
+.info-banner--reactome-dev {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 12px 0 16px 0;
+    border: none;
+    border-left: 4px solid var(--color-primary-blue, #307BBF);
+    background: #f0f7fd;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.info-banner--reactome-dev .info-banner__icon { background: var(--color-primary-blue, #307BBF); }
+.info-banner--reactome-dev.is-dismissed { display: none; }
 .info-banner__icon {
     flex: 0 0 24px;
     height: 24px;

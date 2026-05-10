@@ -374,6 +374,9 @@ class KEWPApp {
 
         // Show v1.5 pure-semantic migration banner (dismissible)
         this.initV15Banner();
+
+        // Show Reactome under-development notice (dismissible)
+        this.initReactomeDevBanner();
     }
 
     setupCSRF() {
@@ -4800,6 +4803,24 @@ This helps identify gaps in existing pathways for future development.">❓</span
         } catch (e) { /* localStorage may be blocked; show banner anyway */ }
         // Bind dismiss button
         $('#v15-banner-dismiss').on('click', () => {
+            $banner.addClass('is-dismissed');
+            try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}
+        });
+    }
+
+    initReactomeDevBanner() {
+        const STORAGE_KEY = 'kewp_reactome_dev_notice_dismissed';
+        const $banner = $('#reactome-dev-notice');
+        if (!$banner.length) return;
+        // Hide if already dismissed in a previous session
+        try {
+            if (localStorage.getItem(STORAGE_KEY) === '1') {
+                $banner.addClass('is-dismissed');
+                return;
+            }
+        } catch (e) { /* localStorage may be blocked; show banner anyway */ }
+        // Bind dismiss button
+        $('#reactome-dev-notice-dismiss').on('click', () => {
             $banner.addClass('is-dismissed');
             try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}
         });
