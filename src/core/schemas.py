@@ -103,15 +103,17 @@ class ProposalSchema(Schema):
             if not isinstance(entry_data, dict):
                 raise ValidationError("Entry must be a JSON object")
 
-            required_fields = ["ke_id", "wp_id"]
+            # Each entry must carry a KE id and a pathway id. The v1 API
+            # serialises the WikiPathways id as `pathway_id`; older code paths
+            # use `wp_id` / `WPID`. Accept any of the three.
+            field_aliases = {
+                "ke_id": ("ke_id", "KEID"),
+                "wp_id": ("wp_id", "WPID", "pathway_id"),
+            }
             missing_fields = []
 
-            for field in required_fields:
-                # Check both snake_case and original formats
-                if not (
-                    entry_data.get(field)
-                    or entry_data.get(field.replace("_", "").upper())
-                ):
+            for field, aliases in field_aliases.items():
+                if not any(entry_data.get(alias) for alias in aliases):
                     missing_fields.append(field)
 
             if missing_fields:
