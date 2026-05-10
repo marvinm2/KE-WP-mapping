@@ -89,7 +89,15 @@ window.PathwayEmbed = PathwayEmbed;
  */
 var ReactomeDiagramEmbed = {
     _scriptPromise: null,
-    _failed: false,
+    // Failure-flag contract (Phase 31 / D-09):
+    //   _scriptFailed   — sticky for the session. Set on CDN script-tag failure,
+    //                     load-timeout, or Diagram.create() throw. Once true, all
+    //                     load() calls reject immediately. NOT reset on KE change.
+    //   _lastLoadFailed — per-attempt. Set on loadDiagram runtime exception or
+    //                     per-load timeout (Plan 02). Reset at the start of every
+    //                     fresh load() and on resetForNewKe() (Plan 02 wires).
+    _scriptFailed: false,    // sticky session-level — CDN script tag fail or load-timeout
+    _lastLoadFailed: false,  // per-attempt — set by Plan 02's loadDiagram Promise wrapper, reset on every fresh load() / resetForNewKe()
     _diagram: null,
     // CDN URL is intentionally un-versioned — Reactome publishes only a rolling
     // `diagram.nocache.js` build; no version pin and no SRI hash are available.
@@ -102,12 +110,12 @@ var ReactomeDiagramEmbed = {
     /**
      * Idempotent script-tag injection. Returns a memoized Promise that resolves when
      * window.Reactome.Diagram.create is callable. Subsequent calls return the same
-     * Promise. After a hard failure, returns a fast-rejecting Promise without
-     * re-injecting (D-08 sticky-failure).
+     * Promise. After a hard script failure, returns a fast-rejecting Promise without
+     * re-injecting (D-09 sticky-script-failure).
      */
     loadScriptOnce: function() {
         if (this._scriptPromise) return this._scriptPromise;
-        if (this._failed) return Promise.reject(new Error('Reactome CDN previously failed'));
+        if (this._scriptFailed) return Promise.reject(new Error('Reactome CDN previously failed'));
 
         var self = this;
         this._scriptPromise = new Promise(function(resolve, reject) {
@@ -117,7 +125,7 @@ var ReactomeDiagramEmbed = {
                 if (settled) return;
                 settled = true;
                 if (timer) clearTimeout(timer);
-                self._failed = true;
+                self._scriptFailed = true;
                 self._scriptPromise = null;
                 reject(err);
             };
@@ -167,7 +175,7 @@ var ReactomeDiagramEmbed = {
                 toHide: []
             });
         } catch (e) {
-            this._failed = true;
+            this._scriptFailed = true;
             throw e;
         }
         return this._diagram;
