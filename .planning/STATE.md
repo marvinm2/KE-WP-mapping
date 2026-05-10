@@ -1,33 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Reactome Integration
-status: completed
-stopped_at: v1.4 milestone shipped 2026-05-08
-last_updated: "2026-05-08T22:50:00.000Z"
-last_activity: 2026-05-08
+milestone: v1.5
+milestone_name: Scoring & Polish
+status: "Ready for `/gsd:plan-phase 29`"
+stopped_at: Completed 29-pure-semantic-ranking-shift/29-01-PLAN.md
+last_updated: "2026-05-10T10:49:33.025Z"
+last_activity: "2026-05-10 — v1.5 ROADMAP created (5 phases: 29–33, 24/24 requirements mapped)"
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 27
-  completed_plans: 27
-  percent: 100
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 6
+  completed_plans: 1
+  percent: 17
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-08 after v1.4 completion)
+See: .planning/PROJECT.md (updated 2026-05-10 for v1.5 scoping)
 
 **Core value:** Curators can efficiently produce a high-quality, reusable KE-pathway/GO mapping database that external tools can consume for toxicological pathway analysis.
-**Current focus:** Planning next milestone (v1.5) — run `/gsd:new-milestone`
+**Current focus:** v1.5 Scoring & Polish — roadmap complete, ready to plan Phase 29.
 
 ## Current Position
 
-Status: v1.4 shipped, deployed, audited, archived
-Last activity: 2026-05-08 — milestone tagged + retrospective written
-Live: https://molaop-builder.vhp4safety.nl
+Phase: 29 — Pure-Semantic Ranking Shift (not started)
+Plan: —
+Status: Ready for `/gsd:plan-phase 29`
+Last activity: 2026-05-10 — v1.5 ROADMAP created (5 phases: 29–33, 24/24 requirements mapped)
 
 ## Performance Metrics
 
@@ -37,35 +38,54 @@ Live: https://molaop-builder.vhp4safety.nl
 - Total phases completed: 28
 - Latest milestone v1.4: 6 phases / 27 plans / 32 tasks / 35 days / +11K LOC
 
+**v1.5 scope:** 5 phases (29–33), 24 requirements, plan counts TBD per phase.
+
 ## Accumulated Context
 
 ### Decisions
 
-All decisions logged in PROJECT.md Key Decisions table (now ~50 entries spanning v1.0–v1.4). v1.4-specific patterns also in `.planning/RETROSPECTIVE.md` v1.4 section.
+All decisions logged in PROJECT.md Key Decisions table (~50 entries spanning v1.0–v1.4). v1.4-specific patterns also in `.planning/RETROSPECTIVE.md` v1.4 section.
+
+Key v1.5-relevant decisions to revisit:
+
+- Hybrid Reactome scoring 60/40 (embedding/gene) — Phase 29 will switch to pure-semantic across WP/GO/Reactome
+- IC boost as post-combine GO-specific step — preserved under pure-semantic regime (SEMRANK-02)
+- Persistent IDs (`{ncbi, hgnc, symbol}`) in shared SPARQL helper — gene-overlap chip still uses this; only ranking input changes
+
+v1.5 phase ordering decisions:
+
+- Phase 30 (Reactome card parity + threshold tuning) sequenced **after** Phase 29 because thresholds cannot be tuned for a ranking regime that has not landed yet, and "matches WP" only makes sense once WP layout is at the v1.5 baseline.
+- Phases 31 (viewer polish), 32 (sibling debt), 33 (baseline cleanup) are independent of the scoring shift and may run in parallel with Phases 29/30 if desired.
+- [Phase 29-pure-semantic-ranking-shift]: WP ontology signal lifted from hybrid weight to post-combine boost block (ontology_post_combine_boost.boost_weight=0.15) — mirrors GO IC boost pattern
+- [Phase 29-pure-semantic-ranking-shift]: ConfigLoader dataclass defaults left at v1.4 values (document history); runtime values come from YAML; parser tolerant of missing ontology_post_combine_boost key
 
 ### Pending Todos
 
-(carryforward into v1.5 — see PROJECT.md Active section)
+(carryforward into v1.5 — captured in PROJECT.md Active section, now mapped to phases)
 
-- Phase 27 polish — fix WR-01..WR-04 latent edge cases in `ReactomeDiagramEmbed`
-- GO/WP sibling cleanup — port C-1 XSS fix, H-2 partial-unique pending index, empty-mappings 503 guard
-- Decide `/dataset/*` future (provision Zenodo/DataCite creds or downgrade to 503)
-- Resolve dead `/confidence_assessment` route
-- Pre-existing `test_login_redirect` / `test_guest_login_page_renders` baseline failures
+- Phase 27 polish — WR-01..WR-04 + `prefetchKeGenes` race in `ReactomeDiagramEmbed` → **Phase 31**
+- GO/WP sibling cleanup — port C-1 XSS fix, H-2 partial-unique pending index, empty-mappings 503 guard → **Phase 32**
+- Resolve dead `/confidence_assessment` route → **Phase 33**
+- Decide `/dataset/*` future (provision Zenodo/DataCite creds or downgrade to 503) → **Phase 33**
+- Pre-existing `test_login_redirect` / `test_guest_login_page_renders` baseline failures → **Phase 33**
+- Coverage threshold (42.18% vs 45%) → **Phase 33**
 
 ### Blockers/Concerns
 
-- IC weight calibration (default 0.15) needs domain expert review session (carryover from v1.2)
-- ORCID/LS Login/SURFconext need human E2E testing with real OAuth credentials (carryover from v1.2)
-- Reactome `flagItems` visual gene highlight not observed — accepted as structural-only per Plan 27-CONTEXT; revisit if v1.5 wants real highlights (likely HGNC↔diagram-entity mapping mismatch)
+- IC weight calibration (default 0.15) needs domain expert review session (carryover from v1.2 — out of v1.5 scope)
+- ORCID/LS Login/SURFconext need human E2E testing with real OAuth credentials (carryover from v1.2 — out of v1.5 scope)
+- Reactome `flagItems` visual gene highlight not observed — accepted as structural-only per Plan 27-CONTEXT; explicitly deferred as RVIEWHL-01 (v2)
+- Pure-semantic ranking will visibly reorder suggestions across WP/GO/Reactome — curators using the tool actively should be informed (changelog + UI hint as part of Phase 29 plans)
 
 ### Roadmap Evolution
 
-- v1.4 closed 2026-05-08. Phase 28 added late (2026-05-06) when Phase 27 HUMAN-UAT exposed an HGNC-accession-vs-symbol bug from 2025-08-08 in shared SPARQL helper. Phase 28's persistent-ID rewrite restored gene-overlap signals across WP/GO/Reactome services in a single helper change.
+- v1.4 closed 2026-05-08. Phase 28 added late (2026-05-06) when Phase 27 HUMAN-UAT exposed an HGNC-accession-vs-symbol bug from 2025-08-08 in shared SPARQL helper.
+- v1.5 scoped 2026-05-10. Theme: scoring refinement (pure-semantic default) + Reactome ↔ WP parity + v1.4 carry-forward debt sweep.
+- v1.5 ROADMAP created 2026-05-10 — 5 phases (29–33), 24/24 requirements mapped, no orphans.
 
 ## Session Continuity
 
-**Last session:** 2026-05-08
-**Stopped at:** v1.4 milestone shipped + audited + tagged + archived
+**Last session:** 2026-05-10T10:49:33.015Z
+**Stopped at:** Completed 29-pure-semantic-ranking-shift/29-01-PLAN.md
 **Resume file:** None
-**Next action:** `/gsd:new-milestone` to scope v1.5
+**Next action:** `/gsd:plan-phase 29` (Pure-Semantic Ranking Shift)
