@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Scoring & Polish
 status: executing
-stopped_at: Completed 29-pure-semantic-ranking-shift/29-02-PLAN.md
-last_updated: "2026-05-10T11:00:58.035Z"
+stopped_at: Completed 29-pure-semantic-ranking-shift/29-06-PLAN.md
+last_updated: "2026-05-10T11:08:04.797Z"
 last_activity: "2026-05-10 — Completed plan 29-03: GO pure-semantic ranking (SEMRANK-02)"
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -65,6 +65,7 @@ v1.5 phase ordering decisions:
 - [Phase 29-pure-semantic-ranking-shift]: Ontology signal removed from combine_scored_items weighted sum (ontology_weight=0.0); applied as post-combine boost — decouples WP ranking from ontology match
 - [Phase 29-pure-semantic-ranking-shift]: multi_evidence_bonus now config-driven (0.0 in v1.5) not hardcoded 0.05 in PathwaySuggestionService
 - [Phase 29-pure-semantic-ranking-shift]: primary_evidence defaults to semantic_similarity in v1.5 (was gene_overlap in v1.4); ontology_tags only when boost fired
+- [Phase 29-pure-semantic-ranking-shift]: Used --color-primary-pink CSS variable (existing in :root) for banner magenta accent rather than non-existent --color-magenta; added .info-banner--v15 modifier class to avoid clobbering existing generic .info-banner blue-border style
 
 ### Pending Todos
 
@@ -92,7 +93,7 @@ v1.5 phase ordering decisions:
 
 ## Session Continuity
 
-**Last session:** 2026-05-10T11:00:47.750Z
-**Stopped at:** Completed 29-pure-semantic-ranking-shift/29-02-PLAN.md
+**Last session:** 2026-05-10T11:08:04.788Z
+**Stopped at:** Completed 29-pure-semantic-ranking-shift/29-06-PLAN.md
 **Resume file:** None
 **Next action:** Execute plan 29-04 (Reactome pure-semantic ranking, SEMRANK-03)

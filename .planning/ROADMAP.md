@@ -105,7 +105,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
   - [x] 29-03-PLAN.md — Refactor GoSuggestionService (BP + MF) to embedding-only ranking; preserve IC boost + directionality
   - [x] 29-04-PLAN.md — Refactor ReactomeSuggestionService to embedding-only ranking; add method_filter deprecation log on three suggestion endpoints
   - [ ] 29-05-PLAN.md — Frontend: gene-overlap chip on WP / GO / Reactome cards; remove method-filter UI and scoring breakdown; drop method_filter from outbound fetches
-  - [ ] 29-06-PLAN.md — v1.5 dismissible migration banner + CHANGELOG.md v1.5 entry
+  - [x] 29-06-PLAN.md — v1.5 dismissible migration banner + CHANGELOG.md v1.5 entry
 
 ### Phase 30: Reactome Suggestion Card Parity and Threshold Tuning
 **Goal**: A curator working on Reactome suggestions experiences the same scoring-breakdown layout and information density as on WP, with thresholds tuned so the post-pure-semantic suggestion list feels curated rather than noisy.
@@ -182,7 +182,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 | 26. Public API and Exports | v1.4 | 8/8 | Complete    | 2026-05-06 |
 | 27. Reactome Pathway Viewer | v1.4 | 4/4 | Complete   | 2026-05-06 |
 | 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 4/4 | Complete    | 2026-05-07 |
-| 29. Pure-Semantic Ranking Shift | v1.5 | 4/6 | In Progress|  |
+| 29. Pure-Semantic Ranking Shift | v1.5 | 5/6 | In Progress|  |
 | 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 0/TBD | Not started | — |
 | 31. Reactome Viewer Polish | v1.5 | 0/TBD | Not started | — |
 | 32. GO/WP Sibling Debt Sweep | v1.5 | 0/TBD | Not started | — |
