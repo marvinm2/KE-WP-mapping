@@ -1,220 +1,42 @@
 <h2>Scoring Systems Guide</h2>
 
-<p>This guide explains how the Molecular AOP Builder calculates pathway suggestions and confidence scores. The system uses a multi-signal hybrid approach combining gene overlap, semantic embeddings, and ontology tag matching to identify and rank relevant pathways.</p>
+<p>The Molecular AOP Builder uses two distinct scoring stages, kept
+deliberately separate:</p>
+
+<ol>
+    <li><strong>Suggestion ranking</strong> — orders pathways / GO terms by
+    BioBERT semantic similarity to the Key Event description. Run
+    automatically when a curator selects a KE.</li>
+    <li><strong>Confidence assessment</strong> — a 4-question rubric the
+    curator answers <em>after</em> picking a target; it produces the
+    High / Medium / Low confidence label stored with the mapping.</li>
+</ol>
+
+<p>This guide describes both. For the YAML knobs and exact defaults, see
+<a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/docs/SCORING_CONFIG.md" target="_blank">docs/SCORING_CONFIG.md</a> in the repository.</p>
 
 <!-- Table of Contents -->
 <nav class="toc">
     <h3>Contents</h3>
     <ol>
-        <li><a href="#hybrid-approach">Three-Signal Hybrid Approach</a></li>
-        <li><a href="#gene-matching">Gene-Based Matching</a></li>
-        <li><a href="#semantic-matching">Semantic/BioBERT Matching</a></li>
-        <li><a href="#ontology-matching">Ontology Tag Matching</a></li>
-        <li><a href="#confidence-assessment">Confidence Assessment Workflow</a></li>
-        <li><a href="#tuning">Tuning Parameters</a></li>
+        <li><a href="#semantic-matching">Suggestion ranking — BioBERT semantic similarity</a></li>
+        <li><a href="#gene-overlap">Gene-overlap chip</a></li>
+        <li><a href="#confidence-assessment">Confidence assessment workflow</a></li>
+        <li><a href="#tuning">Tuning parameters</a></li>
     </ol>
 </nav>
 
-<!-- Section A: Three-Signal Hybrid Approach -->
-<section id="hybrid-approach">
-    <h3>Three-Signal Hybrid Approach</h3>
-
-    <p>The pathway suggestion engine combines three independent matching methods to provide robust, biologically meaningful recommendations:</p>
-
-    <div class="diagram-container">
-        <pre class="flow-diagram">
-         ┌─────────────────────┐
-         │   Key Event Input   │
-         │  (Title + Genes)    │
-         └──────────┬──────────┘
-    ┌───────────────┼───────────────┐
-    │               │               │
-    ▼               ▼               ▼
-┌────────┐  ┌───────────┐  ┌───────────┐
-│Gene 35%│  │Semantic50%│  │Ontology15%│
-│Overlap │  │BioBERT    │  │Tag Match  │
-└───┬────┘  └─────┬─────┘  └─────┬─────┘
-    │             │              │
-    │             │              │
-    └─────────────┼──────────────┘
-                  ▼
-         ┌─────────────────────┐
-         │   Hybrid Combiner   │
-         │ + multi-evidence    │
-         │     bonus (+5%)     │
-         └──────────┬──────────┘
-                    ▼
-         ┌─────────────────────┐
-         │  Ranked Suggestions │
-         │  with Confidence    │
-         └─────────────────────┘
-        </pre>
-    </div>
-
-    <h4>Signal Weights</h4>
-    <table class="scoring-table">
-        <thead>
-            <tr>
-                <th>Method</th>
-                <th>Weight</th>
-                <th>Strength</th>
-                <th>Best For</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><strong>Gene-Based</strong></td>
-                <td>35%</td>
-                <td>Biological validation</td>
-                <td>KEs with gene associations</td>
-            </tr>
-            <tr>
-                <td><strong>Semantic/BioBERT</strong></td>
-                <td>50%</td>
-                <td>Conceptual similarity</td>
-                <td>Related but differently named items</td>
-            </tr>
-            <tr>
-                <td><strong>Ontology Tags</strong></td>
-                <td>15%</td>
-                <td>Classification matching</td>
-                <td>Pathways with biological category tags</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="info-box">
-        <strong>Why these weights?</strong> Extended testing across diverse Key Events showed that semantic matching provides the best balance of coverage and accuracy, while ontology tags add biological classification context:
-        <ul style="margin-bottom: 0; margin-top: 8px;">
-            <li><strong>Semantic (50%):</strong> Consistently finds relevant pathways even when terminology differs</li>
-            <li><strong>Gene (35%):</strong> Provides mechanistic validation through shared gene associations</li>
-            <li><strong>Ontology (15%):</strong> Matches pathways by biological category (e.g. apoptosis, signaling)</li>
-        </ul>
-    </div>
-
-    <div class="info-box">
-        <strong>Multi-Evidence Bonus:</strong> When a pathway is suggested by multiple methods, it receives a +5% confidence bonus, reinforcing the finding through independent validation.
-    </div>
-</section>
-
-<!-- Section B: Gene-Based Matching -->
-<section id="gene-matching">
-    <h3>Gene-Based Matching (35% Weight)</h3>
-
-    <p>Gene-based matching queries genes associated with a Key Event from AOP-Wiki, then finds WikiPathways containing those genes.</p>
-
-    <h4>How It Works</h4>
-    <ol>
-        <li><strong>Gene Retrieval:</strong> SPARQL query to AOP-Wiki fetches genes linked to the selected KE</li>
-        <li><strong>Pathway Search:</strong> WikiPathways SPARQL finds pathways containing those genes</li>
-        <li><strong>Confidence Calculation:</strong> Combines overlap ratio and pathway specificity</li>
-    </ol>
-
-    <h4>Confidence Formula</h4>
-    <div class="formula-box">
-        <code>
-overlap_ratio = matching_genes / KE_total_genes
-specificity = matching_genes / pathway_total_genes
-confidence = (overlap × 0.4) + (specificity × 0.4) + base_boost
-        </code>
-    </div>
-
-    <h4>Scoring Examples</h4>
-    <table class="scoring-table">
-        <thead>
-            <tr>
-                <th>KE Genes</th>
-                <th>Matching</th>
-                <th>Pathway Size</th>
-                <th>Confidence</th>
-                <th>Interpretation</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>5</td>
-                <td>5/5</td>
-                <td>50 genes</td>
-                <td><span class="confidence-high">0.95</span></td>
-                <td>Perfect overlap in focused pathway</td>
-            </tr>
-            <tr>
-                <td>8</td>
-                <td>4/8</td>
-                <td>50 genes</td>
-                <td><span class="confidence-medium">0.67</span></td>
-                <td>Partial overlap</td>
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>1/1</td>
-                <td>100 genes</td>
-                <td><span class="confidence-low">0.47</span></td>
-                <td>Single gene in large pathway</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="warning-box">
-        <strong>KE Gene Count Penalty:</strong> KEs with only 1-2 gene associations receive a 20% penalty (×0.8) because single-gene evidence is insufficient for high confidence.
-    </div>
-</section>
-
-<!-- Section C: Ontology Tag Matching -->
-<section id="ontology-matching">
-    <h3>Ontology Tag Matching (15% Weight)</h3>
-
-    <p>Ontology-based matching compares biological keywords extracted from the KE title against pathway classification tags from WikiPathways ontology annotations.</p>
-
-    <h4>How It Works</h4>
-    <ol>
-        <li><strong>Keyword Extraction:</strong> Biological keywords are extracted from the KE title (e.g. "apoptosis", "CYP2E1", "signaling")</li>
-        <li><strong>Tag Comparison:</strong> Keywords are compared against WikiPathways ontology tags for each pathway</li>
-        <li><strong>Fuzzy Matching:</strong> Both exact and fuzzy string matching are used (fuzzy threshold: 0.85 similarity)</li>
-    </ol>
-
-    <h4>Scoring</h4>
-    <table class="scoring-table">
-        <thead>
-            <tr>
-                <th>Match Type</th>
-                <th>Boost per Match</th>
-                <th>Example</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><strong>Exact match</strong></td>
-                <td><span class="confidence-high">+0.30</span></td>
-                <td>"apoptosis" in KE matches "apoptosis" tag exactly</td>
-            </tr>
-            <tr>
-                <td><strong>Fuzzy match</strong></td>
-                <td><span class="confidence-medium">+0.15</span></td>
-                <td>"signaling" in KE fuzzy-matches "signalling" tag</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="info-box">
-        <strong>Score Range:</strong> Ontology scores are clamped between a minimum threshold of 0.20 and a maximum of 0.90. Pathways with no matching tags receive a score of 0 and do not contribute to the hybrid score.
-    </div>
-</section>
-
-<!-- Section D: Semantic/BioBERT Matching -->
+<!-- Section: Semantic/BioBERT Matching -->
 <section id="semantic-matching">
-    <h3>Semantic/BioBERT Matching (50% Weight)</h3>
+    <h3>Suggestion ranking — BioBERT semantic similarity</h3>
 
-    <p>BioBERT provides neural network-based semantic understanding, capturing biological meaning beyond simple word matching.</p>
+    <p>BioBERT is a transformer language model pre-trained on biomedical
+    text (PubMed abstracts and PMC full-text articles). It captures
+    biological meaning beyond simple word matching — for example, it
+    treats "apoptosis" and "programmed cell death" as closely related
+    even though they share no tokens.</p>
 
-    <h4>What is BioBERT?</h4>
-    <p>BioBERT is a pre-trained language model specifically designed for biomedical text. It was trained on:</p>
-    <ul>
-        <li>PubMed abstracts (4.5 billion words)</li>
-        <li>PMC full-text articles (13.5 billion words)</li>
-    </ul>
-
-    <h4>How Embeddings Work</h4>
+    <h4>How embeddings work</h4>
     <div class="diagram-container">
         <pre class="flow-diagram">
    "Increase, CYP2E1 expression"
@@ -235,8 +57,9 @@ confidence = (overlap × 0.4) + (specificity × 0.4) + base_boost
         </pre>
     </div>
 
-    <h4>Pre-Computed Embeddings</h4>
-    <p>For performance, embeddings are pre-computed and cached:</p>
+    <h4>Pre-computed embeddings</h4>
+    <p>To keep suggestions fast, KE and pathway / GO embeddings are
+    pre-computed once and cached on disk:</p>
     <table class="scoring-table">
         <thead>
             <tr>
@@ -248,37 +71,45 @@ confidence = (overlap × 0.4) + (specificity × 0.4) + base_boost
         <tbody>
             <tr>
                 <td>Key Event embeddings</td>
-                <td>1,561</td>
-                <td><code>ke_embeddings.npy</code></td>
+                <td>~1,561</td>
+                <td><code>data/ke_embeddings.npy</code></td>
             </tr>
             <tr>
-                <td>Pathway title embeddings</td>
-                <td>1,012</td>
-                <td><code>pathway_title_embeddings.npy</code></td>
+                <td>WikiPathways title embeddings</td>
+                <td>~1,012</td>
+                <td><code>data/pathway_title_embeddings.npy</code></td>
+            </tr>
+            <tr>
+                <td>GO BP term embeddings</td>
+                <td>~30,000</td>
+                <td><code>data/go_embeddings.npz</code></td>
             </tr>
         </tbody>
     </table>
 
-    <h4>Similarity Calculation</h4>
+    <h4>Similarity calculation</h4>
     <div class="formula-box">
         <code>
-cosine_similarity = dot(KE_embedding, pathway_embedding) /
-                   (norm(KE) × norm(pathway))
+cosine_similarity = dot(KE_embedding, target_embedding) /
+                   (norm(KE) × norm(target))
 
 normalized_score = (cosine_similarity + 1) / 2
 transformed_score = normalized_score ^ power_exponent
         </code>
     </div>
 
-    <h4>Score Transformation</h4>
-    <p>Raw BioBERT scores tend to cluster in the 0.8-0.95 range because biomedical texts rarely have negative similarity. A power transformation spreads scores for better differentiation:</p>
+    <h4>Score transformation</h4>
+    <p>Raw BioBERT cosine scores cluster in the 0.8–0.95 range because
+    biomedical texts rarely have strongly negative similarity. A power
+    transformation spreads them out for clearer differentiation between
+    candidates:</p>
 
     <table class="scoring-table">
         <thead>
             <tr>
-                <th>Raw Cosine</th>
+                <th>Raw cosine</th>
                 <th>Normalized</th>
-                <th>After Transform (^4.0)</th>
+                <th>After transform (^4.0)</th>
             </tr>
         </thead>
         <tbody>
@@ -306,17 +137,56 @@ transformed_score = normalized_score ^ power_exponent
     </table>
 
     <div class="info-box">
-        <strong>Directionality Removal:</strong> Before computing embeddings, directional terms (increase, decrease, activation, inhibition) are removed from KE titles. This means "Increase CYP2E1" and "Decrease CYP2E1" will suggest the same pathways.
+        <strong>Directionality is removed.</strong> Before computing the
+        KE embedding, directional terms ("increase", "decrease",
+        "activation", "inhibition") are stripped from the title. This
+        means <em>"Increase CYP2E1"</em> and <em>"Decrease CYP2E1"</em>
+        produce the same suggestion list — the pathway biology is the
+        same; the direction is captured separately by the connection-type
+        field on the mapping.
+    </div>
+
+    <div class="info-box">
+        <strong>Small ontology post-combine boost.</strong> After the
+        BioBERT score is computed, candidates whose WikiPathways ontology
+        annotations align with the AOPs the KE belongs to receive a
+        small additive boost. This is purely a tie-breaker and is
+        configurable via
+        <code>pathway_suggestion.ontology_post_combine_boost</code>.
     </div>
 </section>
 
-<!-- Section E: Confidence Assessment Workflow -->
+<!-- Section: Gene overlap chip -->
+<section id="gene-overlap">
+    <h3>Gene-overlap chip</h3>
+
+    <p>Each suggestion card shows a small <code>Genes: N/M</code> chip:
+    <em>N</em> = number of KE-associated genes also present in the
+    candidate pathway; <em>M</em> = total KE-associated genes from
+    AOP-Wiki.</p>
+
+    <div class="info-box">
+        <strong>Informational only.</strong> The gene-overlap chip helps
+        curators sanity-check a suggestion against shared biology, but
+        it <em>does not influence the ranking</em>. Two candidates with
+        the same BioBERT score will appear in the same order regardless
+        of how many genes they share with the KE.
+    </div>
+
+    <p>Hovering the chip reveals the actual HGNC gene symbols that
+    overlap, so the curator can spot situations like a single
+    housekeeping gene driving an artificially high overlap.</p>
+</section>
+
+<!-- Section: Confidence Assessment Workflow -->
 <section id="confidence-assessment">
-    <h3>Confidence Assessment Workflow</h3>
+    <h3>Confidence assessment workflow</h3>
 
-    <p>When you create a new KE-WP mapping, a 4-question workflow calculates your confidence level:</p>
+    <p>When the curator submits a new KE-WP mapping, a 4-question rubric
+    converts their judgement into a High / Medium / Low confidence
+    label:</p>
 
-    <h4>Question 1: Relationship Type</h4>
+    <h4>Question 1: Relationship type</h4>
     <p><em>"What is the relationship between the pathway and Key Event?"</em></p>
     <table class="scoring-table">
         <thead>
@@ -344,16 +214,16 @@ transformed_score = normalized_score ^ power_exponent
             </tr>
         </tbody>
     </table>
-    <p class="note">This question determines the connection_type field but does not affect the confidence score.</p>
+    <p class="note">This question populates the <code>connection_type</code> field but does not affect the confidence score.</p>
 
-    <h4>Question 2: Evidence Basis (0-3 points)</h4>
+    <h4>Question 2: Evidence basis (0–3 points)</h4>
     <p><em>"What is the basis for this mapping?"</em></p>
     <table class="scoring-table">
         <thead>
             <tr>
                 <th>Option</th>
                 <th>Points</th>
-                <th>When to Select</th>
+                <th>When to select</th>
             </tr>
         </thead>
         <tbody>
@@ -379,9 +249,9 @@ transformed_score = normalized_score ^ power_exponent
             </tr>
         </tbody>
     </table>
-    <p class="note">Answer based on what you already know. No research is required.</p>
+    <p class="note">Answer based on what you already know; no new literature search is required at this stage.</p>
 
-    <h4>Question 3: Pathway Specificity (0-2 points)</h4>
+    <h4>Question 3: Pathway specificity (0–2 points)</h4>
     <p><em>"How specific is the pathway to this Key Event?"</em></p>
     <table class="scoring-table">
         <thead>
@@ -395,7 +265,7 @@ transformed_score = normalized_score ^ power_exponent
             <tr>
                 <td><strong>KE-specific</strong></td>
                 <td>2</td>
-                <td>"CYP2E1 metabolism" pathway for KE about CYP2E1</td>
+                <td>"CYP2E1 metabolism" pathway for a KE about CYP2E1</td>
             </tr>
             <tr>
                 <td><strong>Includes KE</strong></td>
@@ -405,12 +275,12 @@ transformed_score = normalized_score ^ power_exponent
             <tr>
                 <td><strong>Loosely related</strong></td>
                 <td>0</td>
-                <td>Very broad pathway tangentially related</td>
+                <td>Very broad pathway only tangentially related</td>
             </tr>
         </tbody>
     </table>
 
-    <h4>Question 4: KE Coverage (0-1.5 points)</h4>
+    <h4>Question 4: KE coverage (0–1.5 points)</h4>
     <p><em>"How much of the KE mechanism is captured by the pathway?"</em></p>
     <table class="scoring-table">
         <thead>
@@ -439,12 +309,14 @@ transformed_score = normalized_score ^ power_exponent
         </tbody>
     </table>
 
-    <h4>Biological Level Bonus (+1 point)</h4>
-    <p>KEs at molecular, cellular, or tissue levels receive a +1 bonus because they are closer to pathway mechanisms:</p>
+    <h4>Biological-level bonus (+1 point)</h4>
+    <p>KEs at molecular, cellular, or tissue levels receive a +1 bonus
+    because they are closer to pathway mechanisms than organ- or
+    individual-level KEs:</p>
     <table class="scoring-table">
         <thead>
             <tr>
-                <th>Biological Level</th>
+                <th>Biological level</th>
                 <th>Bonus</th>
             </tr>
         </thead>
@@ -460,20 +332,19 @@ transformed_score = normalized_score ^ power_exponent
         </tbody>
     </table>
 
-    <h4>Final Score Calculation</h4>
+    <h4>Final score and thresholds</h4>
     <div class="formula-box">
         <code>
-Final Score = Evidence (0-3) + Specificity (0-2) + Coverage (0-1.5) + Bio Bonus (0-1)
-Maximum Score = 7.5 points
+Final = Evidence (0–3) + Specificity (0–2) + Coverage (0–1.5) + Bio bonus (0–1)
+Maximum = 7.5
         </code>
     </div>
 
-    <h4>Confidence Level Thresholds</h4>
     <table class="scoring-table">
         <thead>
             <tr>
-                <th>Score Range</th>
-                <th>Confidence Level</th>
+                <th>Score range</th>
+                <th>Confidence</th>
                 <th>Interpretation</th>
             </tr>
         </thead>
@@ -484,7 +355,7 @@ Maximum Score = 7.5 points
                 <td>Strong evidence, good specificity and coverage</td>
             </tr>
             <tr>
-                <td>2.5 - 4.9</td>
+                <td>2.5 – 4.9</td>
                 <td><span class="confidence-medium">Medium</span></td>
                 <td>Moderate evidence with some limitations</td>
             </tr>
@@ -496,41 +367,45 @@ Maximum Score = 7.5 points
         </tbody>
     </table>
 
-    <h4>Example Calculations</h4>
+    <h4>Worked examples</h4>
     <div class="example-box">
-        <p><strong>High Confidence Example:</strong></p>
+        <p><strong>High-confidence example:</strong></p>
         <ul>
-            <li>Known connection: 3 points</li>
-            <li>KE-specific pathway: 2 points</li>
-            <li>Complete mechanism: 1.5 points</li>
-            <li>Molecular level: +1 bonus</li>
-            <li><strong>Total: 7.5 → High confidence</strong></li>
+            <li>Known connection: 3</li>
+            <li>KE-specific pathway: 2</li>
+            <li>Complete mechanism: 1.5</li>
+            <li>Molecular level: +1</li>
+            <li><strong>Total: 7.5 → High</strong></li>
         </ul>
     </div>
 
     <div class="example-box">
-        <p><strong>Medium Confidence Example:</strong></p>
+        <p><strong>Medium-confidence example:</strong></p>
         <ul>
-            <li>Likely connection: 2 points</li>
-            <li>Includes KE: 1 point</li>
-            <li>Key steps only: 1 point</li>
+            <li>Likely connection: 2</li>
+            <li>Includes KE: 1</li>
+            <li>Key steps only: 1</li>
             <li>Organ level: no bonus</li>
-            <li><strong>Total: 4.0 → Medium confidence</strong></li>
+            <li><strong>Total: 4.0 → Medium</strong></li>
         </ul>
+    </div>
+
+    <div class="info-box">
+        <strong>KE-GO assessment.</strong> KE-GO mapping uses the same
+        rubric structure with GO-specific connection types (positive /
+        negative regulation rather than causative / responsive).
     </div>
 </section>
 
-<!-- Section F: Tuning Parameters -->
+<!-- Section: Tuning -->
 <section id="tuning">
-    <h3>Tuning Parameters</h3>
+    <h3>Tuning parameters</h3>
 
-    <p>All scoring parameters are configurable via <code>scoring_config.yaml</code>. Changes require a Flask restart to take effect.</p>
+    <p>All thresholds and weights are configurable via
+    <code>config/scoring_config.yaml</code>. Changes require a Flask
+    restart to take effect.</p>
 
-    <h4>Configuration File Location</h4>
-    <pre><code>scoring_config.yaml</code></pre>
-
-    <h4>Common Tuning Scenarios</h4>
-
+    <h4>Common tuning scenarios</h4>
     <table class="scoring-table">
         <thead>
             <tr>
@@ -541,44 +416,42 @@ Maximum Score = 7.5 points
         </thead>
         <tbody>
             <tr>
-                <td>More suggestions</td>
+                <td>Show more / fewer candidates</td>
                 <td><code>dynamic_thresholds.base_threshold</code></td>
-                <td>Lower (0.15 → 0.10)</td>
+                <td>Lower for more (e.g. 0.15 → 0.10)</td>
             </tr>
             <tr>
-                <td>Higher gene confidence</td>
-                <td><code>gene_scoring.base_boost</code></td>
-                <td>Raise (0.15 → 0.20)</td>
-            </tr>
-            <tr>
-                <td>Spread BioBERT scores</td>
+                <td>Spread BioBERT scores more</td>
                 <td><code>embedding_based_matching.score_transformation.power_exponent</code></td>
-                <td>Raise (4.0 → 5.0)</td>
+                <td>Raise (e.g. 4.0 → 5.0)</td>
             </tr>
             <tr>
-                <td>Lenient assessment</td>
+                <td>Stronger AOP-aligned tie-breaker</td>
+                <td><code>pathway_suggestion.ontology_post_combine_boost</code></td>
+                <td>Raise weights inside this block</td>
+            </tr>
+            <tr>
+                <td>Lenient confidence threshold</td>
                 <td><code>ke_pathway_assessment.confidence_thresholds.high</code></td>
-                <td>Lower (5.0 → 4.5)</td>
+                <td>Lower (e.g. 5.0 → 4.5)</td>
             </tr>
         </tbody>
     </table>
 
-    <h4>Applying Changes</h4>
+    <h4>Applying changes</h4>
     <div class="code-box">
         <pre><code># 1. Edit configuration
-nano scoring_config.yaml
+nano config/scoring_config.yaml
 
 # 2. Validate YAML syntax
-python -c "import yaml; yaml.safe_load(open('scoring_config.yaml'))"
+python -c "import yaml; yaml.safe_load(open('config/scoring_config.yaml'))"
 
 # 3. Restart Flask
 pkill -f "python.*app.py" && python app.py &
 
-# 4. Clear browser cache
-# Press Ctrl+Shift+R in browser</code></pre>
+# 4. Hard-reload the browser (Ctrl+Shift+R)</code></pre>
     </div>
 
-    <p>For detailed parameter documentation, see the <a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/SCORING_CONFIG.md" target="_blank">SCORING_CONFIG.md</a> reference guide.</p>
+    <p>For full parameter reference, see
+    <a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/docs/SCORING_CONFIG.md" target="_blank">docs/SCORING_CONFIG.md</a>.</p>
 </section>
-
-<!-- Styles now in docs.css -->

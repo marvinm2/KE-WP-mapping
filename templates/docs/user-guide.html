@@ -15,7 +15,7 @@
 <h4>Step 2: Select WikiPathway — KE-WP Mapping</h4>
 <p>Choose a related WikiPathway using the <strong>KE-WP Mapping</strong> tab. The system provides three sub-tabs:</p>
 <ul>
-    <li><strong>Suggested</strong> - Ranked pathway recommendations based on gene overlap, semantic similarity, and ontology tag matching</li>
+    <li><strong>Suggested</strong> - Pathways ranked by BioBERT semantic similarity to the KE description (v1.5, 2026-05-10). Each card shows a "Genes: N/M" overlap chip for context, but gene overlap does not influence the ranking.</li>
     <li><strong>Search</strong> - Search for pathways by name or keywords</li>
     <li><strong>Browse All</strong> - Browse all available WikiPathways</li>
 </ul>
@@ -24,7 +24,7 @@
 <h4>Step 2 (alternative): Select GO Term — KE-GO Mapping</h4>
 <p>To map a KE to a Gene Ontology Biological Process term, use the <strong>KE-GO Mapping</strong> tab. The system provides two sub-tabs:</p>
 <ul>
-    <li><strong>Suggested</strong> - GO BP term suggestions ranked by gene overlap and semantic similarity, displayed as cards with GO term name, definition, matched genes, and similarity scores</li>
+    <li><strong>Suggested</strong> - GO BP term suggestions ranked by BioBERT semantic similarity (v1.5, 2026-05-10), enriched with IC-based specificity boost and ancestor redundancy filtering. Cards show GO term name, definition, matched genes (informational), and similarity score.</li>
     <li><strong>Search</strong> - Search for GO terms by name or GO ID (e.g. <code>GO:0006915</code>)</li>
 </ul>
 

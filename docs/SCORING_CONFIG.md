@@ -1,38 +1,96 @@
 # Scoring Configuration Reference
 
-This document provides comprehensive documentation for all scoring parameters in `scoring_config.yaml`.
+This document is the parameter reference for `config/scoring_config.yaml`.
 
-**Last Updated**: 2026-01-26
-**Configuration Version**: 1.2.0
+**Last Updated**: 2026-05-10
+**Configuration Version**: 1.5.0 (pure-semantic ranking)
+
+> **v1.5 ranking shift (released 2026-05-10).** The pathway and GO
+> suggestion ranker now uses **pure BioBERT semantic similarity**.
+> The legacy hybrid weights (`gene`, `text`, `embedding`,
+> `multi_evidence_bonus`) are still defined in the YAML schema for
+> back-compat, but their default values are **0.0** and the suggestion
+> services skip the corresponding code paths. The **KE-Pathway
+> Assessment** rubric (the 4-question curator workflow) is unchanged.
+>
+> The "Gene-Based Scoring", "Text Similarity Scoring" and
+> "Hybrid Scoring Weights" sections below are kept as a reference for
+> the YAML keys that still exist; **none of them affects suggestion
+> ordering in v1.5**. The v1.5 ranker is documented under
+> `embedding_based_matching` (sections in `scoring_config.yaml`) and the
+> small AOP-aligned tie-breaker under
+> `pathway_suggestion.ontology_post_combine_boost`.
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Pathway Suggestion Scoring](#pathway-suggestion-scoring)
-3. [KE-Pathway Assessment Scoring](#ke-pathway-assessment-scoring)
-4. [Hybrid Scoring Weights](#hybrid-scoring-weights)
-5. [Parameter Interactions](#parameter-interactions)
-6. [Use Cases and Examples](#use-cases-and-examples)
-7. [Troubleshooting](#troubleshooting)
+2. [v1.5 Ranking — Pure-Semantic + Ontology Boost](#v15-ranking--pure-semantic--ontology-boost)
+3. [Pathway Suggestion Scoring (legacy YAML keys)](#pathway-suggestion-scoring)
+4. [KE-Pathway Assessment Scoring](#ke-pathway-assessment-scoring)
+5. [Hybrid Scoring Weights (zeroed in v1.5)](#hybrid-scoring-weights)
+6. [Parameter Interactions](#parameter-interactions)
+7. [Use Cases and Examples](#use-cases-and-examples)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Overview
 
-The scoring system consists of two main components:
+The system has two independent scoring stages:
 
-1. **Pathway Suggestion Scoring** (Backend): Calculates confidence scores for automatically suggested pathways based on gene overlap and text similarity
-2. **KE-Pathway Assessment Scoring** (Frontend): Evaluates user-provided mappings through a multi-question assessment workflow
+1. **Suggestion ranking** (backend) — orders candidate pathways / GO
+   terms by BioBERT semantic similarity to the Key Event description.
+   Configured under `embedding_based_matching` and
+   `pathway_suggestion.ontology_post_combine_boost`.
+2. **KE-Pathway / KE-GO assessment** (frontend) — a 4-question rubric
+   answered by the curator after picking a target. Produces the
+   High / Medium / Low confidence label. Configured under
+   `ke_pathway_assessment` and `ke_go_assessment`.
 
-Both systems are fully configurable via `scoring_config.yaml`.
+Both stages are configurable via `config/scoring_config.yaml`.
+
+## v1.5 Ranking — Pure-Semantic + Ontology Boost
+
+```yaml
+embedding_based_matching:
+  score_transformation:
+    power_exponent: 4.0      # spreads BioBERT cosine scores 0.8-0.95
+                             # raise to 5.0 for sharper differentiation
+  thresholds:
+    base_threshold: 0.15     # minimum score to surface a candidate;
+                             # lower for more candidates
+
+pathway_suggestion:
+  ontology_post_combine_boost:
+    enabled: true
+    weight: 0.05             # additive tie-breaker for AOP-aligned
+                             # ontology terms after BioBERT scoring
+
+  # Legacy hybrid weights — all zeroed in v1.5
+  weights:
+    gene: 0.0
+    text: 0.0
+    embedding: 0.0
+    multi_evidence_bonus: 0.0
+```
+
+The runtime never multiplies by the legacy `weights` block in v1.5;
+candidates are sorted purely by the transformed BioBERT score plus the
+optional `ontology_post_combine_boost` additive tie-breaker.
 
 ---
 
 ## Pathway Suggestion Scoring
 
 ### Gene-Based Scoring (Refined with Pathway Specificity)
+
+> **No longer affects ranking in v1.5.** The gene-overlap formula is still
+> evaluated and the result is shown to curators as the `Genes: N/M` chip
+> on each suggestion card, but the gene weight is 0.0 in the production
+> hybrid combiner. The keys below are documented for parameter
+> completeness.
 
 Gene-based scoring calculates confidence when genes associated with a Key Event are found in a WikiPathways pathway. The refined formula incorporates **pathway specificity** to penalize matches in large, generic pathways and reward matches in smaller, specific pathways.
 
@@ -101,6 +159,10 @@ confidence = 0.59 × 0.8 = 0.472
 **Impact**: Gene-based suggestions now show more nuanced confidence scores that reflect both gene overlap quality and pathway specificity. UI displays both KE gene ratios (e.g., "3/8 KE genes") and pathway gene ratios (e.g., "3/50 pathway genes").
 
 ### Text Similarity Scoring
+
+> **Deprecated in v1.5** — `text` weight is 0.0; the section below
+> documents YAML keys that exist but are not consulted by the production
+> ranker.
 
 Text similarity analyzes how well a pathway title/description matches the Key Event title.
 
@@ -335,16 +397,29 @@ else: confidence = "low"
 
 ## Hybrid Scoring Weights
 
-The pathway suggestion engine combines three independent matching methods using configurable weights.
+> **Zeroed in v1.5.** The production ranker is BioBERT-only (see
+> [v1.5 Ranking — Pure-Semantic + Ontology Boost](#v15-ranking--pure-semantic--ontology-boost)).
+> The block below documents the YAML keys for back-compat and explains
+> the historical rationale; the listed defaults below are the *legacy*
+> values, not what ships in v1.5.
+
+The original pathway suggestion engine combined three independent matching methods using configurable weights.
 
 **Parameters** (`pathway_suggestion.hybrid_weights`):
 
 ```yaml
+# v1.5 production defaults — all zeroed:
+#   gene: 0.0
+#   text: 0.0
+#   embedding: 0.0
+#   multi_evidence_bonus: 0.0
+#
+# Historical (pre-v1.5) defaults shown below for reference only.
 hybrid_weights:
-  gene: 0.35          # Gene-based scoring weight
-  text: 0.25          # Text-based scoring weight
-  embedding: 0.40     # Semantic/BioBERT scoring weight
-  multi_evidence_bonus: 0.05  # Bonus when multiple methods agree
+  gene: 0.35          # Gene-based scoring weight (legacy)
+  text: 0.25          # Text-based scoring weight (legacy)
+  embedding: 0.40     # Semantic/BioBERT scoring weight (legacy)
+  multi_evidence_bonus: 0.05  # Bonus when multiple methods agreed (legacy)
 ```
 
 ### Current Weights and Rationale

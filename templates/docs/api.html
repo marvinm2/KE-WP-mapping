@@ -81,7 +81,7 @@ curl "https://your-domain.com/api/v1/go-mappings?format=csv" -o go_mappings.csv<
 </ul>
 
 <h4>GET /suggest_go_terms/&lt;ke_id&gt;</h4>
-<p>Get GO Biological Process term suggestions for a specific Key Event, ranked by gene overlap and semantic similarity.</p>
+<p>Get GO Biological Process term suggestions for a specific Key Event, ranked by BioBERT semantic similarity (v1.5). Gene overlap is returned for display purposes but does not influence the ordering.</p>
 <pre><code>curl https://your-domain.com/suggest_go_terms/55</code></pre>
 
 <p><strong>Response:</strong> JSON object with ranked GO term suggestions including scores and matched genes.</p>

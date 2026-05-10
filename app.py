@@ -281,7 +281,7 @@ def create_app(config_name: str = None):
                 {
                     "status": "healthy" if all(health_status.values()) else "degraded",
                     "timestamp": format_admin_timestamp(),
-                    "version": "2.5.0",
+                    "version": "2.7.0",
                     "services": health_status,
                 }
             )

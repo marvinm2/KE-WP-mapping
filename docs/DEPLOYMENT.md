@@ -13,11 +13,17 @@ This guide covers deploying the KE-WP Mapping Application to various environment
 ## Production Deployment
 
 ### Prerequisites
-- Python 3.8+ on production server
+- Python 3.10+ on production server
 - SSL certificate for HTTPS
 - Domain name configured
-- Production database (PostgreSQL recommended)
-- Redis for caching (optional but recommended)
+- Redis for caching / rate limiting (optional but recommended)
+
+> **Database**: SQLite with WAL mode is the only supported backend.
+> The schema is created and migrated automatically on startup; the
+> file lives under `data/ke_wp_mapping.db` (or wherever
+> `DATABASE_PATH` points). Earlier drafts of this guide referenced
+> PostgreSQL — the application does not implement a PostgreSQL driver
+> and that path is unsupported.
 
 ### 1. Server Setup
 
@@ -27,9 +33,6 @@ sudo apt update && sudo apt upgrade -y
 
 # Install Python and dependencies
 sudo apt install python3 python3-pip python3-venv nginx supervisor
-
-# Install PostgreSQL (if using)
-sudo apt install postgresql postgresql-contrib
 ```
 
 ### 2. Application Setup
@@ -63,8 +66,7 @@ FLASK_SECRET_KEY=your-very-long-secure-random-key
 GITHUB_CLIENT_ID=your-production-client-id
 GITHUB_CLIENT_SECRET=your-production-client-secret
 
-# Database (PostgreSQL recommended)
-DATABASE_URL=postgresql://user:password@localhost/ke_wp_mapping
+# Database (SQLite with WAL — the only supported backend)
 DATABASE_PATH=/var/www/ke-wp-mapping/data/ke_wp_mapping.db
 
 # Admin users
@@ -82,18 +84,14 @@ LOG_LEVEL=INFO
 LOG_FILE=/var/log/ke-wp-mapping/app.log
 ```
 
-### 4. Database Setup (PostgreSQL)
+### 4. Database Setup
 
-```bash
-# Switch to postgres user
-sudo -u postgres psql
-
-# Create database and user
-CREATE DATABASE ke_wp_mapping;
-CREATE USER ke_wp_user WITH ENCRYPTED PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE ke_wp_mapping TO ke_wp_user;
-\q
-```
+The application uses **SQLite with WAL mode**. There is no manual
+database-setup step: on first startup the SQLite file at
+`DATABASE_PATH` is created if absent, schema migrations run
+automatically, and pre-computed embeddings are loaded from `data/`.
+Persist the `data/` directory (bind-mount or volume in Docker) so
+mappings survive container restarts.
 
 ### 5. WSGI Configuration
 
@@ -180,8 +178,8 @@ FLASK_ENV=production
 # Admin Users (GitHub usernames, comma-separated)
 ADMIN_USERS=your_username,other_admin
 
-# Database Configuration
-DATABASE_URL=sqlite:///data/ke_wp_mapping.db
+# Database Configuration (SQLite — only supported backend)
+DATABASE_PATH=data/ke_wp_mapping.db
 
 # Optional: Redis for caching
 RATELIMIT_STORAGE_URL=redis://redis:6379

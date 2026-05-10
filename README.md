@@ -7,21 +7,33 @@
 
 A modern Flask-based web application for mapping Key Events (KEs) to WikiPathways (WPs) and Gene Ontology Biological Process (GO BP) terms with comprehensive metadata management. Built with a modular blueprint architecture for enhanced maintainability and scalability.
 
+**Live instance:** https://molaop-builder.vhp4safety.nl
+**Public REST API:** https://molaop-builder.vhp4safety.nl/api/docs
+
+## What is this?
+
+A curator-in-the-loop tool to map Adverse Outcome Pathway (AOP) Key Events
+to WikiPathways pathways, GO biological-process terms, and Reactome
+pathways. Suggestions are ranked by BioBERT semantic similarity to the KE
+description; curators assign confidence levels and an admin approves before
+the mapping enters the public REST API. Approved mappings feed the
+[Molecular AOP Analyser](https://molaop-analyser.vhp4safety.nl) and are
+exportable as GMT (for fgsea/clusterProfiler) and RDF/TTL (for SPARQL).
+
 ## Features
 
 ### Core Functionality
 
 - **KE-WP Mapping**: Create relationships between Key Events and WikiPathways with connection types and confidence levels
 - **KE-GO Mapping**: Map Key Events to Gene Ontology Biological Process (BP) terms with gene-based and semantic scoring
-- **Intelligent Pathway Suggestions**: Advanced algorithm suggesting relevant pathways based on Key Events using:
-  - Multi-algorithm text similarity with biological term weighting
-  - Gene-based pathway matching with overlap analysis
-  - BioBERT semantic similarity with pre-computed embeddings
-  - Dynamic confidence scoring with non-linear scaling
-- **GO Term Suggestions**: Intelligent GO BP term recommendations using:
-  - Pre-computed BioBERT embeddings for ~30K GO BP terms
-  - Gene annotation overlap between KE-associated genes and GO terms
-  - Hybrid scoring combining gene, text, and semantic signals
+- **Pure-semantic Pathway Suggestions** (v1.5, 2026-05-10): Pathways are ranked
+  by BioBERT semantic similarity between the KE description and pathway
+  metadata. Gene overlap is computed and shown to curators on each card as
+  an informational chip but does **not** influence ordering. See
+  `CHANGELOG.md` v2.7.0 and `docs/SCORING_CONFIG.md`.
+- **GO Term Suggestions**: Same pure-semantic approach over ~30K GO BP terms,
+  enriched with IC-based specificity boost and ancestor redundancy filtering
+  using a precomputed GO hierarchy (24K+ BP terms).
 - **GO Hierarchy Integration**: IC-based specificity boost and ancestor redundancy filtering using precomputed GO hierarchy (24K+ BP terms)
 - **KE-Centric GMT Exports**: Gene union across all approved mappings per KE for fgsea/clusterProfiler
 - **Proposer Provenance**: Every approved mapping records the submitting curator's identity
@@ -341,6 +353,9 @@ python -c "from app import create_app; app = create_app('testing')"
 # Test specific endpoints
 curl http://localhost:5000/health
 curl http://localhost:5000/metrics
+
+# Try the public v1 API on the live instance
+curl 'https://molaop-builder.vhp4safety.nl/api/v1/mappings?ke_id=KE+149&confidence_level=high'
 ```
 
 ## Monitoring & Health Checks
@@ -351,7 +366,7 @@ curl http://localhost:5000/metrics
 {
   "status": "healthy|degraded|unhealthy",
   "timestamp": 1754582360,
-  "version": "2.6.0",
+  "version": "2.7.0",
   "services": {
     "database": true,
     "oauth": true,
