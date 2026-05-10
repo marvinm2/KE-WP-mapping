@@ -5,6 +5,37 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-05-10
+
+### Pure-Semantic Suggestion Ranking (v1.5)
+
+#### Changed
+- **WP, GO BP, GO MF, and Reactome suggestion ranking now driven solely by BioBERT semantic similarity to the selected Key Event.** Gene overlap is no longer a ranking signal on any of the four resources.
+- **GO IC boost** (more specific GO terms rank higher) preserved as a separate post-combine adjustment, applied AFTER the embedding-driven rank.
+- **GO directionality multipliers** (`match_boost: 1.10`, `mismatch_penalty: 0.85`) preserved as separate post-combine adjustments.
+- **WP ontology-tag matches** lifted out of the v1.4 weighted sum (where they carried a 0.15 weight) and reapplied as a post-combine boost (analogue of the GO IC boost), via the new `pathway_suggestion.ontology_post_combine_boost` block in `scoring_config.yaml`.
+- **Reactome ranking simplified** to embedding-only — no IC, no ontology, no size dampening. Phase 30 will tune `min_threshold` and `max_results` for the new regime.
+- `combine_scored_items()` now called with `multi_evidence_bonus=0.0` from all three suggestion services. The +0.05 multi-evidence bonus from v1.4 is no longer meaningful when ranking is single-signal.
+
+#### Added
+- **Gene-overlap chip** ("Genes: N/M") on every WP, GO, and Reactome suggestion card, in the existing signal-chip row. Chip is informational only — no rank weight. Hover surfaces the matched HGNC gene symbols. Reuses `suggestion.matching_genes` already in the API response; no new endpoint required.
+- **Dismissible v1.5 migration banner** on the mapper page explaining the ranking change. Dismissal persists per-browser via the `kewp_v15_banner_dismissed` localStorage key.
+
+#### Removed
+- **Method-filter button row** (`All Methods / Gene-based Only / Semantic-based Only`) from WP, GO, and Reactome suggestion panels. With ranking now uniform across methods, "All" and "Semantic" are equivalent and "Gene-only" contradicts the demoted-to-chip framing.
+- **Per-card scoring breakdown** (`Gene Score: X% - 5/12 KE genes`, `Title: X% | Description: Y% | Combined: Z%`, etc.). Cards now show only score badge, match-type badges, and gene-overlap chip.
+
+#### Deprecated
+- **`method_filter` query parameter** on `/suggest_pathways/<ke_id>`, `/suggest_go_terms/<ke_id>`, and `/suggest_reactome_pathways/<ke_id>` endpoints. Frontend stops sending it (default `all` is the only meaningful value under v1.5). Backend still honors `method_filter=gene|semantic|all` for any external scripts but emits a WARNING log line on every non-default value. Scheduled for removal in v2.
+- **`scoring_config.yaml` legacy hybrid weights** (`gene`, `text`, `ontology` for `pathway_suggestion`; `gene` for `go_bp` / `go_mf` / `reactome_suggestion`) — values set to 0.0 in v1.5; prior v1.4 values retained as deprecation comments above each `hybrid_weights` block for traceability. Will be removed from the schema in v2.
+
+#### Migration Notes
+- Curators will see suggestion lists visibly reorder under v1.5 vs. v1.4. The first-visit banner on the mapper page explains this in-app.
+- Gene-based information has not been removed — it is still computed, surfaced per-card via the chip, and queryable via the public API. Only its role as a rank input is removed.
+- `scoring_config.yaml` v1.5.0 introduces a new `pathway_suggestion.ontology_post_combine_boost` block (`enabled: true`, `boost_weight: 0.15`).
+
+---
+
 ## [2.6.0] - 2026-03-06
 
 ### Multi-Provider Authentication
