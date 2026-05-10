@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Scoring & Polish
-status: executing
-stopped_at: Completed Phase 30 Plan 01 (30-01-PLAN.md) — all 3 tasks done, REASCORE-01 + REASCORE-02 satisfied
-last_updated: "2026-05-10T13:05:05.010Z"
+status: completed
+stopped_at: Completed 31-01-PLAN.md
+last_updated: "2026-05-10T19:16:45.384Z"
 last_activity: 2026-05-10
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_phases: 2
+  total_plans: 11
+  completed_plans: 9
+  percent: 82
 ---
 
 # Project State
@@ -25,16 +25,16 @@ See: .planning/PROJECT.md (updated 2026-05-10 for v1.5 scoping)
 
 ## Current Position
 
-Phase: 30
+Phase: 31
 Plan: Not started
-Status: Ready to execute plan 29-04
+Status: Phase 30 complete — all plans done; ready for Phase 31
 Last activity: 2026-05-10
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
 
-- Total plans completed: 112 (v1.0: 28, v1.1: 18, v1.2: 9, v1.3: 12, v1.4: 27 + carryforward)
+- Total plans completed: 114 (v1.0: 28, v1.1: 18, v1.2: 9, v1.3: 12, v1.4: 27 + carryforward)
 - Total phases completed: 28
 - Latest milestone v1.4: 6 phases / 27 plans / 32 tasks / 35 days / +11K LOC
 
@@ -69,6 +69,10 @@ v1.5 phase ordering decisions:
 - [Phase 29-pure-semantic-ranking-shift]: Reactome under-development notice uses blue (#307BBF) left-border accent (distinct from v1.5 magenta banner); initReactomeDevBanner() mirrors initV15Banner() pattern with localStorage key kewp_reactome_dev_notice_dismissed
 - [Phase 30-reactome-suggestion-card-parity-and-threshold-tuning]: embedding_min_threshold=0.84 for Reactome suggestions: score transformation (power_exponent=4.0) compresses cosine similarity into 0.45-0.85 range; original 0.30-0.55 expected range was pre-calibration assumption; at 0.84 narrow KEs give 1-2 suggestions and broad KE 129 gives exactly 10 (cap is binding)
 - [Phase 30]: embedding_min_threshold=0.83 for Reactome suggestions: initial calibration selected 0.84 but left KE 1395 with 0 suggestions; one step down to 0.83 restored coverage (2 suggestions) while keeping narrow KEs at 2-5 and capping broad KEs at 10
+- [Phase 30/30-02]: s.scores = { final_score: ... } adapter injects WP-compatible field onto Reactome suggestion before passing to createFinalScoreBar — keeps shared helper byte-identical; mutating s in place is safe as each suggestion is rendered once and discarded
+- [Phase 30/30-02]: show-more-reactome-suggestions class name used instead of show-more-suggestions — avoids coupling to WP handler; Reactome toggle uses addClass/removeClass (suggestion-item-hidden) rather than .hide()/.show() to match class-based initial render state
+- [Phase 30/30-02]: getBorderClassForMatch([]) and getMatchTypeBadges([]) called with empty array for Reactome (no match_types under pure-semantic regime) — ensures constant WP "no badges" visual treatment
+- [Phase 31-reactome-viewer-polish]: Split _failed into _scriptFailed (sticky session) + _lastLoadFailed (per-attempt) per D-09; resetForNewKe() wired to KE-change handler
 
 ### Pending Todos
 
@@ -96,7 +100,7 @@ v1.5 phase ordering decisions:
 
 ## Session Continuity
 
-**Last session:** 2026-05-10T13:05:05.001Z
-**Stopped at:** Completed Phase 30 Plan 01 (30-01-PLAN.md) — all 3 tasks done, REASCORE-01 + REASCORE-02 satisfied
+**Last session:** 2026-05-10T19:16:45.373Z
+**Stopped at:** Completed 31-01-PLAN.md
 **Resume file:** None
-**Next action:** Execute plan 29-04 (Reactome pure-semantic ranking, SEMRANK-03)
+**Next action:** Execute Phase 31 (viewer polish — WR-01..WR-04 + ReactomeDiagramEmbed prefetch race)

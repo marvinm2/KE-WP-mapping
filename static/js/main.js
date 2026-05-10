@@ -94,11 +94,18 @@ var ReactomeDiagramEmbed = {
     //                     load-timeout, or Diagram.create() throw. Once true, all
     //                     load() calls reject immediately. NOT reset on KE change.
     //   _lastLoadFailed — per-attempt. Set on loadDiagram runtime exception or
-    //                     per-load timeout (Plan 02). Reset at the start of every
-    //                     fresh load() and on resetForNewKe() (Plan 02 wires).
+    //                     per-load timeout. Reset at the start of every fresh
+    //                     load() and on resetForNewKe().
     _scriptFailed: false,    // sticky session-level — CDN script tag fail or load-timeout
-    _lastLoadFailed: false,  // per-attempt — set by Plan 02's loadDiagram Promise wrapper, reset on every fresh load() / resetForNewKe()
+    _lastLoadFailed: false,  // per-attempt — reset on every fresh load() / resetForNewKe()
     _diagram: null,
+    // Phase 31 Plan 02 — Promise/token/handler-accumulation fields:
+    _pendingFlags: [],            // genes for the most recent load() — read by the bind-once onDiagramLoaded handler (D-05)
+    _loadToken: 0,                // monotonic per load() — older onDiagramLoaded fires whose closure's token mismatches no-op (D-05)
+    _flagGenesInvocations: 0,     // verification counter — manual playbook reads this (D-08)
+    _resolveCurrentLoad: null,    // shared resolver for the in-flight load Promise; bound handler invokes when token matches
+    _rejectCurrentLoad: null,     // matching reject — used by the per-load timeout (D-03)
+    _loadTimeoutId: null,         // per-load timeout handle, cleared on resolve / on next load()
     // CDN URL is intentionally un-versioned — Reactome publishes only a rolling
     // `diagram.nocache.js` build; no version pin and no SRI hash are available.
     // See .planning/phases/27-reactome-pathway-viewer/27-RESEARCH.md §1.
@@ -159,13 +166,17 @@ var ReactomeDiagramEmbed = {
 
     /**
      * Show the parent container, then construct the Diagram instance exactly once.
-     * Returns the diagram instance. Subsequent calls return the cached instance (D-04).
+     * Registers onDiagramLoaded EXACTLY ONCE at construction (D-05 bind-once);
+     * subsequent calls are a no-op past the cached-instance return.
+     * Returns the diagram instance.
      * IMPORTANT: caller must invoke this only after loadScriptOnce() resolves.
      */
     init: function() {
         // Pitfall 6: parent must be visible BEFORE create() so width is read correctly.
         $('#' + this._CONTAINER_ID).show();
         if (this._diagram) return this._diagram;
+
+        var self = this;
         try {
             var width = $('#' + this._FRAME_ID).width() || 950;
             this._diagram = window.Reactome.Diagram.create({
@@ -178,45 +189,141 @@ var ReactomeDiagramEmbed = {
             this._scriptFailed = true;
             throw e;
         }
+
+        // D-05 bind-once. Handler reads the latest _pendingFlags and checks the
+        // captured-at-call-time token against the current module token; older
+        // fires (from prior pathway swaps) no-op. The signature does not give us
+        // a token per fire, so we capture via the closure of _resolveCurrentLoad.
+        this._diagram.onDiagramLoaded(function(/* loadedStId */) {
+            // Apply gene highlights for whatever the most recent load() set up.
+            // _flagGenesInvocations increments inside flagGenes for the manual
+            // verification playbook (D-08).
+            self.flagGenes();
+            // Resolve the in-flight load Promise (if any). _resolveCurrentLoad
+            // already encodes the token-match check — see load() below.
+            if (typeof self._resolveCurrentLoad === 'function') {
+                self._resolveCurrentLoad();
+            }
+        });
+
         return this._diagram;
     },
 
     /**
-     * Race-tolerant per-gene flag loop (D-05 corrected per RESEARCH §2.3).
-     * flagItems accepts a SINGLE string per call; arrays silently fail.
-     * resetFlaggedItems clears the cumulative state from any prior pathway.
+     * Apply gene highlights for the most recent load(). Reads _pendingFlags
+     * (set by load(), possibly updated by Plan 03's gene-Promise resolver).
+     * Increments _flagGenesInvocations for the D-08 verification playbook.
+     * No-arg: genes come from _pendingFlags, not from the caller.
      */
-    flagGenes: function(genes) {
+    flagGenes: function() {
+        this._flagGenesInvocations += 1;
         if (!this._diagram) return;
         try { this._diagram.resetFlaggedItems(); } catch (_) { /* defensive */ }
-        (genes || []).forEach(function(g) {
+        var diagram = this._diagram;
+        (this._pendingFlags || []).forEach(function(g) {
             if (!g) return;
-            try { this._diagram.flagItems(g); } catch (_) { /* per-gene swallow */ }
-        }, this);
+            try { diagram.flagItems(g); } catch (_) { /* per-gene swallow */ }
+        });
     },
 
     /**
-     * Top-level orchestration. Returns a Promise that rejects on the three-layer
-     * failure path so callers can render the error card.
+     * Top-level orchestration. Returns a Promise that:
+     *   - resolves when DiagramJS fires onDiagramLoaded for THIS attempt
+     *     (token match per D-05),
+     *   - rejects on per-load timeout (D-03), synchronous loadDiagram throw,
+     *     or sticky _scriptFailed.
+     * Failure path always sets _lastLoadFailed = true so the caller-side
+     * .catch can render the sibling error overlay (D-01).
      */
     load: function(reactomeId, genes) {
         var self = this;
         return this.loadScriptOnce().then(function() {
-            var diagram = self.init();   // may throw; caught by Promise chain
-            diagram.loadDiagram(reactomeId);
-            diagram.onDiagramLoaded(function(/* loadedStId */) {
-                self.flagGenes(genes);
+            // Begin a fresh attempt: clear per-attempt fail flag, advance token,
+            // store the pending flags so the bind-once onDiagramLoaded handler
+            // applies them (D-05, D-06).
+            self._lastLoadFailed = false;
+            self._loadToken += 1;
+            self._pendingFlags = genes || [];
+            var myToken = self._loadToken;
+
+            // Cancel any in-flight timeout from a prior swap so the new
+            // attempt cleanly supersedes it.
+            if (self._loadTimeoutId) {
+                clearTimeout(self._loadTimeoutId);
+                self._loadTimeoutId = null;
+            }
+
+            return new Promise(function(resolve, reject) {
+                var settled = false;
+
+                self._resolveCurrentLoad = function() {
+                    if (settled) return;
+                    // Token guard: an older onDiagramLoaded fire (from a previous
+                    // load() that hasn't fired yet) must NOT resolve this new
+                    // attempt. The bind-once handler always invokes the latest
+                    // _resolveCurrentLoad — but if a later load() supersedes
+                    // this one, _loadToken has moved past myToken and we no-op.
+                    if (myToken !== self._loadToken) return;
+                    settled = true;
+                    if (self._loadTimeoutId) {
+                        clearTimeout(self._loadTimeoutId);
+                        self._loadTimeoutId = null;
+                    }
+                    resolve();
+                };
+                self._rejectCurrentLoad = function(err) {
+                    if (settled) return;
+                    settled = true;
+                    if (self._loadTimeoutId) {
+                        clearTimeout(self._loadTimeoutId);
+                        self._loadTimeoutId = null;
+                    }
+                    self._lastLoadFailed = true;
+                    // D-07 defensive: clear any stale flags from this aborted
+                    // attempt so a later successful retry starts clean.
+                    self._pendingFlags = [];
+                    try { if (self._diagram) self._diagram.resetFlaggedItems(); } catch (_) { /* defensive */ }
+                    reject(err);
+                };
+
+                var diagram;
+                try {
+                    diagram = self.init();   // bind-once handler installed here
+                } catch (e) {
+                    self._rejectCurrentLoad(e);
+                    return;
+                }
+
+                // D-03 per-load timeout — same 10s ceiling as the script-load
+                // timeout. Symmetric.
+                self._loadTimeoutId = setTimeout(function() {
+                    self._rejectCurrentLoad(new Error('Reactome diagram load timed out'));
+                }, self._LOAD_TIMEOUT_MS);
+
+                // D-02 async surfacing — wrap loadDiagram. Sync throws route to
+                // reject; the async resolution is driven by the bind-once
+                // handler invoking _resolveCurrentLoad above.
+                try {
+                    diagram.loadDiagram(reactomeId);
+                } catch (e) {
+                    self._rejectCurrentLoad(e);
+                }
             });
-            return diagram;
         });
     },
 
     /**
      * Hide the inline embed and clear flags. Instance stays alive — DiagramJS exports
      * no destroy() method (RESEARCH §2.4 / §6). Next load() will reuse the same diagram.
+     * Also hides the sibling error overlay and resets per-attempt state (Plan 02);
+     * _scriptFailed is NOT touched — that is session-level (D-09).
      */
     hide: function() {
         $('#' + this._CONTAINER_ID).hide();
+        $('#reactome-inline-embed-error').hide().empty();
+        $('#' + this._FRAME_ID).show();   // restore frame visibility for next load()
+        this._lastLoadFailed = false;
+        this._pendingFlags = [];
         if (this._diagram) {
             try { this._diagram.resetFlaggedItems(); } catch (_) { /* defensive */ }
         }
@@ -224,17 +331,22 @@ var ReactomeDiagramEmbed = {
 
     /**
      * Reset per-KE state so a new KE selection starts with a clean attempt.
-     * Resets the per-attempt failure flag and hides the sibling error overlay,
-     * but does NOT touch _scriptFailed (script is a session-level resource per
-     * D-09) or _diagram (instance is reused per D-12 / Phase 27 D-04).
+     * Resets the per-attempt failure flag, load token, pending flags, and sibling
+     * error overlay. _scriptFailed is NOT touched (session-level per D-09).
+     * _diagram is NOT touched (instance is reused per D-12 / Phase 27 D-04).
      *
      * Called from the KE-id change handler in KEWPApp.
      */
     resetForNewKe: function() {
         this._lastLoadFailed = false;
-        // Hide sibling error overlay (added in template task above). Frame visibility
-        // is handled by the existing show/hide pattern in selectReactomePathway / hide().
+        this._pendingFlags = [];
+        this._loadToken += 1;     // invalidate any in-flight handler closures
+        if (this._loadTimeoutId) {
+            clearTimeout(this._loadTimeoutId);
+            this._loadTimeoutId = null;
+        }
         $('#reactome-inline-embed-error').hide().empty();
+        $('#' + this._FRAME_ID).show();
     },
 
     /**

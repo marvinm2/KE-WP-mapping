@@ -130,7 +130,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
   4. After a failed load on KE A, switching to KE B starts a clean attempt — the `_failed` flag is scoped to the previous attempt, not sticky (WR-04)
   5. When a curator opens a KE that has genes, `flagItems` is invoked with the resolved gene list — no race condition leaves the diagram with an empty highlight set (VIEWFIX-05)
 **Plans**: 3 plans
-  - [ ] 31-01-PLAN.md — DOM scaffolding (sibling error overlay) + state-shape refactor (`_failed` → `_scriptFailed` + `_lastLoadFailed`) + KE-change reset hook (VIEWFIX-01, VIEWFIX-04 substrate)
+  - [x] 31-01-PLAN.md — DOM scaffolding (sibling error overlay) + state-shape refactor (`_failed` → `_scriptFailed` + `_lastLoadFailed`) + KE-change reset hook (VIEWFIX-01, VIEWFIX-04 substrate)
   - [ ] 31-02-PLAN.md — Promise-wrapped `loadDiagram` + bind-once `onDiagramLoaded` with token-guard + `_flagGenesInvocations` counter + sibling-overlay failure path (VIEWFIX-01, VIEWFIX-02, VIEWFIX-03, VIEWFIX-04)
   - [ ] 31-03-PLAN.md — `prefetchKeGenes` as memoised `Promise<string[]>`; race-tolerant gene-flag application in `selectReactomePathway`; modal awaits gene Promise (VIEWFIX-05)
 
@@ -189,6 +189,6 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 | 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 4/4 | Complete    | 2026-05-07 |
 | 29. Pure-Semantic Ranking Shift | v1.5 | 6/6 | Complete    | 2026-05-10 |
 | 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 2/2 | Complete    | 2026-05-10 |
-| 31. Reactome Viewer Polish | v1.5 | 0/3 | Not started | — |
+| 31. Reactome Viewer Polish | v1.5 | 1/3 | In Progress|  |
 | 32. GO/WP Sibling Debt Sweep | v1.5 | 0/TBD | Not started | — |
 | 33. Baseline Cleanup | v1.5 | 0/TBD | Not started | — |
