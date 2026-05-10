@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Scoring & Polish
-status: "Ready for `/gsd:plan-phase 29`"
-stopped_at: Completed 29-pure-semantic-ranking-shift/29-03-PLAN.md
-last_updated: "2026-05-10T10:56:09.000Z"
-last_activity: "2026-05-10 — Completed plan 29-03 (GO pure-semantic ranking, SEMRANK-02)"
+status: executing
+stopped_at: Completed 29-pure-semantic-ranking-shift/29-02-PLAN.md
+last_updated: "2026-05-10T11:00:58.035Z"
+last_activity: "2026-05-10 — Completed plan 29-03: GO pure-semantic ranking (SEMRANK-02)"
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -60,6 +60,11 @@ v1.5 phase ordering decisions:
 - [Phase 29-pure-semantic-ranking-shift]: ConfigLoader dataclass defaults left at v1.4 values (document history); runtime values come from YAML; parser tolerant of missing ontology_post_combine_boost key
 - [Phase 29-pure-semantic-ranking-shift/29-03]: multi_evidence_bonus fallback default in _combine_go_scores_for changed from 0.05 to 0.0 — safer than relying solely on YAML when config object absent
 - [Phase 29-pure-semantic-ranking-shift/29-03]: test fixtures must use load_config() not get_default_config() — dataclass defaults preserve v1.4 values intentionally; load_config() reads YAML v1.5 values
+- [Phase 29-pure-semantic-ranking-shift]: Use load_config() not get_default_config() in tests requiring v1.5 YAML weights — get_default_config() returns dataclass defaults (v1.4)
+- [Phase 29-pure-semantic-ranking-shift]: method_filter added to /suggest_reactome endpoint for parity with WP/GO; echoed in request_info
+- [Phase 29-pure-semantic-ranking-shift]: Ontology signal removed from combine_scored_items weighted sum (ontology_weight=0.0); applied as post-combine boost — decouples WP ranking from ontology match
+- [Phase 29-pure-semantic-ranking-shift]: multi_evidence_bonus now config-driven (0.0 in v1.5) not hardcoded 0.05 in PathwaySuggestionService
+- [Phase 29-pure-semantic-ranking-shift]: primary_evidence defaults to semantic_similarity in v1.5 (was gene_overlap in v1.4); ontology_tags only when boost fired
 
 ### Pending Todos
 
@@ -87,7 +92,7 @@ v1.5 phase ordering decisions:
 
 ## Session Continuity
 
-**Last session:** 2026-05-10T10:56:09Z
-**Stopped at:** Completed 29-pure-semantic-ranking-shift/29-03-PLAN.md
+**Last session:** 2026-05-10T11:00:47.750Z
+**Stopped at:** Completed 29-pure-semantic-ranking-shift/29-02-PLAN.md
 **Resume file:** None
 **Next action:** Execute plan 29-04 (Reactome pure-semantic ranking, SEMRANK-03)
