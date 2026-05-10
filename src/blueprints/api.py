@@ -604,7 +604,11 @@ def submit_proposal():
                 entry_data.replace("'", '"')
             )  # Second deserialization with quote fix
             ke_id = entry_dict.get("ke_id") or entry_dict.get("KE_ID")
-            wp_id = entry_dict.get("wp_id") or entry_dict.get("WP_ID")
+            wp_id = (
+                entry_dict.get("wp_id")
+                or entry_dict.get("WP_ID")
+                or entry_dict.get("pathway_id")
+            )
 
             if not ke_id or not wp_id:
                 return jsonify({"error": "Invalid entry data format."}), 400

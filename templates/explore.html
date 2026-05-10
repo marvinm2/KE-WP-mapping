@@ -266,29 +266,23 @@
             // Filter state for KE-WP tab
             var wpState = { aopId: null, aopLabel: null, confidence: null };
 
-            // KE-WP AJAX DataTable (serverSide: true - no Jinja2 rows)
+            // KE-WP DataTable (client-side: sort/search handled by DataTables;
+            // AOP + confidence filters round-trip to the API so the SPARQL-resolved
+            // AOP filter still applies. All rows are fetched in one page.)
             var wpTable = $('#datasetTable').DataTable({
-                serverSide: true,
                 processing: true,
+                pageLength: 25,
                 ajax: function(data, callback) {
-                    var params = new URLSearchParams({
-                        page: Math.floor(data.start / data.length) + 1,
-                        per_page: data.length
-                    });
+                    var params = new URLSearchParams({ page: 1, per_page: 200 });
                     if (wpState.aopId) params.set('aop_id', wpState.aopId);
                     if (wpState.confidence) params.set('confidence_level', wpState.confidence);
                     fetch('/api/v1/mappings?' + params.toString(), { headers: { 'Accept': 'application/json' } })
                         .then(function(r) { return r.json(); })
                         .then(function(json) {
-                            callback({
-                                draw: data.draw,
-                                recordsTotal: json.pagination ? json.pagination.total : 0,
-                                recordsFiltered: json.pagination ? json.pagination.total : 0,
-                                data: json.data || []
-                            });
+                            callback({ data: json.data || [] });
                         })
                         .catch(function() {
-                            callback({ draw: data.draw, recordsTotal: 0, recordsFiltered: 0, data: [] });
+                            callback({ data: [] });
                         });
                 },
                 columns: [
@@ -597,28 +591,19 @@
 
                     if (!reactomeTableInitialized) {
                         $('#reactomeDatasetTable').DataTable({
-                            serverSide: true,
                             processing: true,
                             pageLength: 25,
                             ajax: function(data, callback) {
-                                var params = new URLSearchParams({
-                                    page: Math.floor(data.start / data.length) + 1,
-                                    per_page: data.length
-                                });
+                                var params = new URLSearchParams({ page: 1, per_page: 200 });
                                 if (reactomeState.aopId) params.set('aop_id', reactomeState.aopId);
                                 if (reactomeState.confidence) params.set('confidence_level', reactomeState.confidence);
                                 fetch('/api/v1/reactome-mappings?' + params.toString(), { headers: { 'Accept': 'application/json' } })
                                     .then(function(r) { return r.json(); })
                                     .then(function(json) {
-                                        callback({
-                                            draw: data.draw,
-                                            recordsTotal: json.pagination ? json.pagination.total : 0,
-                                            recordsFiltered: json.pagination ? json.pagination.total : 0,
-                                            data: json.data || []
-                                        });
+                                        callback({ data: json.data || [] });
                                     })
                                     .catch(function() {
-                                        callback({ draw: data.draw, recordsTotal: 0, recordsFiltered: 0, data: [] });
+                                        callback({ data: [] });
                                     });
                             },
                             columns: [
