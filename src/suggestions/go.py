@@ -74,6 +74,9 @@ class GoSuggestionService:
         self.go_mf_gene_annotations = {}
         self.go_mf_hierarchy = {}
 
+        # v1.5 pure-semantic: log once per instance when first combine call occurs
+        self._v15_logged = False
+
         self._load_mf_data(
             go_mf_embeddings_path,
             go_mf_name_embeddings_path,
@@ -734,18 +737,26 @@ class GoSuggestionService:
             weights_cfg = getattr(go_config, 'hybrid_weights', {})
             if isinstance(weights_cfg, dict):
                 emb_weight = weights_cfg.get('embedding', 0.55)
-                gene_weight = weights_cfg.get('gene', 0.45)
-                bonus = weights_cfg.get('multi_evidence_bonus', 0.05)
+                gene_weight = weights_cfg.get('gene', 0.0)
+                # Default is 0.0 (v1.5 pure-semantic); v1.4 YAML had 0.05
+                bonus = weights_cfg.get('multi_evidence_bonus', 0.0)
             else:
                 emb_weight = 0.55
-                gene_weight = 0.45
-                bonus = 0.05
+                gene_weight = 0.0
+                bonus = 0.0
         else:
             emb_weight = 0.55
-            gene_weight = 0.45
-            bonus = 0.05
+            gene_weight = 0.0
+            bonus = 0.0
 
         min_threshold = getattr(go_config, 'min_threshold', 0.15) if go_config else 0.15
+
+        if not self._v15_logged:
+            logger.info(
+                "GO BP/MF ranking: pure-semantic v1.5 (embedding=%.2f, gene=%.2f, bonus=%.2f)",
+                emb_weight, gene_weight, bonus,
+            )
+            self._v15_logged = True
 
         results = combine_scored_items(
             scored_lists={'text': embedding_scores, 'gene': gene_scores},
