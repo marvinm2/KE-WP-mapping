@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GO directionality multipliers** (`match_boost: 1.10`, `mismatch_penalty: 0.85`) preserved as separate post-combine adjustments.
 - **WP ontology-tag matches** lifted out of the v1.4 weighted sum (where they carried a 0.15 weight) and reapplied as a post-combine boost (analogue of the GO IC boost), via the new `pathway_suggestion.ontology_post_combine_boost` block in `scoring_config.yaml`.
 - **Reactome ranking simplified** to embedding-only — no IC, no ontology, no size dampening. Phase 30 will tune `min_threshold` and `max_results` for the new regime.
+- Reactome suggestion thresholds re-tuned for pure-semantic regime (Phase 30): `embedding_min_threshold` raised to 0.84 (empirically calibrated from per-KE similarity distributions on 5 calibration KEs spanning Cellular/Tissue/Organ/Individual bio levels), `max_results` capped at 10, `gene_min_threshold` demoted to display-only (0.0). See `scoring_config.yaml::reactome_suggestion` deprecation block and `.planning/phases/30-reactome-suggestion-card-parity-and-threshold-tuning/calibration-distributions.txt` for raw distributions.
 - `combine_scored_items()` now called with `multi_evidence_bonus=0.0` from all three suggestion services. The +0.05 multi-evidence bonus from v1.4 is no longer meaningful when ranking is single-signal.
 
 #### Added

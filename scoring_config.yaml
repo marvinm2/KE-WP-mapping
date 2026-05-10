@@ -607,16 +607,23 @@ reactome_suggestion:
     gene: 0.0           # Display-only chip
     multi_evidence_bonus: 0.0
 
-  min_threshold: 0.15      # Minimum hybrid score to include in results
-  embedding_min_threshold: 0.3   # Minimum embedding similarity
-  gene_min_threshold: 0.05       # Minimum gene overlap score
+  min_threshold: 0.84      # v1.5: with ranking now embedding-only, min_threshold and embedding_min_threshold gate on the same value
+  embedding_min_threshold: 0.84  # v1.5: empirically tuned from per-KE distribution on 5 calibration KEs — see .planning/phases/30-reactome-suggestion-card-parity-and-threshold-tuning/calibration-distributions.txt
+  # ----------------------------------------------------------------------------
+  # DEPRECATED (v1.4): gene_min_threshold gated suggestions on a minimum gene-
+  # overlap score. Under v1.5 pure-semantic ranking (Phase 29), gene overlap is
+  # display-only — see CHANGELOG.md v1.5 for rationale. Set to 0.0 below so the
+  # gate is a no-op; key retained for ConfigLoader schema compatibility.
+  # Prior v1.4 value: 0.05
+  # ----------------------------------------------------------------------------
+  gene_min_threshold: 0.0        # v1.5: display-only, gate disabled
   gene_min_term_size: 10         # Pathways below this gene count get dampened scores
 
   # Name/Description embedding blend
   # Reactome descriptions are short; name carries more signal
   name_weight: 0.70        # Weight for name similarity (description weight = 1 - name_weight)
 
-  max_results: 20          # Maximum suggestions returned
+  max_results: 10          # v1.5: capped at 10 (down from 20) to enforce curated top-N
   use_ke_description: true  # Include KE description in embedding computation
 
 
