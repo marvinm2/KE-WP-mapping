@@ -319,6 +319,11 @@ class ReactomeSuggestionService:
     ) -> List[Dict]:
         """Combine embedding and gene scores with hybrid weighting.
 
+        v1.5: embedding weight=1.0, gene weight=0.0, multi_evidence_bonus=0.0.
+        Gene overlap data is still computed and attached to each item for the
+        frontend chip (gene_overlap, matching_genes, reactome_pathway_gene_count)
+        but does not influence rank order.
+
         Returns a merged list with hybrid_score computed from both signals via
         the shared combine_scored_items helper, then post-processes results to
         restore per-signal scores and gene overlap data.
@@ -330,15 +335,22 @@ class ReactomeSuggestionService:
             if isinstance(weights_cfg, dict):
                 emb_weight = weights_cfg.get('embedding', 0.60)
                 gene_weight = weights_cfg.get('gene', 0.40)
-                bonus = weights_cfg.get('multi_evidence_bonus', 0.05)
+                bonus = weights_cfg.get('multi_evidence_bonus', 0.0)
             else:
                 emb_weight = 0.60
                 gene_weight = 0.40
-                bonus = 0.05
+                bonus = 0.0
         else:
             emb_weight = 0.60
             gene_weight = 0.40
-            bonus = 0.05
+            bonus = 0.0
+
+        if not getattr(self, '_v15_logged', False):
+            logger.info(
+                "Reactome ranking: pure-semantic v1.5 (embedding=%.2f, gene=%.2f, bonus=%.2f)",
+                emb_weight, gene_weight, bonus,
+            )
+            self._v15_logged = True
 
         min_threshold = (
             getattr(reactome_cfg, 'min_threshold', 0.15)
