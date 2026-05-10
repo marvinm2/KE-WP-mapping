@@ -223,6 +223,21 @@ var ReactomeDiagramEmbed = {
     },
 
     /**
+     * Reset per-KE state so a new KE selection starts with a clean attempt.
+     * Resets the per-attempt failure flag and hides the sibling error overlay,
+     * but does NOT touch _scriptFailed (script is a session-level resource per
+     * D-09) or _diagram (instance is reused per D-12 / Phase 27 D-04).
+     *
+     * Called from the KE-id change handler in KEWPApp.
+     */
+    resetForNewKe: function() {
+        this._lastLoadFailed = false;
+        // Hide sibling error overlay (added in template task above). Frame visibility
+        // is handled by the existing show/hide pattern in selectReactomePathway / hide().
+        $('#reactome-inline-embed-error').hide().empty();
+    },
+
+    /**
      * Failure-state HTML. Mirrors PathwayEmbed.buildErrorState shape (main.js:57-62)
      * with the Reactome PathwayBrowser fallback link (Phase 25 D-15 / Phase 26 D-15
      * convention). The reactomeId is HTML-escaped on principle even though
@@ -1473,6 +1488,11 @@ class KEWPApp {
         // Pre-fetch KE genes for mapping modal gene highlighting
         if (keId) {
             this.prefetchKeGenes(keId);
+            // Phase 31 / D-10: reset Reactome embed per-attempt state on KE change.
+            // _scriptFailed is intentionally NOT reset (session-level resource).
+            if (window.ReactomeDiagramEmbed) {
+                window.ReactomeDiagramEmbed.resetForNewKe();
+            }
         }
 
         // Load suggestions for the active tab
