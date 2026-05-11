@@ -1334,6 +1334,43 @@ class MappingModel:
         """
         conn = self.db.get_connection()
         try:
+            # 0. Check for pending new-pair proposal (mapping_id IS NULL).
+            # New-pair proposals aren't linked to a mapping row yet, so the
+            # JOIN below cannot detect them. Query proposals directly by
+            # ke_id/wp_id. (Phase 32 parity with GO's check_go_mapping_*
+            # check_0 path; required so the /submit IntegrityError branch
+            # can reuse this shape on duplicate-pending races.)
+            cursor = conn.execute(
+                """
+                SELECT id, proposed_confidence, proposed_connection_type,
+                       provider_username, created_at, ke_id, wp_id,
+                       ke_title, wp_title
+                FROM proposals
+                WHERE ke_id = ? AND wp_id = ?
+                  AND mapping_id IS NULL AND status = 'pending'
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (ke_id, wp_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "pair_exists": True,
+                    "blocking_type": "pending_proposal",
+                    "existing": {
+                        "proposal_id": row["id"],
+                        "ke_id": row["ke_id"],
+                        "wp_id": row["wp_id"],
+                        "ke_title": row["ke_title"],
+                        "wp_title": row["wp_title"],
+                        "proposed_confidence": row["proposed_confidence"],
+                        "proposed_connection_type": row["proposed_connection_type"],
+                        "submitted_by": row["provider_username"],
+                        "submitted_at": row["created_at"],
+                    },
+                    "actions": ["flag_stale"],
+                }
+
             # 1. Check for pending proposal on the KE-WP pair (highest priority blocking)
             cursor = conn.execute(
                 """

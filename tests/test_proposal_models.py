@@ -403,6 +403,33 @@ class TestPreMigrationCleanup:
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture
+def auth_client_filedb(client, tmp_path, monkeypatch):
+    """Route-test fixture that pins the WP proposal_model + mapping_model
+    to a file-backed SQLite DB (with all migrations run) instead of the
+    default TestingConfig `:memory:` path. `:memory:` is per-connection
+    in SQLite, so the migrations the conftest's `client` fixture runs
+    on its temp file aren't visible to the app's blueprint-bound model
+    instances (which were wired during create_app() to `:memory:`). For
+    a full route-level integration test we need a single file the app's
+    models all share.
+    """
+    from src.blueprints import api as api_module
+
+    db_path = str(tmp_path / "route_test.db")
+    real_db = Database(db_path)  # runs init_db + all migrations
+    real_mapping = api_module.mapping_model
+    real_proposal = api_module.proposal_model
+
+    # Repoint the blueprint-bound models at the file-backed Database.
+    monkeypatch.setattr(real_mapping, "db", real_db)
+    monkeypatch.setattr(real_proposal, "db", real_db)
+
+    with client.session_transaction() as sess:
+        sess["user"] = {"username": "testuser", "email": "test@example.com"}
+    return client
+
+
 class TestSubmitDuplicatePendingRoute:
     """Route-layer regression: /submit returns 409 with the
     check_mapping_exists_with_proposals shape (NOT Reactome's bare
@@ -411,8 +438,9 @@ class TestSubmitDuplicatePendingRoute:
     """
 
     def test_submit_returns_409_with_check_shape_on_duplicate_pending(
-        self, auth_client
+        self, auth_client_filedb
     ):
+        auth_client = auth_client_filedb
         form = {
             "ke_id": "KE 9501",
             "ke_title": "Route race test",

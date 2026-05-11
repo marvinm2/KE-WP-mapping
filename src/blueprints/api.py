@@ -199,6 +199,21 @@ def submit():
             provider_username=created_by,
             suggestion_score=suggestion_score,
         )
+        # Phase 32 H-2 port: the partial-unique index on
+        # proposals(ke_id, wp_id) WHERE status='pending' AND mapping_id IS NULL
+        # rejects concurrent duplicate submits. Surface as 409 using the
+        # existing check_mapping_exists_with_proposals shape (which WP
+        # clients already handle) rather than Reactome's verbatim
+        # {error, blocking_type} shape — see CONTEXT.md L34-39.
+        if proposal_id == ProposalModel.DUPLICATE_PENDING:
+            dup_payload = mapping_model.check_mapping_exists_with_proposals(
+                ke_id, wp_id
+            )
+            logger.info(
+                "Duplicate-pending /submit blocked at DB layer: "
+                "%s -> %s by %s", ke_id, wp_id, created_by,
+            )
+            return jsonify(dup_payload), 409
         if proposal_id:
             logger.info(
                 "New-pair proposal created: %s -> %s by %s (proposal_id=%s)",
