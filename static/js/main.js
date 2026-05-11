@@ -3366,16 +3366,30 @@ This helps identify gaps in existing pathways for future development.">❓</span
         });
     }
 
+    /**
+     * Prefetch the gene list for a KE and memoise the Promise.
+     *
+     * Phase 31 / D-13, D-16:
+     *   _cachedKeGenes[keId] is a Promise<string[]> resolved with the gene array
+     *   (or [] on fetch failure — silent per D-16, the viewer itself is fine).
+     *   Distinguishes "in-flight" from "empty-result" — the v1.4 array-cache
+     *   conflated the two and caused VIEWFIX-05.
+     *
+     * Returns the memoised Promise so callers can `await` directly:
+     *   const genes = await this.prefetchKeGenes(keId);
+     */
     prefetchKeGenes(keId) {
-        if (this._cachedKeGenes[keId] !== undefined) return;
-        this._cachedKeGenes[keId] = [];  // mark as in-flight
-        $.getJSON('/ke_genes/' + encodeURIComponent(keId))
-            .done((data) => {
-                this._cachedKeGenes[keId] = data.genes || [];
-            })
-            .fail(() => {
-                this._cachedKeGenes[keId] = [];  // empty on failure
-            });
+        if (!keId) return Promise.resolve([]);
+        if (this._cachedKeGenes[keId] !== undefined) {
+            return this._cachedKeGenes[keId];
+        }
+        const p = new Promise((resolve) => {
+            $.getJSON('/ke_genes/' + encodeURIComponent(keId))
+                .done((data) => resolve((data && data.genes) || []))
+                .fail(() => resolve([]));   // D-16: silent fail, resolve to [] not reject
+        });
+        this._cachedKeGenes[keId] = p;
+        return p;
     }
 
     loadInlineEmbed(pathwayId) {

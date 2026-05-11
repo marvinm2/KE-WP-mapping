@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Scoring & Polish
 status: completed
-stopped_at: Completed 31-01-PLAN.md
-last_updated: "2026-05-10T19:16:45.384Z"
+stopped_at: Completed 31-02-PLAN.md
+last_updated: "2026-05-11T00:00:00.000Z"
 last_activity: 2026-05-10
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 11
-  completed_plans: 9
-  percent: 82
+  completed_plans: 10
+  percent: 85
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-10 for v1.5 scoping)
 ## Current Position
 
 Phase: 31
-Plan: Not started
-Status: Phase 30 complete — all plans done; ready for Phase 31
-Last activity: 2026-05-10
+Plan: 03 ready to start
+Status: Plan 02 complete — VIEWFIX-01/02/03/04 runtime fixes landed; ready for Plan 03 (gene-prefetch race)
+Last activity: 2026-05-11
 
 ## Performance Metrics
 
@@ -73,6 +73,10 @@ v1.5 phase ordering decisions:
 - [Phase 30/30-02]: show-more-reactome-suggestions class name used instead of show-more-suggestions — avoids coupling to WP handler; Reactome toggle uses addClass/removeClass (suggestion-item-hidden) rather than .hide()/.show() to match class-based initial render state
 - [Phase 30/30-02]: getBorderClassForMatch([]) and getMatchTypeBadges([]) called with empty array for Reactome (no match_types under pure-semantic regime) — ensures constant WP "no badges" visual treatment
 - [Phase 31-reactome-viewer-polish]: Split _failed into _scriptFailed (sticky session) + _lastLoadFailed (per-attempt) per D-09; resetForNewKe() wired to KE-change handler
+- [Phase 31-reactome-viewer-polish/31-02]: bind-once onDiagramLoaded in init() with load-token guard closure — older fires from same-KE pathway swaps no-op via myToken !== _loadToken check (D-05, WR-02)
+- [Phase 31-reactome-viewer-polish/31-02]: Promise wrapper around loadDiagram replaces _resolveCurrentLoad atomically per load(); settled flag inside each Promise closure prevents double-settle
+- [Phase 31-reactome-viewer-polish/31-02]: selectReactomePathway pre-clears sibling overlay and shows frame before load() attempt — visual state is clean at attempt start regardless of prior outcome (D-01)
+- [Phase 31-reactome-viewer-polish/31-02]: hide() restores frame visibility (#reactome-inline-embed-frame.show()) so next load() starts with frame visible; _scriptFailed not touched (D-09)
 
 ### Pending Todos
 
@@ -100,7 +104,7 @@ v1.5 phase ordering decisions:
 
 ## Session Continuity
 
-**Last session:** 2026-05-10T19:16:45.373Z
-**Stopped at:** Completed 31-01-PLAN.md
+**Last session:** 2026-05-11T00:00:00.000Z
+**Stopped at:** Completed 31-02-PLAN.md
 **Resume file:** None
-**Next action:** Execute Phase 31 (viewer polish — WR-01..WR-04 + ReactomeDiagramEmbed prefetch race)
+**Next action:** Execute Phase 31 Plan 03 (gene-prefetch race — async gene-Promise + _pendingFlags integration)
