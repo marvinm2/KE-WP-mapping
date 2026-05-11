@@ -84,3 +84,70 @@ def test_ke_wp_rdf_503_when_generator_emits_prelude_only(client, tmp_path, monke
     assert response.get_json() == {
         "error": "No KE-WP mappings available for RDF export"
     }
+
+
+# ---------------------------------------------------------------------------
+# Plan 32-06 (DEBT-05): sibling tests for KE-GO RDF export route.
+# Same contract as the WP tests above, ported verbatim with go_mapping_model
+# substitution. See Plan 32-06-PLAN.md for context.
+# ---------------------------------------------------------------------------
+
+
+class _EmptyGoMappingModel:
+    """Stand-in for GoMappingModel that always reports zero rows."""
+
+    def get_all_mappings(self):
+        return []
+
+
+def test_ke_go_rdf_returns_503_when_no_mappings(client, tmp_path, monkeypatch):
+    """With zero GO mappings and an isolated cache dir, /exports/rdf/ke-go
+    503s with the canonical error body and writes an empty placeholder file."""
+    monkeypatch.setattr(main_bp_mod, "EXPORT_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(main_bp_mod, "go_mapping_model", _EmptyGoMappingModel())
+
+    response = client.get("/exports/rdf/ke-go")
+    assert response.status_code == 503, (
+        f"Expected 503 on empty graph, got {response.status_code}; "
+        f"body={response.data!r}"
+    )
+    body = response.get_json()
+    assert body == {"error": "No KE-GO mappings available for RDF export"}, (
+        f"Body shape regression: {body!r}"
+    )
+
+    cache_file = tmp_path / "ke-go-mappings.ttl"
+    assert cache_file.exists()
+    assert cache_file.stat().st_size == 0, (
+        f"Cache file is non-empty ({cache_file.stat().st_size} bytes) — "
+        "this means generate_ke_go_turtle([]) emitted a non-empty "
+        "prelude and was NOT short-circuited. The 503 check would "
+        "bypass on subsequent requests."
+    )
+
+
+def test_ke_go_rdf_503_when_generator_emits_prelude_only(client, tmp_path, monkeypatch):
+    """Guards against the case where generate_ke_go_turtle([]) returns
+    a non-empty ``@prefix`` prelude. The route MUST short-circuit BEFORE
+    invoking the generator on empty mappings, not rely on st_size of the
+    serialised result.
+    """
+    monkeypatch.setattr(main_bp_mod, "EXPORT_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(main_bp_mod, "go_mapping_model", _EmptyGoMappingModel())
+
+    monkeypatch.setattr(
+        "src.exporters.rdf_exporter.generate_ke_go_turtle",
+        lambda mappings: (
+            "@prefix dc: <http://purl.org/dc/elements/1.1/> .\n"
+            if not mappings else ""
+        ),
+    )
+
+    response = client.get("/exports/rdf/ke-go")
+    assert response.status_code == 503, (
+        f"Expected 503 even when generator emits prelude, got "
+        f"{response.status_code}; body={response.data!r}"
+    )
+    assert response.get_json() == {
+        "error": "No KE-GO mappings available for RDF export"
+    }
