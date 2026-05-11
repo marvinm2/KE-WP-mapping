@@ -4846,24 +4846,45 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // (D-04 reuse-instance preserved).
         if (window.ReactomeDiagramEmbed) {
             const keId = $('#ke_id').val();
-            const genes = (keId && this._cachedKeGenes[keId]) ? this._cachedKeGenes[keId] : [];
+            // Phase 31 / D-01: clear sibling overlay and show frame before load().
             $('#reactome-inline-embed-error').hide().empty();
             $('#reactome-inline-embed-frame').show();
             $('#reactome-inline-embed').show();
-            window.ReactomeDiagramEmbed.load(reactomeId, genes).catch((err) => {
-                // D-01: render error into the SIBLING overlay, never replace the parent.
-                // D-03: this catch fires for sync init failures, sync loadDiagram throws,
-                //       AND per-load timeouts — all paths now surface the same UI.
+
+            // Phase 31 / D-15: fire load() with [] immediately so the diagram mounts
+            // without waiting on the gene SPARQL Promise. flagGenes will pick up the
+            // resolved genes via the race-tolerant update below.
+            const loadPromise = window.ReactomeDiagramEmbed.load(reactomeId, []);
+
+            loadPromise.catch((err) => {
+                // D-01 / D-03: render error into the SIBLING overlay; mount is preserved.
                 $('#reactome-inline-embed-frame').hide();
                 $('#reactome-inline-embed-error')
                     .html(window.ReactomeDiagramEmbed.buildErrorState(reactomeId))
                     .show();
                 $('#reactome-inline-embed').show();
-                // Log the error class for support diagnostics.
                 if (window.console && console.warn) {
                     console.warn('[ReactomeDiagramEmbed] load failed:', err && err.message);
                 }
             });
+
+            // Phase 31 / D-14, D-15: race-tolerant gene-highlight application.
+            // Capture the load token at the moment we kicked off load() so a later
+            // pathway swap (which advances _loadToken) cannot trigger this branch.
+            if (keId) {
+                const expectedToken = window.ReactomeDiagramEmbed._loadToken;
+                this.prefetchKeGenes(keId).then((genes) => {
+                    if (!window.ReactomeDiagramEmbed) return;
+                    if (window.ReactomeDiagramEmbed._loadToken !== expectedToken) return;   // newer load() superseded
+                    if (window.ReactomeDiagramEmbed._lastLoadFailed) return;                // error card showing
+                    window.ReactomeDiagramEmbed._pendingFlags = genes || [];
+                    // If onDiagramLoaded has already fired (genes resolved AFTER mount),
+                    // we explicitly call flagGenes to apply highlights. If it has NOT
+                    // fired yet, the bind-once handler will pick up _pendingFlags
+                    // when it does — both paths converge.
+                    window.ReactomeDiagramEmbed.flagGenes();
+                });
+            }
         }
     }
 
