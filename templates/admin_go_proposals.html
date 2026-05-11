@@ -125,6 +125,21 @@
         let currentGoProposalId = null;
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+        // Phase 32 review C-1 port: escape user-controlled values before
+        // injecting into innerHTML to prevent stored XSS. go_name, go_id,
+        // ke_title, admin_notes, github_username, etc. flow into the detail
+        // modal and are curator-controlled at proposal-submit time. Mirrors
+        // the policy in admin_reactome_proposals.html.
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // GO scoring config cache for admin dimension preview
         let goScoringConfig = null;
 
@@ -175,16 +190,22 @@
             const labels = { connection: 'Connection (biological relevance)', specificity: 'Specificity (term precision)', evidence: 'Evidence (literature support)' };
             const scores = [3, 2, 1];
             const scoreLabels = { 3: 'High', 2: 'Medium', 1: 'Low' };
+            // Phase 32 review C-1 port: although these values are derived
+            // from hardcoded objects above, CONTEXT.md "no exceptions" policy
+            // requires every interpolation in HTML-producing template
+            // literals to be escaped — future-proof against any of these
+            // becoming data-driven.
+            const dimEsc = escapeHtml(dimension);
             const btns = scores.map(s => {
                 const sel = s === prefilledScore ? ' selected' : '';
-                return `<button type="button" class="btn-option admin-dim-btn${sel}" data-dimension="${dimension}" data-score="${s}">${scoreLabels[s]}</button>`;
+                return `<button type="button" class="btn-option admin-dim-btn${escapeHtml(sel)}" data-dimension="${dimEsc}" data-score="${escapeHtml(String(s))}">${escapeHtml(scoreLabels[s])}</button>`;
             }).join('');
             return `
                 <div class="go-dimension-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-                    <span style="font-weight: 600; min-width: 220px; font-size: 14px;">${labels[dimension]}
-                        <span title="${tooltips[dimension]}" style="cursor: help; font-size: 13px; color: var(--color-text-muted, #6c757d);">&#9432;</span>
+                    <span style="font-weight: 600; min-width: 220px; font-size: 14px;">${escapeHtml(labels[dimension])}
+                        <span title="${escapeHtml(tooltips[dimension])}" style="cursor: help; font-size: 13px; color: var(--color-text-muted, #6c757d);">&#9432;</span>
                     </span>
-                    <div class="btn-group go-btn-group" data-dimension="${dimension}" style="margin: 0;">
+                    <div class="btn-group go-btn-group" data-dimension="${dimEsc}" style="margin: 0;">
                         ${btns}
                     </div>
                 </div>`;
@@ -271,9 +292,14 @@
                                   && cSpec !== null && cSpec !== undefined
                                   && cEv !== null && cEv !== undefined;
 
+            // Pre-escape curator dimension labels per "no exceptions" policy
+            // (even though scoreToLabel returns hardcoded strings).
+            const cConnEsc = escapeHtml(scoreToLabel(cConn));
+            const cSpecEsc = escapeHtml(scoreToLabel(cSpec));
+            const cEvEsc = escapeHtml(scoreToLabel(cEv));
             const curatorScoreHtml = hasCuratorScores
                 ? `<div style="margin-top: 6px; font-size: 13px; color: var(--color-text-muted, #6c757d);">
-                       Curator's assessment: Connection=${scoreToLabel(cConn)}, Specificity=${scoreToLabel(cSpec)}, Evidence=${scoreToLabel(cEv)}
+                       Curator's assessment: Connection=${cConnEsc}, Specificity=${cSpecEsc}, Evidence=${cEvEsc}
                    </div>`
                 : `<div style="margin-top: 6px; font-size: 13px; color: var(--color-text-muted, #6c757d);">No dimension assessment submitted (legacy proposal)</div>`;
 
@@ -288,30 +314,42 @@
             const rawNs = proposal.go_namespace || 'biological_process';
             const nsShort = rawNs === 'molecular_function' ? 'MF' : 'BP';
             const nsBadgeClass = rawNs === 'molecular_function' ? 'badge-go-mf' : 'badge-go-bp';
-            const nsBadgeHtml = `<span class="${nsBadgeClass}" style="margin-left: 6px;">${nsShort}</span>`;
+            // Even though nsShort/nsBadgeClass are derived from a closed set of
+            // hardcoded literals here, CONTEXT.md "no exceptions" policy
+            // requires every interpolation in the modal-body innerHTML to be
+            // escaped — future-proof against go_namespace becoming a
+            // pass-through field.
+            const nsShortEsc = escapeHtml(nsShort);
+            const nsBadgeClassEsc = escapeHtml(nsBadgeClass);
+            const nsBadgeHtml = `<span class="${nsBadgeClassEsc}" style="margin-left: 6px;">${nsShortEsc}</span>`;
+
+            // Status is a DB enum (pending/approved/rejected) but escape both
+            // the class fragment and display text for defense-in-depth.
+            const statusRaw = proposal.status || '';
+            const statusEsc = escapeHtml(statusRaw);
 
             content.innerHTML = `
                 <div style="margin-bottom: 20px;">
                     <h4>Mapping Information</h4>
-                    <div><strong>KE ID:</strong> ${proposal.ke_id || '&mdash;'}</div>
-                    <div><strong>KE Title:</strong> ${proposal.ke_title || '&mdash;'}</div>
-                    <div><strong>GO ID:</strong> ${proposal.go_id || '&mdash;'}</div>
-                    <div><strong>GO Name:</strong> ${proposal.go_name || '&mdash;'}</div>
+                    <div><strong>KE ID:</strong> ${proposal.ke_id ? escapeHtml(proposal.ke_id) : '&mdash;'}</div>
+                    <div><strong>KE Title:</strong> ${proposal.ke_title ? escapeHtml(proposal.ke_title) : '&mdash;'}</div>
+                    <div><strong>GO ID:</strong> ${proposal.go_id ? escapeHtml(proposal.go_id) : '&mdash;'}</div>
+                    <div><strong>GO Name:</strong> ${proposal.go_name ? escapeHtml(proposal.go_name) : '&mdash;'}</div>
                     <div><strong>GO Namespace:</strong> ${nsBadgeHtml}</div>
                 </div>
                 <div style="margin-bottom: 20px;">
                     <h4>Proposed Values</h4>
-                    <div><strong>Connection Type:</strong> ${proposal.new_pair_connection_type || proposal.proposed_connection_type || '&mdash;'}</div>
-                    <div><strong>Confidence Level:</strong> ${proposal.new_pair_confidence_level || proposal.proposed_confidence || '&mdash;'}</div>
-                    <div><strong>BioBERT Score:</strong> ${proposal.suggestion_score !== null && proposal.suggestion_score !== undefined ? Number(proposal.suggestion_score).toFixed(3) : '&mdash;'}</div>
+                    <div><strong>Connection Type:</strong> ${escapeHtml(proposal.new_pair_connection_type || proposal.proposed_connection_type || '') || '&mdash;'}</div>
+                    <div><strong>Confidence Level:</strong> ${escapeHtml(proposal.new_pair_confidence_level || proposal.proposed_confidence || '') || '&mdash;'}</div>
+                    <div><strong>BioBERT Score:</strong> ${proposal.suggestion_score !== null && proposal.suggestion_score !== undefined ? escapeHtml(Number(proposal.suggestion_score).toFixed(3)) : '&mdash;'}</div>
                 </div>
                 <div style="margin-bottom: 20px;">
                     <h4>Submission Details</h4>
-                    <div><strong>Submitted By:</strong> ${proposal.github_username || proposal.user_name || '&mdash;'}</div>
-                    <div><strong>Submitted At:</strong> ${proposal.created_at_formatted || proposal.created_at || '&mdash;'}</div>
-                    <div><strong>Status:</strong> <span class="status-${proposal.status}">${proposal.status}</span></div>
-                    ${proposal.admin_notes ? `<div><strong>Admin Notes:</strong> ${proposal.admin_notes}</div>` : ''}
-                    ${proposal.approved_at_formatted ? `<div><strong>Reviewed At:</strong> ${proposal.approved_at_formatted}</div>` : ''}
+                    <div><strong>Submitted By:</strong> ${escapeHtml(proposal.github_username || proposal.user_name || '') || '&mdash;'}</div>
+                    <div><strong>Submitted At:</strong> ${escapeHtml(proposal.created_at_formatted || proposal.created_at || '') || '&mdash;'}</div>
+                    <div><strong>Status:</strong> <span class="status-${statusEsc}">${statusEsc}</span></div>
+                    ${proposal.admin_notes ? `<div><strong>Admin Notes:</strong> ${escapeHtml(proposal.admin_notes)}</div>` : ''}
+                    ${proposal.approved_at_formatted ? `<div><strong>Reviewed At:</strong> ${escapeHtml(proposal.approved_at_formatted)}</div>` : ''}
                 </div>
                 <div style="margin-bottom: 20px; border-top: 1px solid var(--color-border-light); padding-top: 16px;">
                     <h4 style="margin-bottom: 10px;">Assessment</h4>
