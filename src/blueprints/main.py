@@ -439,9 +439,10 @@ def list_export_formats():
 @main_bp.route("/dataset/metadata")
 def dataset_metadata():
     """Get comprehensive dataset metadata"""
-    if not metadata_manager:
-        return jsonify({"error": "Metadata functionality not available"}), 500
-    
+    if metadata_manager is None:
+        return jsonify({"error": "dataset metadata not configured",
+                        "reason": "metadata_manager unavailable"}), 503
+
     try:
         metadata = metadata_manager.get_current_metadata()
         return jsonify(metadata)
@@ -453,9 +454,10 @@ def dataset_metadata():
 @main_bp.route("/dataset/versions")
 def dataset_versions():
     """Get dataset version history"""
-    if not metadata_manager:
-        return jsonify({"error": "Metadata functionality not available"}), 500
-    
+    if metadata_manager is None:
+        return jsonify({"error": "dataset metadata not configured",
+                        "reason": "metadata_manager unavailable"}), 503
+
     try:
         versions = metadata_manager.get_versions()
         return jsonify({"versions": versions})
@@ -467,9 +469,10 @@ def dataset_versions():
 @main_bp.route("/dataset/citation")
 def dataset_citation():
     """Generate dataset citation in various formats"""
-    if not metadata_manager:
-        return jsonify({"error": "Metadata functionality not available"}), 500
-    
+    if metadata_manager is None:
+        return jsonify({"error": "dataset metadata not configured",
+                        "reason": "metadata_manager unavailable"}), 503
+
     citation_format = request.args.get('format', 'apa').lower()
     
     try:
@@ -500,9 +503,10 @@ def dataset_citation():
 @main_bp.route("/dataset/datacite")
 def datacite_metadata():
     """Get DataCite XML metadata"""
-    if not metadata_manager:
-        return jsonify({"error": "Metadata functionality not available"}), 500
-    
+    if metadata_manager is None:
+        return jsonify({"error": "dataset metadata not configured",
+                        "reason": "metadata_manager unavailable"}), 503
+
     try:
         datacite_xml = metadata_manager.export_datacite_xml()
         
