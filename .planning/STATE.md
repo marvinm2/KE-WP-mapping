@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Scoring & Polish
 status: executing
-stopped_at: Completed 32-03-PLAN.md
-last_updated: "2026-05-11T10:56:06.919Z"
+stopped_at: Completed 32-04-PLAN.md
+last_updated: "2026-05-11T11:04:59.548Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 18
-  completed_plans: 15
-  percent: 83
+  completed_plans: 17
+  percent: 94
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-10 for v1.5 scoping)
 ## Current Position
 
 Phase: 32
-Plan: 5 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-05-11
 
@@ -89,6 +89,10 @@ v1.5 phase ordering decisions:
 - [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: /submit duplicate-pending response REUSES existing check_mapping_exists_with_proposals shape ({pair_exists, blocking_type, existing, actions}) — NOT Reactome's verbatim {error, blocking_type} — existing WP UI clients already handle this shape via /check
 - [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: check_mapping_exists_with_proposals extended with Check 0 branch for pending new-pair proposals (mapping_id IS NULL) — mirrors GO's long-standing equivalent; required for /submit IntegrityError branch to produce the contracted payload shape
 - [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: route-test fixture auth_client_filedb monkey-patches blueprint-bound proposal_model.db + mapping_model.db onto a file-backed Database — TestingConfig :memory: is per-connection in SQLite and cannot support multi-call /submit integration tests
+- [Phase 32]: [Phase 32/32-06]: GO RDF 503 guard ported verbatim from WP (Plan 32-05) and Reactome (Plan 25) — same if mappings: / else: write empty placeholder pattern. Three-way sibling parity (WP, GO, Reactome) now achieved for empty-graph RDF 503 contract.
+- [Phase 32]: [Phase 32/32-06]: Both new GO regression tests fail RED on unmodified route (bare empty-DB and prelude-forcing variants), not just prelude variant — generate_ke_go_turtle([]) emits non-empty prelude even without monkeypatching. Stronger regression signal than plan anticipated.
+- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-04]: GO H-2 port mirrors WP 32-03 verbatim (table+column swap: proposals→ke_go_proposals, wp_id→go_id); same ORDER BY created_at ASC, id ASC keeper-selection invariant with two ordering-invariant tests
+- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-04]: No Check 0 deviation needed for GO (unlike WP 32-03): check_go_mapping_exists_with_proposals already had the pending new-pair branch from long-standing GO sibling work; GO was the inspiration WP had to catch up to
 
 ### Pending Todos
 
@@ -116,7 +120,7 @@ v1.5 phase ordering decisions:
 
 ## Session Continuity
 
-**Last session:** 2026-05-11T10:55:48.861Z
-**Stopped at:** Completed 32-03-PLAN.md
+**Last session:** 2026-05-11T11:04:59.533Z
+**Stopped at:** Completed 32-04-PLAN.md
 **Resume file:** None
 **Next action:** Execute Phase 32 (GO/WP sibling debt sweep — DEBT-01..06)

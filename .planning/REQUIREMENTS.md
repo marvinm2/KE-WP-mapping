@@ -34,9 +34,9 @@
 
 - [x] **DEBT-01**: `admin_go_proposals.html` modal uses XSS-safe rendering (port C-1 fix from `admin_reactome_proposals.html`)
 - [x] **DEBT-02**: `admin_proposals.html` (KE-WP) modal uses XSS-safe rendering (port C-1 fix from `admin_reactome_proposals.html`)
-- [ ] **DEBT-03**: `ke_go_proposals` has partial-unique pending index `(ke_id, go_id) WHERE status='pending' AND mapping_id IS NULL` (port H-2 from Reactome) with race-safe duplicate handling
+- [x] **DEBT-03**: `ke_go_proposals` has partial-unique pending index `(ke_id, go_id) WHERE status='pending' AND mapping_id IS NULL` (port H-2 from Reactome) with race-safe duplicate handling
 - [x] **DEBT-04**: `ke_wp_proposals` has partial-unique pending index `(ke_id, pathway_id) WHERE status='pending' AND mapping_id IS NULL` (port H-2 from Reactome) with race-safe duplicate handling
-- [ ] **DEBT-05**: `download_ke_go_rdf` returns 503 on empty graph (port from Reactome RDF route)
+- [x] **DEBT-05**: `download_ke_go_rdf` returns 503 on empty graph (port from Reactome RDF route)
 - [x] **DEBT-06**: `download_ke_wp_rdf` returns 503 on empty graph (port from Reactome RDF route)
 
 ### Baseline Cleanup
@@ -109,9 +109,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VIEWFIX-05 | Phase 31 | Complete |
 | DEBT-01 | Phase 32 | Complete |
 | DEBT-02 | Phase 32 | Complete |
-| DEBT-03 | Phase 32 | Pending |
+| DEBT-03 | Phase 32 | Complete |
 | DEBT-04 | Phase 32 | Complete |
-| DEBT-05 | Phase 32 | Pending |
+| DEBT-05 | Phase 32 | Complete |
 | DEBT-06 | Phase 32 | Complete |
 | CLEAN-01 | Phase 33 | Pending |
 | CLEAN-02 | Phase 33 | Pending |
