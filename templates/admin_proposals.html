@@ -144,6 +144,22 @@
         // Setup CSRF token for all AJAX requests
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+        // Phase 32 review C-1 port: escape user-controlled values before
+        // injecting into innerHTML to prevent stored XSS. user_name, user_email,
+        // user_affiliation, ke_title, wp_title, admin_notes, github_username
+        // and other proposer-supplied fields flow into the detail modal and
+        // are curator-controlled at proposal-submit time. Mirrors the helper
+        // defined in templates/admin_reactome_proposals.html (Phase 25 review C-1).
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         $(document).ready(function() {
             // Setup DataTable using shared configuration
             $('#proposalsTable').DataTable(
@@ -190,27 +206,35 @@
             const approveBtn = document.getElementById('modalApproveBtn');
             const rejectBtn = document.getElementById('modalRejectBtn');
 
+            // Status is a DB enum (pending/approved/rejected) but escape both
+            // the class fragment and display text for defense-in-depth (mirrors
+            // admin_reactome_proposals.html L191-192).
+            const statusRaw = proposal.status || '';
+            const statusEsc = escapeHtml(statusRaw);
+            const statusTitle = statusRaw ? statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1) : '';
+            const statusTitleEsc = escapeHtml(statusTitle);
+
             let changesHtml = '';
             if (proposal.proposed_delete) {
                 changesHtml = '<div class="btn-danger" style="font-size: 16px; padding: 8px 12px; display: inline-block;">DELETE THIS MAPPING</div>';
             } else {
                 if (proposal.proposed_confidence) {
-                    changesHtml += `<div><strong>Confidence Level:</strong> ${proposal.current_confidence_level} → <strong>${proposal.proposed_confidence}</strong></div>`;
+                    changesHtml += `<div><strong>Confidence Level:</strong> ${escapeHtml(proposal.current_confidence_level)} → <strong>${escapeHtml(proposal.proposed_confidence)}</strong></div>`;
                 }
                 if (proposal.proposed_connection_type) {
-                    changesHtml += `<div><strong>Connection Type:</strong> ${proposal.current_connection_type} → <strong>${proposal.proposed_connection_type}</strong></div>`;
+                    changesHtml += `<div><strong>Connection Type:</strong> ${escapeHtml(proposal.current_connection_type)} → <strong>${escapeHtml(proposal.proposed_connection_type)}</strong></div>`;
                 }
             }
 
             content.innerHTML = `
                 <div style="margin-bottom: 20px;">
                     <h4>Mapping Information</h4>
-                    <div><strong>KE ID:</strong> ${proposal.ke_id}</div>
-                    <div><strong>KE Title:</strong> ${proposal.ke_title}</div>
-                    <div><strong>WP ID:</strong> ${proposal.wp_id}</div>
-                    <div><strong>WP Title:</strong> ${proposal.wp_title}</div>
-                    <div><strong>Current Confidence:</strong> ${proposal.current_confidence_level}</div>
-                    <div><strong>Current Connection:</strong> ${proposal.current_connection_type}</div>
+                    <div><strong>KE ID:</strong> ${escapeHtml(proposal.ke_id)}</div>
+                    <div><strong>KE Title:</strong> ${escapeHtml(proposal.ke_title)}</div>
+                    <div><strong>WP ID:</strong> ${escapeHtml(proposal.wp_id)}</div>
+                    <div><strong>WP Title:</strong> ${escapeHtml(proposal.wp_title)}</div>
+                    <div><strong>Current Confidence:</strong> ${escapeHtml(proposal.current_confidence_level)}</div>
+                    <div><strong>Current Connection:</strong> ${escapeHtml(proposal.current_connection_type)}</div>
                 </div>
 
                 <div class="filter-section" style="margin-bottom: 20px;">
@@ -220,25 +244,25 @@
 
                 <div style="margin-bottom: 20px;">
                     <h4>User Information</h4>
-                    <div><strong>Name:</strong> ${proposal.user_name}</div>
-                    <div><strong>Email:</strong> ${proposal.user_email}</div>
-                    <div><strong>Affiliation:</strong> ${proposal.user_affiliation}</div>
-                    <div><strong>GitHub:</strong> ${proposal.github_username}</div>
-                    <div><strong>Submitted:</strong> ${proposal.created_at_formatted || proposal.created_at}</div>
+                    <div><strong>Name:</strong> ${escapeHtml(proposal.user_name)}</div>
+                    <div><strong>Email:</strong> ${escapeHtml(proposal.user_email)}</div>
+                    <div><strong>Affiliation:</strong> ${escapeHtml(proposal.user_affiliation)}</div>
+                    <div><strong>GitHub:</strong> ${escapeHtml(proposal.github_username)}</div>
+                    <div><strong>Submitted:</strong> ${escapeHtml(proposal.created_at_formatted || proposal.created_at)}</div>
                 </div>
 
                 <div style="margin-bottom: 15px;">
                     <h4>Status</h4>
-                    <div><strong>Current Status:</strong> <span class="status-${proposal.status}">${proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}</span></div>
-                    ${proposal.admin_notes ? `<div><strong>Admin Notes:</strong> ${proposal.admin_notes}</div>` : ''}
-                    ${proposal.approved_by ? `<div><strong>Processed By:</strong> ${proposal.approved_by}</div>` : ''}
-                    ${proposal.rejected_by ? `<div><strong>Processed By:</strong> ${proposal.rejected_by}</div>` : ''}
+                    <div><strong>Current Status:</strong> <span class="status-${statusEsc}">${statusTitleEsc}</span></div>
+                    ${proposal.admin_notes ? `<div><strong>Admin Notes:</strong> ${escapeHtml(proposal.admin_notes)}</div>` : ''}
+                    ${proposal.approved_by ? `<div><strong>Processed By:</strong> ${escapeHtml(proposal.approved_by)}</div>` : ''}
+                    ${proposal.rejected_by ? `<div><strong>Processed By:</strong> ${escapeHtml(proposal.rejected_by)}</div>` : ''}
                 </div>
 
                 <div class="filter-section" style="margin-bottom: 15px;">
                     <h4 style="margin-top: 0;">Admin Details</h4>
                     <div><strong>Suggestion Score:</strong> ${proposal.suggestion_score !== null && proposal.suggestion_score !== undefined ? proposal.suggestion_score.toFixed(3) : '&mdash;'}</div>
-                    <div><strong>Proposal UUID:</strong> <code style="font-size: 12px;">${proposal.uuid || '&mdash;'}</code></div>
+                    <div><strong>Proposal UUID:</strong> <code style="font-size: 12px;">${escapeHtml(proposal.uuid || '&mdash;')}</code></div>
                 </div>
             `;
 
