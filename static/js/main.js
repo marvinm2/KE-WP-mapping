@@ -3404,28 +3404,43 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     openMappingModal(wpId, wpTitle) {
-        var keId = $('#ke_id').val();
-        var genes = (keId && this._cachedKeGenes[keId]) ? this._cachedKeGenes[keId] : [];
+        const keId = $('#ke_id').val();
 
         $('#wpMappingModalTitle').text(wpTitle || wpId);
-        var geneCountText = genes.length > 0 ? genes.length + ' gene' + (genes.length !== 1 ? 's' : '') + ' highlighted' : 'No gene highlighting';
-        $('#wpMappingModalMeta').text('ID: ' + wpId + ' | ' + geneCountText);
         $('#wpMappingModalExtLink').attr('href', 'https://www.wikipathways.org/pathways/' + wpId);
 
-        // Gene list footer
-        var $genesDiv = $('#wpMappingModalGenes');
-        if (genes.length > 0) {
-            $genesDiv.html('<strong>Highlighted genes:</strong> <span class="wp-gene-list">' + genes.join(', ') + '</span>').show();
-        } else {
-            $genesDiv.hide();
-        }
+        // Phase 31 / D-14: open modal chrome immediately; resolve genes async.
+        // Initial meta + gene-list shows a loading state; the iframe mount is
+        // deferred until the gene Promise resolves so the embed gets the right
+        // ?yellow=... params.
+        $('#wpMappingModalMeta').text('ID: ' + wpId + ' | Loading genes…');
+        const $genesDiv = $('#wpMappingModalGenes');
+        $genesDiv.html('<em>Loading highlighted genes…</em>').show();
 
-        // Show modal first so iframe gets real viewport dimensions
         $('#wpMappingModal').addClass('is-visible');
         $('#wpMappingOverlay').show();
 
-        // Mount iframe after modal is visible
-        PathwayEmbed.mountIframe('#wpMappingModalBody', wpId, genes);
+        // Empty the iframe body until genes resolve so we don't mount once
+        // with no highlights then re-mount — single mount per modal open.
+        $('#wpMappingModalBody').empty();
+
+        const genePromise = keId ? this.prefetchKeGenes(keId) : Promise.resolve([]);
+        genePromise.then((genes) => {
+            const geneList = genes || [];
+            const geneCountText = geneList.length > 0
+                ? geneList.length + ' gene' + (geneList.length !== 1 ? 's' : '') + ' highlighted'
+                : 'No gene highlighting';
+            $('#wpMappingModalMeta').text('ID: ' + wpId + ' | ' + geneCountText);
+
+            if (geneList.length > 0) {
+                $genesDiv.html('<strong>Highlighted genes:</strong> <span class="wp-gene-list">' + geneList.join(', ') + '</span>').show();
+            } else {
+                $genesDiv.hide().empty();
+            }
+
+            // Mount iframe AFTER modal is visible AND genes resolved.
+            PathwayEmbed.mountIframe('#wpMappingModalBody', wpId, geneList);
+        });
     }
 
     closeMappingModal() {
