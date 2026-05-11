@@ -145,7 +145,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 **Plans**: 7 plans
   - [x] 32-01-PLAN.md — Port C-1 XSS escapeHtml helper + per-interpolation wrapping to `templates/admin_proposals.html` (DEBT-02)
   - [x] 32-02-PLAN.md — Port C-1 XSS escapeHtml helper + per-interpolation wrapping to `templates/admin_go_proposals.html` (DEBT-01)
-  - [ ] 32-03-PLAN.md — `proposals` table: pre-migration cleanup + partial-unique index + DUPLICATE_PENDING sentinel + /submit route 409 using check_mapping shape (DEBT-04)
+  - [x] 32-03-PLAN.md — `proposals` table: pre-migration cleanup + partial-unique index + DUPLICATE_PENDING sentinel + /submit route 409 using check_mapping shape (DEBT-04)
   - [ ] 32-04-PLAN.md — `ke_go_proposals` table: pre-migration cleanup + partial-unique index + DUPLICATE_PENDING sentinel + /submit_go_mapping 409 using check_go_mapping shape (DEBT-03)
   - [x] 32-05-PLAN.md — `download_ke_wp_rdf`: `if mappings: ... else: write_text('')` short-circuit + empty-graph regression test (DEBT-06)
   - [ ] 32-06-PLAN.md — `download_ke_go_rdf`: `if mappings: ... else: write_text('')` short-circuit + empty-graph regression test (DEBT-05)
@@ -197,5 +197,5 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 | 29. Pure-Semantic Ranking Shift | v1.5 | 6/6 | Complete    | 2026-05-10 |
 | 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 2/2 | Complete    | 2026-05-10 |
 | 31. Reactome Viewer Polish | v1.5 | 3/3 | Complete    | 2026-05-11 |
-| 32. GO/WP Sibling Debt Sweep | v1.5 | 3/7 | In Progress|  |
+| 32. GO/WP Sibling Debt Sweep | v1.5 | 4/7 | In Progress|  |
 | 33. Baseline Cleanup | v1.5 | 0/TBD | Not started | — |

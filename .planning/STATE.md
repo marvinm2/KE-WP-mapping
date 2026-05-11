@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Scoring & Polish
 status: executing
-stopped_at: Completed 32-02-PLAN.md (DEBT-01 satisfied)
-last_updated: "2026-05-11T10:51:41.626Z"
+stopped_at: Completed 32-03-PLAN.md
+last_updated: "2026-05-11T10:56:06.919Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 18
-  completed_plans: 14
-  percent: 78
+  completed_plans: 15
+  percent: 83
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-10 for v1.5 scoping)
 ## Current Position
 
 Phase: 32
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-05-11
 
@@ -85,6 +85,10 @@ v1.5 phase ordering decisions:
 - [Phase 32-go-wp-sibling-debt-sweep]: [Plan 32-02] escapeHtml inlined per-template (not shared utils.js); pre-escape derived locals into *Esc-suffix vars (nsShortEsc, nsBadgeClassEsc, statusEsc, cConnEsc/cSpecEsc/cEvEsc); renderAdminDimensionToggles also escape-wrapped per 'no exceptions' policy
 - [Phase 32]: [Phase 32/32-05]: WP RDF 503 guard ported from Reactome verbatim — if mappings: serialise else: write empty placeholder. Without short-circuit, generate_ke_wp_turtle([]) emits non-empty @prefix prelude (rdflib serialise behaviour), bypassing st_size==0 check and returning 200 + prefix-only Turtle blob instead of contracted 503.
 - [Phase 32]: [Phase 32/32-05]: RDF route tests must monkeypatch module-global mapping_model (per tests/test_reactome_exports.py pattern) — client fixture temp-DB rebind doesn't reach the blueprint module's mapping_model global which is bound once at create_app() time.
+- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: WP proposals H-2 port keeper-selection MUST use ORDER BY created_at ASC, id ASC (created_at PRIMARY, id tiebreaker/fallback) — NOT MIN(p.id) — production data may have id/created_at disagreement from manual fixes/restores; locked-in by two ordering-invariant regression tests in tests/test_proposal_models.py
+- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: /submit duplicate-pending response REUSES existing check_mapping_exists_with_proposals shape ({pair_exists, blocking_type, existing, actions}) — NOT Reactome's verbatim {error, blocking_type} — existing WP UI clients already handle this shape via /check
+- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: check_mapping_exists_with_proposals extended with Check 0 branch for pending new-pair proposals (mapping_id IS NULL) — mirrors GO's long-standing equivalent; required for /submit IntegrityError branch to produce the contracted payload shape
+- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: route-test fixture auth_client_filedb monkey-patches blueprint-bound proposal_model.db + mapping_model.db onto a file-backed Database — TestingConfig :memory: is per-connection in SQLite and cannot support multi-call /submit integration tests
 
 ### Pending Todos
 
@@ -112,7 +116,7 @@ v1.5 phase ordering decisions:
 
 ## Session Continuity
 
-**Last session:** 2026-05-11T10:51:31.715Z
-**Stopped at:** Completed 32-02-PLAN.md (DEBT-01 satisfied)
+**Last session:** 2026-05-11T10:55:48.861Z
+**Stopped at:** Completed 32-03-PLAN.md
 **Resume file:** None
 **Next action:** Execute Phase 32 (GO/WP sibling debt sweep — DEBT-01..06)
