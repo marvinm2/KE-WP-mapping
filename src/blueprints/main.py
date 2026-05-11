@@ -802,8 +802,16 @@ def download_ke_wp_rdf():
     if not cache_path.exists():
         EXPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         mappings = mapping_model.get_all_mappings() if mapping_model else []
-        content = generate_ke_wp_turtle(mappings)
-        cache_path.write_text(content or "", encoding="utf-8")
+        if mappings:
+            content = generate_ke_wp_turtle(mappings)
+            cache_path.write_text(content or "", encoding="utf-8")
+        else:
+            # No mappings → write empty placeholder so the 503 branch fires below.
+            # generate_ke_wp_turtle([]) emits a non-empty @prefix prelude
+            # (rdflib's Graph.serialize always writes prefix declarations),
+            # which would otherwise bypass the st_size == 0 check and return
+            # a half-formed Turtle file to clients.
+            cache_path.write_text("", encoding="utf-8")
     if not cache_path.exists() or cache_path.stat().st_size == 0:
         return jsonify({"error": "No KE-WP mappings available for RDF export"}), 503
     return send_file(str(cache_path), as_attachment=True, download_name="ke-wp-mappings.ttl", mimetype="text/turtle")
