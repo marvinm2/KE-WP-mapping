@@ -5,6 +5,26 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.1] - 2026-05-11
+
+### GO/WP Sibling Debt Sweep (Phase 32)
+
+Parity port of three Reactome fixes to the GO and KE-WP sibling surfaces — no new capability, all surfaces now share the same security and robustness posture.
+
+#### Security
+- **XSS-safe admin modal rendering** ported to `templates/admin_proposals.html` (KE-WP, DEBT-02) and `templates/admin_go_proposals.html` (KE-GO, DEBT-01). Every `${...}` interpolation in the modal-body innerHTML — including proposer-controlled fields (`user_name`, `admin_notes`, `ke_title`, `wp_title` / `go_name`) and locally derived CSS-class fragments (`nsBadgeClass`, status badge classes) — is now wrapped in an inline `escapeHtml(...)` helper copied verbatim from `admin_reactome_proposals.html`.
+
+#### Fixed
+- **Race-safe pending-duplicate detection on KE-WP and KE-GO proposals** (DEBT-03, DEBT-04). Partial-unique indexes `idx_proposals_pending_pair` on `proposals (ke_id, wp_id) WHERE status='pending' AND mapping_id IS NULL` and `idx_go_proposals_pending_pair` on `ke_go_proposals (ke_id, go_id) WHERE status='pending' AND mapping_id IS NULL` close the TOCTOU window that previously let two near-simultaneous submits both insert pending rows for the same pair. The route layer maps the resulting `IntegrityError` to a 409 using each sibling's existing duplicate-detection response shape (`check_mapping_exists_with_proposals` / `check_go_mapping_exists_with_proposals`) — existing UI clients handle the response unchanged.
+- **Migration safety on legacy tables**: a pre-migration cleanup pass auto-resolves any pre-existing duplicate `(ke_id, wp_id|go_id)` pending+new-pair rows by keeping the oldest per pair and rejecting losers with `rejected_by='system:phase-32-migration'` and an explanatory `admin_notes` value referencing the keeper's id. Idempotent (safe to re-run on already-clean data) and wrapped in a transaction so a partial failure rolls back without leaving the index half-created.
+- **`/exports/rdf/ke-wp` and `/exports/rdf/ke-go` now 503 on empty graphs** (DEBT-05, DEBT-06). The previous `st_size == 0` check could be bypassed when the RDF generator emitted a non-empty `@prefix` prelude on empty input — the routes now mirror the Reactome RDF route's `if mappings: ... else: write_text('')` short-circuit, producing the expected `{"error": "No KE-<resource> mappings available for RDF export"}` body when no approved mappings exist.
+
+#### Tests
+- New `tests/test_proposal_models.py` and `tests/test_go_proposal_models.py` mirror the canonical Reactome H-2 test set (`test_partial_unique_index_exists`, `test_concurrent_inserts_blocked`, `test_post_rejection_allows_resubmit`, `test_pre_migration_cleanup_auto_resolves_duplicates`) plus a route-layer 409 shape regression per sibling.
+- New `tests/test_rdf_empty_graph.py` asserts each of the WP and GO RDF routes returns 503 on empty mappings, with an additional variant monkeypatching the Turtle generator to emit a non-empty prelude — proving the short-circuit fires before the `st_size` fallback.
+
+---
+
 ## [2.7.0] - 2026-05-10
 
 ### Pure-Semantic Suggestion Ranking (v1.5)
