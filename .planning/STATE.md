@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Scoring & Polish
-status: completed
-stopped_at: Completed 31-02-PLAN.md
-last_updated: "2026-05-11T00:00:00.000Z"
-last_activity: 2026-05-10
+status: executing
+stopped_at: Completed 32-02-PLAN.md (DEBT-01 satisfied)
+last_updated: "2026-05-11T10:51:41.626Z"
+last_activity: 2026-05-11
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 11
-  completed_plans: 10
-  percent: 85
+  completed_phases: 3
+  total_plans: 18
+  completed_plans: 14
+  percent: 78
 ---
 
 # Project State
@@ -25,16 +25,16 @@ See: .planning/PROJECT.md (updated 2026-05-10 for v1.5 scoping)
 
 ## Current Position
 
-Phase: 31
-Plan: 03 ready to start
-Status: Plan 02 complete — VIEWFIX-01/02/03/04 runtime fixes landed; ready for Plan 03 (gene-prefetch race)
+Phase: 32
+Plan: 4 of 7
+Status: Ready to execute
 Last activity: 2026-05-11
 
 ## Performance Metrics
 
 **Velocity (all milestones):**
 
-- Total plans completed: 114 (v1.0: 28, v1.1: 18, v1.2: 9, v1.3: 12, v1.4: 27 + carryforward)
+- Total plans completed: 117 (v1.0: 28, v1.1: 18, v1.2: 9, v1.3: 12, v1.4: 27 + carryforward)
 - Total phases completed: 28
 - Latest milestone v1.4: 6 phases / 27 plans / 32 tasks / 35 days / +11K LOC
 
@@ -77,6 +77,14 @@ v1.5 phase ordering decisions:
 - [Phase 31-reactome-viewer-polish/31-02]: Promise wrapper around loadDiagram replaces _resolveCurrentLoad atomically per load(); settled flag inside each Promise closure prevents double-settle
 - [Phase 31-reactome-viewer-polish/31-02]: selectReactomePathway pre-clears sibling overlay and shows frame before load() attempt — visual state is clean at attempt start regardless of prior outcome (D-01)
 - [Phase 31-reactome-viewer-polish/31-02]: hide() restores frame visibility (#reactome-inline-embed-frame.show()) so next load() starts with frame visible; _scriptFailed not touched (D-09)
+- [Phase 31-reactome-viewer-polish/31-03]: _cachedKeGenes[keId] is Promise<string[]> not string[] — in-flight distinguishable from empty-result; eliminates VIEWFIX-05 race condition
+- [Phase 31-reactome-viewer-polish/31-03]: prefetchKeGenes returns memoised Promise so callers .then directly; existing fire-and-forget call site at line 1467 unchanged; D-16 .fail() resolves to [] (never rejects)
+- [Phase 31-reactome-viewer-polish/31-03]: selectReactomePathway fires load() immediately with [] for instant mount (D-15); gene Promise .then writes _pendingFlags and calls flagGenes() only when load-token still matches
+- [Phase 31-reactome-viewer-polish/31-03]: openMappingModal defers PathwayEmbed.mountIframe into gene Promise .then — single mount with correct genes; modal chrome opens immediately with "Loading genes…" state (D-14)
+- [Phase 32]: Inline escapeHtml helper in admin_proposals.html (not extracted to utils.js); status badge uses statusEsc + statusTitleEsc for both class fragment and title-cased display text
+- [Phase 32-go-wp-sibling-debt-sweep]: [Plan 32-02] escapeHtml inlined per-template (not shared utils.js); pre-escape derived locals into *Esc-suffix vars (nsShortEsc, nsBadgeClassEsc, statusEsc, cConnEsc/cSpecEsc/cEvEsc); renderAdminDimensionToggles also escape-wrapped per 'no exceptions' policy
+- [Phase 32]: [Phase 32/32-05]: WP RDF 503 guard ported from Reactome verbatim — if mappings: serialise else: write empty placeholder. Without short-circuit, generate_ke_wp_turtle([]) emits non-empty @prefix prelude (rdflib serialise behaviour), bypassing st_size==0 check and returning 200 + prefix-only Turtle blob instead of contracted 503.
+- [Phase 32]: [Phase 32/32-05]: RDF route tests must monkeypatch module-global mapping_model (per tests/test_reactome_exports.py pattern) — client fixture temp-DB rebind doesn't reach the blueprint module's mapping_model global which is bound once at create_app() time.
 
 ### Pending Todos
 
@@ -104,7 +112,7 @@ v1.5 phase ordering decisions:
 
 ## Session Continuity
 
-**Last session:** 2026-05-11T00:00:00.000Z
-**Stopped at:** Completed 31-02-PLAN.md
+**Last session:** 2026-05-11T10:51:31.715Z
+**Stopped at:** Completed 32-02-PLAN.md (DEBT-01 satisfied)
 **Resume file:** None
-**Next action:** Execute Phase 31 Plan 03 (gene-prefetch race — async gene-Promise + _pendingFlags integration)
+**Next action:** Execute Phase 32 (GO/WP sibling debt sweep — DEBT-01..06)

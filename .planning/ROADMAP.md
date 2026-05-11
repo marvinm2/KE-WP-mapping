@@ -83,7 +83,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 
 - [x] **Phase 29: Pure-Semantic Ranking Shift** — Switch WP/GO/Reactome suggestion ranking to BioBERT similarity only; demote gene-overlap to display-only chip (completed 2026-05-10)
 - [x] **Phase 30: Reactome Suggestion Card Parity and Threshold Tuning** — Bring Reactome suggestion-card layout to WP standard; re-tune Reactome thresholds for the new pure-semantic regime (completed 2026-05-10)
-- [ ] **Phase 31: Reactome Viewer Polish** — Fix Phase 27 carry-forward issues in `ReactomeDiagramEmbed` (WR-01..04 + prefetch race)
+- [x] **Phase 31: Reactome Viewer Polish** — Fix Phase 27 carry-forward issues in `ReactomeDiagramEmbed` (WR-01..04 + prefetch race) (completed 2026-05-11)
 - [ ] **Phase 32: GO/WP Sibling Debt Sweep** — Port Reactome's C-1 XSS fix, H-2 partial-unique pending index, and empty-mappings 503 guard to GO/WP equivalents
 - [ ] **Phase 33: Baseline Cleanup** — Resolve dead routes, baseline test failures, and coverage threshold
 
@@ -132,7 +132,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 **Plans**: 3 plans
   - [x] 31-01-PLAN.md — DOM scaffolding (sibling error overlay) + state-shape refactor (`_failed` → `_scriptFailed` + `_lastLoadFailed`) + KE-change reset hook (VIEWFIX-01, VIEWFIX-04 substrate)
   - [x] 31-02-PLAN.md — Promise-wrapped `loadDiagram` + bind-once `onDiagramLoaded` with token-guard + `_flagGenesInvocations` counter + sibling-overlay failure path (VIEWFIX-01, VIEWFIX-02, VIEWFIX-03, VIEWFIX-04)
-  - [ ] 31-03-PLAN.md — `prefetchKeGenes` as memoised `Promise<string[]>`; race-tolerant gene-flag application in `selectReactomePathway`; modal awaits gene Promise (VIEWFIX-05)
+  - [x] 31-03-PLAN.md — `prefetchKeGenes` as memoised `Promise<string[]>`; race-tolerant gene-flag application in `selectReactomePathway`; modal awaits gene Promise (VIEWFIX-05)
 
 ### Phase 32: GO/WP Sibling Debt Sweep
 **Goal**: GO and WP admin/proposal/RDF surfaces have the same security and robustness posture as Reactome — XSS-safe modal rendering, race-safe pending-duplicate detection, and graceful empty-graph responses.
@@ -142,7 +142,14 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
   1. An admin opening a GO or KE-WP proposal modal sees user-supplied content rendered safely — script payloads in proposer-controlled fields are escaped, not executed (parity with Reactome admin modal post-C-1 fix)
   2. Two near-simultaneous proposal submissions for the same KE→GO or KE→WP pair result in exactly one pending row plus a clean duplicate response on the second — no race window where both insert successfully
   3. Hitting `/download_ke_go_rdf` or `/download_ke_wp_rdf` when no approved mappings exist returns a 503 with a clear "no data" body, matching the Reactome RDF route's behaviour — no half-formed Turtle and no 200 with empty graph
-**Plans**: TBD
+**Plans**: 7 plans
+  - [x] 32-01-PLAN.md — Port C-1 XSS escapeHtml helper + per-interpolation wrapping to `templates/admin_proposals.html` (DEBT-02)
+  - [x] 32-02-PLAN.md — Port C-1 XSS escapeHtml helper + per-interpolation wrapping to `templates/admin_go_proposals.html` (DEBT-01)
+  - [ ] 32-03-PLAN.md — `proposals` table: pre-migration cleanup + partial-unique index + DUPLICATE_PENDING sentinel + /submit route 409 using check_mapping shape (DEBT-04)
+  - [ ] 32-04-PLAN.md — `ke_go_proposals` table: pre-migration cleanup + partial-unique index + DUPLICATE_PENDING sentinel + /submit_go_mapping 409 using check_go_mapping shape (DEBT-03)
+  - [x] 32-05-PLAN.md — `download_ke_wp_rdf`: `if mappings: ... else: write_text('')` short-circuit + empty-graph regression test (DEBT-06)
+  - [ ] 32-06-PLAN.md — `download_ke_go_rdf`: `if mappings: ... else: write_text('')` short-circuit + empty-graph regression test (DEBT-05)
+  - [ ] 32-07-PLAN.md — CHANGELOG.md v1.5 entry covering all three concerns (DEBT-01..06)
 
 ### Phase 33: Baseline Cleanup
 **Goal**: The smoke-test surface is clean — no dead 500 routes, the test suite has no pre-existing failures, and coverage either meets the 45% threshold or has the threshold consciously revised with a documented reason.
@@ -189,6 +196,6 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 | 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 4/4 | Complete    | 2026-05-07 |
 | 29. Pure-Semantic Ranking Shift | v1.5 | 6/6 | Complete    | 2026-05-10 |
 | 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 2/2 | Complete    | 2026-05-10 |
-| 31. Reactome Viewer Polish | v1.5 | 2/3 | In Progress|  |
-| 32. GO/WP Sibling Debt Sweep | v1.5 | 0/TBD | Not started | — |
+| 31. Reactome Viewer Polish | v1.5 | 3/3 | Complete    | 2026-05-11 |
+| 32. GO/WP Sibling Debt Sweep | v1.5 | 3/7 | In Progress|  |
 | 33. Baseline Cleanup | v1.5 | 0/TBD | Not started | — |
