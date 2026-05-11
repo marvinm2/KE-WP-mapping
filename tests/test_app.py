@@ -23,10 +23,19 @@ class TestRoutes:
         assert b"Explore" in response.data
 
     def test_login_redirect(self, client):
-        """Test login route redirects to GitHub"""
-        response = client.get("/login")
+        """Test login route redirects (multi-provider; Phase 14)."""
+        # Phase 14 moved /login → /login/<provider>. Hitting /login/github
+        # must return 302 — either to github.com/login/oauth/authorize when
+        # the OAuth client is wired, or to main.index when it isn't.
+        # Either outcome proves the route exists and dispatched.
+        response = client.get("/login/github")
         assert response.status_code == 302
-        # Should redirect to GitHub OAuth
+        location = response.headers.get("Location", "")
+        assert (
+            "github.com/login/oauth/authorize" in location
+            or location.endswith("/")
+            or location.endswith("/index")
+        ), f"Unexpected Location after /login/github redirect: {location!r}"
 
     def test_logout(self, auth_client):
         """Test logout functionality"""
