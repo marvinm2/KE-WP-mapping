@@ -84,7 +84,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 - [x] **Phase 29: Pure-Semantic Ranking Shift** — Switch WP/GO/Reactome suggestion ranking to BioBERT similarity only; demote gene-overlap to display-only chip (completed 2026-05-10)
 - [x] **Phase 30: Reactome Suggestion Card Parity and Threshold Tuning** — Bring Reactome suggestion-card layout to WP standard; re-tune Reactome thresholds for the new pure-semantic regime (completed 2026-05-10)
 - [x] **Phase 31: Reactome Viewer Polish** — Fix Phase 27 carry-forward issues in `ReactomeDiagramEmbed` (WR-01..04 + prefetch race) (completed 2026-05-11)
-- [ ] **Phase 32: GO/WP Sibling Debt Sweep** — Port Reactome's C-1 XSS fix, H-2 partial-unique pending index, and empty-mappings 503 guard to GO/WP equivalents
+- [x] **Phase 32: GO/WP Sibling Debt Sweep** — Port Reactome's C-1 XSS fix, H-2 partial-unique pending index, and empty-mappings 503 guard to GO/WP equivalents (completed 2026-05-11)
 - [ ] **Phase 33: Baseline Cleanup** — Resolve dead routes, baseline test failures, and coverage threshold
 
 ## Phase Details
@@ -149,7 +149,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
   - [x] 32-04-PLAN.md — `ke_go_proposals` table: pre-migration cleanup + partial-unique index + DUPLICATE_PENDING sentinel + /submit_go_mapping 409 using check_go_mapping shape (DEBT-03)
   - [x] 32-05-PLAN.md — `download_ke_wp_rdf`: `if mappings: ... else: write_text('')` short-circuit + empty-graph regression test (DEBT-06)
   - [x] 32-06-PLAN.md — `download_ke_go_rdf`: `if mappings: ... else: write_text('')` short-circuit + empty-graph regression test (DEBT-05)
-  - [ ] 32-07-PLAN.md — CHANGELOG.md v1.5 entry covering all three concerns (DEBT-01..06)
+  - [x] 32-07-PLAN.md — CHANGELOG.md v1.5 entry covering all three concerns (DEBT-01..06)
 
 ### Phase 33: Baseline Cleanup
 **Goal**: The smoke-test surface is clean — no dead 500 routes, the test suite has no pre-existing failures, and coverage either meets the 45% threshold or has the threshold consciously revised with a documented reason.
@@ -197,5 +197,5 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 | 29. Pure-Semantic Ranking Shift | v1.5 | 6/6 | Complete    | 2026-05-10 |
 | 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 2/2 | Complete    | 2026-05-10 |
 | 31. Reactome Viewer Polish | v1.5 | 3/3 | Complete    | 2026-05-11 |
-| 32. GO/WP Sibling Debt Sweep | v1.5 | 6/7 | In Progress|  |
+| 32. GO/WP Sibling Debt Sweep | v1.5 | 7/7 | Complete   | 2026-05-11 |
 | 33. Baseline Cleanup | v1.5 | 0/TBD | Not started | — |
