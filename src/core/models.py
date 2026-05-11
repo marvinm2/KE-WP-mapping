@@ -322,6 +322,11 @@ class Database:
             # (legacy table predates this constraint by many phases).
             self._migrate_proposals_pending_unique_index(conn)
 
+            # Phase 32 review H-2 port (GO sibling): same partial-unique
+            # guarantee for `ke_go_proposals`, with a parallel pre-migration
+            # cleanup pass.
+            self._migrate_go_proposals_pending_unique_index(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -1102,6 +1107,100 @@ class Database:
         except Exception as e:
             logger.error(
                 "Error in Phase 32 H-2 migration on proposals: %s", e
+            )
+            conn.rollback()
+            raise
+
+    def _migrate_go_proposals_pending_unique_index(self, conn):
+        """Phase 32 H-2 port (GO sibling): enforce DB-level uniqueness on
+        pending new-pair GO proposals.
+
+        Like the WP `proposals` table, `ke_go_proposals` predates this
+        constraint by many phases — prod data may contain duplicate
+        (ke_id, go_id) rows where status='pending' AND mapping_id IS NULL.
+        A naked CREATE UNIQUE INDEX would fail and crash startup.
+
+        Run a cleanup pass first: keep the OLDEST pending+new-pair row
+        per (ke_id, go_id) sorted by `created_at ASC, id ASC` — created_at
+        is the PRIMARY sort key, id is only the tiebreaker / NULL fallback
+        (Phase 32 CONTEXT.md L27 locked decision). Auto-reject the
+        losers with the EXACT migration strings, then create the
+        partial-unique index. Wrap cleanup + index in one transaction
+        so a partial failure rolls back cleanly.
+
+        Idempotent: a second run finds zero duplicates → no-ops.
+        No data is deleted; auto-rejected rows stay in-table, fully
+        attributable to the migration via `rejected_by`.
+
+        WARNING: do NOT use `MIN(p.id)` as a keeper-selection shortcut —
+        production data may have id/created_at disagreement (manual
+        fixes, restores, imports), and MIN(id) would pick the wrong row.
+        """
+        try:
+            # 1. Cleanup pass: find duplicate pending+new-pair rows.
+            #    Keeper per (ke_id, go_id) = ORDER BY created_at ASC,
+            #    id ASC LIMIT 1 (created_at primary, id fallback).
+            losers = conn.execute(
+                """
+                SELECT p.id AS loser_id, p.ke_id, p.go_id,
+                       (SELECT p2.id
+                        FROM ke_go_proposals p2
+                        WHERE p2.ke_id = p.ke_id
+                          AND p2.go_id = p.go_id
+                          AND p2.status = 'pending'
+                          AND p2.mapping_id IS NULL
+                        ORDER BY p2.created_at ASC, p2.id ASC
+                        LIMIT 1) AS keeper_id
+                FROM ke_go_proposals p
+                WHERE p.status = 'pending'
+                  AND p.mapping_id IS NULL
+                  AND p.id != (
+                      SELECT p3.id
+                      FROM ke_go_proposals p3
+                      WHERE p3.ke_id = p.ke_id
+                        AND p3.go_id = p.go_id
+                        AND p3.status = 'pending'
+                        AND p3.mapping_id IS NULL
+                      ORDER BY p3.created_at ASC, p3.id ASC
+                      LIMIT 1
+                  )
+                """
+            ).fetchall()
+            for row in losers:
+                conn.execute(
+                    """
+                    UPDATE ke_go_proposals
+                    SET status = 'rejected',
+                        admin_notes = ?,
+                        rejected_by = 'system:phase-32-migration',
+                        rejected_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (
+                        f"Auto-resolved by Phase 32 H-2 migration: "
+                        f"superseded by older pending proposal "
+                        f"#{row['keeper_id']}",
+                        row["loser_id"],
+                    ),
+                )
+            # 2. Create the partial-unique index.
+            conn.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS
+                    idx_go_proposals_pending_pair
+                ON ke_go_proposals (ke_id, go_id)
+                WHERE status = 'pending' AND mapping_id IS NULL
+                """
+            )
+            conn.commit()
+            logger.info(
+                "Migrated ke_go_proposals: auto-rejected %d duplicate "
+                "pending new-pair rows; added partial-unique index on "
+                "(ke_id, go_id)", len(losers),
+            )
+        except Exception as e:
+            logger.error(
+                "Error in Phase 32 H-2 migration on ke_go_proposals: %s", e
             )
             conn.rollback()
             raise
@@ -2351,6 +2450,12 @@ class GoMappingModel:
 
 
 class GoProposalModel:
+    # Sentinel returned from create_new_pair_go_proposal when the
+    # partial-unique index on (ke_id, go_id) WHERE status='pending'
+    # AND mapping_id IS NULL rejects a concurrent insert (Phase 32
+    # H-2 port from ReactomeProposalModel / ProposalModel).
+    DUPLICATE_PENDING = "duplicate_pending"
+
     def __init__(self, db: Database):
         self.db = db
 
@@ -2473,6 +2578,18 @@ class GoProposalModel:
                 proposal_uuid,
             )
             return cursor.lastrowid
+        except sqlite3.IntegrityError as e:
+            # Partial-unique index on (ke_id, go_id) WHERE status='pending'
+            # AND mapping_id IS NULL rejected a concurrent duplicate. Surface
+            # the race via the DUPLICATE_PENDING sentinel; the /submit_go_mapping
+            # route maps it to a 409 using check_go_mapping_exists_with_proposals
+            # response shape (Phase 32 H-2 port).
+            logger.warning(
+                "Duplicate pending GO proposal blocked: KE=%s GO=%s (%s)",
+                ke_id, go_id, e,
+            )
+            conn.rollback()
+            return self.DUPLICATE_PENDING
         except Exception as e:
             logger.error("Error creating new-pair GO proposal: %s", e)
             conn.rollback()
