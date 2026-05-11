@@ -41,11 +41,11 @@
 
 ### Baseline Cleanup
 
-- [ ] **CLEAN-01**: `/confidence_assessment` route either renders correctly with a real template or is removed cleanly (no 500)
-- [ ] **CLEAN-02**: `/dataset/{metadata,versions,citation,datacite}` either provisions a working `metadata_manager` (Zenodo/DataCite creds) or is downgraded to 503 / hidden behind a feature flag
-- [ ] **CLEAN-03**: `test_login_redirect` passes (root-cause Phase 14 OAuth route drift)
-- [ ] **CLEAN-04**: `test_guest_login_page_renders` passes
-- [ ] **CLEAN-05**: Test coverage at or above the 45% threshold OR threshold downgraded with a documented rationale
+- [x] **CLEAN-01**: `/confidence_assessment` route either renders correctly with a real template or is removed cleanly (no 500)
+- [x] **CLEAN-02**: `/dataset/{metadata,versions,citation,datacite}` either provisions a working `metadata_manager` (Zenodo/DataCite creds) or is downgraded to 503 / hidden behind a feature flag
+- [x] **CLEAN-03**: `test_login_redirect` passes (root-cause Phase 14 OAuth route drift)
+- [x] **CLEAN-04**: `test_guest_login_page_renders` passes
+- [x] **CLEAN-05**: Test coverage at or above the 45% threshold OR threshold downgraded with a documented rationale
 
 ## v2 Requirements
 
@@ -113,11 +113,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEBT-04 | Phase 32 | Complete |
 | DEBT-05 | Phase 32 | Complete |
 | DEBT-06 | Phase 32 | Complete |
-| CLEAN-01 | Phase 33 | Pending |
-| CLEAN-02 | Phase 33 | Pending |
-| CLEAN-03 | Phase 33 | Pending |
-| CLEAN-04 | Phase 33 | Pending |
-| CLEAN-05 | Phase 33 | Pending |
+| CLEAN-01 | Phase 33 | Complete |
+| CLEAN-02 | Phase 33 | Complete |
+| CLEAN-03 | Phase 33 | Complete |
+| CLEAN-04 | Phase 33 | Complete |
+| CLEAN-05 | Phase 33 | Complete |
 
 **Coverage:**
 - v1.5 requirements: 24 total

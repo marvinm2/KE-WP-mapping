@@ -85,7 +85,7 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 - [x] **Phase 30: Reactome Suggestion Card Parity and Threshold Tuning** — Bring Reactome suggestion-card layout to WP standard; re-tune Reactome thresholds for the new pure-semantic regime (completed 2026-05-10)
 - [x] **Phase 31: Reactome Viewer Polish** — Fix Phase 27 carry-forward issues in `ReactomeDiagramEmbed` (WR-01..04 + prefetch race) (completed 2026-05-11)
 - [x] **Phase 32: GO/WP Sibling Debt Sweep** — Port Reactome's C-1 XSS fix, H-2 partial-unique pending index, and empty-mappings 503 guard to GO/WP equivalents (completed 2026-05-11)
-- [ ] **Phase 33: Baseline Cleanup** — Resolve dead routes, baseline test failures, and coverage threshold
+- [x] **Phase 33: Baseline Cleanup** — Resolve dead routes, baseline test failures, and coverage threshold (completed 2026-05-11)
 
 ## Phase Details
 
@@ -160,7 +160,10 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
   2. Hitting `/dataset/{metadata,versions,citation,datacite}` returns either a working response (when Zenodo/DataCite credentials are provisioned) or a clean 503 / hidden-by-feature-flag — never the current `metadata_manager`-unconfigured 500
   3. `pytest` runs with `test_login_redirect` and `test_guest_login_page_renders` passing (root-cause of Phase 14 OAuth route drift addressed)
   4. The CI coverage gate is green: either coverage is at or above 45%, or the threshold has been revised with a documented rationale committed alongside the config change
-**Plans**: TBD
+**Plans**: 3 plans
+  - [x] 33-01-PLAN.md — Remove dead `/confidence_assessment` route + downgrade `/dataset/*` unconfigured 500 → 503 (CLEAN-01, CLEAN-02)
+  - [x] 33-02-PLAN.md — Fix `test_login_redirect` and `test_guest_login_page_renders` against post-Phase-14 OAuth route shape (CLEAN-03, CLEAN-04)
+  - [x] 33-03-PLAN.md — Lower pytest `--cov-fail-under` 45 → 40 with inline + CHANGELOG rationale (CLEAN-05)
 
 ## Progress
 
@@ -197,5 +200,5 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 | 29. Pure-Semantic Ranking Shift | v1.5 | 6/6 | Complete    | 2026-05-10 |
 | 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 2/2 | Complete    | 2026-05-10 |
 | 31. Reactome Viewer Polish | v1.5 | 3/3 | Complete    | 2026-05-11 |
-| 32. GO/WP Sibling Debt Sweep | v1.5 | 7/7 | Complete   | 2026-05-11 |
-| 33. Baseline Cleanup | v1.5 | 0/TBD | Not started | — |
+| 32. GO/WP Sibling Debt Sweep | v1.5 | 7/7 | Complete    | 2026-05-11 |
+| 33. Baseline Cleanup | v1.5 | 3/3 | Complete   | 2026-05-11 |
