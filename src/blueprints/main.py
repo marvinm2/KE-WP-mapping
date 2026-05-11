@@ -305,13 +305,6 @@ def pw_details():
     return render_template("pw-details.html")
 
 
-@main_bp.route("/confidence_assessment")
-@monitor_performance
-def confidence_assessment():
-    """Confidence assessment page"""
-    return render_template("confidence-assessment.html")
-
-
 # ========== Enhanced Export Routes ==========
 
 @main_bp.route("/export/<format_name>")
