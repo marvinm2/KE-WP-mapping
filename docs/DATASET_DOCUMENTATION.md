@@ -419,7 +419,8 @@ Full DataCite metadata available at: `/dataset/datacite`
 ### Source Data Licenses
 The Builder re-uses four external knowledge resources at runtime. Each carries its own upstream licence:
 
-- **AOP-Wiki**: Creative Commons Attribution 4.0 International (CC BY 4.0)
+<!-- TODO(license-verify): AOP-Wiki licence below is unverified; the pre-2026-05 version of this doc listed it as CC0 1.0. Confirm against the canonical AOP-Wiki terms page before next minor release and update both this list and docs/DMP.md §1 accordingly. -->
+- **AOP-Wiki**: Creative Commons Attribution 4.0 International (CC BY 4.0) *(citation pending verification)*
 - **WikiPathways**: Creative Commons Zero 1.0 Universal (CC0 1.0, Public Domain)
 - **Gene Ontology** (incl. UniProt-GOA human annotations): Creative Commons Attribution 4.0 International (CC BY 4.0)
 - **Reactome**: Creative Commons Attribution 4.0 International (CC BY 4.0)
