@@ -132,6 +132,13 @@ def _default_rows():
 
 class TestSerializer:
     def test_csv_fields_constant(self):
+        """Reactome CSV fields constant — Phase 34 ASMT-07 shape.
+
+        Phase 34 added the four assessment-answer columns + assessment_version
+        + connection_type to the Reactome serializer (sibling parity with WP).
+        The remaining forbidden entries guard against GO-specific fields
+        leaking into the Reactome shape.
+        """
         from src.blueprints.v1_api import _REACTOME_MAPPING_CSV_FIELDS
 
         assert _REACTOME_MAPPING_CSV_FIELDS[0] == "uuid"
@@ -143,13 +150,28 @@ class TestSerializer:
         # No GO-specific fields leak in
         for forbidden in ("go_term_id", "go_term_name", "go_namespace",
                           "go_direction", "go_definition", "go_ic", "go_depth",
-                          "connection_type", "assessment_version",
                           "connection_score", "specificity_score", "evidence_score"):
             assert forbidden not in _REACTOME_MAPPING_CSV_FIELDS, (
                 f"Forbidden field present: {forbidden}"
             )
+        # Phase 34 ASMT-07: connection_type + assessment_version + the four
+        # proposed_* answer columns are now LEGITIMATE Reactome CSV fields
+        # (sibling parity with WP). Positive assertion locks the shape.
+        for required in ("connection_type", "assessment_version",
+                          "proposed_relationship", "proposed_basis",
+                          "proposed_specificity", "proposed_coverage"):
+            assert required in _REACTOME_MAPPING_CSV_FIELDS, (
+                f"Required Phase 34 field missing: {required}"
+            )
 
     def test_serialize_basic_shape(self):
+        """Reactome serializer shape — Phase 34 ASMT-07 nested assessment object.
+
+        Phase 34 lifted connection_type to a legitimate top-level Reactome key
+        and added a nested 'assessment' object (sibling parity with WP).
+        The remaining forbidden entries guard against GO-specific fields
+        leaking into the Reactome shape.
+        """
         from src.blueprints.v1_api import _serialize_reactome_mapping
 
         row = {
@@ -178,9 +200,23 @@ class TestSerializer:
         # GO-specific keys must not leak in
         for forbidden in ("go_term_id", "go_term_name", "go_namespace",
                           "go_direction", "go_definition", "go_ic", "go_depth",
-                          "connection_type", "assessment_version",
                           "connection_score", "specificity_score", "evidence_score"):
             assert forbidden not in out, f"Forbidden key in output: {forbidden}"
+
+        # Phase 34 ASMT-07 positive assertions: nested assessment object present;
+        # legacy v1 row defaults to version='v1' with NULL answer fields.
+        assert "assessment" in out
+        assert out["assessment"]["version"] in ("v1", "v2")
+        assert "relationship" in out["assessment"]
+        assert "basis" in out["assessment"]
+        assert "specificity" in out["assessment"]
+        assert "coverage" in out["assessment"]
+        # Legacy row (no proposed_* in input) → all four answer fields are NULL
+        assert out["assessment"]["relationship"] is None
+        assert out["assessment"]["basis"] is None
+        assert out["assessment"]["specificity"] is None
+        assert out["assessment"]["coverage"] is None
+        assert out["assessment"]["version"] == "v1"
 
     def test_serialize_enrichment_fallback(self):
         """When metadata/counts globals are unset/None, serializer must not raise."""

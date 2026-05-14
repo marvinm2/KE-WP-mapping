@@ -375,3 +375,126 @@ class TestAopFilter:
         assert response.status_code == 400
         data = response.get_json()
         assert "error" in data
+
+
+# ---------------------------------------------------------------------------
+# Phase 34 ASMT-07 — WP serializer parity with Reactome
+# ---------------------------------------------------------------------------
+
+class TestAssessmentShape:
+    """Phase 34 ASMT-07 — WP serializer parity with Reactome.
+
+    Mirrors tests/test_v1_api_reactome.py::TestSerializer assertions against
+    the WP serializer. The two resources MUST emit the same nested-object
+    envelope (CONTEXT.md sibling-parity invariant).
+    """
+
+    def test_csv_fields_present(self):
+        """Phase 34 fields appended at the END of _MAPPING_CSV_FIELDS."""
+        from src.blueprints.v1_api import _MAPPING_CSV_FIELDS
+
+        for required in ("connection_type", "assessment_version",
+                          "proposed_relationship", "proposed_basis",
+                          "proposed_specificity", "proposed_coverage"):
+            assert required in _MAPPING_CSV_FIELDS, (
+                f"Required Phase 34 field missing from _MAPPING_CSV_FIELDS: "
+                f"{required}"
+            )
+        # New columns must be at the END (back-compat for column-positional
+        # consumers — see plan 34-04 task 1 step 3).
+        tail = _MAPPING_CSV_FIELDS[-5:]
+        assert tail == [
+            "proposed_relationship", "proposed_basis", "proposed_specificity",
+            "proposed_coverage", "assessment_version",
+        ]
+
+    def test_serialize_emits_assessment(self):
+        """v2 row (all four answers + version='v2') round-trips through serializer."""
+        from src.blueprints.v1_api import _serialize_mapping
+
+        row = {
+            "uuid": "x", "ke_id": "KE 1", "ke_title": "t",
+            "wp_id": "WP1", "wp_title": "p", "confidence_level": "High",
+            "connection_type": "causative",
+            "proposed_relationship": "causative",
+            "proposed_basis": "known",
+            "proposed_specificity": "specific",
+            "proposed_coverage": "complete",
+            "assessment_version": "v2",
+        }
+        out = _serialize_mapping(row)
+        assert out["assessment"] == {
+            "relationship": "causative",
+            "basis": "known",
+            "specificity": "specific",
+            "coverage": "complete",
+            "version": "v2",
+        }
+
+    def test_legacy_v1_serializes_with_null_answers(self):
+        """Pre-Phase-34 row (no proposed_*, no assessment_version) → version='v1', NULLs."""
+        from src.blueprints.v1_api import _serialize_mapping
+
+        row = {
+            "uuid": "x", "ke_id": "KE 1", "ke_title": "t",
+            "wp_id": "WP1", "wp_title": "p", "confidence_level": "Low",
+            # No assessment_version, no proposed_* — simulates a v1 legacy row
+            # before plan 34-01's migration ran (or a row whose answer columns
+            # are all NULL after migration).
+        }
+        out = _serialize_mapping(row)
+        assert out["assessment"]["version"] == "v1"
+        assert out["assessment"]["relationship"] is None
+        assert out["assessment"]["basis"] is None
+        assert out["assessment"]["specificity"] is None
+        assert out["assessment"]["coverage"] is None
+
+    def test_flatten_for_csv_lifts_assessment(self):
+        """_flatten_for_csv lifts the nested assessment object to top-level columns."""
+        from src.blueprints.v1_api import _flatten_for_csv
+
+        serialized = {
+            "uuid": "x", "ke_id": "KE 1", "ke_name": "t",
+            "pathway_id": "WP1", "pathway_title": "p",
+            "confidence_level": "High",
+            "connection_type": "causative",
+            "ke_aop_context": ["AOP 1"],
+            "ke_bio_level": None,
+            "assessment": {
+                "relationship": "causative",
+                "basis": "known",
+                "specificity": "specific",
+                "coverage": "complete",
+                "version": "v2",
+            },
+            "provenance": {
+                "suggestion_score": 0.9,
+                "approved_by": "alice",
+                "approved_at": "2026-01-01",
+                "proposed_by": "alice",
+            },
+        }
+        flat = _flatten_for_csv(serialized)
+        assert flat["proposed_relationship"] == "causative"
+        assert flat["proposed_basis"] == "known"
+        assert flat["proposed_specificity"] == "specific"
+        assert flat["proposed_coverage"] == "complete"
+        assert flat["assessment_version"] == "v2"
+        # Nested object is removed from flat
+        assert "assessment" not in flat
+
+    def test_flatten_for_csv_handles_missing_assessment(self):
+        """_flatten_for_csv defaults assessment_version='v1' when block is absent."""
+        from src.blueprints.v1_api import _flatten_for_csv
+
+        serialized = {
+            "uuid": "x", "ke_id": "KE 1", "ke_name": "t",
+            "pathway_id": "WP1", "pathway_title": "p",
+            "confidence_level": "Low",
+            "ke_aop_context": [],
+            "provenance": {},
+            # No 'assessment' key at all — defensive default test.
+        }
+        flat = _flatten_for_csv(serialized)
+        assert flat["proposed_relationship"] is None
+        assert flat["assessment_version"] == "v1"
