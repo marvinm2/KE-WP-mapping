@@ -1,135 +1,130 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: Scoring & Polish
-status: verifying
-stopped_at: Completed 33-02-PLAN.md (Phase 33 closed — all 5 CLEAN-* requirements shipped, v1.5 ready for closeout)
-last_updated: "2026-05-11T11:43:56.023Z"
-last_activity: 2026-05-11
+milestone: v1.6
+milestone_name: User & Admin Experience
+status: planning
+stopped_at: Completed 34-assessment-metadata-schema-parity/34-01-PLAN.md
+last_updated: "2026-05-14T14:06:13.837Z"
+last_activity: 2026-05-14 — v1.6 roadmap created (6 phases, schema-first build order per research convergence)
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 21
-  completed_plans: 21
-  percent: 100
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 1
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-10 for v1.5 scoping)
+See: .planning/PROJECT.md (updated 2026-05-14 for v1.6 scoping)
 
 **Core value:** Curators can efficiently produce a high-quality, reusable KE-pathway/GO mapping database that external tools can consume for toxicological pathway analysis.
-**Current focus:** v1.5 Scoring & Polish — roadmap complete, ready to plan Phase 29.
+**Current focus:** v1.6 User & Admin Experience — milestone scoped 2026-05-14, requirements + roadmap locked.
 
 ## Current Position
 
-Phase: 33
-Plan: 33-01, 33-02, 33-03 all complete — Phase 33 wraps v1.5 baseline cleanup
-Status: Phase complete — ready for verification / v1.5 closeout
-Last activity: 2026-05-11
+Phase: 34 — Assessment Metadata Schema Parity (not started)
+Plan: None yet (run `/gsd:plan-phase 34` to scope)
+Status: Roadmap complete; 72/72 requirements mapped across phases 34–39; awaiting phase planning
+Last activity: 2026-05-14 — v1.6 roadmap created (6 phases, schema-first build order per research convergence)
+
+```
+[████████████████████████████████░░░░░░] 33/39 phases
+v1.0 ✅  v1.1 ✅  v1.2 ✅  v1.3 ✅  v1.4 ✅  v1.5 ✅  v1.6 🚧
+```
 
 ## Performance Metrics
 
-**Velocity (all milestones):**
+**Velocity (all shipped milestones):**
 
-- Total plans completed: 124 (v1.0: 28, v1.1: 18, v1.2: 9, v1.3: 12, v1.4: 27 + carryforward)
-- Total phases completed: 28
-- Latest milestone v1.4: 6 phases / 27 plans / 32 tasks / 35 days / +11K LOC
+- Total plans completed: 148 (v1.0: 28, v1.1: 18, v1.2: 9, v1.3: 12, v1.4: 27, v1.5: 21 + carryforward)
+- Total phases completed: 33
+- Latest milestone v1.5: 5 phases / 21 plans / 44 tasks / 2 days / +4.9K LOC across 42 files
 
-**v1.5 scope:** 5 phases (29–33), 24 requirements, plan counts TBD per phase.
+**v1.6 plan-count target (TBD):**
+
+- Phase 34 likely 3-4 plans (schema migrations × 4 tables + serializer + analyser-contract paired PR)
+- Phase 35 likely 3 plans or split into 3 sub-phases (OAuth track, landing+stats+version track, OECD precompute track)
+- Phase 36 largest plan count expected — many file surfaces touched in one cohesive sweep
+- Phase 37 small (3 success criteria, sibling-parity port only)
+- Phase 38 medium (bulk-approve backend + 3 admin templates + shared JS extraction)
+- Phase 39 medium (density CSS + login state + previews + carry items)
 
 ## Accumulated Context
 
-### Decisions
+### Decisions (v1.6 roadmap)
 
-All decisions logged in PROJECT.md Key Decisions table (~50 entries spanning v1.0–v1.4). v1.4-specific patterns also in `.planning/RETROSPECTIVE.md` v1.4 section.
+**Adopted from research synthesis (HIGH confidence, convergent across ARCHITECTURE.md and PITFALLS.md):**
 
-Key v1.5-relevant decisions to revisit:
+- **6-phase shape** derived from research; schema-first → parallel ops → renames/merges → sibling-parity UI → admin click reduction → polish.
+- **No new frameworks:** existing Flask blueprints / SQLite WAL / authlib OIDC / Cytoscape.js + AOPGraphCore IIFE / VHP4Safety CSS tokens cover all 72 requirements. Optional adds only: `beautifulsoup4` (HTML fallback if AOP-Wiki XML lacks `<oecd-status>`), CountUp.js (optional landing animation), one new precompute artifact `data/aop_oecd_status.json` (~100 KB).
+- **Mandatory 301 redirect on `/aop-network`:** ~10 weeks of inbound links; route registration must stay even after rename. Regression test enforces.
+- **DB-level CHECK constraint on identity:** `CHECK (identity LIKE '%:%')` enforces provider-prefixed identity invariant at schema layer; complements grep audit for `lstrip('github:')` and single-provider parsing.
+- **Login state in Flask session only:** never localStorage (cross-user leak on workshop laptops), never URL hash (defeats SURFconext exact-match `redirect_uri`).
+- **Bulk approve reuses single-INSERT carry-fields path:** v1.4 H-1 invariant preserved — loop over existing `create_approved_mapping` per proposal in one transaction; NOT a parallel bulk-SQL path. Fault-injection test required (bulk-approve 5, force 3rd fail, assert all 5 still pending).
+- **Density-pass CSS scoping discipline:** every selector parent-scoped. v1.4 `09426fa` global-`button` cascade incident is the precedent. `cy.resize(); cy.fit()` after container changes; before/after screenshots at 1920/1366/768.
+- **AOP Explorer gene-badge lazy fetch (not eager):** per-node-tap fetch via shared AOPGraphCore options, mirroring inline-mapper pattern.
+- **OECD status sourcing:** XML-dump-first (`xml.etree.ElementTree` stdlib) with HTML scrape fallback only if XML lacks `<oecd-status>`. 30-min investigation front-loaded in Phase 35c.
+- **SURFconext feature flag (`SURF_ENABLED`):** absorbs 1-2 week production approval gate without blocking other Phase 35 work.
 
-- Hybrid Reactome scoring 60/40 (embedding/gene) — Phase 29 will switch to pure-semantic across WP/GO/Reactome
-- IC boost as post-combine GO-specific step — preserved under pure-semantic regime (SEMRANK-02)
-- Persistent IDs (`{ncbi, hgnc, symbol}`) in shared SPARQL helper — gene-overlap chip still uses this; only ranking input changes
+**Carryover decisions from earlier milestones (still active):**
 
-v1.5 phase ordering decisions:
-
-- Phase 30 (Reactome card parity + threshold tuning) sequenced **after** Phase 29 because thresholds cannot be tuned for a ranking regime that has not landed yet, and "matches WP" only makes sense once WP layout is at the v1.5 baseline.
-- Phases 31 (viewer polish), 32 (sibling debt), 33 (baseline cleanup) are independent of the scoring shift and may run in parallel with Phases 29/30 if desired.
-- [Phase 29-pure-semantic-ranking-shift]: WP ontology signal lifted from hybrid weight to post-combine boost block (ontology_post_combine_boost.boost_weight=0.15) — mirrors GO IC boost pattern
-- [Phase 29-pure-semantic-ranking-shift]: ConfigLoader dataclass defaults left at v1.4 values (document history); runtime values come from YAML; parser tolerant of missing ontology_post_combine_boost key
-- [Phase 29-pure-semantic-ranking-shift/29-03]: multi_evidence_bonus fallback default in _combine_go_scores_for changed from 0.05 to 0.0 — safer than relying solely on YAML when config object absent
-- [Phase 29-pure-semantic-ranking-shift/29-03]: test fixtures must use load_config() not get_default_config() — dataclass defaults preserve v1.4 values intentionally; load_config() reads YAML v1.5 values
-- [Phase 29-pure-semantic-ranking-shift]: Use load_config() not get_default_config() in tests requiring v1.5 YAML weights — get_default_config() returns dataclass defaults (v1.4)
-- [Phase 29-pure-semantic-ranking-shift]: method_filter added to /suggest_reactome endpoint for parity with WP/GO; echoed in request_info
-- [Phase 29-pure-semantic-ranking-shift]: Ontology signal removed from combine_scored_items weighted sum (ontology_weight=0.0); applied as post-combine boost — decouples WP ranking from ontology match
-- [Phase 29-pure-semantic-ranking-shift]: multi_evidence_bonus now config-driven (0.0 in v1.5) not hardcoded 0.05 in PathwaySuggestionService
-- [Phase 29-pure-semantic-ranking-shift]: primary_evidence defaults to semantic_similarity in v1.5 (was gene_overlap in v1.4); ontology_tags only when boost fired
-- [Phase 29-pure-semantic-ranking-shift]: Used --color-primary-pink CSS variable (existing in :root) for banner magenta accent rather than non-existent --color-magenta; added .info-banner--v15 modifier class to avoid clobbering existing generic .info-banner blue-border style
-- [Phase 29-pure-semantic-ranking-shift]: Reactome under-development notice uses blue (#307BBF) left-border accent (distinct from v1.5 magenta banner); initReactomeDevBanner() mirrors initV15Banner() pattern with localStorage key kewp_reactome_dev_notice_dismissed
-- [Phase 30-reactome-suggestion-card-parity-and-threshold-tuning]: embedding_min_threshold=0.84 for Reactome suggestions: score transformation (power_exponent=4.0) compresses cosine similarity into 0.45-0.85 range; original 0.30-0.55 expected range was pre-calibration assumption; at 0.84 narrow KEs give 1-2 suggestions and broad KE 129 gives exactly 10 (cap is binding)
-- [Phase 30]: embedding_min_threshold=0.83 for Reactome suggestions: initial calibration selected 0.84 but left KE 1395 with 0 suggestions; one step down to 0.83 restored coverage (2 suggestions) while keeping narrow KEs at 2-5 and capping broad KEs at 10
-- [Phase 30/30-02]: s.scores = { final_score: ... } adapter injects WP-compatible field onto Reactome suggestion before passing to createFinalScoreBar — keeps shared helper byte-identical; mutating s in place is safe as each suggestion is rendered once and discarded
-- [Phase 30/30-02]: show-more-reactome-suggestions class name used instead of show-more-suggestions — avoids coupling to WP handler; Reactome toggle uses addClass/removeClass (suggestion-item-hidden) rather than .hide()/.show() to match class-based initial render state
-- [Phase 30/30-02]: getBorderClassForMatch([]) and getMatchTypeBadges([]) called with empty array for Reactome (no match_types under pure-semantic regime) — ensures constant WP "no badges" visual treatment
-- [Phase 31-reactome-viewer-polish]: Split _failed into _scriptFailed (sticky session) + _lastLoadFailed (per-attempt) per D-09; resetForNewKe() wired to KE-change handler
-- [Phase 31-reactome-viewer-polish/31-02]: bind-once onDiagramLoaded in init() with load-token guard closure — older fires from same-KE pathway swaps no-op via myToken !== _loadToken check (D-05, WR-02)
-- [Phase 31-reactome-viewer-polish/31-02]: Promise wrapper around loadDiagram replaces _resolveCurrentLoad atomically per load(); settled flag inside each Promise closure prevents double-settle
-- [Phase 31-reactome-viewer-polish/31-02]: selectReactomePathway pre-clears sibling overlay and shows frame before load() attempt — visual state is clean at attempt start regardless of prior outcome (D-01)
-- [Phase 31-reactome-viewer-polish/31-02]: hide() restores frame visibility (#reactome-inline-embed-frame.show()) so next load() starts with frame visible; _scriptFailed not touched (D-09)
-- [Phase 31-reactome-viewer-polish/31-03]: _cachedKeGenes[keId] is Promise<string[]> not string[] — in-flight distinguishable from empty-result; eliminates VIEWFIX-05 race condition
-- [Phase 31-reactome-viewer-polish/31-03]: prefetchKeGenes returns memoised Promise so callers .then directly; existing fire-and-forget call site at line 1467 unchanged; D-16 .fail() resolves to [] (never rejects)
-- [Phase 31-reactome-viewer-polish/31-03]: selectReactomePathway fires load() immediately with [] for instant mount (D-15); gene Promise .then writes _pendingFlags and calls flagGenes() only when load-token still matches
-- [Phase 31-reactome-viewer-polish/31-03]: openMappingModal defers PathwayEmbed.mountIframe into gene Promise .then — single mount with correct genes; modal chrome opens immediately with "Loading genes…" state (D-14)
-- [Phase 32]: Inline escapeHtml helper in admin_proposals.html (not extracted to utils.js); status badge uses statusEsc + statusTitleEsc for both class fragment and title-cased display text
-- [Phase 32-go-wp-sibling-debt-sweep]: [Plan 32-02] escapeHtml inlined per-template (not shared utils.js); pre-escape derived locals into *Esc-suffix vars (nsShortEsc, nsBadgeClassEsc, statusEsc, cConnEsc/cSpecEsc/cEvEsc); renderAdminDimensionToggles also escape-wrapped per 'no exceptions' policy
-- [Phase 32]: [Phase 32/32-05]: WP RDF 503 guard ported from Reactome verbatim — if mappings: serialise else: write empty placeholder. Without short-circuit, generate_ke_wp_turtle([]) emits non-empty @prefix prelude (rdflib serialise behaviour), bypassing st_size==0 check and returning 200 + prefix-only Turtle blob instead of contracted 503.
-- [Phase 32]: [Phase 32/32-05]: RDF route tests must monkeypatch module-global mapping_model (per tests/test_reactome_exports.py pattern) — client fixture temp-DB rebind doesn't reach the blueprint module's mapping_model global which is bound once at create_app() time.
-- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: WP proposals H-2 port keeper-selection MUST use ORDER BY created_at ASC, id ASC (created_at PRIMARY, id tiebreaker/fallback) — NOT MIN(p.id) — production data may have id/created_at disagreement from manual fixes/restores; locked-in by two ordering-invariant regression tests in tests/test_proposal_models.py
-- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: /submit duplicate-pending response REUSES existing check_mapping_exists_with_proposals shape ({pair_exists, blocking_type, existing, actions}) — NOT Reactome's verbatim {error, blocking_type} — existing WP UI clients already handle this shape via /check
-- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: check_mapping_exists_with_proposals extended with Check 0 branch for pending new-pair proposals (mapping_id IS NULL) — mirrors GO's long-standing equivalent; required for /submit IntegrityError branch to produce the contracted payload shape
-- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-03]: route-test fixture auth_client_filedb monkey-patches blueprint-bound proposal_model.db + mapping_model.db onto a file-backed Database — TestingConfig :memory: is per-connection in SQLite and cannot support multi-call /submit integration tests
-- [Phase 32]: [Phase 32/32-06]: GO RDF 503 guard ported verbatim from WP (Plan 32-05) and Reactome (Plan 25) — same if mappings: / else: write empty placeholder pattern. Three-way sibling parity (WP, GO, Reactome) now achieved for empty-graph RDF 503 contract.
-- [Phase 32]: [Phase 32/32-06]: Both new GO regression tests fail RED on unmodified route (bare empty-DB and prelude-forcing variants), not just prelude variant — generate_ke_go_turtle([]) emits non-empty prelude even without monkeypatching. Stronger regression signal than plan anticipated.
-- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-04]: GO H-2 port mirrors WP 32-03 verbatim (table+column swap: proposals→ke_go_proposals, wp_id→go_id); same ORDER BY created_at ASC, id ASC keeper-selection invariant with two ordering-invariant tests
-- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-04]: No Check 0 deviation needed for GO (unlike WP 32-03): check_go_mapping_exists_with_proposals already had the pending new-pair branch from long-standing GO sibling work; GO was the inspiration WP had to catch up to
-- [Phase 32-go-wp-sibling-debt-sweep]: [Phase 32/32-07]: CHANGELOG entry placed in NEW [2.7.1] - 2026-05-11 section (not appended to 2.7.0/v1.5) — 2.7.0 was tagged 2026-05-10 as the pure-semantic v1.5 release event; Phase 32 is a separate atomic delivery (parity port) and warrants its own patch-level Semver entry per CONTEXT.md decision tree default
-- [Phase 33-baseline-cleanup/33-01]: `/dataset/*` 503 parity body shape `{"error": "dataset metadata not configured", "reason": "metadata_manager unavailable"}` mirrors the empty-graph 503 contract from Reactome RDF (Phase 25) / WP RDF (32-05) / GO RDF (32-06) — four-way sibling parity across the public API "feature not configured / no data" case
-- [Phase 33-baseline-cleanup/33-01]: Used `metadata_manager is None` (not `not metadata_manager`) at the four `/dataset/*` guard branches — explicit identity check avoids falsy-but-configured false positives during partial init
-- [Phase 33-baseline-cleanup/33-01]: Inline 4-line guard repeated at each of four `/dataset/*` routes (no helper extraction) — four occurrences in one file is below the consolidation threshold per 33-CONTEXT.md Claude's Discretion clause; inline form keeps each route self-readable
-- [Phase 33-baseline-cleanup/33-01]: Dead `/confidence_assessment` route deleted outright (no redirect, no stub template) — Flask default 404 is the contracted CLEAN-01 response
-- [Phase 33]: [Phase 33/33-03]: CHANGELOG entry for Phase 33 placed in NEW [2.7.2] - 2026-05-11 section (above [2.7.1]) — mirrors 32-07 decision tree: 2.7.0 was the v1.5 release event, 2.7.1 was Phase 32 atomic delivery, 2.7.2 is Phase 33 atomic delivery; preserves 1:1 Semver patch / atomic-phase mapping
-- [Phase 33]: [Phase 33/33-03]: pytest coverage gate lowered 45 -> 40; rationale lives in inline pytest.ini # comment block ABOVE addopts (INI syntax forbids # inside addopts values) AND CHANGELOG [2.7.2] entry; no per-module omit rules — lowered threshold is the documented contract; real coverage measured at 49.73% TOTAL, well above floor
-- [Phase 33]: [Phase 33/33-02]: test_login_redirect rewritten with dual-acceptance Location check (github.com OR main.index) — robust to whether testing fixture wires real Authlib client; no back-compat /login alias added in src/blueprints/auth.py
-- [Phase 33]: [Phase 33/33-02]: test_guest_login_page_renders switched from GET to POST(empty code) — only live render path for guest_login.html carrying verbatim 'Workshop Login' / 'access code'; diagnostic refuted CONTEXT.md assumption that index modal carries those strings (modal copy is 'Sign in' / 'Workshop code'); src/blueprints/auth.py unchanged
+All ~65 decisions in PROJECT.md Key Decisions table (spanning v1.0–v1.5) remain in force. Milestone-specific patterns in `.planning/RETROSPECTIVE.md` per-milestone sections.
 
 ### Pending Todos
 
-(carryforward into v1.5 — captured in PROJECT.md Active section, now mapped to phases)
+**v1.6 planning prerequisites:**
 
-- Phase 27 polish — WR-01..WR-04 + `prefetchKeGenes` race in `ReactomeDiagramEmbed` → **Phase 31**
-- GO/WP sibling cleanup — port C-1 XSS fix, H-2 partial-unique pending index, empty-mappings 503 guard → **Phase 32**
-- ~~Resolve dead `/confidence_assessment` route~~ → **Phase 33-01 done** (route removed; Flask default 404)
-- ~~Decide `/dataset/*` future (provision Zenodo/DataCite creds or downgrade to 503)~~ → **Phase 33-01 done** (503 with sibling-parity body; provisioning deferred)
-- ~~Pre-existing `test_login_redirect` / `test_guest_login_page_renders` baseline failures~~ → **Phase 33-02 done** (both tests rewritten against post-Phase-14 route shape; assertions preserved verbatim; no auth.py changes)
-- ~~Coverage threshold (42.18% vs 45%)~~ → **Phase 33-03 done** (--cov-fail-under lowered to 40 in pytest.ini; CHANGELOG [2.7.2] entry)
+- Run `/gsd:plan-phase 34` to decompose Phase 34 into atomic plans (Phase 19 KE-GO migration is literal template).
+- Front-load 30-min investigation of `aop-wiki-xml-2026-04-01.gz` for `<oecd-status>` field before committing to bs4 (Phase 35c prerequisite).
+- Verify molAOP-analyser `services/api_service.py` parser mode (strict vs lax) before Phase 34 API serializer change (cross-tool contract).
+- Curator-comms note 24-48h before Phase 35 landing-page deploy (bookmark URL changes for mapper users).
+- Coordinate with slaenen on SURFconext production tenant approval (1-2 weeks lead time; ship behind `SURF_ENABLED` flag).
+- TLS chain pre-deploy `curl -vI` on all OAuth redirect URIs (cert expiry > 30 days) before Phase 35a cutover.
+- Curator rubric review during Phase 37 design: KE-Reactome 4-question text equals KE-WP wording verbatim, or per-resource variants?
+- Workshop-laptop login-state UX validation during Phase 39 acceptance (A drafts → A logs out → B logs in → no draft visible).
 
-### Blockers/Concerns
+**Standing carry-forward (mirrored in PROJECT.md Active section):**
 
-- IC weight calibration (default 0.15) needs domain expert review session (carryover from v1.2 — out of v1.5 scope)
-- ORCID/LS Login/SURFconext need human E2E testing with real OAuth credentials (carryover from v1.2 — out of v1.5 scope)
-- Reactome `flagItems` visual gene highlight not observed — accepted as structural-only per Plan 27-CONTEXT; explicitly deferred as RVIEWHL-01 (v2)
-- Pure-semantic ranking will visibly reorder suggestions across WP/GO/Reactome — curators using the tool actively should be informed (changelog + UI hint as part of Phase 29 plans)
+- IC weight calibration session with domain expert (open since v1.2)
+- RVIEWHL-01 (v2): visible gene highlight on Reactome diagram canvas
+- v1.5 audit §6 non-blocking items absorbed into Phase 39 (DEBT-01, DEBT-02)
+
+### Blockers / Concerns
+
+- None blocking. SURFconext production approval is the only externally-gated dependency; mitigated via feature flag (Phase 35a).
+
+### Risks Tracked (with phase guards)
+
+- **4th-recurrence bulk-export SELECT drift** (Pitfall 23) — guarded explicitly in Phase 34 success criterion 2 (round-trip test on `get_all_mappings`).
+- **`/aop-network` route removal** (Pitfall 2) — guarded explicitly in Phase 36 success criterion 1 (regression test `test_aop_network_redirects_to_explorer` mandated).
+- **CSS cascade incident** (Pitfall 5) — guarded explicitly in Phase 39 success criterion 1 (parent-scoped selectors + before/after screenshots at three breakpoints).
+- **Login state cross-user leak on shared workshop laptops** (Pitfalls 8, 9) — guarded explicitly in Phase 39 success criterion 3 (Flask session only; never localStorage; never URL hash).
+- **AOP-Wiki RDF has no OECD predicate** (Pitfall 25, negative finding verified 2026-05-14) — mitigated by XML-dump-first investigation in Phase 35c.
+- **Bulk-approve atomicity drift** (Pitfall 18, v1.4 H-1) — guarded explicitly in Phase 38 success criterion 1 (fault-injection test mandated).
 
 ### Roadmap Evolution
 
-- v1.4 closed 2026-05-08. Phase 28 added late (2026-05-06) when Phase 27 HUMAN-UAT exposed an HGNC-accession-vs-symbol bug from 2025-08-08 in shared SPARQL helper.
-- v1.5 scoped 2026-05-10. Theme: scoring refinement (pure-semantic default) + Reactome ↔ WP parity + v1.4 carry-forward debt sweep.
-- v1.5 ROADMAP created 2026-05-10 — 5 phases (29–33), 24/24 requirements mapped, no orphans.
+- v1.0–v1.5 shipped per `.planning/milestones/`.
+- v1.6 scoped 2026-05-14 from curator+admin freeform input plus a live Playwright audit (mapper, explore, AOP Network, Downloads, Stats, login modal). Theme: user-facing polish + admin friction reduction + cross-resource parity.
+- v1.6 roadmap created 2026-05-14: 6 phases (34–39), 72 requirements mapped, schema-first build order convergent with research recommendation.
 
 ## Session Continuity
 
-**Last session:** 2026-05-11T11:43:56.015Z
-**Stopped at:** Completed 33-02-PLAN.md
+**Last session:** 2026-05-14T14:06:13.823Z
+**Stopped at:** Completed 34-assessment-metadata-schema-parity/34-01-PLAN.md
 **Resume file:** None
-**Next action:** v1.5 closeout — milestone retrospective, GA tag, deploy
+**Next action:** `/gsd:plan-phase 34` to decompose Phase 34 into atomic plans following the Phase 19 KE-GO migration template.
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 34-assessment-metadata-schema-parity P01 | 6min | 3 tasks | 4 files |
+
+## Decisions
+
+- [Phase 34-assessment-metadata-schema-parity]: proposals/ke_reactome_proposals do NOT get assessment_version — version decided at approval time (CONTEXT.md)
+- [Phase 34-assessment-metadata-schema-parity]: REACTOME_PROPOSAL_CARRY_FIELDS extended in Plan 01 but wired in create_approved_mapping deferred to Plan 02 for isolated review

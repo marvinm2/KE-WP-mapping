@@ -30,6 +30,26 @@ REACTOME_PROPOSAL_CARRY_FIELDS = (
 )
 
 
+def _classify_assessment_version(
+    proposed_relationship: Optional[str],
+    proposed_basis: Optional[str],
+    proposed_specificity: Optional[str],
+    proposed_coverage: Optional[str],
+) -> str:
+    """Phase 34 model-layer rule: any non-NULL assessment answer => 'v2'; else 'v1'.
+
+    CONTEXT.md locks: no completeness validation — partial submissions during the
+    Phase 34->37 transition window are still 'v2'. Used by both WP create_mapping/
+    update_mapping and Reactome create_approved_mapping/create_mapping.
+    """
+    if any(v is not None for v in (
+        proposed_relationship, proposed_basis,
+        proposed_specificity, proposed_coverage,
+    )):
+        return "v2"
+    return "v1"
+
+
 class Database:
     def __init__(self, db_path: str = "ke_wp_mapping.db"):
         self.db_path = db_path
@@ -1433,26 +1453,43 @@ class MappingModel:
         connection_type: str = "undefined",
         confidence_level: str = "low",
         created_by: str = None,
+        proposed_relationship: Optional[str] = None,
+        proposed_basis: Optional[str] = None,
+        proposed_specificity: Optional[str] = None,
+        proposed_coverage: Optional[str] = None,
     ) -> Optional[int]:
         """Create a new KE-WP mapping"""
         mapping_uuid = str(uuid_lib.uuid4())
+        # Phase 34 dual-write: proposed_relationship also populates connection_type
+        effective_connection_type = proposed_relationship if proposed_relationship is not None else connection_type
+        assessment_version = _classify_assessment_version(
+            proposed_relationship, proposed_basis, proposed_specificity, proposed_coverage
+        )
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
                 """
                 INSERT INTO mappings (ke_id, ke_title, wp_id, wp_title, connection_type,
-                                    confidence_level, created_by, uuid)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                    confidence_level, created_by, uuid,
+                                    proposed_relationship, proposed_basis,
+                                    proposed_specificity, proposed_coverage,
+                                    assessment_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     ke_id,
                     ke_title,
                     wp_id,
                     wp_title,
-                    connection_type,
+                    effective_connection_type,
                     confidence_level,
                     created_by,
                     mapping_uuid,
+                    proposed_relationship,
+                    proposed_basis,
+                    proposed_specificity,
+                    proposed_coverage,
+                    assessment_version,
                 ),
             )
 
@@ -1483,7 +1520,12 @@ class MappingModel:
                 """
                 SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type,
                        confidence_level, created_by, created_at, updated_at,
-                       uuid, approved_by_curator, approved_at_curator
+                       uuid, approved_by_curator, approved_at_curator,
+                       -- Phase 34 ASMT-08: do NOT drop these or insert above;
+                       -- positional consumers append at end (Pitfall 5)
+                       proposed_relationship, proposed_basis,
+                       proposed_specificity, proposed_coverage,
+                       assessment_version
                 FROM mappings
                 ORDER BY created_at DESC
             """
@@ -1776,6 +1818,10 @@ class MappingModel:
         approved_at_curator: str = None,
         suggestion_score: float = None,
         proposed_by: str = None,
+        proposed_relationship: Optional[str] = None,
+        proposed_basis: Optional[str] = None,
+        proposed_specificity: Optional[str] = None,
+        proposed_coverage: Optional[str] = None,
     ) -> bool:
         """
         Update an existing mapping
@@ -1789,6 +1835,10 @@ class MappingModel:
             approved_at_curator: ISO timestamp of curator approval (optional)
             suggestion_score: BioBERT hybrid score from the approved proposal (optional)
             proposed_by: GitHub username of the curator who originally submitted the proposal (optional)
+            proposed_relationship: Phase 34 assessment answer — relationship type (optional)
+            proposed_basis: Phase 34 assessment answer — biological basis (optional)
+            proposed_specificity: Phase 34 assessment answer — mapping specificity (optional)
+            proposed_coverage: Phase 34 assessment answer — pathway coverage (optional)
 
         Returns:
             True if successful, False otherwise
@@ -1802,7 +1852,24 @@ class MappingModel:
             "approved_at_curator": "approved_at_curator",
             "suggestion_score": "suggestion_score",
             "proposed_by": "proposed_by",
+            "proposed_relationship": "proposed_relationship",
+            "proposed_basis": "proposed_basis",
+            "proposed_specificity": "proposed_specificity",
+            "proposed_coverage": "proposed_coverage",
+            "assessment_version": "assessment_version",
         }
+
+        # Phase 34 dual-write: proposed_relationship also populates connection_type
+        effective_connection_type = (
+            proposed_relationship if proposed_relationship is not None else connection_type
+        )
+        # Compute assessment_version whenever any assessment answer is provided
+        _has_assessment = any(v is not None for v in (
+            proposed_relationship, proposed_basis, proposed_specificity, proposed_coverage
+        ))
+        assessment_version = _classify_assessment_version(
+            proposed_relationship, proposed_basis, proposed_specificity, proposed_coverage
+        ) if _has_assessment else None
 
         conn = self.db.get_connection()
         try:
@@ -1811,13 +1878,18 @@ class MappingModel:
 
             # Build update clauses using whitelisted field names
             update_data = {
-                "connection_type": connection_type,
+                "connection_type": effective_connection_type,
                 "confidence_level": confidence_level,
                 "updated_by": updated_by,
                 "approved_by_curator": approved_by_curator,
                 "approved_at_curator": approved_at_curator,
                 "suggestion_score": suggestion_score,
                 "proposed_by": proposed_by,
+                "proposed_relationship": proposed_relationship,
+                "proposed_basis": proposed_basis,
+                "proposed_specificity": proposed_specificity,
+                "proposed_coverage": proposed_coverage,
+                "assessment_version": assessment_version,
             }
 
             for field_name, field_value in update_data.items():
@@ -1913,17 +1985,27 @@ class ProposalModel:
         proposed_delete: bool = False,
         proposed_confidence: str = None,
         proposed_connection_type: str = None,
+        proposed_relationship: Optional[str] = None,
+        proposed_basis: Optional[str] = None,
+        proposed_specificity: Optional[str] = None,
+        proposed_coverage: Optional[str] = None,
     ) -> Optional[int]:
         """Create a new proposal"""
         proposal_uuid = str(uuid_lib.uuid4())
+        # Phase 34 dual-write: proposed_relationship also populates proposed_connection_type
+        effective_connection_type = (
+            proposed_relationship if proposed_relationship is not None else proposed_connection_type
+        )
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
                 """
                 INSERT INTO proposals (mapping_id, user_name, user_email, user_affiliation,
                                      provider_username, proposed_delete, proposed_confidence,
-                                     proposed_connection_type, uuid)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     proposed_connection_type, uuid,
+                                     proposed_relationship, proposed_basis,
+                                     proposed_specificity, proposed_coverage)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     mapping_id,
@@ -1933,8 +2015,12 @@ class ProposalModel:
                     provider_username,
                     proposed_delete,
                     proposed_confidence,
-                    proposed_connection_type,
+                    effective_connection_type,
                     proposal_uuid,
+                    proposed_relationship,
+                    proposed_basis,
+                    proposed_specificity,
+                    proposed_coverage,
                 ),
             )
 
@@ -1963,6 +2049,10 @@ class ProposalModel:
         confidence_level: str,
         provider_username: str = None,
         suggestion_score: float = None,
+        proposed_relationship: Optional[str] = None,
+        proposed_basis: Optional[str] = None,
+        proposed_specificity: Optional[str] = None,
+        proposed_coverage: Optional[str] = None,
     ) -> Optional[int]:
         """
         Create a new-pair proposal where no existing mapping_id exists yet.
@@ -1980,11 +2070,19 @@ class ProposalModel:
             confidence_level: Proposed confidence level
             provider_username: Provider-prefixed username of submitting curator
             suggestion_score: BioBERT hybrid score captured at suggestion time
+            proposed_relationship: Phase 34 assessment answer — relationship type (optional)
+            proposed_basis: Phase 34 assessment answer — biological basis (optional)
+            proposed_specificity: Phase 34 assessment answer — mapping specificity (optional)
+            proposed_coverage: Phase 34 assessment answer — pathway coverage (optional)
 
         Returns:
             New proposal row ID on success, None on exception
         """
         proposal_uuid = str(uuid_lib.uuid4())
+        # Phase 34 dual-write: proposed_relationship also populates proposed_connection_type
+        effective_connection_type = (
+            proposed_relationship if proposed_relationship is not None else connection_type
+        )
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
@@ -1994,9 +2092,11 @@ class ProposalModel:
                     provider_username, proposed_delete, proposed_confidence,
                     proposed_connection_type, uuid, suggestion_score,
                     ke_id, ke_title, wp_id, wp_title,
-                    new_pair_connection_type, new_pair_confidence_level
+                    new_pair_connection_type, new_pair_confidence_level,
+                    proposed_relationship, proposed_basis,
+                    proposed_specificity, proposed_coverage
                 )
-                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     provider_username or "curator",
@@ -2005,15 +2105,19 @@ class ProposalModel:
                     provider_username,
                     False,
                     confidence_level,
-                    connection_type,
+                    effective_connection_type,
                     proposal_uuid,
                     suggestion_score,
                     ke_id,
                     ke_title,
                     wp_id,
                     wp_title,
-                    connection_type,
+                    effective_connection_type,
                     confidence_level,
+                    proposed_relationship,
+                    proposed_basis,
+                    proposed_specificity,
+                    proposed_coverage,
                 ),
             )
 

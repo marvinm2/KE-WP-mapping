@@ -7,7 +7,8 @@
 - ✅ **v1.2 Curation Depth** — Phases 13–16 (shipped 2026-03-06)
 - ✅ **v1.3 GO Assessment Quality** — Phases 17–22 (shipped 2026-03-11)
 - ✅ **v1.4 Reactome Integration** — Phases 23–28 (shipped 2026-05-08)
-- 🔄 **v1.5 Scoring & Polish** — Phases 29–33 (active, scoped 2026-05-10)
+- ✅ **v1.5 Scoring & Polish** — Phases 29–33 (shipped 2026-05-11)
+- 🚧 **v1.6 User & Admin Experience** — Phases 34–39 (in progress, scoped 2026-05-14)
 
 ## Phases
 
@@ -79,91 +80,142 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 
 </details>
 
-### 🔄 v1.5 Scoring & Polish (Phases 29–33) — ACTIVE
+<details>
+<summary>✅ v1.5 Scoring & Polish (Phases 29–33) — SHIPPED 2026-05-11</summary>
 
-- [x] **Phase 29: Pure-Semantic Ranking Shift** — Switch WP/GO/Reactome suggestion ranking to BioBERT similarity only; demote gene-overlap to display-only chip (completed 2026-05-10)
-- [x] **Phase 30: Reactome Suggestion Card Parity and Threshold Tuning** — Bring Reactome suggestion-card layout to WP standard; re-tune Reactome thresholds for the new pure-semantic regime (completed 2026-05-10)
-- [x] **Phase 31: Reactome Viewer Polish** — Fix Phase 27 carry-forward issues in `ReactomeDiagramEmbed` (WR-01..04 + prefetch race) (completed 2026-05-11)
-- [x] **Phase 32: GO/WP Sibling Debt Sweep** — Port Reactome's C-1 XSS fix, H-2 partial-unique pending index, and empty-mappings 503 guard to GO/WP equivalents (completed 2026-05-11)
-- [x] **Phase 33: Baseline Cleanup** — Resolve dead routes, baseline test failures, and coverage threshold (completed 2026-05-11)
+- [x] Phase 29: Pure-Semantic Ranking Shift (6/6 plans) — completed 2026-05-10
+- [x] Phase 30: Reactome Suggestion Card Parity and Threshold Tuning (2/2 plans) — completed 2026-05-10
+- [x] Phase 31: Reactome Viewer Polish (3/3 plans) — completed 2026-05-11
+- [x] Phase 32: GO/WP Sibling Debt Sweep (7/7 plans) — completed 2026-05-11
+- [x] Phase 33: Baseline Cleanup (3/3 plans) — completed 2026-05-11
+
+Full details: `.planning/milestones/v1.5-ROADMAP.md`
+
+</details>
+
+### 🚧 v1.6 User & Admin Experience (Phases 34–39) — IN PROGRESS
+
+- [ ] **Phase 34: Assessment Metadata Schema Parity** — Idempotent ALTER migrations on KE-WP + KE-Reactome proposal/mapping tables for 4-question assessment persistence; bulk-export SELECT updated; API additive; analyser parser-mode reviewed
+- [ ] **Phase 35: Operational + Greenfield Parallel Track** — OAuth env config + landing page + source-version service + `/stats` Reactome absorption + OECD AOP status precompute (three independent workstreams)
+- [ ] **Phase 36: Renames, Merges, and Naming Sweep** — AOP Explorer rename with 301 redirect, Coverage Gaps merged via segmented control, graph parity (gene badges + green border), OECD badges, "WP" → "WikiPathways" copy sweep, footer separators, upstream resource-link rewrites, Downloads regroup + preview + JSON/CSV
+- [ ] **Phase 37: Backend-Dependent UI — Assessment-Question Sibling Parity** — KE-WP admin modal displays four-question answers; KE-Reactome mapper UI adopts 4-question rubric; KE-Reactome admin modal mirrors KE-WP
+- [ ] **Phase 38: Admin Click Reduction** — Bulk approve (reusing single-INSERT carry-fields path with fault-injection coverage), keyboard shortcuts, persistent side panel, cheat-sheet, audit log, shared admin JS
+- [ ] **Phase 39: Polish — Mapper Density + Login State + v1.5 Carry** — Mapper density pass (scoped selectors, Cytoscape resize), KE/pathway description in previews, OECD filter on mapper, login state preservation (Flask session only), v1.5 dead-helper sweep + WP `/submit` 503 symmetry
 
 ## Phase Details
 
-### Phase 29: Pure-Semantic Ranking Shift
-**Goal**: Curators see suggestions ranked purely by BioBERT semantic similarity across all three pathway resources, with gene-overlap visible but no longer influencing rank order.
-**Depends on**: Nothing (first phase of v1.5; builds on shipped v1.4)
-**Requirements**: SEMRANK-01, SEMRANK-02, SEMRANK-03, SEMRANK-04, SUGDISP-01
-**Success Criteria** (what must be TRUE):
-  1. On the WP suggestions tab, the top-ranked suggestion is the one with the highest BioBERT similarity to the selected KE — gene overlap no longer reorders the list
-  2. On the GO suggestions tab (BP and MF), the top-ranked suggestion is the one with the highest BioBERT similarity, with the GO IC specificity boost still applied as a separate post-combine step
-  3. On the Reactome suggestions tab, the top-ranked suggestion is the one with the highest BioBERT similarity — gene overlap no longer reorders the list
-  4. Each suggestion card on WP / GO / Reactome shows a visible gene-overlap chip with the count and overlap fraction, but the chip carries no rank weight (verified by sorting comparison against pure-similarity ranking)
-  5. `scoring_config.yaml` reflects the v1.5 pure-semantic defaults; the previous hybrid weights are recorded with a deprecation comment explaining the rationale
-**Plans**: 6 plans
-  - [x] 29-01-PLAN.md — Update scoring_config.yaml to v1.5 pure-semantic defaults; adapt ConfigLoader; pin combine_scored_items single-signal contract
-  - [x] 29-02-PLAN.md — Refactor PathwaySuggestionService (WP) to embedding-only ranking with ontology post-combine boost
-  - [x] 29-03-PLAN.md — Refactor GoSuggestionService (BP + MF) to embedding-only ranking; preserve IC boost + directionality
-  - [x] 29-04-PLAN.md — Refactor ReactomeSuggestionService to embedding-only ranking; add method_filter deprecation log on three suggestion endpoints
-  - [x] 29-05-PLAN.md — Frontend: gene-overlap chip on WP / GO / Reactome cards; remove method-filter UI and scoring breakdown; drop method_filter from outbound fetches
-  - [x] 29-06-PLAN.md — v1.5 dismissible migration banner + CHANGELOG.md v1.5 entry
+### Phase 34: Assessment Metadata Schema Parity
 
-### Phase 30: Reactome Suggestion Card Parity and Threshold Tuning
-**Goal**: A curator working on Reactome suggestions experiences the same scoring-breakdown layout and information density as on WP, with thresholds tuned so the post-pure-semantic suggestion list feels curated rather than noisy.
-**Depends on**: Phase 29 (cannot tune thresholds for a ranking that is still hybrid; cannot align card layout to "WP standard" if WP card layout is still mid-shift)
-**Requirements**: SUGDISP-02, REASCORE-01, REASCORE-02
-**Success Criteria** (what must be TRUE):
-  1. The Reactome suggestion card visually matches the WP suggestion card — same panel chrome, same arrangement of signal chips, same score badge, same info density (verified by side-by-side screenshot comparison on a single KE)
-  2. On a representative sample of at least five KEs covering different bio levels, a curator confirms that the top-N Reactome suggestions feel comparable in quality to the top-N WP suggestions for the same KE
-  3. The `reactome_suggestion:` block in `scoring_config.yaml` has updated min-similarity and top-N-cap values, and the resulting suggestion lists are visibly tighter than the pre-tuning baseline (no long tails of low-similarity noise)
-**Plans**: 2 plans
-  - [x] 30-01-PLAN.md — Empirical distribution dump on 5 calibration KEs; tune `scoring_config.yaml::reactome_suggestion` thresholds (`embedding_min_threshold`, `min_threshold`, `max_results: 10`, demote `gene_min_threshold`); curator spot-check (REASCORE-01, REASCORE-02)
-  - [x] 30-02-PLAN.md — Refactor `displayReactomeSuggestions` to WP card chrome (reuse `createFinalScoreBar`, `renderGeneOverlapChip`, collapse-after-3); side-by-side visual parity check (SUGDISP-02)
+**Goal**: Land idempotent schema migrations so all four KE-WP + KE-Reactome proposal/mapping tables persist the four-question assessment answers, and the public API surfaces them additively — unblocking Phase 37 admin UI and Phase 38 bulk approve.
 
-### Phase 31: Reactome Viewer Polish
-**Goal**: The Reactome inline pathway viewer recovers cleanly from CDN failures, pathway swaps, and gene-prefetch races without leaving the user with a broken mount, accumulating handlers, or empty gene highlights.
-**Depends on**: Nothing (independent JS-only work; can run in parallel with Phases 29–30)
-**Requirements**: VIEWFIX-01, VIEWFIX-02, VIEWFIX-03, VIEWFIX-04, VIEWFIX-05
-**Success Criteria** (what must be TRUE):
-  1. After a first DiagramJS load failure, retrying the load (e.g. by selecting a different pathway) produces either a successful render or the error-card fallback — the mount is never destroyed mid-recovery (WR-01)
-  2. Swapping between pathways on the same KE does not produce duplicate `onDiagramLoaded` callbacks (verified via instrumented handler count or end-to-end behaviour) (WR-02)
-  3. An async failure inside `loadDiagram` surfaces the same error-card path as a synchronous failure — failures are never silent (WR-03)
-  4. After a failed load on KE A, switching to KE B starts a clean attempt — the `_failed` flag is scoped to the previous attempt, not sticky (WR-04)
-  5. When a curator opens a KE that has genes, `flagItems` is invoked with the resolved gene list — no race condition leaves the diagram with an empty highlight set (VIEWFIX-05)
-**Plans**: 3 plans
-  - [x] 31-01-PLAN.md — DOM scaffolding (sibling error overlay) + state-shape refactor (`_failed` → `_scriptFailed` + `_lastLoadFailed`) + KE-change reset hook (VIEWFIX-01, VIEWFIX-04 substrate)
-  - [x] 31-02-PLAN.md — Promise-wrapped `loadDiagram` + bind-once `onDiagramLoaded` with token-guard + `_flagGenesInvocations` counter + sibling-overlay failure path (VIEWFIX-01, VIEWFIX-02, VIEWFIX-03, VIEWFIX-04)
-  - [x] 31-03-PLAN.md — `prefetchKeGenes` as memoised `Promise<string[]>`; race-tolerant gene-flag application in `selectReactomePathway`; modal awaits gene Promise (VIEWFIX-05)
+**Depends on**: Nothing (first phase of v1.6; pure schema + serializer work).
 
-### Phase 32: GO/WP Sibling Debt Sweep
-**Goal**: GO and WP admin/proposal/RDF surfaces have the same security and robustness posture as Reactome — XSS-safe modal rendering, race-safe pending-duplicate detection, and graceful empty-graph responses.
-**Depends on**: Nothing (independent of scoring/viewer work; can run in parallel)
-**Requirements**: DEBT-01, DEBT-02, DEBT-03, DEBT-04, DEBT-05, DEBT-06
-**Success Criteria** (what must be TRUE):
-  1. An admin opening a GO or KE-WP proposal modal sees user-supplied content rendered safely — script payloads in proposer-controlled fields are escaped, not executed (parity with Reactome admin modal post-C-1 fix)
-  2. Two near-simultaneous proposal submissions for the same KE→GO or KE→WP pair result in exactly one pending row plus a clean duplicate response on the second — no race window where both insert successfully
-  3. Hitting `/download_ke_go_rdf` or `/download_ke_wp_rdf` when no approved mappings exist returns a 503 with a clear "no data" body, matching the Reactome RDF route's behaviour — no half-formed Turtle and no 200 with empty graph
-**Plans**: 7 plans
-  - [x] 32-01-PLAN.md — Port C-1 XSS escapeHtml helper + per-interpolation wrapping to `templates/admin_proposals.html` (DEBT-02)
-  - [x] 32-02-PLAN.md — Port C-1 XSS escapeHtml helper + per-interpolation wrapping to `templates/admin_go_proposals.html` (DEBT-01)
-  - [x] 32-03-PLAN.md — `proposals` table: pre-migration cleanup + partial-unique index + DUPLICATE_PENDING sentinel + /submit route 409 using check_mapping shape (DEBT-04)
-  - [x] 32-04-PLAN.md — `ke_go_proposals` table: pre-migration cleanup + partial-unique index + DUPLICATE_PENDING sentinel + /submit_go_mapping 409 using check_go_mapping shape (DEBT-03)
-  - [x] 32-05-PLAN.md — `download_ke_wp_rdf`: `if mappings: ... else: write_text('')` short-circuit + empty-graph regression test (DEBT-06)
-  - [x] 32-06-PLAN.md — `download_ke_go_rdf`: `if mappings: ... else: write_text('')` short-circuit + empty-graph regression test (DEBT-05)
-  - [x] 32-07-PLAN.md — CHANGELOG.md v1.5 entry covering all three concerns (DEBT-01..06)
+**Requirements**: ASMT-01, ASMT-02, ASMT-03, ASMT-07, ASMT-08, ASMT-09, ASMT-10
 
-### Phase 33: Baseline Cleanup
-**Goal**: The smoke-test surface is clean — no dead 500 routes, the test suite has no pre-existing failures, and coverage either meets the 45% threshold or has the threshold consciously revised with a documented reason.
-**Depends on**: Nothing (orthogonal to feature/debt work)
-**Requirements**: CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-04, CLEAN-05
 **Success Criteria** (what must be TRUE):
-  1. Hitting `/confidence_assessment` returns either a real, rendered template page or a clean removal (404 / redirect) — never a 500 from a missing template
-  2. Hitting `/dataset/{metadata,versions,citation,datacite}` returns either a working response (when Zenodo/DataCite credentials are provisioned) or a clean 503 / hidden-by-feature-flag — never the current `metadata_manager`-unconfigured 500
-  3. `pytest` runs with `test_login_redirect` and `test_guest_login_page_renders` passing (root-cause of Phase 14 OAuth route drift addressed)
-  4. The CI coverage gate is green: either coverage is at or above 45%, or the threshold has been revised with a documented rationale committed alongside the config change
-**Plans**: 3 plans
-  - [x] 33-01-PLAN.md — Remove dead `/confidence_assessment` route + downgrade `/dataset/*` unconfigured 500 → 503 (CLEAN-01, CLEAN-02)
-  - [x] 33-02-PLAN.md — Fix `test_login_redirect` and `test_guest_login_page_renders` against post-Phase-14 OAuth route shape (CLEAN-03, CLEAN-04)
-  - [x] 33-03-PLAN.md — Lower pytest `--cov-fail-under` 45 → 40 with inline + CHANGELOG rationale (CLEAN-05)
+1. After deploy, `PRAGMA table_info` confirms the four new columns (`proposed_relationship`, `proposed_basis`, `proposed_specificity`, `proposed_coverage`) exist on `proposals`, `mappings`, `ke_reactome_proposals`, `ke_reactome_mappings`; `mappings` and `ke_reactome_mappings` additionally carry `assessment_version` with all pre-v1.6 rows showing `'v1'` and new rows showing `'v2'`.
+2. A round-trip test (`create_proposal` → `create_approved_mapping` → `get_all_mappings`) returns the four question answers on both WP and Reactome rows — explicit guard against the 4th-recurrence bulk-export SELECT drift seen in v1.0/v1.2/v1.3.
+3. `GET /api/v1/mappings` and `GET /api/v1/reactome-mappings` emit the four answers + `assessment_version`; the molAOP-analyser `services/api_service.py` parser mode has been read and confirmed non-strict (or a paired PR is open), and `KE-MAPPING-API-REFERENCE.md` is updated in lockstep.
+4. The `REACTOME_PROPOSAL_CARRY_FIELDS` constant (defined v1.4, never imported) is now imported by Reactome's `create_approved_mapping`, resolving the v1.4 carryover tech-debt.
+
+**Plans**: 4 plans across 3 waves
+- [x] 34-01-PLAN.md — Migrations + dead-constant extension + Wave-0 test scaffolds (ASMT-01, 02, 03, 10)
+- [ ] 34-02-PLAN.md — Model-layer writes/reads (WP + Reactome) + bulk-export SELECT + Reactome round-trip test (ASMT-02, 03, 08, 10)
+- [ ] 34-03-PLAN.md — WP `/submit` + admin approve + HTTP round-trip test (ASMT-02, 08)
+- [ ] 34-04-PLAN.md — v1 API serializer (nested `assessment` object) + test amendment + cross-repo doc + CHANGELOG (ASMT-07, 09)
+
+---
+
+### Phase 35: Operational + Greenfield Parallel Track
+
+**Goal**: Three independent workstreams ship in parallel — (a) multi-provider OAuth surfaced in production with provider-prefixed identity hardened at the DB level, (b) landing page + source-version service + `/stats` Reactome absorption, (c) OECD AOP status precompute data on disk — none of which block each other.
+
+**Depends on**: Nothing (parallel with Phase 34).
+
+**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, LAND-01, LAND-02, LAND-03, STATS-01, STATS-02, STATS-03, STATS-04, VER-01, VER-02, VER-03, VER-04, AOPX-08
+
+**Success Criteria** (what must be TRUE):
+1. With ORCID/LSAAI/SURF env vars set on tgx1, the login modal renders the corresponding provider button conditionally (`*_configured` template flag), each redirect URI's TLS chain has been verified with `curl -vI` (expiry > 30 days) before the cutover, and SURFconext is gated behind a `SURF_ENABLED=true` feature flag to absorb the 1-2 week production approval window. A DB-level `CHECK (identity LIKE '%:%')` constraint enforces provider-prefixed identity; a grep audit confirms no `lstrip('github:')` or single-provider parsing remains.
+2. `GET /` renders a server-rendered landing page (no client-side data fetch for first paint) with hero, four headline counts (KE-WP, KE-GO, KE-Reactome, total), three CTAs, and source-version badges; `/mapper` serves the mapper view; curators received a comms note 24-48h before deploy about the bookmark change.
+3. `/stats` shows KE-Reactome as a 4th headline card, in the Confidence Breakdown table, in Filter+Export controls, and in the Export Formats button row (GMT + Turtle). Source-version badges appear on Stats and on every Downloads card next to its resource.
+4. `SourceVersionService.snapshot()` returns release identifiers for WikiPathways (`data.wikipathways.org/current/` archive folder), Reactome (`/ContentService/data/database/version`), GO (`go-basic.obo` `data-version:` line), and AOP-Wiki (quarterly XML dump filename date) with a 24-hour in-process TTL; an upstream failure renders `"unavailable"` and a tooltip rather than blocking the page.
+5. `data/aop_oecd_status.json` exists on the Gluster volume populated with one of the 7 canonical OECD statuses per AOP, sourced from the AOP-Wiki XML dump after a front-loaded 30-minute investigation (HTML scrape via `beautifulsoup4` only as fallback if XML lacks the field).
+
+**Plans**: TBD
+
+---
+
+### Phase 36: Renames, Merges, and Naming Sweep
+
+**Goal**: Group all cosmetic + routing changes — AOP Explorer rename with mandatory 301 redirect, Coverage Gaps absorbed into AOP Explorer as a visible segmented-control filter, graph parity (gene badges + green border), OECD badges on AOPs, "WP" → "WikiPathways" user-visible copy sweep, footer separator fix, upstream `/ke-details`/`/pw-details` link rewrites, Downloads regrouped by resource with previews and JSON/CSV variants — into one deliverable that exercises the same template surface once.
+
+**Depends on**: Phase 35 (OECD precompute data must exist before AOP Explorer can render OECD badges; landing page must exist so nav rename is coherent).
+
+**Requirements**: AOPX-01, AOPX-02, AOPX-03, AOPX-04, AOPX-05, AOPX-06, AOPX-07, EXPL-01, EXPL-02, EXPL-03, EXPL-04, EXPL-05, NAME-01, NAME-02, NAME-03, NAME-04, LINK-01, LINK-02, LINK-03, LINK-04, DOWN-01, DOWN-02, DOWN-03
+
+**Success Criteria** (what must be TRUE):
+1. `GET /aop-network` returns a 301 redirect to `/aop-explorer` (route registration preserved — never removed); a regression test `test_aop_network_redirects_to_explorer` enforces this. The page title, nav link, and breadcrumbs all read "AOP Explorer".
+2. AOP Explorer shows a visible segmented-control filter (All KEs / Unmapped only / Gaps in WikiPathways / Gaps in GO / Gaps in Reactome) — never a hidden dropdown — and the Coverage Gaps tab is removed from `/explore`. The standalone AOP graph renders gene-count badges (lazy fetch per node tap, not eager) and green-border for mapped KEs via shared `AOPGraphCore` options. Per-AOP OECD status badge appears with a status-filter dropdown that never hides any status by default.
+3. A grep audit on user-visible templates, CSS class names visible to users, and JS string literals confirms "WP" has been replaced with "WikiPathways" in display text, while internal API field names (`wp_id`, `wp_title`), URL paths, and DB column names are unchanged. Mapper tab labels, Explore column headers, and Downloads card titles all use the long form. WikiPathways tab in Explore shows `(N)` mapping count; Confidence column rendered as coloured badge; AOP-context column with AOP ID; last-updated/approved-at date column; AOP filter dropdown shows `AOP <N> — Title` prefix on every page.
+4. Mapper "Key Event details" and "Pathway details" links point to upstream AOP-Wiki / WikiPathways / Reactome / GO URLs when the upstream page is richer, while internal `/ke-details` and `/pw-details` route handlers continue to resolve (deep links from external systems must still 200). Footer "Documentation / API / Downloads" links are visually separated.
+5. Downloads cards are regrouped by resource (WikiPathways together, GO together, Reactome together); each card shows a per-type preview block (first ~20 lines of GMT / RDF / CSV / JSON via `itertools.islice` server endpoint); JSON and CSV download variants are surfaced alongside GMT + RDF.
+
+**Plans**: TBD
+
+---
+
+### Phase 37: Backend-Dependent UI — Assessment-Question Sibling Parity
+
+**Goal**: With schema columns in place (Phase 34) and admin templates stable after the rename pass (Phase 36), port the KE-WP 4-question assessment UI to the KE-Reactome mapper tab (replacing today's 3-button confidence selector) and bring both KE-WP and KE-Reactome admin proposal modals to parity with the KE-GO admin modal — display all four question answers + derived confidence.
+
+**Depends on**: Phase 34 (schema columns), Phase 36 (admin templates stable, no in-flight rename churn).
+
+**Requirements**: ASMT-04, ASMT-05, ASMT-06
+
+**Success Criteria** (what must be TRUE):
+1. On the mapper page Reactome tab, a curator submitting a proposal sees the same 4-question assessment UI (relationship type / basis for mapping / KE-specificity / mechanism coverage) used on the WP tab; the legacy 3-button confidence selector is gone; submitted answers are persisted into `ke_reactome_proposals` (verified via DB inspection on a test submission).
+2. Opening a KE-WP proposal in `/admin/proposals` shows the four question answers (today only the derived confidence is shown), with the same XSS-safe `escapeHtml` per-interpolation pattern locked in by v1.5 Phase 32.
+3. Opening a KE-Reactome proposal in `/admin/reactome-proposals` shows the four question answers + derived confidence — three-way sibling parity (WP / GO / Reactome) preserved across all admin modal templates.
+
+**Plans**: TBD
+
+---
+
+### Phase 38: Admin Click Reduction
+
+**Goal**: Compress the proposal review path (today: list → details modal → modal-approve = ~4 clicks per proposal) via bulk-select + bulk-approve, keyboard shortcuts, persistent auto-advancing side panel, cheat-sheet, and shared admin JS — while preserving the single-INSERT carry-fields atomicity invariant from v1.4 H-1.
+
+**Depends on**: Phase 37 (bulk approve must carry the four-question assessment fields uniformly across WP / GO / Reactome; touching admin templates after sibling-parity port avoids re-work).
+
+**Requirements**: ADMIN-01, ADMIN-02, ADMIN-03, ADMIN-04, ADMIN-05, ADMIN-06, ADMIN-07
+
+**Success Criteria** (what must be TRUE):
+1. Each admin proposal queue (KE-WP, KE-GO, KE-Reactome) has bulk-select checkboxes per row + a header "select-all"; a "Approve selected (n)" button POSTs to `/admin/{proposals|go-proposals|reactome-proposals}/bulk-approve` and returns `{approved: [uuids], failed: [{id, reason}]}`. The endpoint loops over the **existing single-INSERT `create_approved_mapping` carry-fields path in one transaction** — not a parallel bulk-SQL path. A fault-injection test asserts: bulk-approve 5 proposals, force the 3rd to fail, all 5 remain pending (v1.4 H-1 invariant preserved).
+2. Keyboard shortcuts `a` (approve) and `r` (reject) fire on the focused proposal, with a focus-context guard that prevents firing while a form input, textarea, or select is focused; `?` opens a cheat-sheet modal listing the shortcuts.
+3. A persistent side panel stays open across the proposal queue and auto-advances to the next pending proposal after each approve / reject — eliminating the close-modal-then-reopen cycle.
+4. Each bulk-approve produces an audit-log line with the UUIDs of all approved mappings, recoverable if a bulk-approve turns out to be a mistake. Shared admin JS lives in `static/js/admin_proposals.js` (extracted IIFE); the three admin templates load it via `<script src=...>` rather than inlining duplicate handlers.
+
+**Plans**: TBD
+
+---
+
+### Phase 39: Polish — Mapper Density, Login State, and v1.5 Carry
+
+**Goal**: Land the highest-cascade-risk CSS change (mapper density pass) last so manual QA covers all v1.6 UI shifts in one sweep; preserve login state across the OAuth redirect using Flask server-side session only; fill in mapper preview gaps; add OECD filter on the mapper; finish v1.5 tech-debt sweep items.
+
+**Depends on**: Phase 38 (all admin / mapper templates stable; density CSS is the last visual change so it cannot regress earlier phases).
+
+**Requirements**: MAPR-01, MAPR-02, MAPR-03, MAPR-04, MAPR-05, MAPR-06, MAPR-07, LOGIN-01, LOGIN-02, LOGIN-03, LOGIN-04, LOGIN-05, DEBT-01, DEBT-02
+
+**Success Criteria** (what must be TRUE):
+1. Mapper density pass: KE context panel collapses by default with KE title + biolevel chip + AOP context visible as a summary row; suggestion cards (WP/GO/Reactome) have reduced vertical padding; submit + assessment area is a sticky footer with `env(safe-area-inset-bottom)` handling and a `< 600px` inline-fallback. **Every density-pass selector is scoped with a parent class** (v1.4 `09426fa` global-`button` cascade incident is the precedent); before/after screenshots captured at 1920/1366/768 widths; `aopGraphInline.cy.resize(); cy.fit()` is called after CSS container changes; inline AOP graph + DiagramJS controls render with no regression.
+2. KE description appears in the confidence-assessment preview; pathway description appears in the mapping preview; the mapper page has an OECD AOP status filter + per-AOP badge using the AOPX-08 precomputed data.
+3. Login state preservation: an unauthenticated curator clicking Submit on a fully-filled mapping has the full state (KE, pathway, all four assessment answers) stashed in Flask server-side session (`pending_submission`) before the OAuth redirect, rehydrated on the post-OAuth callback so the curator returns ready to submit without re-clicking assessment buttons. State is one-shot consumed (cleared on successful submit OR session timeout), cleared on explicit logout to prevent cross-user leak on shared workshop laptops, and **never** stored in localStorage or URL hash (which would defeat SURFconext exact-match `redirect_uri`).
+4. v1.5 carry: dead `setupMethodFilterButtons` helper + residual `currentMethodFilter` state at `static/js/main.js:384/1613/2603/2814` removed (audit §6.1); WP `/submit` has the defensive `if not mapping_model: return jsonify({"error": ...}), 503` guard added to mirror the GO branch at `api.py:1478` (audit §6.3).
+
+**Plans**: TBD
+
+---
 
 ## Progress
 
@@ -191,14 +243,24 @@ Full details: `.planning/milestones/v1.4-ROADMAP.md`
 | 20. GO Molecular Function Suggestions | v1.3 | 2/2 | Complete | 2026-03-10 |
 | 21. Wire GO Namespace Through Approval Chain | v1.3 | 1/1 | Complete | 2026-03-11 |
 | 22. Fix Bulk Export SELECT | v1.3 | 1/1 | Complete | 2026-03-11 |
-| 23. Reactome Data Infrastructure | v1.4 | 3/3 | Complete    | 2026-04-03 |
-| 24. Database Models and Suggestion Service | v1.4 | 2/2 | Complete   | 2026-04-29 |
-| 25. Proposal Workflow and Admin UI | v1.4 | 6/6 | Complete   | 2026-05-05 |
-| 26. Public API and Exports | v1.4 | 8/8 | Complete    | 2026-05-06 |
-| 27. Reactome Pathway Viewer | v1.4 | 4/4 | Complete   | 2026-05-06 |
-| 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 4/4 | Complete    | 2026-05-07 |
-| 29. Pure-Semantic Ranking Shift | v1.5 | 6/6 | Complete    | 2026-05-10 |
-| 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 2/2 | Complete    | 2026-05-10 |
-| 31. Reactome Viewer Polish | v1.5 | 3/3 | Complete    | 2026-05-11 |
-| 32. GO/WP Sibling Debt Sweep | v1.5 | 7/7 | Complete    | 2026-05-11 |
-| 33. Baseline Cleanup | v1.5 | 3/3 | Complete   | 2026-05-11 |
+| 23. Reactome Data Infrastructure | v1.4 | 3/3 | Complete | 2026-04-03 |
+| 24. Database Models and Suggestion Service | v1.4 | 2/2 | Complete | 2026-04-29 |
+| 25. Proposal Workflow and Admin UI | v1.4 | 6/6 | Complete | 2026-05-05 |
+| 26. Public API and Exports | v1.4 | 8/8 | Complete | 2026-05-06 |
+| 27. Reactome Pathway Viewer | v1.4 | 4/4 | Complete | 2026-05-06 |
+| 28. KE Gene SPARQL Returns Persistent Identifiers | v1.4 | 4/4 | Complete | 2026-05-07 |
+| 29. Pure-Semantic Ranking Shift | v1.5 | 6/6 | Complete | 2026-05-10 |
+| 30. Reactome Suggestion Card Parity and Threshold Tuning | v1.5 | 2/2 | Complete | 2026-05-10 |
+| 31. Reactome Viewer Polish | v1.5 | 3/3 | Complete | 2026-05-11 |
+| 32. GO/WP Sibling Debt Sweep | v1.5 | 7/7 | Complete | 2026-05-11 |
+| 33. Baseline Cleanup | v1.5 | 3/3 | Complete | 2026-05-11 |
+| 34. Assessment Metadata Schema Parity | v1.6 | 1/4 | In Progress|  |
+| 35. Operational + Greenfield Parallel Track | v1.6 | 0/? | Not started | - |
+| 36. Renames, Merges, and Naming Sweep | v1.6 | 0/? | Not started | - |
+| 37. Backend-Dependent UI — Assessment-Question Sibling Parity | v1.6 | 0/? | Not started | - |
+| 38. Admin Click Reduction | v1.6 | 0/? | Not started | - |
+| 39. Polish — Mapper Density, Login State, and v1.5 Carry | v1.6 | 0/? | Not started | - |
+
+---
+
+*Last updated: 2026-05-14 — v1.6 User & Admin Experience roadmap added (phases 34–39)*
