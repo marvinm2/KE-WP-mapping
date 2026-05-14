@@ -1,0 +1,129 @@
+# Releasing the curated dataset to Zenodo
+
+Runbook for cutting a new version of the curated KE → WikiPathways / GO / Reactome
+mapping database. For the data-management policy that sits behind these mechanics
+see [`docs/DMP.md`](DMP.md); for the dataset's schema and re-use guidance see
+[`docs/DATASET_DOCUMENTATION.md`](DATASET_DOCUMENTATION.md).
+
+## What gets released
+
+- **Concept DOI** [`10.5281/zenodo.20184643`](https://doi.org/10.5281/zenodo.20184643)
+  — stable, always resolves to the latest version. This is the citation target.
+- **Version DOI** — a fresh DOI per release, recorded in `data/zenodo_meta.json`.
+- **License**: CC0 1.0 Universal · **Access**: open.
+- **Structure**: three per-resource ZIP archives plus a top-level README:
+  - `KE-WikiPathways.zip` — GMT × {All, High, Medium, Low} + Turtle for WikiPathways
+  - `KE-GO.zip` — same shape for Gene Ontology (BP / MF)
+  - `KE-Reactome.zip` — same shape for Reactome
+- **Version label**: ISO date of release (`YYYY-MM-DD`) — set automatically by the
+  release script.
+
+## How to trigger a release
+
+All releases go through [`scripts/publish_zenodo.py`](../scripts/publish_zenodo.py).
+The script runs inside the production container so it can talk to the database
+directly; auth is via a Zenodo personal access token stored in the
+`ZENODO_API_TOKEN` swarm-service environment variable.
+
+```bash
+# Preview only — assembles ZIPs + README in memory, computes mapping counts,
+# reports what would be published; no Zenodo calls, no file writes.
+ssh tgx1 'docker exec $(docker ps -qf name=molaop-builder) python /app/scripts/publish_zenodo.py --dry-run'
+
+# Real release — skips silently if mapping counts haven't changed since last deposit.
+ssh tgx1 'docker exec $(docker ps -qf name=molaop-builder) python /app/scripts/publish_zenodo.py'
+
+# Force a release even when counts are unchanged (e.g. when re-issuing for metadata fixes).
+ssh tgx1 'docker exec $(docker ps -qf name=molaop-builder) python /app/scripts/publish_zenodo.py --force'
+
+# Threshold the skip gate (e.g. only release when ≥5 new mappings accumulated).
+ssh tgx1 'docker exec $(docker ps -qf name=molaop-builder) python /app/scripts/publish_zenodo.py --min-delta 5'
+
+# Rehearse against sandbox.zenodo.org (requires ZENODO_SANDBOX_API_TOKEN).
+ssh tgx1 'docker exec $(docker ps -qf name=molaop-builder) python /app/scripts/publish_zenodo.py --sandbox'
+```
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0`  | Published successfully OR skipped because counts are unchanged |
+| `1`  | Configuration error (missing token, app context failed) |
+| `2`  | Zenodo API HTTP error during publish |
+| `3`  | Lock held by another invocation |
+
+## Post-release checklist
+
+After a successful release:
+
+1. **Verify on Zenodo** — open https://doi.org/10.5281/zenodo.20184643 and confirm
+   the new version shows up with the expected file list and counts.
+2. **Sync `data/zenodo_meta.json` back into git**. The script writes it inside the
+   container (or falls back to `/tmp/zenodo_meta_pending.json` if the gluster mount
+   blocks the write — see "Known limitations" below). Either way:
+   ```bash
+   scp tgx1:/mnt/gluster/docker/molaop-builder/data/zenodo_meta.json data/zenodo_meta.json
+   # or, if the EACCES fallback fired:
+   scp tgx1:/tmp/zenodo_meta_pending.json data/zenodo_meta.json
+   ```
+   Then `git add data/zenodo_meta.json && git commit -m "feat(zenodo): record release YYYY-MM-DD"`.
+3. **Bump the DOI badge if the concept DOI is being referenced elsewhere** — README,
+   landing page, etc. (The concept DOI is stable, so usually nothing to change.)
+4. **Optional: changelog entry** under `[Unreleased]` summarising what's new in the
+   dataset.
+
+## Cadence
+
+Currently **manual / event-driven**. The right time to release is after a substantive
+batch of curation activity has landed and you want it citable. The skip gate means
+running the script when nothing has changed is harmless (silent no-op).
+
+Monthly cron is supported but not turned on. The relevant snippet, when you want to
+flip it on:
+
+```cron
+# First Monday of each month at 09:00 — change-gated; silent skip on quiet months
+0 9 1-7 * 1 /usr/bin/docker exec $(/usr/bin/docker ps -qf name=molaop-builder) python /app/scripts/publish_zenodo.py >> /var/log/molaop-zenodo.log 2>&1
+```
+
+## Known limitations
+
+These are tracked under GitHub [issue #158](https://github.com/marvinm2/KE-WP-mapping/issues/158):
+
+- **`data/zenodo_meta.json` write fails with EACCES from inside the container.** The
+  gluster mount is owned by host uid `mmartens` and the container user has no write
+  bit. The release script catches this and writes to `/tmp/zenodo_meta_pending.json`
+  with a clear log line, but until the uid/gid alignment is fixed, every release
+  needs an out-of-band copy step (`scp` from the tmp path back into git).
+- **`rdflib` emits `WARNING: ISO 8601 time designator 'T' missing`** during Turtle
+  generation for a handful of legacy mapping rows. Turtle output is still correct —
+  warnings only — but the log is briefly noisy. Schema-level backfill on legacy rows
+  is the cleanest fix.
+- **No failure alerting on cron path.** Until that's added, monthly cron must be
+  paired with a periodic eyeball of `/var/log/molaop-zenodo.log` or a small wrapper
+  that emails / Slack-pings on non-zero exit.
+
+## Token management
+
+- **Production token**: stored on the swarm service as `ZENODO_API_TOKEN`. Set with
+  `docker service update --env-add ZENODO_API_TOKEN=<token> molaop-builder`. The
+  scopes needed are `deposit:write` and `deposit:actions`.
+- **Rotate after**: a major release campaign, a suspected leak, or whenever the
+  responsible admin changes. Mint a new token on zenodo.org → Account → Applications
+  → Personal access tokens; rotate the env var; revoke the old one. Existing
+  published deposits are unaffected.
+- **Sandbox token**: optional, only needed for `--sandbox` rehearsals. Get from
+  https://sandbox.zenodo.org/account/settings/applications/tokens/new/ and set as
+  `ZENODO_SANDBOX_API_TOKEN`.
+
+## Version timeline
+
+For historical context:
+
+| Version | DOI | Date | Notes |
+|---------|-----|------|-------|
+| v1 | `10.5281/zenodo.20184644` | 2026-05-14 | First deposit. Flat filenames, placeholder creator. Superseded. |
+| v2 | `10.5281/zenodo.20184759` | 2026-05-14 | Added per-resource ZIPs but inherited v1's flat files; transitional. Superseded. |
+| v3 (`2026-05-14`) | `10.5281/zenodo.20184796` | 2026-05-14 | First canonical release — clean per-resource ZIP layout, correct creator, date-based version label, README with counts. |
+
+The concept DOI `10.5281/zenodo.20184643` resolves to whichever of these is latest.
