@@ -1507,6 +1507,8 @@ select:focus:not(:focus-visible),
 .login-modal__guest-input { flex: 1; padding: 8px 12px; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); font-size: 0.875rem; }
 .login-modal__guest-btn { padding: 8px 16px; background: var(--color-primary-dark); color: white; border: none; border-radius: var(--radius-md); font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
 .login-modal__guest-btn:hover { opacity: 0.9; }
+.login-modal__privacy { margin: 20px 0 0; font-size: 0.75rem; line-height: 1.5; color: var(--color-text-muted); text-align: left; }
+.login-modal__privacy a { color: var(--color-primary-blue); text-decoration: underline; }
 
 /* Provider Buttons */
 .btn-provider { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 16px; border-radius: var(--radius-md); font-size: 0.95rem; font-weight: 500; text-decoration: none; color: white; transition: opacity 0.15s; }

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/MolAOPlogo.png') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Notice - Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/docs.css') }}">
+</head>
+<body>
+<div class="page-container">
+    {% include 'components/navigation.html' %}
+
+    <div class="docs-container docs-container--single">
+        <main class="docs-content">
+            <h2>Privacy notice &amp; data-retention policy</h2>
+            <p style="color: var(--color-text-muted); font-size: 0.9em; margin-top: -16px; margin-bottom: 24px;">
+                Last updated: 2026-05-14 ·
+                <a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/docs/DMP.md#6-ethics" target="_blank" rel="noopener">DMP §6</a> ·
+                <a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/docs/GOVERNANCE.md" target="_blank" rel="noopener">Governance</a>
+            </p>
+
+            <h3>Scope</h3>
+            <p>
+                The Molecular AOP Builder (<code>molaop-builder.vhp4safety.nl</code>) is a curator-facing
+                tool for proposing and approving mappings between Adverse Outcome Pathway Key Events and
+                biological pathways or Gene Ontology terms. It does not collect personal data from members
+                of the public who only browse or query the mapping database. The processing described below
+                applies to <strong>curators and proposers</strong> who authenticate in order to submit
+                mappings.
+            </p>
+
+            <h3>What we collect, and why</h3>
+            <p>When you authenticate via OAuth and submit a proposal, the application stores:</p>
+            <ul>
+                <li><strong>Your provider-prefixed username</strong> (e.g. <code>github:alice</code>,
+                    <code>orcid:0000-0003-2230-0840</code>) — the stable identifier for your contributions.</li>
+                <li><strong>The name you entered</strong> on the proposal form — used for attribution on
+                    approved mappings.</li>
+                <li><strong>Your email address</strong> — used so an administrator can contact you about an
+                    ambiguous or rejected proposal.</li>
+                <li><strong>Your institutional affiliation</strong> (optional) — surfaced on the public
+                    provenance record of an approved mapping.</li>
+            </ul>
+            <p>
+                The legal basis under the General Data Protection Regulation (GDPR) is
+                <strong>performance of a contract</strong>: you choose to authenticate, submit a proposal,
+                and consent to attribution of your contribution as part of the curation workflow. The
+                application requests no OAuth scope beyond what is needed to read your profile (name, email,
+                affiliation where available) and verify your identity. Tokens issued by the provider are
+                held only in your Flask session and are discarded on logout or session expiry. Once a
+                mapping is approved, the curator's identity is also written into the immutable provenance
+                fields of the mapping itself (<code>proposed_by</code>, <code>approved_by_curator</code>).
+            </p>
+
+            <h3>Where it lives</h3>
+            <p>
+                Personal data sit in the application's SQLite database (<code>ke_wp_mapping.db</code>) on a
+                GlusterFS-replicated volume of the VHP4Safety Strato Docker Swarm cluster. The data are not
+                classified as special-category personal data under GDPR Article 9. Access is restricted to
+                the application container and to the small set of cluster administrators with shell access
+                on the swarm manager nodes; transport between your browser and the application is protected
+                by TLS (Let's Encrypt) terminated at Traefik.
+            </p>
+
+            <h3>Cookies and session security</h3>
+            <p>
+                Sessions use first-party cookies marked <code>HttpOnly</code>, <code>SameSite=Lax</code>,
+                and <code>Secure</code> in production, with a thirty-minute session lifetime and a one-hour
+                CSRF token lifetime. No third-party analytics, advertising, or tracking cookies are set by
+                the application.
+            </p>
+
+            <h3>Retention</h3>
+            <p>
+                The application distinguishes four categories of data, each with its own retention rule:
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Retention</th>
+                        <th>Rationale</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Identity fields on <strong>approved mappings</strong>
+                            (<code>proposed_by</code>, <code>approved_by_curator</code>, timestamps)</td>
+                        <td>Indefinite, for the lifetime of the mapping</td>
+                        <td>Attribution is part of the public scientific provenance of every mapping;
+                            erasure of these fields would compromise the audit trail. Erasure requests
+                            are handled case-by-case by the Data Steward in coordination with the
+                            institutional Data Protection Officer (see "Your rights" below). An
+                            automated placeholder-replacement procedure is planned but not yet
+                            implemented.</td>
+                    </tr>
+                    <tr>
+                        <td>Identity fields on <strong>pending, rejected, or withdrawn proposals</strong></td>
+                        <td>Indefinite, retained as curation audit trail</td>
+                        <td>Rejected and withdrawn proposals are kept so that a curator can revisit a
+                            decision, detect duplicate submissions, and reconstruct the assessment history.
+                            The data are not used for any purpose beyond curation review. Erasure on
+                            request is straightforward because the data are not part of any public output.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Guest access codes</strong> (workshop logins; no personal data unless a
+                            guest associates a name)</td>
+                        <td>Active until the code's stated expiry; row retained 30 days post-expiry for
+                            audit, then purged</td>
+                        <td>Short-lived workshop credentials with no need for long-term retention.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>SPARQL response cache</strong> (no personal data)</td>
+                        <td>24-hour rolling cache, automatically evicted</td>
+                        <td>Performance optimisation only; rows expire by timestamp on next access.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Your rights under GDPR</h3>
+            <p>You have the right to request:</p>
+            <ul>
+                <li><strong>Access</strong> to the personal data we hold about you;</li>
+                <li><strong>Rectification</strong> of any inaccurate or incomplete data;</li>
+                <li><strong>Erasure</strong> of the data we hold about you. Identity on approved
+                    mappings is part of the public scientific provenance, so erasure of those
+                    specific fields is handled case-by-case by the Data Steward together with the
+                    institutional Data Protection Officer; an automated placeholder-replacement
+                    procedure is planned but not yet shipped. Erasure of identity on pending,
+                    rejected, or withdrawn proposals is unconditional;</li>
+                <li><strong>Restriction</strong> of processing in specific circumstances;</li>
+                <li><strong>Portability</strong> of your data in a machine-readable format;</li>
+                <li><strong>Objection</strong> to processing on legitimate-interests grounds.</li>
+            </ul>
+            <p>
+                Subject-rights requests are handled by the Maastricht University Data Protection Officer,
+                who is the institutional data controller for this application. The technical contact inside
+                the application is the Data Steward, who prepares the response under the DPO's sign-off.
+                Both contacts are listed below.
+            </p>
+
+            <h3>Contact</h3>
+            <ul>
+                <li><strong>Data Steward (technical contact, first point of contact)</strong>:
+                    Marvin Martens ·
+                    <a href="https://orcid.org/0000-0003-2230-0840" target="_blank" rel="noopener">ORCID
+                    0000-0003-2230-0840</a> · Department of Translational Genomics, Maastricht University.
+                    Please route subject-rights requests here first; the Data Steward forwards to the
+                    institutional Data Protection Officer for sign-off.</li>
+                <li><strong>Data Protection Officer (institutional controller)</strong>: Maastricht
+                    University. Direct contact channel is being confirmed; in the meantime requests
+                    should be routed via the Data Steward above.</li>
+            </ul>
+            <p>
+                For background on roles and escalation, see
+                <a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/docs/GOVERNANCE.md" target="_blank" rel="noopener">docs/GOVERNANCE.md</a>.
+                For the full data lifecycle, see
+                <a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/docs/DMP.md" target="_blank" rel="noopener">docs/DMP.md</a>.
+            </p>
+        </main>
+    </div>
+
+    {% include 'components/footer.html' %}
+</div>
+</body>
+</html>
