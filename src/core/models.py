@@ -3406,20 +3406,33 @@ class ReactomeMappingModel:
         confidence_level: str = 'low',
         suggestion_score: float = None,
         created_by: str = None,
+        proposed_relationship: Optional[str] = None,
+        proposed_basis: Optional[str] = None,
+        proposed_specificity: Optional[str] = None,
+        proposed_coverage: Optional[str] = None,
     ) -> Optional[int]:
         """Create a new KE-Reactome mapping"""
         mapping_uuid = str(uuid_lib.uuid4())
+        assessment_version = _classify_assessment_version(
+            proposed_relationship, proposed_basis, proposed_specificity, proposed_coverage
+        )
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
                 """
                 INSERT INTO ke_reactome_mappings
                     (ke_id, ke_title, reactome_id, pathway_name, species,
-                     confidence_level, suggestion_score, created_by, uuid)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     confidence_level, suggestion_score, created_by, uuid,
+                     proposed_relationship, proposed_basis,
+                     proposed_specificity, proposed_coverage,
+                     assessment_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (ke_id, ke_title, reactome_id, pathway_name, species,
-                 confidence_level, suggestion_score, created_by, mapping_uuid),
+                 confidence_level, suggestion_score, created_by, mapping_uuid,
+                 proposed_relationship, proposed_basis,
+                 proposed_specificity, proposed_coverage,
+                 assessment_version),
             )
             conn.commit()
             logger.info(
@@ -3441,50 +3454,86 @@ class ReactomeMappingModel:
 
     def create_approved_mapping(
         self,
-        ke_id: str,
-        ke_title: str,
-        reactome_id: str,
-        pathway_name: str,
-        species: str,
-        confidence_level: str,
-        suggestion_score: Optional[float],
+        proposal_id: int,
         approved_by_curator: str,
-        approved_at_curator: str,
-        proposed_by: Optional[str],
-        created_by: Optional[str] = None,
+        approved_at_curator: str = None,
     ) -> Optional[int]:
         """Create an approved KE-Reactome mapping in a single INSERT.
 
-        Phase 25 review H-1: the approve flow used to call create_mapping()
-        followed by update_reactome_mapping() to attach provenance, which
-        was non-transactional and ignored return values — a partial failure
-        could leave a row with NULL approved_by_curator/approved_at_curator/
-        proposed_by, contradicting RCUR-02 SC#3. This single-statement
-        helper writes every carry-field up front so partial state is
-        impossible.
+        Phase 25 review H-1: single-INSERT carry — all carry-fields written
+        up front so partial state is impossible.
+
+        Phase 34 (ASMT-10): the INSERT column list is now driven by the
+        module-level constant REACTOME_PROPOSAL_CARRY_FIELDS; extending that
+        constant automatically widens this INSERT, and the round-trip test
+        asserts every constant element is actually written.
+
+        Args:
+            proposal_id: ID of the pending ke_reactome_proposals row to approve.
+            approved_by_curator: Provider-prefixed username of the approving admin.
+            approved_at_curator: ISO timestamp of approval (defaults to utcnow).
 
         Returns the new mapping id, or None on IntegrityError (UNIQUE on
         (ke_id, reactome_id)) or other DB error.
         """
+        if approved_at_curator is None:
+            approved_at_curator = datetime.utcnow().isoformat()
+
         mapping_uuid = str(uuid_lib.uuid4())
         conn = self.db.get_connection()
         try:
-            cursor = conn.execute(
-                """
-                INSERT INTO ke_reactome_mappings (
-                    ke_id, ke_title, reactome_id, pathway_name, species,
-                    confidence_level, suggestion_score, created_by, uuid,
-                    approved_by_curator, approved_at_curator, proposed_by
+            # Load the proposal row — all carry-field values live here.
+            proposal_row = conn.execute(
+                "SELECT * FROM ke_reactome_proposals WHERE id = ?",
+                (proposal_id,),
+            ).fetchone()
+            if proposal_row is None:
+                logger.error(
+                    "create_approved_mapping: proposal %s not found", proposal_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    ke_id, ke_title, reactome_id, pathway_name, species,
-                    confidence_level, suggestion_score,
-                    created_by or proposed_by or approved_by_curator,
-                    mapping_uuid,
-                    approved_by_curator, approved_at_curator, proposed_by,
-                ),
+                return None
+            proposal_row = dict(proposal_row)
+
+            # Phase 34 (ASMT-10): carry-field column list is constant-driven.
+            # Extending REACTOME_PROPOSAL_CARRY_FIELDS automatically widens
+            # the INSERT; the round-trip test guards against silent drops.
+            carry_cols = list(REACTOME_PROPOSAL_CARRY_FIELDS)
+            carry_values = tuple(proposal_row.get(col) for col in carry_cols)
+
+            # Derive ke_id, reactome_id from proposal for fixed cols
+            ke_id = proposal_row.get("ke_id")
+            ke_title = proposal_row.get("ke_title")
+            reactome_id = proposal_row.get("reactome_id")
+            proposed_by = proposal_row.get("provider_username")
+
+            # Compute assessment_version from carried assessment fields
+            assessment_version = _classify_assessment_version(
+                proposal_row.get("proposed_relationship"),
+                proposal_row.get("proposed_basis"),
+                proposal_row.get("proposed_specificity"),
+                proposal_row.get("proposed_coverage"),
+            )
+
+            fixed_cols = (
+                'ke_id', 'ke_title', 'reactome_id',
+                'created_by', 'uuid',
+                'approved_by_curator', 'approved_at_curator', 'proposed_by',
+                'assessment_version',
+            )
+            fixed_values = (
+                ke_id, ke_title, reactome_id,
+                proposed_by or approved_by_curator,
+                mapping_uuid,
+                approved_by_curator, approved_at_curator, proposed_by,
+                assessment_version,
+            )
+
+            all_cols = fixed_cols + tuple(carry_cols)
+            placeholders = ', '.join('?' for _ in all_cols)
+            cursor = conn.execute(
+                f"INSERT INTO ke_reactome_mappings ({', '.join(all_cols)}) "
+                f"VALUES ({placeholders})",
+                fixed_values + carry_values,
             )
             conn.commit()
             logger.info(
@@ -3496,8 +3545,8 @@ class ReactomeMappingModel:
             return cursor.lastrowid
         except sqlite3.IntegrityError:
             logger.warning(
-                "Duplicate Reactome mapping on approve: KE=%s, Reactome=%s",
-                ke_id, reactome_id,
+                "Duplicate Reactome mapping on approve: proposal=%s",
+                proposal_id,
             )
             return None
         except Exception as e:
@@ -3538,7 +3587,12 @@ class ReactomeMappingModel:
                 SELECT id, ke_id, ke_title, reactome_id, pathway_name, species,
                        confidence_level, suggestion_score, proposed_by, created_by,
                        uuid, approved_by_curator, approved_at_curator,
-                       created_at, updated_at
+                       created_at, updated_at,
+                       -- Phase 34 ASMT-08: do NOT drop these or insert above;
+                       -- positional consumers append at end (Pitfall 5)
+                       proposed_relationship, proposed_basis,
+                       proposed_specificity, proposed_coverage,
+                       assessment_version
                 FROM ke_reactome_mappings
                 ORDER BY created_at DESC
                 """
@@ -3924,6 +3978,10 @@ class ReactomeProposalModel:
         provider_username: str = None,
         proposed_delete: bool = False,
         proposed_confidence: str = None,
+        proposed_relationship: Optional[str] = None,
+        proposed_basis: Optional[str] = None,
+        proposed_specificity: Optional[str] = None,
+        proposed_coverage: Optional[str] = None,
     ) -> Optional[int]:
         """Create a new Reactome mapping proposal"""
         proposal_uuid = str(uuid_lib.uuid4())
@@ -3932,11 +3990,15 @@ class ReactomeProposalModel:
             cursor = conn.execute(
                 """
                 INSERT INTO ke_reactome_proposals (mapping_id, user_name, user_email, user_affiliation,
-                                                   provider_username, proposed_delete, proposed_confidence, uuid)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                                   provider_username, proposed_delete, proposed_confidence,
+                                                   uuid, proposed_relationship, proposed_basis,
+                                                   proposed_specificity, proposed_coverage)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (mapping_id, user_name, user_email, user_affiliation,
-                 provider_username, proposed_delete, proposed_confidence, proposal_uuid),
+                 provider_username, proposed_delete, proposed_confidence,
+                 proposal_uuid, proposed_relationship, proposed_basis,
+                 proposed_specificity, proposed_coverage),
             )
             conn.commit()
             logger.info(
@@ -3968,6 +4030,10 @@ class ReactomeProposalModel:
         species: str = 'Homo sapiens',
         provider_username: str = None,
         suggestion_score: float = None,
+        proposed_relationship: Optional[str] = None,
+        proposed_basis: Optional[str] = None,
+        proposed_specificity: Optional[str] = None,
+        proposed_coverage: Optional[str] = None,
     ):
         """
         Create a new-pair Reactome proposal where no existing mapping_id exists yet.
@@ -3990,9 +4056,11 @@ class ReactomeProposalModel:
                     provider_username, proposed_delete, proposed_confidence,
                     uuid, suggestion_score,
                     ke_id, ke_title, reactome_id, pathway_name, species,
-                    new_pair_confidence_level
+                    new_pair_confidence_level,
+                    proposed_relationship, proposed_basis,
+                    proposed_specificity, proposed_coverage
                 )
-                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     provider_username or "curator", "", "",
@@ -4000,6 +4068,8 @@ class ReactomeProposalModel:
                     proposal_uuid, suggestion_score,
                     ke_id, ke_title, reactome_id, pathway_name, species,
                     confidence_level,
+                    proposed_relationship, proposed_basis,
+                    proposed_specificity, proposed_coverage,
                 ),
             )
             conn.commit()

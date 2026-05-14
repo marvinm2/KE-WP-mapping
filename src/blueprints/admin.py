@@ -829,32 +829,17 @@ def approve_reactome_proposal(proposal_id: int):
             return jsonify({"error": f"Reactome proposal is already {proposal['status']}"}), 400
 
         approved_at = datetime.utcnow().isoformat()
-        proposal_score = proposal.get("suggestion_score")
-
-        # Confidence is straight pass-through (D-02). No dimension-score branch.
-        confidence_level = (
-            proposal.get("new_pair_confidence_level")
-            or proposal.get("proposed_confidence")
-            or proposal.get("confidence_level")
-        )
 
         # Phase 25 review H-1: write the mapping in one INSERT with every
         # carry-field populated up front (eliminates the create_mapping +
         # update_reactome_mapping two-step that could leave NULL provenance
-        # on partial failure). Then check update_proposal_status's return
-        # and roll the mapping back if the status flip fails.
+        # on partial failure). Phase 34 (ASMT-10): create_approved_mapping
+        # now loads all carry-fields from the proposal row internally via
+        # REACTOME_PROPOSAL_CARRY_FIELDS — pass only the approval context.
         new_mapping_id = reactome_mapping_model.create_approved_mapping(
-            ke_id=proposal["ke_id"],
-            ke_title=proposal["ke_title"],
-            reactome_id=proposal["reactome_id"],
-            pathway_name=proposal["pathway_name"],
-            species=proposal.get("species") or "Homo sapiens",
-            confidence_level=confidence_level,
-            suggestion_score=proposal_score,
+            proposal_id=proposal_id,
             approved_by_curator=admin_username,
             approved_at_curator=approved_at,
-            proposed_by=proposal.get("provider_username"),
-            created_by=proposal.get("provider_username") or admin_username,
         )
 
         if not new_mapping_id:
