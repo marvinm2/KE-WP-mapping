@@ -1,0 +1,36 @@
+{
+  "captured_at": "2026-05-14T21:46:25Z",
+  "sources": {
+    "wikipathways": {
+      "status": "ok",
+      "release_date": "2026-05-10",
+      "dataset_iri": "http://data.wikipathways.org/20260510/smiles",
+      "method": "sparql:void-dataset-iri",
+      "endpoint": "https://sparql.wikipathways.org/sparql",
+      "captured_at": "2026-05-14T21:46:24Z"
+    },
+    "gene_ontology": {
+      "status": "ok",
+      "release_label": "releases/2026-01-23",
+      "release_date": "2026-01-23",
+      "method": "obo-header",
+      "source_file": "data/go-basic.obo",
+      "captured_at": "2026-05-14T21:46:24Z"
+    },
+    "reactome": {
+      "status": "ok",
+      "release_version": "96",
+      "method": "rest-api",
+      "endpoint": "https://reactome.org/ContentService/data/database/info",
+      "captured_at": "2026-05-14T21:46:24Z",
+      "release_date": "2026-03-25"
+    },
+    "aopwiki": {
+      "status": "ok",
+      "snapshot_date": "2026-05-06",
+      "method": "sparql:max(dcterms:modified)",
+      "endpoint": "https://aopwiki.rdf.bigcat-bioinformatics.org/sparql",
+      "captured_at": "2026-05-14T21:46:24Z"
+    }
+  }
+}

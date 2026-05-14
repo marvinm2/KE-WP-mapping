@@ -1,4 +1,4 @@
-.PHONY: help install test lint run docker-build docker-run clean
+.PHONY: help install test lint run docker-build docker-run clean capture-versions
 
 help:		## Show this help
 	@echo "Available targets:"
@@ -39,6 +39,9 @@ migrate:	## Run database migration
 
 go-hierarchy:	## Build GO hierarchy data (IC scores, ancestors, depths)
 	python scripts/precompute_go_hierarchy.py
+
+capture-versions:	## Refresh data/source_versions.json from WP / GO / Reactome / AOP-Wiki
+	python scripts/capture_source_versions.py
 
 clean:		## Clean up generated files
 	rm -rf __pycache__
