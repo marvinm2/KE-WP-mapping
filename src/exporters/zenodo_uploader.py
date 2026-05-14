@@ -102,15 +102,21 @@ def zenodo_publish(files: dict, metadata: dict, existing_deposition_id: int = No
 
 
 def _build_zenodo_metadata(published_at: str = None) -> dict:
+    pub_date = published_at or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return {
-        "title": "KE-WP and KE-GO Mapping Database",
+        "title": "Molecular AOP Builder — Curated KE → WikiPathways / GO / Reactome Mappings",
         "upload_type": "dataset",
         "description": (
-            "Curated database of Key Event (KE) to WikiPathways (KE-WP) and "
-            "Key Event to Gene Ontology Biological Process (KE-GO) mappings. "
-            "Gene sets are provided in GMT format for use with clusterProfiler and fgsea. "
-            "Full provenance (curator, approval timestamp, confidence level, suggestion score) "
-            "is provided in RDF/Turtle format."
+            "Curated database of Key Event (KE) mappings to three molecular-pathway and ontology "
+            "resources: WikiPathways (KE-WikiPathways), Gene Ontology Biological Process and "
+            "Molecular Function (KE-GO), and Reactome (KE-Reactome). Mappings are bundled in three "
+            "per-resource ZIP archives (KE-WikiPathways.zip, KE-GO.zip, KE-Reactome.zip), each "
+            "containing GMT gene-set files split by confidence level (All / High / Medium / Low) "
+            "for clusterProfiler and fgsea, and RDF/Turtle for SPARQL and linked-data consumption. "
+            "Each mapping carries a stable UUID and full curation provenance (proposer, approving "
+            "curator, approval timestamp, BioBERT suggestion score, confidence level, connection "
+            "type). Produced by the Molecular AOP Builder at https://molaop-builder.vhp4safety.nl ; "
+            "source at https://github.com/marvinm2/KE-WP-mapping ."
         ),
         "creators": [
             {
@@ -119,8 +125,12 @@ def _build_zenodo_metadata(published_at: str = None) -> dict:
                 "orcid": "0000-0003-2230-0840",
             },
         ],
-        "keywords": ["key events", "WikiPathways", "Gene Ontology", "AOP", "toxicology", "GMT", "RDF"],
+        "keywords": [
+            "Adverse Outcome Pathway", "AOP", "Key Event", "WikiPathways", "Gene Ontology",
+            "Reactome", "toxicology", "pathway analysis", "GMT", "RDF", "BioBERT", "curation",
+        ],
         "license": "cc-zero",
-        "publication_date": published_at or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "publication_date": pub_date,
+        "version": pub_date,
         "access_right": "open",
     }
