@@ -93,7 +93,8 @@ def _changes_significant(current: dict, last: Optional[dict], min_delta: int) ->
 
 # ---------- deposit assembly ----------
 
-def _build_resource_zip(prefix: str, gmt_fn, ttl_fn, mappings: list, today: str, gmt_kwargs=None) -> bytes:
+def _build_resource_zip(prefix: str, gmt_fn, ttl_fn, mappings: list, today: str,
+                         gmt_kwargs=None, source_versions_slice: dict | None = None) -> bytes:
     buf = io.BytesIO()
     gmt_kwargs = gmt_kwargs or {}
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -104,10 +105,62 @@ def _build_resource_zip(prefix: str, gmt_fn, ttl_fn, mappings: list, today: str,
         ttl_content = ttl_fn(mappings)
         if ttl_content:
             zf.writestr(f"{prefix}/{prefix.lower()}-mappings.ttl", ttl_content)
+        # Phase E.2: emit a source_versions.json sidecar inside each per-resource
+        # ZIP so GMT-only consumers (clusterProfiler / fgsea users) can still
+        # pin against an upstream release without reading the Turtle export.
+        if source_versions_slice:
+            zf.writestr(
+                f"{prefix}/source_versions.json",
+                json.dumps(source_versions_slice, indent=2, ensure_ascii=False) + "\n",
+            )
     return buf.getvalue()
 
 
-def _build_readme(today: str, wp_n: dict, go_n: dict, rx_n: dict) -> bytes:
+def _slice_source_versions(manifest: dict, *resources: str) -> dict:
+    """Return a manifest slice containing only the named upstream resources.
+
+    `manifest` is the parsed data/source_versions.json. Resources are the
+    keys in `manifest["sources"]` (e.g. "wikipathways", "aopwiki"). Used
+    by `_build_resource_zip` to attach a per-resource sidecar without
+    leaking unrelated sources into each ZIP.
+    """
+    if not manifest:
+        return {}
+    sources = manifest.get("sources", {})
+    slice_sources = {k: sources[k] for k in resources if k in sources}
+    if not slice_sources:
+        return {}
+    return {
+        "captured_at": manifest.get("captured_at"),
+        "sources": slice_sources,
+    }
+
+
+def _format_versions_for_prose(manifest: dict) -> str:
+    """One-line summary like 'WP 2026-05-10 · GO 2026-01-23 · ...' for prose.
+
+    Returns the empty string if no source is in OK state — callers should
+    branch on truthiness to avoid emitting an awkward bare colon.
+    """
+    sources = (manifest or {}).get("sources", {})
+    tokens = []
+    if sources.get("wikipathways", {}).get("status") == "ok":
+        tokens.append(f"WP {sources['wikipathways'].get('release_date', '?')}")
+    if sources.get("gene_ontology", {}).get("status") == "ok":
+        tokens.append(f"GO {sources['gene_ontology'].get('release_date', '?')}")
+    rx = sources.get("reactome", {})
+    if rx.get("status") == "ok":
+        token = f"Reactome v{rx.get('release_version', '?')}"
+        if rx.get("release_date"):
+            token += f" ({rx['release_date']})"
+        tokens.append(token)
+    if sources.get("aopwiki", {}).get("status") == "ok":
+        tokens.append(f"AOP-Wiki {sources['aopwiki'].get('snapshot_date', '?')}")
+    return " · ".join(tokens)
+
+
+def _build_readme(today: str, wp_n: dict, go_n: dict, rx_n: dict, source_versions: dict | None = None) -> bytes:
+    snapshot_table = _format_snapshot_table_md(source_versions)
     return (
         f"""# Molecular AOP Builder — Curated KE → WikiPathways / GO / Reactome Mappings
 
@@ -132,6 +185,7 @@ Each archive expands to a folder containing:
 
 - `*_{{YYYY-MM-DD}}_{{Level}}.gmt` — Gene Matrix Transposed (GMT) gene-set files, one row per KE → pathway/GO mapping. Gene identifiers are HGNC symbols. Loadable directly by clusterProfiler (`enricher()`) and fgsea (`gmtPathways()`).
 - `*-mappings.ttl` — RDF / Turtle serialisation with full provenance for every approved mapping for that resource: proposer, approving curator, approval timestamp, BioBERT suggestion score, confidence level, connection type. Suitable for SPARQL queries and ontology integration.
+- `source_versions.json` — snapshot manifest pinning this archive to a specific release of each upstream resource (e.g. WikiPathways 2026-05-10, AOP-Wiki 2026-05-06). Mappings approved before the source-versioning rollout have NULL fields on the row itself; the manifest documents the snapshot the dataset reached parity with at backfill time.
 
 ## Confidence levels
 
@@ -152,6 +206,12 @@ A `_<Level>.gmt` file appears only if there is at least one mapping at that leve
 - Reactome IDs follow stable identifiers (`R-HSA-#######`)
 - Every mapping carries a stable UUID, visible in the RDF/Turtle export and in the `/api/v1/...` REST endpoints on the live builder.
 
+## Upstream resource snapshot
+
+This deposit was assembled against the following upstream releases. The same versions are recorded per-mapping in the Turtle exports (predicates `vocab#wpReleaseDate`, `vocab#goReleaseDate`, `vocab#reactomeReleaseVersion`, `vocab#reactomeReleaseDate`, `vocab#aopWikiSnapshotDate`) and as a sidecar `source_versions.json` inside each per-resource ZIP.
+
+{snapshot_table}
+
 ## Citation
 
 If you use these mappings, please cite this Zenodo record (the concept DOI always resolves to the latest version) and acknowledge the upstream resources: AOP-Wiki, WikiPathways, the Gene Ontology Consortium / UniProt-GOA, and Reactome.
@@ -159,22 +219,57 @@ If you use these mappings, please cite this Zenodo record (the concept DOI alway
     ).encode("utf-8")
 
 
-def _build_metadata(today: str) -> dict:
+def _format_snapshot_table_md(manifest: dict | None) -> str:
+    """Markdown table of the source-version manifest, or a fallback note."""
+    sources = (manifest or {}).get("sources", {})
+    if not sources:
+        return "_Snapshot manifest unavailable for this deposit._"
+
+    rows = ["| Resource | Release | Captured |", "|----------|---------|----------|"]
+    _labels = [
+        ("wikipathways", "WikiPathways", "release_date"),
+        ("gene_ontology", "Gene Ontology", "release_date"),
+        ("reactome", "Reactome", None),
+        ("aopwiki", "AOP-Wiki", "snapshot_date"),
+    ]
+    for key, label, primary in _labels:
+        entry = sources.get(key, {})
+        if entry.get("status") != "ok":
+            value = "_unknown_"
+        elif key == "reactome":
+            v = f"v{entry.get('release_version', '?')}"
+            if entry.get("release_date"):
+                v += f" ({entry['release_date']})"
+            value = v
+        else:
+            value = entry.get(primary, "—")
+        captured = (entry.get("captured_at") or "")[:10] or "—"
+        rows.append(f"| {label} | {value} | {captured} |")
+    return "\n".join(rows)
+
+
+def _build_metadata(today: str, source_versions: dict | None = None) -> dict:
+    snapshot_line = _format_versions_for_prose(source_versions)
+    description = (
+        "Curated database of Key Event (KE) mappings to three molecular-pathway and ontology "
+        "resources: WikiPathways (KE-WikiPathways), Gene Ontology Biological Process and "
+        "Molecular Function (KE-GO), and Reactome (KE-Reactome). Mappings are bundled in three "
+        "per-resource ZIP archives, each containing GMT gene-set files split by confidence "
+        "level (All / High / Medium / Low) for clusterProfiler and fgsea, and RDF/Turtle for "
+        "SPARQL and linked-data consumption. Each mapping carries a stable UUID and full "
+        "curation provenance (proposer, approving curator, approval timestamp, BioBERT "
+        "suggestion score, confidence level, connection type). "
+    )
+    if snapshot_line:
+        description += f"Upstream snapshot for this deposit: {snapshot_line}. "
+    description += (
+        "Produced by the Molecular AOP Builder at https://molaop-builder.vhp4safety.nl ; "
+        "source at https://github.com/marvinm2/KE-WP-mapping ."
+    )
     return {
         "title": "Molecular AOP Builder — Curated KE → WikiPathways / GO / Reactome Mappings",
         "upload_type": "dataset",
-        "description": (
-            "Curated database of Key Event (KE) mappings to three molecular-pathway and ontology "
-            "resources: WikiPathways (KE-WikiPathways), Gene Ontology Biological Process and "
-            "Molecular Function (KE-GO), and Reactome (KE-Reactome). Mappings are bundled in three "
-            "per-resource ZIP archives, each containing GMT gene-set files split by confidence "
-            "level (All / High / Medium / Low) for clusterProfiler and fgsea, and RDF/Turtle for "
-            "SPARQL and linked-data consumption. Each mapping carries a stable UUID and full "
-            "curation provenance (proposer, approving curator, approval timestamp, BioBERT "
-            "suggestion score, confidence level, connection type). "
-            "Produced by the Molecular AOP Builder at https://molaop-builder.vhp4safety.nl ; "
-            "source at https://github.com/marvinm2/KE-WP-mapping ."
-        ),
+        "description": description,
         "creators": [{
             "name": "Martens, Marvin",
             "affiliation": "Department of Translational Genomics, Maastricht University",
@@ -332,20 +427,44 @@ def main() -> int:
                 log.info("[SKIP] Mapping counts unchanged since last deposit — nothing to do")
                 return 0
 
+            # Phase E.2: load the upstream source-versions manifest so each
+            # per-resource ZIP gets a sidecar pinning it to a specific
+            # snapshot, and the README + Zenodo description reference the
+            # same versions. Missing or unreadable manifest is degraded
+            # gracefully — deposit still publishes, just without the
+            # snapshot block.
+            source_versions = {}
+            sv_path = Path("data/source_versions.json")
+            try:
+                if sv_path.exists():
+                    source_versions = json.loads(sv_path.read_text(encoding="utf-8"))
+                    log.info("Loaded source_versions manifest from %s", sv_path)
+                else:
+                    log.warning("source_versions.json not found at %s — deposit will omit snapshot block", sv_path)
+            except Exception as e:
+                log.warning("Could not parse source_versions.json: %s — deposit will omit snapshot block", e)
+
             # Build deposit contents
             files = {
                 "KE-WikiPathways.zip": _build_resource_zip(
                     "KE-WikiPathways", generate_ke_wp_gmt, generate_ke_wp_turtle, wp, today,
                     gmt_kwargs={"cache_model": a.cache_model_ref},
+                    source_versions_slice=_slice_source_versions(source_versions, "wikipathways", "aopwiki"),
                 ),
-                "KE-GO.zip":       _build_resource_zip("KE-GO", generate_ke_go_gmt, generate_ke_go_turtle, go, today),
-                "KE-Reactome.zip": _build_resource_zip("KE-Reactome", generate_ke_reactome_gmt, generate_ke_reactome_turtle, rx, today),
-                "README.md":       _build_readme(today, wp_n, go_n, rx_n),
+                "KE-GO.zip":       _build_resource_zip(
+                    "KE-GO", generate_ke_go_gmt, generate_ke_go_turtle, go, today,
+                    source_versions_slice=_slice_source_versions(source_versions, "gene_ontology", "aopwiki"),
+                ),
+                "KE-Reactome.zip": _build_resource_zip(
+                    "KE-Reactome", generate_ke_reactome_gmt, generate_ke_reactome_turtle, rx, today,
+                    source_versions_slice=_slice_source_versions(source_versions, "reactome", "aopwiki"),
+                ),
+                "README.md":       _build_readme(today, wp_n, go_n, rx_n, source_versions=source_versions),
             }
             for name, blob in files.items():
                 log.info("Assembled %s (%d bytes)", name, len(blob))
 
-            metadata = _build_metadata(today)
+            metadata = _build_metadata(today, source_versions=source_versions)
 
             if args.dry_run:
                 log.info("[DRY-RUN] Would publish a new version under existing_id=%s with %d file(s).",

@@ -17,6 +17,22 @@
       <span class="site-footer__doi">DOI: <a href="https://doi.org/{{ zenodo_meta.doi }}" target="_blank" rel="noopener">{{ zenodo_meta.concept_doi or zenodo_meta.doi }}</a></span>
       <span class="site-footer__sep">&middot;</span>
       {% endif %}
+      {# Phase E.2: snapshot block. Compact, four short tokens, one per
+         upstream — link to /stats for the full picture. Hidden entirely
+         if no manifest is present (the context processor returns {}). #}
+      {% set _sv = (source_versions.sources if source_versions else {}) %}
+      {% if _sv %}
+        <span class="site-footer__snapshot" title="Upstream resource snapshot the running container is serving. Click for details.">
+          <a href="/stats#source-versions" class="site-footer__snapshot-link">
+            <strong>Snapshot:</strong>
+            {%- if _sv.wikipathways and _sv.wikipathways.status == 'ok' %} WP&nbsp;{{ _sv.wikipathways.release_date }}{% endif %}
+            {%- if _sv.gene_ontology and _sv.gene_ontology.status == 'ok' %} &middot; GO&nbsp;{{ _sv.gene_ontology.release_date }}{% endif %}
+            {%- if _sv.reactome and _sv.reactome.status == 'ok' %} &middot; Reactome&nbsp;v{{ _sv.reactome.release_version }}{% endif %}
+            {%- if _sv.aopwiki and _sv.aopwiki.status == 'ok' %} &middot; AOP-Wiki&nbsp;{{ _sv.aopwiki.snapshot_date }}{% endif %}
+          </a>
+        </span>
+        <span class="site-footer__sep">&middot;</span>
+      {% endif %}
       <span class="site-footer__version">&copy; {{ now().year if now is defined else '2026' }} Molecular AOP Builder</span>
     </div>
   </div>
