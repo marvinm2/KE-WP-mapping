@@ -264,6 +264,28 @@ def create_app(config_name: str = None):
             pass
         return {"zenodo_meta": {}}
 
+    @app.context_processor
+    def inject_source_versions():
+        """
+        Inject the upstream source-versions manifest globally so templates
+        can display the snapshot the running container is serving.
+
+        Surfaced as `source_versions` in every template. Built from the
+        same data/source_versions.json file that approval-time stamping
+        reads (Phase C); reading it directly here instead of through the
+        service container so the context processor stays a pure read with
+        no service-graph dependency.
+        """
+        import json as _json
+        from pathlib import Path as _Path
+        try:
+            path = _Path("data/source_versions.json")
+            if path.exists():
+                return {"source_versions": _json.loads(path.read_text())}
+        except Exception:
+            pass
+        return {"source_versions": {}}
+
     # Register blueprints
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)

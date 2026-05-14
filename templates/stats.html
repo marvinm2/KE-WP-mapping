@@ -60,6 +60,66 @@
         </tbody>
     </table>
 
+    <!-- Phase E.2: Upstream source-version snapshot table. Anchored as
+         #source-versions so the site-footer snapshot link lands here. -->
+    <h2 id="source-versions" style="font-size:18px;margin-bottom:8px;">Upstream resource snapshot</h2>
+    <p class="text-muted" style="font-size:14px;margin-bottom:16px;">
+        The release of each upstream resource the running container is currently serving.
+        New approvals are stamped with these values on the approved mapping row,
+        so downstream consumers can pin analyses against a specific upstream release.
+        See <a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/docs/DMP.md" target="_blank" rel="noopener">DMP §2.4</a> for the rationale.
+    </p>
+    {% set _sv = (source_versions.sources if source_versions else {}) %}
+    {% if _sv %}
+    <table style="width:100%;border-collapse:collapse;margin-bottom:32px;max-width:720px;">
+        <thead>
+            <tr>
+                <th style="padding:10px 14px;text-align:left;">Resource</th>
+                <th style="padding:10px 14px;text-align:left;">Release</th>
+                <th style="padding:10px 14px;text-align:left;">Method</th>
+                <th style="padding:10px 14px;text-align:left;">Captured</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set _resource_labels = [
+                ('wikipathways', 'WikiPathways', 'release_date'),
+                ('gene_ontology', 'Gene Ontology', 'release_date'),
+                ('reactome', 'Reactome', 'release_version'),
+                ('aopwiki', 'AOP-Wiki', 'snapshot_date'),
+            ] %}
+            {% for key, label, primary_field in _resource_labels %}
+              {% set _entry = _sv.get(key, {}) %}
+              <tr>
+                <td style="padding:8px 14px;font-weight:600;">{{ label }}</td>
+                <td style="padding:8px 14px;">
+                  {% if _entry.get('status') == 'ok' %}
+                    {% if key == 'reactome' %}
+                      v{{ _entry.release_version }}{% if _entry.release_date %} ({{ _entry.release_date }}){% endif %}
+                    {% else %}
+                      {{ _entry.get(primary_field, '—') }}
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">unknown</span>{% if _entry.get('reason') %} <span class="text-muted" style="font-size:0.85em;">— {{ _entry.reason }}</span>{% endif %}
+                  {% endif %}
+                </td>
+                <td style="padding:8px 14px;font-size:0.9em;color:var(--color-text-muted, #666);">
+                  {{ _entry.get('method', '—') }}
+                </td>
+                <td style="padding:8px 14px;font-size:0.9em;color:var(--color-text-muted, #666);">
+                  {{ (_entry.get('captured_at') or '')[:10] or '—' }}
+                </td>
+              </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted" style="font-size:14px;margin-bottom:32px;">
+        <em>Snapshot manifest not available — the container may not have a
+        <code>data/source_versions.json</code> yet. Run <code>make capture-versions</code>
+        on the deployed image to generate it.</em>
+    </p>
+    {% endif %}
+
     <!-- Filter + Export Section -->
     <h2 style="font-size:18px;margin-bottom:12px;">Filter and Export</h2>
     <p class="text-muted" style="font-size:14px;margin-bottom:16px;">
