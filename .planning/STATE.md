@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: User & Admin Experience
 status: planning
-stopped_at: Completed 34-assessment-metadata-schema-parity/34-01-PLAN.md
-last_updated: "2026-05-14T14:06:13.837Z"
+stopped_at: Completed 34-assessment-metadata-schema-parity/34-02-PLAN.md
+last_updated: "2026-05-14T14:23:39.138Z"
 last_activity: 2026-05-14 — v1.6 roadmap created (6 phases, schema-first build order per research convergence)
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -113,8 +113,8 @@ All ~65 decisions in PROJECT.md Key Decisions table (spanning v1.0–v1.5) remai
 
 ## Session Continuity
 
-**Last session:** 2026-05-14T14:06:13.823Z
-**Stopped at:** Completed 34-assessment-metadata-schema-parity/34-01-PLAN.md
+**Last session:** 2026-05-14T14:23:39.132Z
+**Stopped at:** Completed 34-assessment-metadata-schema-parity/34-02-PLAN.md
 **Resume file:** None
 **Next action:** `/gsd:plan-phase 34` to decompose Phase 34 into atomic plans following the Phase 19 KE-GO migration template.
 
@@ -123,8 +123,11 @@ All ~65 decisions in PROJECT.md Key Decisions table (spanning v1.0–v1.5) remai
 | Phase | Plan | Duration | Notes |
 |-------|------|----------|-------|
 | Phase 34-assessment-metadata-schema-parity P01 | 6min | 3 tasks | 4 files |
+| Phase 34-assessment-metadata-schema-parity P02 | 11min | 3 tasks | 3 files |
 
 ## Decisions
 
 - [Phase 34-assessment-metadata-schema-parity]: proposals/ke_reactome_proposals do NOT get assessment_version — version decided at approval time (CONTEXT.md)
 - [Phase 34-assessment-metadata-schema-parity]: REACTOME_PROPOSAL_CARRY_FIELDS extended in Plan 01 but wired in create_approved_mapping deferred to Plan 02 for isolated review
+- [Phase 34-assessment-metadata-schema-parity]: ReactomeMappingModel.create_approved_mapping refactored to proposal_id signature: loads proposal row internally, REACTOME_PROPOSAL_CARRY_FIELDS drives INSERT column list (resolves v1.4 dead-constant tech debt, ASMT-10)
+- [Phase 34-assessment-metadata-schema-parity]: confidence_level column alias in Reactome carry: ke_reactome_proposals uses 'new_pair_confidence_level' not 'confidence_level'; resolved via inline alias map in create_approved_mapping without changing REACTOME_PROPOSAL_CARRY_FIELDS constant

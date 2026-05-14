@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Date:** 2026-05-14
-**Author:** Marvin Martens — Department of Bioinformatics (BiGCaT), Maastricht University · ORCID [0000-0003-2230-0840](https://orcid.org/0000-0003-2230-0840)
+**Author:** Marvin Martens — Department of Translational Genomics, Maastricht University · ORCID [0000-0003-2230-0840](https://orcid.org/0000-0003-2230-0840)
 **Project:** Molecular AOP Builder (`marvinm2/KE-WP-mapping`) · live instance at [molaop-builder.vhp4safety.nl](https://molaop-builder.vhp4safety.nl)
 **Template:** Horizon Europe / Science Europe core (six-section structure with FAIR sub-sections)
 **Scope:** the Molecular AOP Builder repository only. The downstream [Molecular AOP Analyser](https://molaop-analyser.vhp4safety.nl) consumes data via the Builder's REST API and is documented separately.
@@ -67,7 +67,7 @@ The Builder produces one substantial non-data research output: the application s
 
 Marginal cost is essentially zero. Zenodo deposits, AOP-Wiki, WikiPathways, Gene Ontology, and Reactome all provide their services free of charge for research re-use. The Builder is hosted on the VHP4Safety Strato Docker Swarm cluster (two-manager swarm at the Strato hoster, GlusterFS-replicated storage, Traefik reverse proxy with Let's Encrypt TLS), administered by Sean Laenen and shared across the VHP4Safety service portfolio; the marginal storage and compute cost for the Builder is in the low single-digit GB range and is absorbed within the existing cluster budget.
 
-Responsibility for data stewardship rests with Marvin Martens (BiGCaT, Maastricht University) as principal investigator and data steward. Day-to-day curator-proposal review is performed by the small set of administrators listed in the `ADMIN_USERS` environment variable on the live instance. Operational continuity of the host infrastructure is provided by the VHP4Safety cluster team, and authoritative cluster documentation lives at `/mnt/gluster/documentation/` on the cluster's primary manager node. A formal RACI matrix for curator, reviewer, administrator, developer, and data-steward roles is planned (see §7).
+Responsibility for data stewardship rests with Marvin Martens (Department of Translational Genomics, Maastricht University) as principal investigator and data steward. Day-to-day curator-proposal review is performed by the small set of administrators listed in the `ADMIN_USERS` environment variable on the live instance. Operational continuity of the host infrastructure is provided by the VHP4Safety cluster team, and authoritative cluster documentation lives at `/mnt/gluster/documentation/` on the cluster's primary manager node. A formal RACI matrix for curator, reviewer, administrator, developer, and data-steward roles is planned (see §7).
 
 Long-term preservation costs after the end of any specific grant period are absorbed by the Zenodo ten-year guarantee for the published dataset and by Maastricht University's institutional hosting for the GitHub source mirror.
 

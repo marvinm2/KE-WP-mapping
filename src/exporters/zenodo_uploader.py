@@ -115,7 +115,7 @@ def _build_zenodo_metadata(published_at: str = None) -> dict:
         "creators": [
             {
                 "name": "Martens, Marvin",
-                "affiliation": "Department of Bioinformatics (BiGCaT), Maastricht University",
+                "affiliation": "Department of Translational Genomics, Maastricht University",
                 "orcid": "0000-0003-2230-0840",
             },
         ],

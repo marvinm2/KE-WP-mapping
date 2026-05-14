@@ -120,7 +120,7 @@ Full details: `.planning/milestones/v1.5-ROADMAP.md`
 
 **Plans**: 4 plans across 3 waves
 - [x] 34-01-PLAN.md — Migrations + dead-constant extension + Wave-0 test scaffolds (ASMT-01, 02, 03, 10)
-- [ ] 34-02-PLAN.md — Model-layer writes/reads (WP + Reactome) + bulk-export SELECT + Reactome round-trip test (ASMT-02, 03, 08, 10)
+- [x] 34-02-PLAN.md — Model-layer writes/reads (WP + Reactome) + bulk-export SELECT + Reactome round-trip test (ASMT-02, 03, 08, 10)
 - [ ] 34-03-PLAN.md — WP `/submit` + admin approve + HTTP round-trip test (ASMT-02, 08)
 - [ ] 34-04-PLAN.md — v1 API serializer (nested `assessment` object) + test amendment + cross-repo doc + CHANGELOG (ASMT-07, 09)
 
@@ -254,7 +254,7 @@ Full details: `.planning/milestones/v1.5-ROADMAP.md`
 | 31. Reactome Viewer Polish | v1.5 | 3/3 | Complete | 2026-05-11 |
 | 32. GO/WP Sibling Debt Sweep | v1.5 | 7/7 | Complete | 2026-05-11 |
 | 33. Baseline Cleanup | v1.5 | 3/3 | Complete | 2026-05-11 |
-| 34. Assessment Metadata Schema Parity | v1.6 | 1/4 | In Progress|  |
+| 34. Assessment Metadata Schema Parity | v1.6 | 2/4 | In Progress|  |
 | 35. Operational + Greenfield Parallel Track | v1.6 | 0/? | Not started | - |
 | 36. Renames, Merges, and Naming Sweep | v1.6 | 0/? | Not started | - |
 | 37. Backend-Dependent UI — Assessment-Question Sibling Parity | v1.6 | 0/? | Not started | - |
