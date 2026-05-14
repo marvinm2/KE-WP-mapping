@@ -14,6 +14,18 @@ _GO_NAMESPACE_MAP = {
 }
 
 
+# Phase 34 ASMT-02: canonical KE-WP assessment option keys. Mirrored from
+# static/js/main.js:1378-1391. Plan 04 cites these in KE-MAPPING-API-REFERENCE.md.
+# These four whitelists power the `step1..step4` form fields the mapper UI
+# already submits; the /submit handler renames them to the DB column names
+# (proposed_relationship/basis/specificity/coverage) when forwarding to the
+# model layer.
+KE_WP_RELATIONSHIP_OPTIONS = ("causative", "responsive", "bidirectional", "unclear")
+KE_WP_BASIS_OPTIONS = ("known", "likely", "possible", "uncertain")
+KE_WP_SPECIFICITY_OPTIONS = ("specific", "includes", "loose")
+KE_WP_COVERAGE_OPTIONS = ("complete", "keysteps", "minor")
+
+
 class GoNamespaceField(fields.Field):
     """Marshmallow field that normalizes GO namespace short codes and full names."""
 
@@ -27,7 +39,28 @@ class GoNamespaceField(fields.Field):
 
 
 class MappingSchema(Schema):
-    """Schema for KE-WP mapping submissions"""
+    """Schema for KE-WP mapping submissions.
+
+    Phase 34 ASMT-02 option-key whitelists (canonical, mirrored from
+    static/js/main.js:1378-1391):
+
+    - ``connection_type``: ``causative``, ``responsive``, ``other``, ``undefined``
+    - ``confidence_level``: ``low``, ``medium``, ``high``
+    - ``step1`` (relationship): ``causative``, ``responsive``, ``bidirectional``, ``unclear``
+    - ``step2`` (basis): ``known``, ``likely``, ``possible``, ``uncertain``
+    - ``step3`` (specificity): ``specific``, ``includes``, ``loose``
+    - ``step4`` (coverage): ``complete``, ``keysteps``, ``minor``
+
+    The four ``step*`` fields are optional — a submission without any
+    ``step*`` value remains backward-compatible and produces a v1 (legacy)
+    mapping. Out-of-whitelist values raise a Marshmallow ``ValidationError``
+    which the /submit handler surfaces as HTTP 400.
+
+    The /submit handler renames ``step1..step4`` to the DB column conventions
+    (``proposed_relationship/basis/specificity/coverage``) when forwarding to
+    ``ProposalModel.create_new_pair_proposal``. Plan 04 cites the four
+    whitelists verbatim in ``KE-MAPPING-API-REFERENCE.md``.
+    """
 
     ke_id = fields.Str(
         required=True,
@@ -56,6 +89,45 @@ class MappingSchema(Schema):
         required=True,
         validate=validate.OneOf(
             ["low", "medium", "high"], error="Invalid confidence level"
+        ),
+    )
+    # Phase 34 ASMT-02: four assessment-question answers from the mapper UI.
+    # Sent as step1..step4 in the form payload to preserve JS-side naming
+    # (per 34-RESEARCH.md Open Question 2 — keep JS form keys, map at the
+    # schema layer). The DB columns are proposed_relationship/basis/
+    # specificity/coverage; the /submit handler does the rename when
+    # forwarding to the model. Optional for backward-compat with any
+    # non-UI form-poster; absence yields a v1 (legacy) mapping.
+    step1 = fields.Str(
+        required=False,
+        allow_none=True,
+        validate=validate.OneOf(
+            list(KE_WP_RELATIONSHIP_OPTIONS),
+            error="Invalid step1 option (relationship)",
+        ),
+    )
+    step2 = fields.Str(
+        required=False,
+        allow_none=True,
+        validate=validate.OneOf(
+            list(KE_WP_BASIS_OPTIONS),
+            error="Invalid step2 option (basis)",
+        ),
+    )
+    step3 = fields.Str(
+        required=False,
+        allow_none=True,
+        validate=validate.OneOf(
+            list(KE_WP_SPECIFICITY_OPTIONS),
+            error="Invalid step3 option (specificity)",
+        ),
+    )
+    step4 = fields.Str(
+        required=False,
+        allow_none=True,
+        validate=validate.OneOf(
+            list(KE_WP_COVERAGE_OPTIONS),
+            error="Invalid step4 option (coverage)",
         ),
     )
 
