@@ -362,6 +362,13 @@ class Database:
             # cleanup pass.
             self._migrate_go_proposals_pending_unique_index(conn)
 
+            # Source-data versioning (DMP §7, Phase B):
+            # add nullable upstream-release columns to each mapping table so
+            # Phase C can stamp every new approval with the snapshot version.
+            self._migrate_mappings_source_versions(conn)
+            self._migrate_go_mappings_source_versions(conn)
+            self._migrate_reactome_mappings_source_versions(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -1212,6 +1219,92 @@ class Database:
             logger.error(
                 "Error migrating ke_reactome_mappings assessment fields: %s", e
             )
+            raise
+
+    def _migrate_mappings_source_versions(self, conn):
+        """
+        Add upstream source-version columns to the WP `mappings` table.
+
+        Phase B of source-data versioning (DMP §7). Phase C will populate
+        these at approval time from `data/source_versions.json`; Phase D
+        will backfill historical rows from a hand-curated release calendar.
+        Until then the columns are NULL on every row.
+
+        Columns added:
+            wp_release_date         TEXT (nullable, ISO YYYY-MM-DD) —
+                WikiPathways snapshot the curator was working against.
+            aopwiki_snapshot_date   TEXT (nullable, ISO YYYY-MM-DD) —
+                AOP-Wiki snapshot the KE was sourced from.
+        """
+        self._add_columns_if_missing(
+            conn,
+            table="mappings",
+            fields=[
+                ("wp_release_date", "TEXT"),
+                ("aopwiki_snapshot_date", "TEXT"),
+            ],
+            log_label="WP mappings source-version fields",
+        )
+
+    def _migrate_go_mappings_source_versions(self, conn):
+        """
+        Add upstream source-version columns to the `ke_go_mappings` table.
+
+        Sibling of _migrate_mappings_source_versions. The `go_release_date`
+        column stores the GO release date parsed from the OBO header
+        (the manifest's `gene_ontology.release_date` field).
+        """
+        self._add_columns_if_missing(
+            conn,
+            table="ke_go_mappings",
+            fields=[
+                ("go_release_date", "TEXT"),
+                ("aopwiki_snapshot_date", "TEXT"),
+            ],
+            log_label="GO mappings source-version fields",
+        )
+
+    def _migrate_reactome_mappings_source_versions(self, conn):
+        """
+        Add upstream source-version columns to the `ke_reactome_mappings` table.
+
+        Reactome uses an integer release number (e.g. v96) in addition to a
+        release date, so both are persisted: the version is the canonical
+        upstream identifier and the date enables nearest-release lookups
+        during backfill (Phase D).
+        """
+        self._add_columns_if_missing(
+            conn,
+            table="ke_reactome_mappings",
+            fields=[
+                ("reactome_release_version", "TEXT"),
+                ("reactome_release_date", "TEXT"),
+                ("aopwiki_snapshot_date", "TEXT"),
+            ],
+            log_label="Reactome mappings source-version fields",
+        )
+
+    def _add_columns_if_missing(self, conn, *, table, fields, log_label):
+        """
+        Idempotent helper: ADD COLUMN for any of `fields` not already present.
+
+        `fields` is a list of (name, sqlite_type) tuples — all nullable. Used by
+        the Phase B source-version migrations to keep the three sibling
+        methods short and verifiable. Errors are logged and re-raised so the
+        outer init_database() rollback fires.
+        """
+        try:
+            cursor = conn.execute(f"PRAGMA table_info({table})")
+            existing = {row[1] for row in cursor.fetchall()}
+            added = []
+            for name, sql_type in fields:
+                if name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}")
+                    added.append(name)
+            if added:
+                logger.info("Migrated %s: added %s", log_label, added)
+        except Exception as e:
+            logger.error("Error migrating %s: %s", log_label, e)
             raise
 
     def _migrate_reactome_proposals_pending_unique_index(self, conn):
