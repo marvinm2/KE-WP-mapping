@@ -1,4 +1,4 @@
-.PHONY: help install test lint run docker-build docker-run clean capture-versions
+.PHONY: help install test lint run docker-build docker-run clean capture-versions backfill-versions
 
 help:		## Show this help
 	@echo "Available targets:"
@@ -42,6 +42,9 @@ go-hierarchy:	## Build GO hierarchy data (IC scores, ancestors, depths)
 
 capture-versions:	## Refresh data/source_versions.json from WP / GO / Reactome / AOP-Wiki
 	python scripts/capture_source_versions.py
+
+backfill-versions:	## One-shot: stamp current snapshot's versions onto NULL columns on all existing mappings (idempotent; --dry-run via DRY=1)
+	python scripts/backfill_source_versions.py $(if $(DRY),--dry-run,)
 
 clean:		## Clean up generated files
 	rm -rf __pycache__
