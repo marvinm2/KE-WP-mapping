@@ -5,6 +5,14 @@ All notable changes to the KE-WP Mapping Application are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- **Data Management Plan** (#137). New `docs/DMP.md` authored against the Horizon Europe / Science Europe core template (seven sections: Data summary, FAIR data with 2.1–2.4 sub-sections, Other research outputs, Allocation of resources, Data security, Ethics, Other issues). Documents the curated mapping dataset's licence (CC0), persistent identifiers (per-mapping UUIDs + canonical upstream IDs), accessibility surfaces (versioned REST API + Zenodo deposits), interoperability vocabularies (Dublin Core in RDF, GMT for fgsea/clusterProfiler), provenance fields, security posture (GlusterFS replica, Traefik TLS, OAuth-only auth), and GDPR position on curator/proposer identity data. Surfaces known gaps as §7 "Other issues" for follow-up tracking: first production Zenodo deposit, source-data versioning in exports, DataCite endpoint activation, bulk-snapshot URL, RDF vocab publication, privacy notice + retention policy, RACI, and the license-documentation drift in `docs/DATASET_DOCUMENTATION.md` (which still cites CC-BY-4.0 / MIT and is now superseded by the DMP). README links the new doc from the Support section.
+
+---
+
 ## [2.7.2] - 2026-05-11
 
 ### Baseline Cleanup (Phase 33)

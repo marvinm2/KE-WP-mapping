@@ -472,6 +472,7 @@ chmod +x start.sh
 
 - **Issues**: [GitHub Issues](https://github.com/marvinm2/KE-WP-mapping/issues)
 - **Documentation**: This README and inline code documentation
+- **Data Management Plan**: [`docs/DMP.md`](docs/DMP.md) (Horizon Europe / Science Europe template)
 - **Contact**: [marvin.martens@maastrichtuniversity.nl]
 
 ## License
