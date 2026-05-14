@@ -124,6 +124,16 @@ def _serialize_mapping(row):
         "connection_type": row.get("connection_type"),
         "ke_aop_context": ke_aop_context,
         "ke_bio_level": ke_bio_level,
+        # Phase 34 ASMT-07: nested assessment object — sibling parity with Reactome.
+        # Legacy v1 rows (pre-Phase-34 migration) emit the same shape with all
+        # four answer fields NULL and version='v1'.
+        "assessment": {
+            "relationship": row.get("proposed_relationship"),
+            "basis": row.get("proposed_basis"),
+            "specificity": row.get("proposed_specificity"),
+            "coverage": row.get("proposed_coverage"),
+            "version": row.get("assessment_version", "v1"),
+        },
         "provenance": {
             "suggestion_score": row.get("suggestion_score"),
             "approved_by": row.get("approved_by_curator"),
@@ -190,6 +200,10 @@ _MAPPING_CSV_FIELDS = [
     "uuid", "ke_id", "ke_name", "pathway_id", "pathway_title",
     "confidence_level", "suggestion_score", "approved_by", "approved_at", "proposed_by",
     "connection_type", "ke_aop_context", "ke_bio_level",
+    # Phase 34 ASMT-08: assessment fields appended at END for back-compat with
+    # column-positional CSV consumers.
+    "proposed_relationship", "proposed_basis", "proposed_specificity",
+    "proposed_coverage", "assessment_version",
 ]
 _GO_MAPPING_CSV_FIELDS = [
     "uuid", "ke_id", "ke_name", "go_term_id", "go_term_name", "go_namespace",
@@ -199,18 +213,31 @@ _GO_MAPPING_CSV_FIELDS = [
 _REACTOME_MAPPING_CSV_FIELDS = [
     "uuid", "ke_id", "ke_name", "reactome_id", "pathway_name", "species",
     "confidence_level", "suggestion_score", "approved_by", "approved_at", "proposed_by",
+    "connection_type",
     "ke_aop_context", "ke_bio_level", "pathway_description", "reactome_gene_count",
+    # Phase 34 ASMT-08: assessment fields appended at END for back-compat with
+    # column-positional CSV consumers.
+    "proposed_relationship", "proposed_basis", "proposed_specificity",
+    "proposed_coverage", "assessment_version",
 ]
 
 
 def _flatten_for_csv(obj):
-    """Flatten provenance nested dict into the top-level object for CSV."""
+    """Flatten provenance + assessment nested dicts into the top-level object for CSV."""
     flat = dict(obj)
     prov = flat.pop("provenance", {})
     flat["suggestion_score"] = prov.get("suggestion_score")
     flat["approved_by"] = prov.get("approved_by")
     flat["approved_at"] = prov.get("approved_at")
     flat["proposed_by"] = prov.get("proposed_by")
+    # Phase 34 ASMT-08: lift the assessment nested object to top-level CSV columns,
+    # mirroring the provenance flattening pattern above.
+    assess = flat.pop("assessment", {}) or {}
+    flat["proposed_relationship"] = assess.get("relationship")
+    flat["proposed_basis"] = assess.get("basis")
+    flat["proposed_specificity"] = assess.get("specificity")
+    flat["proposed_coverage"] = assess.get("coverage")
+    flat["assessment_version"] = assess.get("version", "v1")
     # Convert ke_aop_context array to semicolon-separated string for CSV
     aop_ctx = flat.get("ke_aop_context")
     flat["ke_aop_context"] = ";".join(aop_ctx) if aop_ctx else ""
@@ -242,10 +269,21 @@ def _serialize_reactome_mapping(row):
         "pathway_name": row["pathway_name"],
         "species": row.get("species"),
         "confidence_level": row["confidence_level"],
+        "connection_type": row.get("connection_type"),
         "pathway_description": pathway_description,
         "reactome_gene_count": gene_count,
         "ke_aop_context": ke_aop_context,
         "ke_bio_level": ke_bio_level,
+        # Phase 34 ASMT-07: nested assessment object — sibling parity with WP.
+        # Legacy v1 rows (pre-Phase-34 migration) emit the same shape with all
+        # four answer fields NULL and version='v1'.
+        "assessment": {
+            "relationship": row.get("proposed_relationship"),
+            "basis": row.get("proposed_basis"),
+            "specificity": row.get("proposed_specificity"),
+            "coverage": row.get("proposed_coverage"),
+            "version": row.get("assessment_version", "v1"),
+        },
         "provenance": {
             "suggestion_score": row.get("suggestion_score"),
             "approved_by": row.get("approved_by_curator"),
