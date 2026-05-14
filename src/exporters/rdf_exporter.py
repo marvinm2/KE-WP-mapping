@@ -76,6 +76,24 @@ def generate_ke_wp_turtle(mappings, min_confidence=None) -> str:
                 Literal(float(row["suggestion_score"]), datatype=XSD.decimal),
             ))
 
+        # Phase E.1: upstream snapshot provenance per mapping.
+        # `wpReleaseDate` is the WikiPathways release the curator was reviewing
+        # at approval time; `aopWikiSnapshotDate` is the AOP-Wiki snapshot the
+        # KE side was anchored to. Both are nullable (legacy rows that pre-date
+        # the backfill have NULL — emit nothing for those).
+        if row.get("wp_release_date"):
+            g.add((
+                uri,
+                VOCAB.wpReleaseDate,
+                Literal(row["wp_release_date"], datatype=XSD.date),
+            ))
+        if row.get("aopwiki_snapshot_date"):
+            g.add((
+                uri,
+                VOCAB.aopWikiSnapshotDate,
+                Literal(row["aopwiki_snapshot_date"], datatype=XSD.date),
+            ))
+
     return g.serialize(format="turtle")
 
 
@@ -143,6 +161,21 @@ def generate_ke_go_turtle(mappings, min_confidence=None) -> str:
 
         if row.get("go_namespace"):
             g.add((uri, VOCAB.goNamespace, Literal(row["go_namespace"])))
+
+        # Phase E.1: upstream snapshot provenance per mapping. See the
+        # corresponding block in generate_ke_wp_turtle for shape rationale.
+        if row.get("go_release_date"):
+            g.add((
+                uri,
+                VOCAB.goReleaseDate,
+                Literal(row["go_release_date"], datatype=XSD.date),
+            ))
+        if row.get("aopwiki_snapshot_date"):
+            g.add((
+                uri,
+                VOCAB.aopWikiSnapshotDate,
+                Literal(row["aopwiki_snapshot_date"], datatype=XSD.date),
+            ))
 
     return g.serialize(format="turtle")
 
@@ -221,5 +254,26 @@ def generate_ke_reactome_turtle(mappings, min_confidence=None, reactome_metadata
             meta = reactome_metadata.get(row["reactome_id"])
             if meta and meta.get("description"):
                 g.add((uri, VOCAB.pathwayDescription, Literal(meta["description"])))
+
+        # Phase E.1: upstream snapshot provenance per mapping. Reactome
+        # carries both an integer release version and a release date.
+        if row.get("reactome_release_version"):
+            g.add((
+                uri,
+                VOCAB.reactomeReleaseVersion,
+                Literal(row["reactome_release_version"]),
+            ))
+        if row.get("reactome_release_date"):
+            g.add((
+                uri,
+                VOCAB.reactomeReleaseDate,
+                Literal(row["reactome_release_date"], datatype=XSD.date),
+            ))
+        if row.get("aopwiki_snapshot_date"):
+            g.add((
+                uri,
+                VOCAB.aopWikiSnapshotDate,
+                Literal(row["aopwiki_snapshot_date"], datatype=XSD.date),
+            ))
 
     return g.serialize(format="turtle")

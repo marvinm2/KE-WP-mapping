@@ -22,13 +22,14 @@ class JSONExporter:
         try:
             # Get all mappings
             cursor = conn.execute("""
-                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type, 
-                       confidence_level, created_by, created_at, updated_at
-                FROM mappings 
+                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type,
+                       confidence_level, created_by, created_at, updated_at,
+                       wp_release_date, aopwiki_snapshot_date
+                FROM mappings
                 ORDER BY created_at DESC
             """)
             mappings = [dict(row) for row in cursor.fetchall()]
-            
+
             # Build comprehensive JSON structure
             export_data = {
                 "dataset_info": {
@@ -102,9 +103,19 @@ class JSONExporter:
                             "description": "Timestamp when mapping was created (ISO 8601 format)"
                         },
                         {
-                            "name": "updated_at", 
+                            "name": "updated_at",
                             "type": "datetime",
                             "description": "Timestamp when mapping was last updated (ISO 8601 format)"
+                        },
+                        {
+                            "name": "wp_release_date",
+                            "type": "date",
+                            "description": "WikiPathways release the mapping was approved against (ISO YYYY-MM-DD). NULL on rows approved before source-data versioning was rolled out. See data/source_versions.json for the current snapshot."
+                        },
+                        {
+                            "name": "aopwiki_snapshot_date",
+                            "type": "date",
+                            "description": "AOP-Wiki snapshot the KE side of the mapping was anchored to at approval time (ISO YYYY-MM-DD). NULL on legacy rows."
                         }
                     ]
                 },
@@ -133,13 +144,14 @@ class JSONExporter:
         try:
             # Get all mappings
             cursor = conn.execute("""
-                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type, 
-                       confidence_level, created_by, created_at, updated_at
-                FROM mappings 
+                SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type,
+                       confidence_level, created_by, created_at, updated_at,
+                       wp_release_date, aopwiki_snapshot_date
+                FROM mappings
                 ORDER BY created_at DESC
             """)
             mappings = [dict(row) for row in cursor.fetchall()]
-            
+
             # Build JSON-LD structure with schema.org and custom vocabularies
             json_ld = {
                 "@context": {

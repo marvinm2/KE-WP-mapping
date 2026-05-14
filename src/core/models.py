@@ -1626,7 +1626,10 @@ class MappingModel:
                        -- positional consumers append at end (Pitfall 5)
                        proposed_relationship, proposed_basis,
                        proposed_specificity, proposed_coverage,
-                       assessment_version
+                       assessment_version,
+                       -- Phase E.1 source-data versioning columns. Same
+                       -- positional-append rule as the Phase 34 fields.
+                       wp_release_date, aopwiki_snapshot_date
                 FROM mappings
                 ORDER BY created_at DESC
             """
@@ -2538,7 +2541,9 @@ class GoMappingModel:
                        connection_type, confidence_level, evidence_code, created_by, created_at, updated_at,
                        uuid, approved_by_curator, approved_at_curator, proposed_by,
                        connection_score, specificity_score, evidence_score, assessment_version,
-                       suggestion_score
+                       suggestion_score,
+                       -- Phase E.1 source-data versioning columns.
+                       go_release_date, aopwiki_snapshot_date
                 FROM ke_go_mappings
                 ORDER BY created_at DESC
             """
@@ -3763,7 +3768,10 @@ class ReactomeMappingModel:
                        -- positional consumers append at end (Pitfall 5)
                        proposed_relationship, proposed_basis,
                        proposed_specificity, proposed_coverage,
-                       assessment_version
+                       assessment_version,
+                       -- Phase E.1 source-data versioning columns.
+                       reactome_release_version, reactome_release_date,
+                       aopwiki_snapshot_date
                 FROM ke_reactome_mappings
                 ORDER BY created_at DESC
                 """
