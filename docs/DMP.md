@@ -107,7 +107,7 @@ This DMP version 1.0 deliberately documents the current shipped state of the Bui
 
 - **RDF vocabulary publication.** The project-local vocabulary at `https://ke-wp-mapping.org/vocab#` has no formal OWL or SHACL schema published at that URI. Publishing the schema, ideally under a W3ID-resolvable or Bioregistry-resolvable namespace, will let downstream RDF consumers infer structure without reverse-engineering Turtle output.
 
-- **Privacy notice and retention policy.** An explicit `/privacy` page, a written retention policy for proposal rows (including rejected and withdrawn proposals), guest access codes, and the SPARQL response cache, and a documented procedure for honouring GDPR subject-rights requests are planned.
+- **~~Privacy notice and retention policy.~~** ✅ **Done 2026-05-14.** `/privacy` route now serves a public Jinja-rendered notice covering scope, processed fields, legal basis (GDPR contract performance), storage, cookies, four-category retention table (approved mappings · pending/rejected/withdrawn proposals · guest access codes · SPARQL cache), and the GDPR subject-rights procedure routing through the Maastricht University DPO. Linked from the site footer and surfaced under the OAuth provider list in the login modal so proposers see it before authenticating.
 
 - **Role and responsibility matrix.** A documented RACI matrix for curator, reviewer, administrator, developer, and data-steward roles will replace the current implicit definition through `ADMIN_USERS` and code-level access control.
 

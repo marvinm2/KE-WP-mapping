@@ -890,6 +890,18 @@ def documentation(section='overview'):
     )
 
 
+@main_bp.route("/privacy")
+def privacy_notice():
+    """
+    Static privacy notice and data-retention policy.
+
+    Mirrors the GDPR content of docs/DMP.md §6 and the retention rules in
+    docs/GOVERNANCE.md. Publicly accessible; linked from the site footer
+    and the login modal so that proposers see it before authenticating.
+    """
+    return render_template("privacy.html")
+
+
 @main_bp.route("/api/docs")
 def swagger_ui():
     """Interactive Swagger UI — publicly accessible, no login required."""
