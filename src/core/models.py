@@ -3497,8 +3497,24 @@ class ReactomeMappingModel:
             # Phase 34 (ASMT-10): carry-field column list is constant-driven.
             # Extending REACTOME_PROPOSAL_CARRY_FIELDS automatically widens
             # the INSERT; the round-trip test guards against silent drops.
+            #
+            # Column name alias: ke_reactome_proposals stores confidence as
+            # 'new_pair_confidence_level' (or 'proposed_confidence' for revision
+            # proposals), while the mapping table expects 'confidence_level'.
+            # All other REACTOME_PROPOSAL_CARRY_FIELDS names match directly.
+            _proposal_col_alias = {
+                'confidence_level': (
+                    proposal_row.get("new_pair_confidence_level")
+                    or proposal_row.get("proposed_confidence")
+                    or proposal_row.get("confidence_level")
+                ),
+            }
             carry_cols = list(REACTOME_PROPOSAL_CARRY_FIELDS)
-            carry_values = tuple(proposal_row.get(col) for col in carry_cols)
+            carry_values = tuple(
+                _proposal_col_alias[col] if col in _proposal_col_alias
+                else proposal_row.get(col)
+                for col in carry_cols
+            )
 
             # Derive ke_id, reactome_id from proposal for fixed cols
             ke_id = proposal_row.get("ke_id")
