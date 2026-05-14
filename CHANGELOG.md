@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.0] - 2026-05-14
+
+### Added (Phase 34 — Assessment Metadata Schema Parity)
+
+Closes the v1.4 → v1.6 assessment-rubric loop: the four-question rubric (relationship / basis / specificity / coverage) that drives the High/Medium/Low confidence verdict is now persisted at the column level on both KE-WP and KE-Reactome mappings, written through the entire approve pipeline, and surfaced through the public v1 API + CSV exports. Builder-side change; analyser is unaffected by the additive shape change (tolerant `.get()` parser, verified during Phase 34 research). Cross-references: `.planning/phases/34-assessment-metadata-schema-parity/34-0{1,2,3,4}-SUMMARY.md`, requirements `ASMT-01..ASMT-10` in `.planning/REQUIREMENTS.md`.
+
+#### Schema (Plan 01 — ASMT-01..05)
+
+- **Four new columns on `proposals`, `mappings`, `ke_reactome_proposals`, `ke_reactome_mappings`** — `proposed_relationship`, `proposed_basis`, `proposed_specificity`, `proposed_coverage` — text columns nullable by default. Whitelists enforced at the schema/validator layer, not the DB column type.
+- **Two new `assessment_version` columns on `mappings` and `ke_reactome_mappings`** — default `'v1'` for back-compat. The model-layer `_classify_assessment_version` helper flips a row to `'v2'` when ANY of the four answer fields is non-NULL (partial submissions during the Phase 34 → Phase 37 transition window are still v2).
+- **Idempotent PRAGMA-guarded migrations** follow the Phase 19 KE-GO template (`ALTER TABLE ... ADD COLUMN` inside a `PRAGMA table_info` short-circuit, wrapped in transactions). Safe to re-run on already-migrated DBs.
+
+#### Write paths (Plan 02 — ASMT-03/04/06/10)
+
+- **WP submission:** `MappingSchema` now accepts `step1..step4` form fields, validated against the canonical option-key whitelists. `/submit` forwards them to `ProposalModel.create_new_pair_proposal`.
+- **Admin approve (WP):** `approve_proposal` reads the four assessment fields off the proposal row and threads them through `create_mapping` and `update_mapping` (single dual-write pattern preserved for the legacy `connection_type` column).
+- **Admin approve (Reactome):** `ReactomeMappingModel.create_approved_mapping` refactored to a `proposal_id` signature — loads the proposal row internally, `REACTOME_PROPOSAL_CARRY_FIELDS` drives the INSERT column list (resolves v1.4 dead-constant tech debt, **ASMT-10**). The `'new_pair_confidence_level'` → `'confidence_level'` alias is handled inline without changing the carry-fields constant.
+- **Round-trip test** (`tests/test_reactome_round_trip.py`) seeds an end-to-end proposal → approve → mapping flow and asserts all four assessment columns + `assessment_version='v2'` survive into the approved row.
+
+#### API + Exports (Plan 04 — ASMT-07/08/09)
+
+- **`/api/v1/mappings` and `/api/v1/reactome-mappings`** (list + single endpoints) now emit a nested `assessment` object with five keys: `relationship`, `basis`, `specificity`, `coverage`, `version`. Sibling parity between WP and Reactome serializers — both emit the identical envelope shape. Legacy v1 rows emit the same shape with NULL answer fields and `version: 'v1'` (consistent envelope across the entire result set).
+- **CSV bulk export** (`?format=csv` on both endpoints): five new columns appended at the END of the existing column order — `proposed_relationship`, `proposed_basis`, `proposed_specificity`, `proposed_coverage`, `assessment_version`. Position chosen for back-compat with column-positional consumers.
+- **Reactome serializer also gains `connection_type`** at the top level + as a CSV column for sibling parity with WP.
+- **`KE-MAPPING-API-REFERENCE.md` in the molAOP-analyser repo** updated in lockstep per the cross-tool checklist in `molAOP_services/CLAUDE.md` (**ASMT-09**) — documents the new `assessment` block, value whitelists, the new CSV columns, and the v1/v2 row semantics.
+
+### Deploy Order
+
+**Builder-first.** The analyser parser (`molAOP-analyser/services/api_service.py`) uses tolerant `.get()` patterns and ignores unknown keys (verified via direct read during Phase 34 research in `.planning/phases/34-assessment-metadata-schema-parity/34-RESEARCH.md`). The new `assessment` key cannot break it, and the new CSV columns are appended at the END of the existing column order. Paired doc update to `molAOP-analyser/KE-MAPPING-API-REFERENCE.md` ships alongside or shortly after the builder release (committed separately in the analyser repo).
+
+---
+
 ## [2.7.2] - 2026-05-11
 
 ### Baseline Cleanup (Phase 33)
