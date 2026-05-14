@@ -144,7 +144,10 @@ def check_entry():
 def submit():
     """Add a new KE-WP mapping entry to the dataset."""
     try:
-        # Extract only the required fields for validation (exclude CSRF token)
+        # Extract only the required fields for validation (exclude CSRF token).
+        # Phase 34 ASMT-02: step1..step4 are the four assessment-question
+        # answers the mapper UI already sends (static/js/main.js:1378-1391);
+        # they are optional in MappingSchema for backward-compat.
         submit_data = {
             "ke_id": request.form.get("ke_id"),
             "ke_title": request.form.get("ke_title"),
@@ -152,7 +155,14 @@ def submit():
             "wp_title": request.form.get("wp_title"),
             "connection_type": request.form.get("connection_type"),
             "confidence_level": request.form.get("confidence_level"),
+            "step1": request.form.get("step1"),
+            "step2": request.form.get("step2"),
+            "step3": request.form.get("step3"),
+            "step4": request.form.get("step4"),
         }
+        # Drop None values so Marshmallow's `required=False` semantics fire
+        # (rather than treating None as an explicit "" -> validation failure).
+        submit_data = {k: v for k, v in submit_data.items() if v is not None}
 
         # Validate input data
         is_valid, validated_data, errors = validate_request_data(
@@ -171,6 +181,28 @@ def submit():
         connection_type = validated_data["connection_type"]
         confidence_level = validated_data["confidence_level"]
 
+        # Phase 34 ASMT-02: read assessment-question answers from validated
+        # payload. Rename from JS-side keys (step1..step4) to DB column names
+        # per the MappingSchema docstring whitelist. Each value already
+        # validated server-side against canonical option keys via
+        # validate.OneOf(...); sanitize_string is defense-in-depth.
+        step1 = validated_data.get("step1")
+        step2 = validated_data.get("step2")
+        step3 = validated_data.get("step3")
+        step4 = validated_data.get("step4")
+        proposed_relationship = (
+            SecurityValidation.sanitize_string(step1) if step1 else None
+        )
+        proposed_basis = (
+            SecurityValidation.sanitize_string(step2) if step2 else None
+        )
+        proposed_specificity = (
+            SecurityValidation.sanitize_string(step3) if step3 else None
+        )
+        proposed_coverage = (
+            SecurityValidation.sanitize_string(step4) if step4 else None
+        )
+
         # Get current user
         created_by = session.get("user", {}).get("username", "anonymous")
 
@@ -188,7 +220,10 @@ def submit():
         except (ValueError, TypeError):
             suggestion_score = None
 
-        # Create proposal record (status=pending) — mapping is created only after admin approval
+        # Create proposal record (status=pending) — mapping is created only after admin approval.
+        # Phase 34 ASMT-02: forward the four assessment fields to the model
+        # layer; they persist on the proposals row and are carried into the
+        # mapping at admin-approve time (see src/blueprints/admin.py).
         proposal_id = proposal_model.create_new_pair_proposal(
             ke_id=ke_id,
             ke_title=ke_title,
@@ -198,6 +233,10 @@ def submit():
             confidence_level=confidence_level,
             provider_username=created_by,
             suggestion_score=suggestion_score,
+            proposed_relationship=proposed_relationship,
+            proposed_basis=proposed_basis,
+            proposed_specificity=proposed_specificity,
+            proposed_coverage=proposed_coverage,
         )
         # Phase 32 H-2 port: the partial-unique index on
         # proposals(ke_id, wp_id) WHERE status='pending' AND mapping_id IS NULL
