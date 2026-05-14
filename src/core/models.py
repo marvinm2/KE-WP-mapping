@@ -1618,7 +1618,13 @@ class MappingModel:
             rows = conn.execute(
                 f"""SELECT uuid, ke_id, ke_title, wp_id, wp_title, confidence_level,
                            approved_by_curator, approved_at_curator, suggestion_score,
-                           proposed_by, connection_type
+                           proposed_by, connection_type,
+                           -- Phase 34 ASMT-08: assessment columns must flow through
+                           -- the paginated SELECT so /api/v1/mappings emits them.
+                           -- Positional consumers append at end (Pitfall 5).
+                           proposed_relationship, proposed_basis,
+                           proposed_specificity, proposed_coverage,
+                           assessment_version
                     FROM mappings {where}
                     ORDER BY created_at DESC
                     LIMIT ? OFFSET ?""",
@@ -1927,7 +1933,12 @@ class MappingModel:
                 SELECT id, ke_id, ke_title, wp_id, wp_title, connection_type,
                        confidence_level, created_by, created_at, updated_at,
                        uuid, approved_by_curator, approved_at_curator, updated_by,
-                       proposed_by, suggestion_score
+                       proposed_by, suggestion_score,
+                       -- Phase 34 ASMT-08: assessment columns flow through to
+                       -- /api/v1/mappings/<uuid> serializer (sibling parity with list).
+                       proposed_relationship, proposed_basis,
+                       proposed_specificity, proposed_coverage,
+                       assessment_version
                 FROM mappings
                 WHERE uuid = ?
                 """,
@@ -3679,7 +3690,13 @@ class ReactomeMappingModel:
             rows = conn.execute(
                 f"""SELECT uuid, ke_id, ke_title, reactome_id, pathway_name, species,
                            confidence_level, approved_by_curator, approved_at_curator,
-                           suggestion_score, proposed_by
+                           suggestion_score, proposed_by,
+                           -- Phase 34 ASMT-08: assessment columns flow through to
+                           -- /api/v1/reactome-mappings serializer. NOTE: no
+                           -- `connection_type` column on ke_reactome_mappings.
+                           proposed_relationship, proposed_basis,
+                           proposed_specificity, proposed_coverage,
+                           assessment_version
                     FROM ke_reactome_mappings {where}
                     ORDER BY created_at DESC
                     LIMIT ? OFFSET ?""",
@@ -3701,7 +3718,13 @@ class ReactomeMappingModel:
             row = conn.execute(
                 """SELECT uuid, ke_id, ke_title, reactome_id, pathway_name, species,
                           confidence_level, approved_by_curator, approved_at_curator,
-                          suggestion_score, proposed_by
+                          suggestion_score, proposed_by,
+                          -- Phase 34 ASMT-08: assessment columns flow through to
+                          -- /api/v1/reactome-mappings/<uuid> serializer. NOTE:
+                          -- no `connection_type` column on ke_reactome_mappings.
+                          proposed_relationship, proposed_basis,
+                          proposed_specificity, proposed_coverage,
+                          assessment_version
                    FROM ke_reactome_mappings
                    WHERE uuid = ?""",
                 (mapping_uuid,),

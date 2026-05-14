@@ -88,9 +88,9 @@
 - [ ] **ASMT-04**: KE-Reactome mapper UI replaces today's 3-button confidence selector with the 4-question KE-WP assessment.
 - [ ] **ASMT-05**: KE-Reactome admin proposal modal displays the four-question answers + derived confidence (parity with KE-WP admin modal).
 - [ ] **ASMT-06**: KE-WP admin proposal modal displays the four-question answers (currently shows only derived confidence).
-- [ ] **ASMT-07**: Public API `/api/v1/mappings` and `/api/v1/reactome-mappings` emit the four step answers + `assessment_version` (additive — analyser ignores unknown keys; verify parser mode is non-strict before lockstep PR).
+- [x] **ASMT-07**: Public API `/api/v1/mappings` and `/api/v1/reactome-mappings` emit the four step answers + `assessment_version` (additive — analyser ignores unknown keys; verify parser mode is non-strict before lockstep PR).
 - [x] **ASMT-08**: Bulk export SELECT for `get_all_mappings` (KE-WP) and the Reactome equivalent include the new columns — explicit guard against the 4th-recurrence SELECT drift pattern.
-- [ ] **ASMT-09**: `KE-MAPPING-API-REFERENCE.md` in the `molAOP-analyser` repo updated in lockstep with the API contract change (paired PR required per cross-tool checklist in `molAOP_services/CLAUDE.md`).
+- [x] **ASMT-09**: `KE-MAPPING-API-REFERENCE.md` in the `molAOP-analyser` repo updated in lockstep with the API contract change (paired PR required per cross-tool checklist in `molAOP_services/CLAUDE.md`).
 - [x] **ASMT-10**: `REACTOME_PROPOSAL_CARRY_FIELDS` constant (defined v1.4, unused) finally imported by `create_approved_mapping` for Reactome — resolves v1.4 tech-debt.
 
 ### Admin click reduction
@@ -221,9 +221,9 @@ Which phases cover which requirements. Updated during roadmap creation 2026-05-1
 | ASMT-04 | Phase 37 | Pending |
 | ASMT-05 | Phase 37 | Pending |
 | ASMT-06 | Phase 37 | Pending |
-| ASMT-07 | Phase 34 | Pending |
+| ASMT-07 | Phase 34 | Complete |
 | ASMT-08 | Phase 34 | Complete |
-| ASMT-09 | Phase 34 | Pending |
+| ASMT-09 | Phase 34 | Complete |
 | ASMT-10 | Phase 34 | Complete |
 | ADMIN-01 | Phase 38 | Pending |
 | ADMIN-02 | Phase 38 | Pending |

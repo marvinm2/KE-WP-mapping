@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: User & Admin Experience
-status: planning
-stopped_at: Completed 34-assessment-metadata-schema-parity/34-02-PLAN.md
-last_updated: "2026-05-14T14:23:39.138Z"
-last_activity: 2026-05-14 — v1.6 roadmap created (6 phases, schema-first build order per research convergence)
+status: WP HTTP submit + admin approve path now persists step1..step4 -> proposed_* -> bulk-export SELECT end-to-end with HTTP round-trip test coverage
+stopped_at: Completed 34-assessment-metadata-schema-parity/34-03-PLAN.md
+last_updated: "2026-05-14T15:44:25.109Z"
+last_activity: 2026-05-14 — Plan 34-03 complete (WP /submit + admin approve wired for step1..step4; 3 HTTP round-trip tests green; 317 tests pass, 51% coverage)
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 2
-  percent: 0
+  completed_plans: 4
+  percent: 17
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-14 for v1.6 scoping)
 
 ## Current Position
 
-Phase: 34 — Assessment Metadata Schema Parity (not started)
-Plan: None yet (run `/gsd:plan-phase 34` to scope)
-Status: Roadmap complete; 72/72 requirements mapped across phases 34–39; awaiting phase planning
-Last activity: 2026-05-14 — v1.6 roadmap created (6 phases, schema-first build order per research convergence)
+Phase: 34 — Assessment Metadata Schema Parity (3/4 plans complete; Plan 04 already summarized on disk)
+Plan: 34-03 just completed; 34-04 already has a SUMMARY on disk (executed earlier — staged v1_api.py changes pending separate commit)
+Status: WP HTTP submit + admin approve path now persists step1..step4 -> proposed_* -> bulk-export SELECT end-to-end with HTTP round-trip test coverage
+Last activity: 2026-05-14 — Plan 34-03 complete (WP /submit + admin approve wired for step1..step4; 3 HTTP round-trip tests green; 317 tests pass, 51% coverage)
 
 ```
 [████████████████████████████████░░░░░░] 33/39 phases
@@ -113,8 +113,8 @@ All ~65 decisions in PROJECT.md Key Decisions table (spanning v1.0–v1.5) remai
 
 ## Session Continuity
 
-**Last session:** 2026-05-14T14:23:39.132Z
-**Stopped at:** Completed 34-assessment-metadata-schema-parity/34-02-PLAN.md
+**Last session:** 2026-05-14T15:44:25.101Z
+**Stopped at:** Completed 34-assessment-metadata-schema-parity/34-03-PLAN.md
 **Resume file:** None
 **Next action:** `/gsd:plan-phase 34` to decompose Phase 34 into atomic plans following the Phase 19 KE-GO migration template.
 
@@ -124,6 +124,8 @@ All ~65 decisions in PROJECT.md Key Decisions table (spanning v1.0–v1.5) remai
 |-------|------|----------|-------|
 | Phase 34-assessment-metadata-schema-parity P01 | 6min | 3 tasks | 4 files |
 | Phase 34-assessment-metadata-schema-parity P02 | 11min | 3 tasks | 3 files |
+| Phase 34-assessment-metadata-schema-parity P04 | 7min | 3 tasks | 4 files |
+| Phase 34-assessment-metadata-schema-parity P03 | 7min | 4 tasks | 4 files |
 
 ## Decisions
 
@@ -131,3 +133,9 @@ All ~65 decisions in PROJECT.md Key Decisions table (spanning v1.0–v1.5) remai
 - [Phase 34-assessment-metadata-schema-parity]: REACTOME_PROPOSAL_CARRY_FIELDS extended in Plan 01 but wired in create_approved_mapping deferred to Plan 02 for isolated review
 - [Phase 34-assessment-metadata-schema-parity]: ReactomeMappingModel.create_approved_mapping refactored to proposal_id signature: loads proposal row internally, REACTOME_PROPOSAL_CARRY_FIELDS drives INSERT column list (resolves v1.4 dead-constant tech debt, ASMT-10)
 - [Phase 34-assessment-metadata-schema-parity]: confidence_level column alias in Reactome carry: ke_reactome_proposals uses 'new_pair_confidence_level' not 'confidence_level'; resolved via inline alias map in create_approved_mapping without changing REACTOME_PROPOSAL_CARRY_FIELDS constant
+- [Phase 34-assessment-metadata-schema-parity]: Reactome serializer gained top-level connection_type for full sibling parity with WP (required to convert the existing forbidden-list test to a positive assertion)
+- [Phase 34-assessment-metadata-schema-parity]: Phase 34 CSV columns appended at END of column lists (not interleaved) — preserves column-positional consumer back-compat at the cost of slight semantic awkwardness
+- [Phase 34-assessment-metadata-schema-parity]: Analyser-repo KE-MAPPING-API-REFERENCE.md edited in place but NOT committed from builder repo — paired PR is a follow-up per molAOP_services cross-tool checklist
+- [Phase 34-assessment-metadata-schema-parity]: Drop-None filter at form->schema boundary in WP /submit handler: preserve Marshmallow's required=False optional-field semantics by filtering None values out of submit_data before validate_request_data
+- [Phase 34-assessment-metadata-schema-parity]: Four KE_WP_*_OPTIONS module-level constants in src/core/schemas.py — single source of truth for the canonical option-key whitelists, importable for the v1 API reference doc
+- [Phase 34-assessment-metadata-schema-parity]: WP admin approve threads four assessment kwargs through BOTH create_mapping AND both update_mapping callsites — defense-in-depth for the assessment_version classifier on the new-pair provenance write path

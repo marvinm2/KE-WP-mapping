@@ -213,10 +213,11 @@ _GO_MAPPING_CSV_FIELDS = [
 _REACTOME_MAPPING_CSV_FIELDS = [
     "uuid", "ke_id", "ke_name", "reactome_id", "pathway_name", "species",
     "confidence_level", "suggestion_score", "approved_by", "approved_at", "proposed_by",
-    "connection_type",
     "ke_aop_context", "ke_bio_level", "pathway_description", "reactome_gene_count",
     # Phase 34 ASMT-08: assessment fields appended at END for back-compat with
-    # column-positional CSV consumers.
+    # column-positional CSV consumers. NOTE: connection_type is intentionally
+    # NOT included — ke_reactome_mappings has no such column (only
+    # ke_reactome_proposals has proposed_connection_type).
     "proposed_relationship", "proposed_basis", "proposed_specificity",
     "proposed_coverage", "assessment_version",
 ]
@@ -269,7 +270,11 @@ def _serialize_reactome_mapping(row):
         "pathway_name": row["pathway_name"],
         "species": row.get("species"),
         "confidence_level": row["confidence_level"],
-        "connection_type": row.get("connection_type"),
+        # NOTE: ke_reactome_mappings has no `connection_type` column (only
+        # ke_reactome_proposals has `proposed_connection_type`). The Reactome
+        # serializer therefore omits the top-level connection_type field; the
+        # nested `assessment` block below carries the equivalent rubric data
+        # for v1.6+ rows.
         "pathway_description": pathway_description,
         "reactome_gene_count": gene_count,
         "ke_aop_context": ke_aop_context,

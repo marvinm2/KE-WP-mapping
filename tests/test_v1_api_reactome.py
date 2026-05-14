@@ -135,9 +135,12 @@ class TestSerializer:
         """Reactome CSV fields constant — Phase 34 ASMT-07 shape.
 
         Phase 34 added the four assessment-answer columns + assessment_version
-        + connection_type to the Reactome serializer (sibling parity with WP).
-        The remaining forbidden entries guard against GO-specific fields
-        leaking into the Reactome shape.
+        to the Reactome serializer (sibling parity with WP's nested assessment
+        block). NOTE: connection_type is intentionally NOT a Reactome field —
+        the ke_reactome_mappings table has no such column (only
+        ke_reactome_proposals has proposed_connection_type). It stays in the
+        forbidden tuple. The remaining forbidden entries guard against
+        GO-specific fields leaking into the Reactome shape.
         """
         from src.blueprints.v1_api import _REACTOME_MAPPING_CSV_FIELDS
 
@@ -147,17 +150,18 @@ class TestSerializer:
         assert "pathway_description" in _REACTOME_MAPPING_CSV_FIELDS
         assert "reactome_gene_count" in _REACTOME_MAPPING_CSV_FIELDS
         assert "ke_aop_context" in _REACTOME_MAPPING_CSV_FIELDS
-        # No GO-specific fields leak in
+        # No GO-specific or undefined-on-Reactome fields leak in
         for forbidden in ("go_term_id", "go_term_name", "go_namespace",
                           "go_direction", "go_definition", "go_ic", "go_depth",
+                          "connection_type",  # absent from ke_reactome_mappings schema
                           "connection_score", "specificity_score", "evidence_score"):
             assert forbidden not in _REACTOME_MAPPING_CSV_FIELDS, (
                 f"Forbidden field present: {forbidden}"
             )
-        # Phase 34 ASMT-07: connection_type + assessment_version + the four
-        # proposed_* answer columns are now LEGITIMATE Reactome CSV fields
-        # (sibling parity with WP). Positive assertion locks the shape.
-        for required in ("connection_type", "assessment_version",
+        # Phase 34 ASMT-07: assessment_version + the four proposed_* answer
+        # columns are now LEGITIMATE Reactome CSV fields (sibling parity with
+        # WP's nested assessment block). Positive assertion locks the shape.
+        for required in ("assessment_version",
                           "proposed_relationship", "proposed_basis",
                           "proposed_specificity", "proposed_coverage"):
             assert required in _REACTOME_MAPPING_CSV_FIELDS, (
@@ -197,9 +201,12 @@ class TestSerializer:
         assert out["provenance"]["approved_at"] == "2026-01-01"
         assert out["provenance"]["proposed_by"] == "github:alice"
 
-        # GO-specific keys must not leak in
+        # GO-specific keys must not leak in. connection_type also forbidden —
+        # ke_reactome_mappings has no such column (only ke_reactome_proposals
+        # has proposed_connection_type).
         for forbidden in ("go_term_id", "go_term_name", "go_namespace",
                           "go_direction", "go_definition", "go_ic", "go_depth",
+                          "connection_type",
                           "connection_score", "specificity_score", "evidence_score"):
             assert forbidden not in out, f"Forbidden key in output: {forbidden}"
 
