@@ -17,7 +17,7 @@ This document specifies who is **Responsible / Accountable / Consulted / Informe
 | **Curator / Admin** | Holders of admin privilege on the live instance | `ADMIN_USERS` environment variable on the swarm service (`ssh tgx1 'docker service inspect molaop-builder \| grep ADMIN_USERS'`) |
 | **Proposer** | Any user who has authenticated via OAuth (GitHub, ORCID, LS Login, or SURFconext) and submitted a mapping proposal | `proposals`, `ke_go_proposals`, and `ke_reactome_proposals` tables in `ke_wp_mapping.db` |
 | **Cluster Operator** | Sean Laenen (`slaenen`) — VHP4Safety Strato Swarm administrator | `/mnt/gluster/documentation/operations/user-management.md` on `tgx1` |
-| **Data Protection Officer** | Maastricht University institutional DPO | [`privacy@maastrichtuniversity.nl`](mailto:privacy@maastrichtuniversity.nl) |
+| **Data Protection Officer** | Maastricht University institutional DPO | Direct contact channel TBC; subject-rights requests are routed via the Data Steward, who forwards to the DPO for sign-off. |
 
 Multiple roles may be held by the same person; today the Data Steward and Lead Developer are both Marvin Martens. The matrix below operates on *roles* — assignment to people is fluid and recorded in the table above.
 
