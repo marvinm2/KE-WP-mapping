@@ -410,28 +410,41 @@ Full DataCite metadata available at: `/dataset/datacite`
 ## Licensing
 
 ### Dataset License
-**Creative Commons Attribution 4.0 International (CC BY 4.0)**
-- **URL**: https://creativecommons.org/licenses/by/4.0/
-- **Requirements**: Attribution required
-- **Permissions**: Commercial use, distribution, modification allowed
+**Creative Commons Zero 1.0 Universal (CC0 1.0, Public Domain Dedication)**
+- **URL**: https://creativecommons.org/publicdomain/zero/1.0/
+- **Requirements**: No attribution required (encouraged as good scientific practice — see below)
+- **Permissions**: Unrestricted commercial use, distribution, modification, and re-licensing of derivative datasets
+- **Rationale**: CC0 was chosen to maximise downstream re-use in regulatory and commercial workflows where attribution requirements on derivative datasets can be operationally awkward. See `docs/DMP.md` §2.4 for the full reasoning.
 
 ### Source Data Licenses
-- **AOP-Wiki**: CC0 1.0 Universal (Public Domain)
-- **WikiPathways**: CC0 1.0 Universal (Public Domain)
+The Builder re-uses four external knowledge resources at runtime. Each carries its own upstream licence:
+
+<!-- TODO(license-verify): AOP-Wiki licence below is unverified; the pre-2026-05 version of this doc listed it as CC0 1.0. Confirm against the canonical AOP-Wiki terms page before next minor release and update both this list and docs/DMP.md §1 accordingly. -->
+- **AOP-Wiki**: Creative Commons Attribution 4.0 International (CC BY 4.0) *(citation pending verification)*
+- **WikiPathways**: Creative Commons Zero 1.0 Universal (CC0 1.0, Public Domain)
+- **Gene Ontology** (incl. UniProt-GOA human annotations): Creative Commons Attribution 4.0 International (CC BY 4.0)
+- **Reactome**: Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+The curated mapping dataset itself is released under CC0 (above); the upstream licences govern any direct re-distribution of unmodified source data, not the curated KE → resource mappings produced by the Builder.
 
 ### Software License
-**MIT License** - Application code and infrastructure
+**GNU General Public License v2.0 (GPL-2.0)** — application source code and infrastructure. See [`LICENSE`](../LICENSE) at the repository root.
 
 ### Attribution Requirements
-When using this dataset, please cite:
-1. This dataset using the citation format above
-2. AOP-Wiki: https://aopwiki.org/
-3. WikiPathways: https://www.wikipathways.org/
+CC0 imposes no legal attribution requirement on the curated mapping dataset. Citation is nonetheless encouraged as good scientific practice. When using this dataset, please consider citing:
+
+1. This dataset via its concept DOI [10.5281/zenodo.20184643](https://doi.org/10.5281/zenodo.20184643) (always resolves to the latest version)
+2. The upstream resources whose IDs you rely on:
+   - AOP-Wiki: https://aopwiki.org/
+   - WikiPathways: https://www.wikipathways.org/
+   - Gene Ontology: http://geneontology.org/
+   - Reactome: https://reactome.org/
 
 ---
 
-**Last Updated**: August 2025  
-**Dataset Version**: 2.2.0  
-**Documentation Version**: 2.2.0
+**Last Updated**: 2026-05-14
+**Dataset Version**: see `data/zenodo_meta.json` (`version` field) — concept DOI [10.5281/zenodo.20184643](https://doi.org/10.5281/zenodo.20184643)
+**Application Version**: v2.7.2
+**Documentation Version**: 2.7.2
 
 For questions, issues, or contributions, please visit our GitHub repository or contact the development team through the platform interface.
