@@ -325,6 +325,17 @@ def approve_proposal(proposal_id: int):
         if proposal["status"] != "pending":
             return jsonify({"error": f"Proposal is already {proposal['status']}"}), 400
 
+        # Phase 34 ASMT-02: read assessment-question answers off the
+        # proposal row, thread through both the create_mapping (new-pair)
+        # and update_mapping (revision) call sites. Existing proposals
+        # submitted before this phase have NULL values here, which the
+        # model layer interprets as assessment_version='v1'
+        # (see _classify_assessment_version in src/core/models.py).
+        proposed_relationship = proposal.get("proposed_relationship")
+        proposed_basis = proposal.get("proposed_basis")
+        proposed_specificity = proposal.get("proposed_specificity")
+        proposed_coverage = proposal.get("proposed_coverage")
+
         # Apply the proposed changes
         success = True
         mapping_id = proposal["mapping_id"]
@@ -345,6 +356,11 @@ def approve_proposal(proposal_id: int):
                 connection_type=proposal.get("new_pair_connection_type") or proposal.get("proposed_connection_type"),
                 confidence_level=proposal.get("new_pair_confidence_level") or proposal.get("proposed_confidence"),
                 created_by=proposal.get("provider_username") or admin_username,
+                # Phase 34 ASMT-02: assessment answers carried from proposal.
+                proposed_relationship=proposed_relationship,
+                proposed_basis=proposed_basis,
+                proposed_specificity=proposed_specificity,
+                proposed_coverage=proposed_coverage,
             )
             if new_mapping_id:
                 success = mapping_model.update_mapping(
@@ -353,6 +369,14 @@ def approve_proposal(proposal_id: int):
                     approved_at_curator=approved_at,
                     suggestion_score=proposal_score,
                     proposed_by=proposal.get("provider_username"),
+                    # Phase 34 ASMT-02: re-thread assessment so the
+                    # update path's assessment_version classifier also
+                    # sees the populated values (defense-in-depth — the
+                    # create_mapping call above already wrote them).
+                    proposed_relationship=proposed_relationship,
+                    proposed_basis=proposed_basis,
+                    proposed_specificity=proposed_specificity,
+                    proposed_coverage=proposed_coverage,
                 )
             else:
                 success = False
@@ -370,6 +394,11 @@ def approve_proposal(proposal_id: int):
                 approved_at_curator=approved_at,
                 suggestion_score=proposal_score,       # carry score from proposal
                 proposed_by=proposal.get("provider_username"),
+                # Phase 34 ASMT-02: assessment answers carried from proposal.
+                proposed_relationship=proposed_relationship,
+                proposed_basis=proposed_basis,
+                proposed_specificity=proposed_specificity,
+                proposed_coverage=proposed_coverage,
             )
             action = "updated"
 
