@@ -485,7 +485,7 @@ This project is licensed under the GPL-2.0 License - see the LICENSE file for de
 - **WikiPathways**: Pathway data and SPARQL integration
 - **Gene Ontology Consortium**: GO term ontology and annotations
 - **UniProt-GOA**: Gene Ontology annotation database
-- **BiGCaT**: Bioinformatics research group at Maastricht University
+- **Department of Translational Genomics, Maastricht University**: hosting research group
 - **Flask Community**: Framework and extension ecosystem
 
 ---
