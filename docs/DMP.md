@@ -67,7 +67,7 @@ The Builder produces one substantial non-data research output: the application s
 
 Marginal cost is essentially zero. Zenodo deposits, AOP-Wiki, WikiPathways, Gene Ontology, and Reactome all provide their services free of charge for research re-use. The Builder is hosted on the VHP4Safety Strato Docker Swarm cluster (two-manager swarm at the Strato hoster, GlusterFS-replicated storage, Traefik reverse proxy with Let's Encrypt TLS), administered by Sean Laenen and shared across the VHP4Safety service portfolio; the marginal storage and compute cost for the Builder is in the low single-digit GB range and is absorbed within the existing cluster budget.
 
-Responsibility for data stewardship rests with Marvin Martens (Department of Translational Genomics, Maastricht University) as principal investigator and data steward. Day-to-day curator-proposal review is performed by the small set of administrators listed in the `ADMIN_USERS` environment variable on the live instance. Operational continuity of the host infrastructure is provided by the VHP4Safety cluster team, and authoritative cluster documentation lives at `/mnt/gluster/documentation/` on the cluster's primary manager node. A formal RACI matrix for curator, reviewer, administrator, developer, and data-steward roles is planned (see §7).
+Responsibility for data stewardship rests with Marvin Martens (Department of Translational Genomics, Maastricht University) as principal investigator and data steward. Day-to-day curator-proposal review is performed by the small set of administrators listed in the `ADMIN_USERS` environment variable on the live instance. Operational continuity of the host infrastructure is provided by the VHP4Safety cluster team, and authoritative cluster documentation lives at `/mnt/gluster/documentation/` on the cluster's primary manager node. A formal RACI matrix specifying who is Responsible / Accountable / Consulted / Informed for proposal review, schema migrations, releases, deployment, backups, incident response, and GDPR subject-rights requests is maintained in [`docs/GOVERNANCE.md`](GOVERNANCE.md).
 
 Long-term preservation costs after the end of any specific grant period are absorbed by the Zenodo ten-year guarantee for the published dataset and by Maastricht University's institutional hosting for the GitHub source mirror.
 
@@ -109,7 +109,7 @@ This DMP version 1.0 deliberately documents the current shipped state of the Bui
 
 - **Privacy notice and retention policy.** An explicit `/privacy` page, a written retention policy for proposal rows (including rejected and withdrawn proposals), guest access codes, and the SPARQL response cache, and a documented procedure for honouring GDPR subject-rights requests are planned.
 
-- **Role and responsibility matrix.** A documented RACI matrix for curator, reviewer, administrator, developer, and data-steward roles will replace the current implicit definition through `ADMIN_USERS` and code-level access control.
+- **~~Role and responsibility matrix.~~** ✅ **Done 2026-05-14.** Published as [`docs/GOVERNANCE.md`](GOVERNANCE.md): six roles (Data Steward, Lead Developer, Curator/Admin, Proposer, Cluster Operator, DPO) × seventeen activities, with escalation paths and a documented review cadence.
 
 - **License documentation drift.** `docs/DATASET_DOCUMENTATION.md` still cites CC-BY-4.0 for the dataset and MIT for the code. This DMP supersedes those statements (CC0 for the dataset, GPL-2.0 for the code); a follow-up edit aligns the dataset documentation accordingly.
 
