@@ -1550,6 +1550,11 @@ class MappingModel:
         proposed_basis: Optional[str] = None,
         proposed_specificity: Optional[str] = None,
         proposed_coverage: Optional[str] = None,
+        # Phase C — source-data versioning. Stamped from the deployed manifest
+        # (data/source_versions.json) by the admin approval handler. NULL if
+        # the manifest is missing or the upstream is currently 'unknown'.
+        wp_release_date: Optional[str] = None,
+        aopwiki_snapshot_date: Optional[str] = None,
     ) -> Optional[int]:
         """Create a new KE-WP mapping"""
         mapping_uuid = str(uuid_lib.uuid4())
@@ -1566,8 +1571,9 @@ class MappingModel:
                                     confidence_level, created_by, uuid,
                                     proposed_relationship, proposed_basis,
                                     proposed_specificity, proposed_coverage,
-                                    assessment_version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    assessment_version,
+                                    wp_release_date, aopwiki_snapshot_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     ke_id,
@@ -1583,6 +1589,8 @@ class MappingModel:
                     proposed_specificity,
                     proposed_coverage,
                     assessment_version,
+                    wp_release_date,
+                    aopwiki_snapshot_date,
                 ),
             )
 
@@ -1921,6 +1929,9 @@ class MappingModel:
         proposed_basis: Optional[str] = None,
         proposed_specificity: Optional[str] = None,
         proposed_coverage: Optional[str] = None,
+        # Phase C — source-data versioning kwargs; nullable, stamped at approval.
+        wp_release_date: Optional[str] = None,
+        aopwiki_snapshot_date: Optional[str] = None,
     ) -> bool:
         """
         Update an existing mapping
@@ -1956,6 +1967,9 @@ class MappingModel:
             "proposed_specificity": "proposed_specificity",
             "proposed_coverage": "proposed_coverage",
             "assessment_version": "assessment_version",
+            # Phase C source-data versioning columns.
+            "wp_release_date": "wp_release_date",
+            "aopwiki_snapshot_date": "aopwiki_snapshot_date",
         }
 
         # Phase 34 dual-write: proposed_relationship also populates connection_type
@@ -1989,6 +2003,11 @@ class MappingModel:
                 "proposed_specificity": proposed_specificity,
                 "proposed_coverage": proposed_coverage,
                 "assessment_version": assessment_version,
+                # Phase C source-data versioning — None values are skipped by the
+                # `field_value is not None` guard below so unspecified columns
+                # remain untouched on revision updates.
+                "wp_release_date": wp_release_date,
+                "aopwiki_snapshot_date": aopwiki_snapshot_date,
             }
 
             for field_name, field_value in update_data.items():
@@ -2446,6 +2465,9 @@ class GoMappingModel:
         evidence_score: int = None,
         assessment_version: str = "v1",
         go_namespace: str = "biological_process",
+        # Phase C — source-data versioning kwargs; nullable, stamped at approval.
+        go_release_date: Optional[str] = None,
+        aopwiki_snapshot_date: Optional[str] = None,
     ) -> Optional[int]:
         """Create a new KE-GO mapping"""
         mapping_uuid = str(uuid_lib.uuid4())
@@ -2462,8 +2484,9 @@ class GoMappingModel:
                 INSERT INTO ke_go_mappings (ke_id, ke_title, go_id, go_name, connection_type,
                                            confidence_level, evidence_code, created_by, uuid,
                                            go_direction, connection_score, specificity_score,
-                                           evidence_score, assessment_version, go_namespace)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                           evidence_score, assessment_version, go_namespace,
+                                           go_release_date, aopwiki_snapshot_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     ke_id,
@@ -2481,6 +2504,8 @@ class GoMappingModel:
                     evidence_score,
                     assessment_version,
                     go_namespace,
+                    go_release_date,
+                    aopwiki_snapshot_date,
                 ),
             )
 
@@ -2753,6 +2778,9 @@ class GoMappingModel:
         approved_at_curator: str = None,
         suggestion_score: float = None,
         proposed_by: str = None,
+        # Phase C — source-data versioning kwargs; nullable, stamped at approval.
+        go_release_date: Optional[str] = None,
+        aopwiki_snapshot_date: Optional[str] = None,
     ) -> bool:
         """
         Update an existing KE-GO mapping.
@@ -2768,6 +2796,8 @@ class GoMappingModel:
             "approved_at_curator": "approved_at_curator",
             "suggestion_score": "suggestion_score",
             "proposed_by": "proposed_by",
+            "go_release_date": "go_release_date",
+            "aopwiki_snapshot_date": "aopwiki_snapshot_date",
         }
 
         conn = self.db.get_connection()
@@ -2783,6 +2813,8 @@ class GoMappingModel:
                 "approved_at_curator": approved_at_curator,
                 "suggestion_score": suggestion_score,
                 "proposed_by": proposed_by,
+                "go_release_date": go_release_date,
+                "aopwiki_snapshot_date": aopwiki_snapshot_date,
             }
 
             for field_name, field_value in update_data.items():
@@ -3514,6 +3546,10 @@ class ReactomeMappingModel:
         proposed_basis: Optional[str] = None,
         proposed_specificity: Optional[str] = None,
         proposed_coverage: Optional[str] = None,
+        # Phase C — source-data versioning kwargs; nullable, stamped from manifest.
+        reactome_release_version: Optional[str] = None,
+        reactome_release_date: Optional[str] = None,
+        aopwiki_snapshot_date: Optional[str] = None,
     ) -> Optional[int]:
         """Create a new KE-Reactome mapping"""
         mapping_uuid = str(uuid_lib.uuid4())
@@ -3529,14 +3565,18 @@ class ReactomeMappingModel:
                      confidence_level, suggestion_score, created_by, uuid,
                      proposed_relationship, proposed_basis,
                      proposed_specificity, proposed_coverage,
-                     assessment_version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     assessment_version,
+                     reactome_release_version, reactome_release_date,
+                     aopwiki_snapshot_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (ke_id, ke_title, reactome_id, pathway_name, species,
                  confidence_level, suggestion_score, created_by, mapping_uuid,
                  proposed_relationship, proposed_basis,
                  proposed_specificity, proposed_coverage,
-                 assessment_version),
+                 assessment_version,
+                 reactome_release_version, reactome_release_date,
+                 aopwiki_snapshot_date),
             )
             conn.commit()
             logger.info(
@@ -3561,6 +3601,10 @@ class ReactomeMappingModel:
         proposal_id: int,
         approved_by_curator: str,
         approved_at_curator: str = None,
+        # Phase C — source-data versioning kwargs; nullable, stamped from manifest.
+        reactome_release_version: Optional[str] = None,
+        reactome_release_date: Optional[str] = None,
+        aopwiki_snapshot_date: Optional[str] = None,
     ) -> Optional[int]:
         """Create an approved KE-Reactome mapping in a single INSERT.
 
@@ -3639,6 +3683,11 @@ class ReactomeMappingModel:
                 'created_by', 'uuid',
                 'approved_by_curator', 'approved_at_curator', 'proposed_by',
                 'assessment_version',
+                # Phase C source-data versioning columns. Stamped from the
+                # deployed manifest, NOT carried from the proposal — so they
+                # ride the fixed-cols path even though they're nullable.
+                'reactome_release_version', 'reactome_release_date',
+                'aopwiki_snapshot_date',
             )
             fixed_values = (
                 ke_id, ke_title, reactome_id,
@@ -3646,6 +3695,8 @@ class ReactomeMappingModel:
                 mapping_uuid,
                 approved_by_curator, approved_at_curator, proposed_by,
                 assessment_version,
+                reactome_release_version, reactome_release_date,
+                aopwiki_snapshot_date,
             )
 
             all_cols = fixed_cols + tuple(carry_cols)
