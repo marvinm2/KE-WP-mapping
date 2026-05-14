@@ -86,6 +86,7 @@ class ServiceContainer:
         self._go_hierarchy = None
         self._go_bp_metadata = None
         self._go_mf_metadata = None
+        self._source_versions = None  # Phase C — lazy-loaded data/source_versions.json
 
         logger.info("Service container initialized")
 
@@ -194,6 +195,90 @@ class ServiceContainer:
                 except Exception as e:
                     logger.warning("Failed to load ke_aop_membership.json: %s", e)
         return self._ke_aop_membership
+
+    @property
+    def source_versions(self):
+        """
+        Load and cache the upstream source-versions manifest.
+
+        Phase C of source-data versioning (DMP §7). The manifest is written by
+        scripts/capture_source_versions.py and travels with the snapshot at
+        data/source_versions.json. New approvals are stamped with the current
+        snapshot's versions via `source_version_fields_for(resource)` below.
+
+        Returns the parsed manifest dict, or `{}` if the file is missing or
+        unreadable — that case logs a warning but does not fail startup
+        (mappings just get NULL version columns until the manifest exists).
+        """
+        if self._source_versions is None:
+            path = os.path.join(PROJECT_ROOT, 'data', 'source_versions.json')
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        self._source_versions = json.load(f)
+                    sources = self._source_versions.get('sources', {})
+                    ok = [k for k, v in sources.items() if v.get('status') == 'ok']
+                    logger.info(
+                        "Loaded source_versions.json: %d/%d sources OK (%s)",
+                        len(ok), len(sources), ', '.join(sorted(ok)) or 'none',
+                    )
+                except Exception as e:
+                    logger.warning("Failed to load source_versions.json: %s", e)
+                    self._source_versions = {}
+            else:
+                logger.warning(
+                    "source_versions.json not found at %s — new approvals will "
+                    "have NULL version columns until the manifest is generated "
+                    "(run `make capture-versions`).",
+                    path,
+                )
+                self._source_versions = {}
+        return self._source_versions
+
+    def source_version_fields_for(self, resource: str) -> dict:
+        """
+        Return the kwargs dict to stamp on a newly-approved mapping of `resource`.
+
+        `resource` is one of {"wp", "go", "reactome"}. The returned dict contains
+        column-name → value entries suitable for passing directly into the
+        relevant `create_mapping` / `update_mapping` / `create_approved_mapping`
+        call. Sources whose manifest status is not "ok" (or missing entirely)
+        are silently omitted, so the corresponding column stays NULL.
+
+        Every resource also stamps `aopwiki_snapshot_date` (the KE side of the
+        mapping is anchored in AOP-Wiki regardless of the molecular resource).
+
+        Returns `{}` if the manifest is empty or all relevant sources are
+        unknown — the caller can `**unpack` the result safely either way.
+        """
+        manifest = self.source_versions
+        sources = manifest.get('sources', {}) if manifest else {}
+
+        fields = {}
+        aopwiki = sources.get('aopwiki', {})
+        if aopwiki.get('status') == 'ok' and aopwiki.get('snapshot_date'):
+            fields['aopwiki_snapshot_date'] = aopwiki['snapshot_date']
+
+        if resource == 'wp':
+            wp = sources.get('wikipathways', {})
+            if wp.get('status') == 'ok' and wp.get('release_date'):
+                fields['wp_release_date'] = wp['release_date']
+        elif resource == 'go':
+            go = sources.get('gene_ontology', {})
+            if go.get('status') == 'ok' and go.get('release_date'):
+                fields['go_release_date'] = go['release_date']
+        elif resource == 'reactome':
+            rx = sources.get('reactome', {})
+            if rx.get('status') == 'ok':
+                if rx.get('release_version'):
+                    fields['reactome_release_version'] = rx['release_version']
+                if rx.get('release_date'):
+                    fields['reactome_release_date'] = rx['release_date']
+        else:
+            raise ValueError(
+                f"Unknown resource {resource!r}; expected 'wp', 'go', or 'reactome'"
+            )
+        return fields
 
     @property
     def ker_adjacency(self):

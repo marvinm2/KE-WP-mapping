@@ -21,6 +21,28 @@ from src.core.schemas import AdminNotesSchema, SecurityValidation, validate_requ
 logger = logging.getLogger(__name__)
 
 
+def _source_version_fields(resource: str) -> dict:
+    """
+    Resolve the upstream source-version fields to stamp on a new approval.
+
+    Wraps `current_app.service_container.source_version_fields_for(resource)`
+    with a safety net: if the container is unavailable or raises, returns an
+    empty dict so the approval still goes through (the mapping just gets
+    NULL version columns rather than failing).
+
+    Phase C of source-data versioning (DMP §7).
+    """
+    try:
+        return current_app.service_container.source_version_fields_for(resource)
+    except Exception as e:
+        logger.warning(
+            "Could not resolve source-version fields for %s: %s — approval "
+            "will proceed with NULL version columns",
+            resource, e,
+        )
+        return {}
+
+
 def _get_admin_users():
     """Return list of provider-prefixed admin usernames from ADMIN_USERS env var.
 
@@ -348,6 +370,9 @@ def approve_proposal(proposal_id: int):
             # New-pair proposal: create the mapping then write provenance
             approved_at = datetime.utcnow().isoformat()
             proposal_score = proposal.get("suggestion_score")
+            # Phase C: stamp the new mapping with the current snapshot's
+            # WikiPathways + AOP-Wiki release info from data/source_versions.json.
+            wp_version_fields = _source_version_fields("wp")
             new_mapping_id = mapping_model.create_mapping(
                 ke_id=proposal["ke_id"],
                 ke_title=proposal["ke_title"],
@@ -361,6 +386,7 @@ def approve_proposal(proposal_id: int):
                 proposed_basis=proposed_basis,
                 proposed_specificity=proposed_specificity,
                 proposed_coverage=proposed_coverage,
+                **wp_version_fields,
             )
             if new_mapping_id:
                 success = mapping_model.update_mapping(
@@ -385,6 +411,10 @@ def approve_proposal(proposal_id: int):
             # Existing mapping revision proposal: update the mapping with provenance
             approved_at = datetime.utcnow().isoformat()
             proposal_score = proposal.get("suggestion_score")   # REAL or None
+            # Phase C: revision approvals refresh the version stamp too — they
+            # represent a re-confirmation of the mapping against the current
+            # snapshot, so the snapshot the curator was reviewing wins.
+            wp_version_fields = _source_version_fields("wp")
             success = mapping_model.update_mapping(
                 mapping_id=mapping_id,
                 connection_type=proposal["proposed_connection_type"],
@@ -399,6 +429,7 @@ def approve_proposal(proposal_id: int):
                 proposed_basis=proposed_basis,
                 proposed_specificity=proposed_specificity,
                 proposed_coverage=proposed_coverage,
+                **wp_version_fields,
             )
             action = "updated"
 
@@ -662,6 +693,8 @@ def approve_go_proposal(proposal_id: int):
             evidence_score = None
             assessment_version = "v1"
 
+        # Phase C: stamp the new GO mapping with current GO + AOP-Wiki versions.
+        go_version_fields = _source_version_fields("go")
         new_mapping_id = go_mapping_model.create_mapping(
             ke_id=proposal["ke_id"],
             ke_title=proposal["ke_title"],
@@ -675,6 +708,7 @@ def approve_go_proposal(proposal_id: int):
             evidence_score=evidence_score,
             assessment_version=assessment_version,
             go_namespace=proposal.get("go_namespace", "biological_process"),
+            **go_version_fields,
         )
 
         if new_mapping_id:
@@ -865,10 +899,15 @@ def approve_reactome_proposal(proposal_id: int):
         # on partial failure). Phase 34 (ASMT-10): create_approved_mapping
         # now loads all carry-fields from the proposal row internally via
         # REACTOME_PROPOSAL_CARRY_FIELDS — pass only the approval context.
+        # Phase C: source-version fields are stamped from the deployed
+        # manifest (NOT from the proposal), so they ride alongside the
+        # approval context kwargs.
+        reactome_version_fields = _source_version_fields("reactome")
         new_mapping_id = reactome_mapping_model.create_approved_mapping(
             proposal_id=proposal_id,
             approved_by_curator=admin_username,
             approved_at_curator=approved_at,
+            **reactome_version_fields,
         )
 
         if not new_mapping_id:
