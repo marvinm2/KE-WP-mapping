@@ -112,7 +112,13 @@ def _build_zenodo_metadata(published_at: str = None) -> dict:
             "Full provenance (curator, approval timestamp, confidence level, suggestion score) "
             "is provided in RDF/Turtle format."
         ),
-        "creators": [{"name": "KE-WP Mapping Curators"}],
+        "creators": [
+            {
+                "name": "Martens, Marvin",
+                "affiliation": "Department of Bioinformatics (BiGCaT), Maastricht University",
+                "orcid": "0000-0003-2230-0840",
+            },
+        ],
         "keywords": ["key events", "WikiPathways", "Gene Ontology", "AOP", "toxicology", "GMT", "RDF"],
         "license": "cc-zero",
         "publication_date": published_at or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
