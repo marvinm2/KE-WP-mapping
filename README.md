@@ -4,6 +4,7 @@
 [![Docker Build & Test](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/docker.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/docker.yml)
 [![Code Quality](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/code-quality.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/code-quality.yml)
 [![Security & Compliance](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/security.yml/badge.svg)](https://github.com/marvinm2/KE-WP-mapping/actions/workflows/security.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20184643.svg)](https://doi.org/10.5281/zenodo.20184643)
 
 A modern Flask-based web application for mapping Key Events (KEs) to WikiPathways (WPs) and Gene Ontology Biological Process (GO BP) terms with comprehensive metadata management. Built with a modular blueprint architecture for enhanced maintainability and scalability.
 
