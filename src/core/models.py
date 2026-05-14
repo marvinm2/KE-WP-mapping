@@ -14,11 +14,19 @@ logger = logging.getLogger(__name__)
 
 # Reactome proposal carry fields — columns copied from proposal to mapping at admin approval time.
 # Phase 25 admin route reads this constant; change it if schema changes.
+# Phase 34 (ASMT-10): the four assessment-question answers ride the same carry path on approve.
+# Imported by ReactomeMappingModel.create_approved_mapping in Plan 02.
+# KE-WP wired differently per WP/Reactome asymmetry (Plan 03).
 REACTOME_PROPOSAL_CARRY_FIELDS = (
     'pathway_name',
     'species',
     'suggestion_score',
     'confidence_level',
+    # Phase 34 (ASMT-10): assessment-question answers — wire-up in Plan 02
+    'proposed_relationship',
+    'proposed_basis',
+    'proposed_specificity',
+    'proposed_coverage',
 )
 
 
@@ -308,6 +316,13 @@ class Database:
             # Migrate ke_go_proposals and ke_go_mappings for dimension scores (Phase 19)
             self._migrate_go_proposals_dimension_scores(conn)
             self._migrate_go_mappings_dimension_scores(conn)
+
+            # Phase 34 (ASMT-01/02/03): assessment-question persistence on WP + Reactome
+            # proposal/mapping tables. Idempotent — PRAGMA-guarded ALTER TABLE.
+            self._migrate_proposals_assessment_fields(conn)
+            self._migrate_mappings_assessment_fields(conn)
+            self._migrate_reactome_proposals_assessment_fields(conn)
+            self._migrate_reactome_mappings_assessment_fields(conn)
 
             # Migrate ke_go_proposals to add go_namespace column (Phase 21)
             self._migrate_proposals_go_namespace(conn)
@@ -978,6 +993,205 @@ class Database:
 
         except Exception as e:
             logger.error("Error migrating ke_go_mappings dimension scores: %s", e)
+            raise
+
+    def _migrate_proposals_assessment_fields(self, conn):
+        """
+        Add assessment-question columns to the WP proposals table if they do not exist.
+
+        Phase 34 (ASMT-01) — transcribes the Phase 19 KE-GO migration pattern
+        (see _migrate_go_proposals_dimension_scores, models.py:905-940) for the
+        WP proposal table.
+
+        Columns added:
+            proposed_relationship TEXT (nullable) — how the pathway relates to the KE
+            proposed_basis        TEXT (nullable) — what biological basis supports the link
+            proposed_specificity  TEXT (nullable) — how specifically the pathway maps to the KE
+            proposed_coverage     TEXT (nullable) — how broadly the pathway covers the KE
+
+        NOTE: proposals tables do NOT receive assessment_version. That column
+        lives only on the mapping (approved) tables — version is decided at approval
+        time (CONTEXT.md decision, Phase 34).
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            fields_to_add = [
+                ("proposed_relationship", "TEXT"),
+                ("proposed_basis", "TEXT"),
+                ("proposed_specificity", "TEXT"),
+                ("proposed_coverage", "TEXT"),
+            ]
+            for field_name, field_type in fields_to_add:
+                if field_name not in columns:
+                    conn.execute(
+                        f"ALTER TABLE proposals ADD COLUMN {field_name} {field_type}"
+                    )
+                    new_columns.append(field_name)
+
+            if new_columns:
+                logger.info(
+                    "Migrated proposals table: added assessment fields: %s",
+                    new_columns,
+                )
+
+        except Exception as e:
+            logger.error("Error migrating proposals assessment fields: %s", e)
+            raise
+
+    def _migrate_mappings_assessment_fields(self, conn):
+        """
+        Add assessment-question columns + assessment_version to the WP mappings table
+        if they do not exist.
+
+        Phase 34 (ASMT-01) — transcribes the Phase 19 KE-GO migration pattern
+        (see _migrate_go_mappings_dimension_scores, models.py:942-981) for the
+        WP mapping table.
+
+        Columns added:
+            proposed_relationship TEXT (nullable) — carried from proposal at approval
+            proposed_basis        TEXT (nullable) — carried from proposal at approval
+            proposed_specificity  TEXT (nullable) — carried from proposal at approval
+            proposed_coverage     TEXT (nullable) — carried from proposal at approval
+            assessment_version    TEXT NOT NULL DEFAULT 'v1' — 'v1' for legacy rows,
+                                  'v2' for mappings where any proposed_* field is set.
+                                  The DEFAULT 'v1' backfills every pre-Phase-34 row in
+                                  one SQLite statement (same technique as models.py:973-977).
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            fields_to_add = [
+                ("proposed_relationship", "TEXT"),
+                ("proposed_basis", "TEXT"),
+                ("proposed_specificity", "TEXT"),
+                ("proposed_coverage", "TEXT"),
+            ]
+            for field_name, field_type in fields_to_add:
+                if field_name not in columns:
+                    conn.execute(
+                        f"ALTER TABLE mappings ADD COLUMN {field_name} {field_type}"
+                    )
+                    new_columns.append(field_name)
+
+            if "assessment_version" not in columns:
+                conn.execute(
+                    "ALTER TABLE mappings ADD COLUMN assessment_version "
+                    "TEXT NOT NULL DEFAULT 'v1'"
+                )
+                new_columns.append("assessment_version")
+
+            if new_columns:
+                logger.info(
+                    "Migrated mappings table: added assessment fields: %s",
+                    new_columns,
+                )
+
+        except Exception as e:
+            logger.error("Error migrating mappings assessment fields: %s", e)
+            raise
+
+    def _migrate_reactome_proposals_assessment_fields(self, conn):
+        """
+        Add assessment-question columns to the ke_reactome_proposals table if they do
+        not exist.
+
+        Phase 34 (ASMT-02) — Reactome-side sibling of _migrate_proposals_assessment_fields.
+        Transcribes the Phase 19 KE-GO migration pattern for the Reactome proposal table.
+
+        Columns added:
+            proposed_relationship TEXT (nullable)
+            proposed_basis        TEXT (nullable)
+            proposed_specificity  TEXT (nullable)
+            proposed_coverage     TEXT (nullable)
+
+        NOTE: no assessment_version here — proposals tables do not carry version
+        (CONTEXT.md decision, Phase 34).
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_reactome_proposals)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            fields_to_add = [
+                ("proposed_relationship", "TEXT"),
+                ("proposed_basis", "TEXT"),
+                ("proposed_specificity", "TEXT"),
+                ("proposed_coverage", "TEXT"),
+            ]
+            for field_name, field_type in fields_to_add:
+                if field_name not in columns:
+                    conn.execute(
+                        f"ALTER TABLE ke_reactome_proposals ADD COLUMN {field_name} {field_type}"
+                    )
+                    new_columns.append(field_name)
+
+            if new_columns:
+                logger.info(
+                    "Migrated ke_reactome_proposals table: added assessment fields: %s",
+                    new_columns,
+                )
+
+        except Exception as e:
+            logger.error(
+                "Error migrating ke_reactome_proposals assessment fields: %s", e
+            )
+            raise
+
+    def _migrate_reactome_mappings_assessment_fields(self, conn):
+        """
+        Add assessment-question columns + assessment_version to the ke_reactome_mappings
+        table if they do not exist.
+
+        Phase 34 (ASMT-02) — Reactome-side sibling of _migrate_mappings_assessment_fields.
+        Transcribes the Phase 19 KE-GO migration pattern for the Reactome mapping table.
+
+        Columns added:
+            proposed_relationship TEXT (nullable)
+            proposed_basis        TEXT (nullable)
+            proposed_specificity  TEXT (nullable)
+            proposed_coverage     TEXT (nullable)
+            assessment_version    TEXT NOT NULL DEFAULT 'v1' — backfills all legacy rows.
+        """
+        try:
+            cursor = conn.execute("PRAGMA table_info(ke_reactome_mappings)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            new_columns = []
+            fields_to_add = [
+                ("proposed_relationship", "TEXT"),
+                ("proposed_basis", "TEXT"),
+                ("proposed_specificity", "TEXT"),
+                ("proposed_coverage", "TEXT"),
+            ]
+            for field_name, field_type in fields_to_add:
+                if field_name not in columns:
+                    conn.execute(
+                        f"ALTER TABLE ke_reactome_mappings ADD COLUMN {field_name} {field_type}"
+                    )
+                    new_columns.append(field_name)
+
+            if "assessment_version" not in columns:
+                conn.execute(
+                    "ALTER TABLE ke_reactome_mappings ADD COLUMN assessment_version "
+                    "TEXT NOT NULL DEFAULT 'v1'"
+                )
+                new_columns.append("assessment_version")
+
+            if new_columns:
+                logger.info(
+                    "Migrated ke_reactome_mappings table: added assessment fields: %s",
+                    new_columns,
+                )
+
+        except Exception as e:
+            logger.error(
+                "Error migrating ke_reactome_mappings assessment fields: %s", e
+            )
             raise
 
     def _migrate_reactome_proposals_pending_unique_index(self, conn):
