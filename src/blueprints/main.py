@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from flask import Blueprint, abort, current_app, make_response, render_template, send_file, send_from_directory, session, request, jsonify
+from werkzeug.security import safe_join
 
 from src.blueprints.admin import _get_admin_users
 from src.services.monitoring import monitor_performance
@@ -718,15 +719,14 @@ def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
     today = datetime.today().date().isoformat()
     tier = min_confidence.capitalize() if min_confidence else "All"
     filename = f"KE-{mapping_type.upper()}_{today}_{tier}.gmt"
-    # Realpath + str-prefix is the path-injection sanitizer pattern CodeQL
-    # explicitly recognises (see py/path-injection help). Pure `Path.is_relative_to`
-    # is correct defensively but isn't on the sanitizer list, so taint flows
-    # through and every downstream use of cache_path stays flagged.
-    cache_root = os.path.realpath(EXPORT_CACHE_DIR)
-    candidate_real = os.path.realpath(os.path.join(EXPORT_CACHE_DIR, filename))
-    if not (candidate_real == cache_root or candidate_real.startswith(cache_root + os.sep)):
+    # werkzeug.security.safe_join is on CodeQL's recognised path-injection
+    # sanitizer list — it returns None if the joined path would escape the
+    # base directory. Combined with the entry whitelist above, this is
+    # defence in depth: two independent layers both prevent traversal.
+    safe = safe_join(str(EXPORT_CACHE_DIR), filename)
+    if safe is None:
         abort(404)
-    cache_path = Path(candidate_real)
+    cache_path = Path(safe)
     if not cache_path.exists():
         EXPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         if mapping_type == "wp":
