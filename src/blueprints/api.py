@@ -104,7 +104,7 @@ def _log_method_filter_deprecation(filter_value: str, endpoint_name: str) -> Non
             "DEPRECATED: method_filter=%s on %s — this query parameter is deprecated "
             "and will be removed in v2. Frontend no longer sends it; backend still honors "
             "it for backward compatibility. Pure-semantic ranking is the v1.5 default.",
-            filter_value, endpoint_name,
+            sanitize_log(filter_value), sanitize_log(endpoint_name),
         )
 
 
@@ -859,7 +859,7 @@ def search_pathways():
         elif limit < 1:
             limit = 20
             
-        logger.info("Searching pathways with query: '%s', threshold: %s", sanitize_log(query), threshold)
+        logger.info("Searching pathways with query: '%s', threshold: %s", sanitize_log(query), sanitize_log(threshold))
         
         # Perform search
         results = pathway_suggestion_service.search_pathways(
@@ -1414,7 +1414,7 @@ def search_go_terms():
         elif limit < 1:
             limit = 10
 
-        logger.info("Searching GO terms with query: '%s', threshold: %s", sanitize_log(query), threshold)
+        logger.info("Searching GO terms with query: '%s', threshold: %s", sanitize_log(query), sanitize_log(threshold))
 
         results = go_suggestion_service.search_go_terms(query, threshold, limit)
 
@@ -1779,7 +1779,7 @@ def search_reactome():
 
         logger.info(
             "Searching Reactome pathways with query: '%s', threshold: %s",
-            sanitize_log(query), threshold,
+            sanitize_log(query), sanitize_log(threshold),
         )
 
         results = reactome_suggestion_service.search_reactome_terms(
@@ -1828,7 +1828,7 @@ def flag_proposal_stale():
             ok = proposal_model.flag_proposal_stale(proposal_id, flagged_by)
 
         if ok:
-            logger.info("Proposal %s flagged stale by %s", proposal_id, flagged_by)
+            logger.info("Proposal %s flagged stale by %s", sanitize_log(proposal_id), sanitize_log(flagged_by))
             return jsonify({"message": "Proposal flagged as stale for admin review."}), 200
         else:
             return jsonify({"error": "Failed to flag proposal"}), 500

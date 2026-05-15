@@ -7,6 +7,7 @@ import logging
 from flask import Blueprint, redirect, render_template, request, session, url_for
 
 from src.services.rate_limiter import submission_rate_limit
+from src.utils.text import sanitize_log
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ def login_provider(provider):
     """Initiate OAuth login flow for the given provider"""
     client = provider_clients.get(provider)
     if not client:
-        logger.error("OAuth client not found for provider: %s", provider)
+        logger.error("OAuth client not found for provider: %s", sanitize_log(provider))
         return redirect(url_for("main.index"))
 
     next_url = request.args.get("next") or request.referrer
@@ -45,7 +46,7 @@ def oauth_callback(provider):
     """Handle OAuth callback for the given provider"""
     client = provider_clients.get(provider)
     if not client:
-        logger.error("OAuth callback for unknown provider: %s", provider)
+        logger.error("OAuth callback for unknown provider: %s", sanitize_log(provider))
         return redirect(url_for("main.index"))
 
     try:
@@ -72,11 +73,11 @@ def oauth_callback(provider):
             "email": email,
             "provider": provider,
         }
-        logger.info("User %s logged in via %s", prefixed_username, provider)
+        logger.info("User %s logged in via %s", sanitize_log(prefixed_username), sanitize_log(provider))
         next_url = session.pop("login_next_url", None) or url_for("main.index")
         return redirect(next_url)
     except Exception as e:
-        logger.error("OAuth callback error for %s: %s", provider, e)
+        logger.error("OAuth callback error for %s: %s", sanitize_log(provider), sanitize_log(str(e)))
         session.pop("login_next_url", None)
         return redirect(url_for("main.index"))
 
