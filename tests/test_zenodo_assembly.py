@@ -13,7 +13,6 @@ import io
 import json
 import zipfile
 
-import pytest
 
 from src.exporters.zenodo_assembly import (
     assemble_deposit_files,

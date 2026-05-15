@@ -11,7 +11,6 @@ Tests A–E confirm that:
 
 Plans 29-02 and 29-04 can rely on these contracts without re-testing them.
 """
-import pytest
 from src.suggestions.go import GoSuggestionService, _NamespaceData
 from src.core.config_loader import ConfigLoader
 

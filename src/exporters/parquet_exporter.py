@@ -6,7 +6,7 @@ from __future__ import annotations
 import io
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, Dict
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -157,7 +157,6 @@ class ParquetExporter:
     def _create_parquet_schema(self, df) -> 'pa.Schema':
         """Create PyArrow schema with field metadata"""
         import pyarrow as pa
-        import pandas as pd
         
         # Get basic schema from DataFrame
         schema = pa.Schema.from_pandas(df)

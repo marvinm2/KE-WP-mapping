@@ -16,8 +16,6 @@ Failure modes expected in RED:
   - Test D: AttributeError or incorrect hybrid_score — no _apply_ontology_boost in v1.4
   - Test A: may already pass since embedding=1.0 after 29-01 YAML update; still confirmed.
 """
-import pytest
-from unittest.mock import MagicMock
 
 from src.suggestions.pathway import PathwaySuggestionService
 from src.core.config_loader import ConfigLoader

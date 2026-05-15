@@ -77,8 +77,8 @@ from src.exporters.zenodo_assembly import (   # noqa: E402
     changes_significant as _changes_significant_impl,
     build_resource_zip as _build_resource_zip,
     slice_source_versions as _slice_source_versions,
-    format_versions_for_prose as _format_versions_for_prose,
-    format_snapshot_table_md as _format_snapshot_table_md,
+    format_versions_for_prose as _format_versions_for_prose,  # noqa: F401 — re-exported for tests
+    format_snapshot_table_md as _format_snapshot_table_md,  # noqa: F401 — re-exported for tests
     build_readme as _build_readme,
     build_metadata as _build_metadata,
 )

@@ -9,7 +9,7 @@ import os
 import re
 from collections import namedtuple
 from difflib import SequenceMatcher
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import numpy as np
 from src.core.config_loader import ConfigLoader

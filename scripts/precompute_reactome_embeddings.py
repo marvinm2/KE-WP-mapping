@@ -36,7 +36,6 @@ import os
 import re
 import socket
 import ssl
-import sys
 import time
 
 import requests

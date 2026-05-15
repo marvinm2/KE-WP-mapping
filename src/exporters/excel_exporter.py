@@ -21,7 +21,7 @@ class ExcelExporter:
         try:
             import openpyxl
             from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-            from openpyxl.utils.dataframe import dataframe_to_rows
+            from openpyxl.utils.dataframe import dataframe_to_rows  # noqa: F401 — required by openpyxl write path
         except ImportError:
             raise ImportError("openpyxl is required for Excel export. Install it with: pip install openpyxl")
         
@@ -250,7 +250,7 @@ class ExcelExporter:
                 
                 for row_idx, (key, value) in enumerate(meta_items, 1):
                     cell_key = ws_meta.cell(row=row_idx, column=1, value=key)
-                    cell_value = ws_meta.cell(row=row_idx, column=2, value=value)
+                    ws_meta.cell(row=row_idx, column=2, value=value)
                     
                     if key and not value and key != "":  # Section headers
                         cell_key.font = Font(bold=True, size=12)

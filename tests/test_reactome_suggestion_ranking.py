@@ -11,7 +11,7 @@ Tests A-D prove:
      exactly embedding_weight * text_similarity (old +0.05 bonus is gone)
 """
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
 # ============================================================================

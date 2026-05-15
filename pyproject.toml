@@ -28,3 +28,10 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 known_first_party = ["src"]
+
+[tool.ruff.lint]
+# Narrow selection: unused-import / unused-variable / redefined-while-unused only.
+# These map directly to the CodeQL py/unused-* alerts we triage. Broader rule
+# packs (E, W, B, etc.) are not enabled here — flake8 already covers the style
+# surface and a sweeping ruff enablement would be a separate decision.
+select = ["F401", "F811", "F841"]

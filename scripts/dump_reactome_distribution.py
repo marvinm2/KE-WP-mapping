@@ -189,7 +189,7 @@ def main() -> None:
         biolevel = entry["biolevel"]
         meta = ke_meta.get(ke_id, {})
         ke_title = meta.get("KEtitle", "")
-        ke_description = meta.get("KEdescription", "")
+        meta.get("KEdescription", "")
 
         print("=" * 72)
         print(f"KE: {ke_id}  [{biolevel}]  {ke_title[:60]}")

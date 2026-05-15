@@ -6,7 +6,7 @@ Turtle serialisation with full Phase 2/3 provenance columns.
 """
 import logging
 
-from rdflib import Graph, Literal, Namespace, RDF, URIRef
+from rdflib import Graph, Literal, Namespace, RDF
 from rdflib.namespace import DCTERMS, XSD
 
 logger = logging.getLogger(__name__)

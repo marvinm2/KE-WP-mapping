@@ -8,7 +8,6 @@ stamped by Phase C / D actually flow through to:
 - The JSON exporter (schema fields + per-row values)
 """
 import json
-import sqlite3
 from pathlib import Path
 
 import pytest

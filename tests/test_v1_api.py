@@ -1,12 +1,8 @@
 """
 Tests for the public REST API v1 blueprint (/api/v1/).
 """
-import csv
-import io
-import json
 import os
 import tempfile
-from unittest.mock import patch
 
 import pytest
 

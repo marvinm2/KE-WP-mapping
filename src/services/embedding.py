@@ -496,7 +496,7 @@ class BiologicalEmbeddingService:
 
             # Extract entities for description matching too
             ke_text_processed = self._extract_entities(ke_text)
-            pathway_text_processed = self._extract_entities(pathway_text)
+            self._extract_entities(pathway_text)
 
             # Use pre-computed pathway embedding if available
             ke_emb = self.encode(ke_text_processed)

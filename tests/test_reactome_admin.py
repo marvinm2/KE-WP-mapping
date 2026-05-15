@@ -142,7 +142,7 @@ class TestAdminReactomeProposalsList:
         """status query param filters proposals."""
         client, rm, rpm, db = admin_client
         # Seed pending + rejected
-        pid_pending = _seed_proposal(rpm, ke_id="KE 2001", reactome_id="R-HSA-2001")
+        _seed_proposal(rpm, ke_id="KE 2001", reactome_id="R-HSA-2001")
         pid_rejected = _seed_proposal(rpm, ke_id="KE 2002", reactome_id="R-HSA-2002")
         rpm.update_proposal_status(
             proposal_id=pid_rejected,
@@ -455,7 +455,7 @@ class TestAdminReactomeProposalsStatusFilter:
         proposal under ?status=approved.
         """
         client, rm, rpm, db = admin_client
-        pid_pending = _seed_proposal(
+        _seed_proposal(
             rpm, ke_id="KE 5001", reactome_id="R-HSA-5001"
         )
         pid_approved = _seed_proposal(
@@ -496,7 +496,7 @@ class TestAdminReactomeProposalsStatusFilter:
         — verify a rejected proposal is NOT visible under the default view.
         """
         client, rm, rpm, db = admin_client
-        pid_pending = _seed_proposal(
+        _seed_proposal(
             rpm, ke_id="KE 6001", reactome_id="R-HSA-6001"
         )
         pid_rejected = _seed_proposal(
@@ -522,7 +522,7 @@ class TestAdminReactomeProposalsStatusFilter:
         pending + approved + rejected is returned.
         """
         client, rm, rpm, db = admin_client
-        pid_pending = _seed_proposal(
+        _seed_proposal(
             rpm, ke_id="KE 7001", reactome_id="R-HSA-7001"
         )
         pid_approved = _seed_proposal(
@@ -563,7 +563,7 @@ class TestAdminReactomeStatusBadge:
         badge-styling contract fails fast.
         """
         client, rm, rpm, db = admin_client
-        pid_pending = _seed_proposal(
+        _seed_proposal(
             rpm, ke_id="KE 8001", reactome_id="R-HSA-8001"
         )
         pid_approved = _seed_proposal(

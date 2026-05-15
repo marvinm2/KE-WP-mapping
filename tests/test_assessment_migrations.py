@@ -7,7 +7,6 @@ table_info to assert the four new `proposed_*` columns plus (on mapping tables)
 """
 import sqlite3
 
-import pytest
 
 from src.core.models import Database
 
