@@ -138,7 +138,7 @@ class TestSerializer:
         forbidden tuple. The remaining forbidden entries guard against
         GO-specific fields leaking into the Reactome shape.
         """
-        from src.blueprints.v1_api import _REACTOME_MAPPING_CSV_FIELDS
+        _REACTOME_MAPPING_CSV_FIELDS = v1_mod._REACTOME_MAPPING_CSV_FIELDS
 
         assert _REACTOME_MAPPING_CSV_FIELDS[0] == "uuid"
         assert "reactome_id" in _REACTOME_MAPPING_CSV_FIELDS
@@ -172,7 +172,7 @@ class TestSerializer:
         The remaining forbidden entries guard against GO-specific fields
         leaking into the Reactome shape.
         """
-        from src.blueprints.v1_api import _serialize_reactome_mapping
+        _serialize_reactome_mapping = v1_mod._serialize_reactome_mapping
 
         row = {
             "uuid": "u1", "ke_id": "KE 1", "ke_title": "Apoptosis",
@@ -223,13 +223,12 @@ class TestSerializer:
 
     def test_serialize_enrichment_fallback(self):
         """When metadata/counts globals are unset/None, serializer must not raise."""
-        from src.blueprints.v1_api import _serialize_reactome_mapping
-        import src.blueprints.v1_api as v1
+        _serialize_reactome_mapping = v1_mod._serialize_reactome_mapping
 
-        original_meta = v1.reactome_metadata
-        original_counts = v1.reactome_gene_counts
-        v1.reactome_metadata = None
-        v1.reactome_gene_counts = None
+        original_meta = v1_mod.reactome_metadata
+        original_counts = v1_mod.reactome_gene_counts
+        v1_mod.reactome_metadata = None
+        v1_mod.reactome_gene_counts = None
         try:
             row = {
                 "uuid": "u1", "ke_id": "KE 1", "ke_title": "Apoptosis",
@@ -240,8 +239,8 @@ class TestSerializer:
             assert out["pathway_description"] is None
             assert out["reactome_gene_count"] == 0
         finally:
-            v1.reactome_metadata = original_meta
-            v1.reactome_gene_counts = original_counts
+            v1_mod.reactome_metadata = original_meta
+            v1_mod.reactome_gene_counts = original_counts
 
 
 # ---------------------------------------------------------------------------

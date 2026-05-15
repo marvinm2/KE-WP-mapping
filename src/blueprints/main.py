@@ -718,15 +718,15 @@ def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
     today = datetime.today().date().isoformat()
     tier = min_confidence.capitalize() if min_confidence else "All"
     filename = f"KE-{mapping_type.upper()}_{today}_{tier}.gmt"
-    # CodeQL sanitizer pattern: resolve and verify containment, even though the
-    # whitelist above already constrains the inputs to a finite set. CodeQL's
-    # taint analysis doesn't recognise the `not in` check and would otherwise
-    # still flag this as path-injection.
-    cache_root = EXPORT_CACHE_DIR.resolve()
-    candidate = (EXPORT_CACHE_DIR / filename).resolve()
-    if not candidate.is_relative_to(cache_root):
+    # Realpath + str-prefix is the path-injection sanitizer pattern CodeQL
+    # explicitly recognises (see py/path-injection help). Pure `Path.is_relative_to`
+    # is correct defensively but isn't on the sanitizer list, so taint flows
+    # through and every downstream use of cache_path stays flagged.
+    cache_root = os.path.realpath(EXPORT_CACHE_DIR)
+    candidate_real = os.path.realpath(os.path.join(EXPORT_CACHE_DIR, filename))
+    if not (candidate_real == cache_root or candidate_real.startswith(cache_root + os.sep)):
         abort(404)
-    cache_path = candidate
+    cache_path = Path(candidate_real)
     if not cache_path.exists():
         EXPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         if mapping_type == "wp":

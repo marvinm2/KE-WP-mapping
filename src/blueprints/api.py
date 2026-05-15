@@ -648,8 +648,6 @@ def submit_proposal():
 
         # Parse entry data to extract KE and WP IDs
         try:
-            import json
-
             # Handle double-serialized JSON
             if entry_data.startswith('"') and entry_data.endswith('"'):
                 entry_data = json.loads(entry_data)  # First deserialization

@@ -77,11 +77,22 @@ from src.exporters.zenodo_assembly import (   # noqa: E402
     changes_significant as _changes_significant_impl,
     build_resource_zip as _build_resource_zip,
     slice_source_versions as _slice_source_versions,
-    format_versions_for_prose as _format_versions_for_prose,  # noqa: F401 — re-exported for tests
-    format_snapshot_table_md as _format_snapshot_table_md,  # noqa: F401 — re-exported for tests
+    format_versions_for_prose as _format_versions_for_prose,
+    format_snapshot_table_md as _format_snapshot_table_md,
     build_readme as _build_readme,
     build_metadata as _build_metadata,
 )
+
+# Explicit re-export list — tests/test_source_version_ui_and_zenodo.py imports
+# `_format_versions_for_prose` and `_format_snapshot_table_md` by their
+# underscore-aliased names from this module. Listing them in __all__ tells
+# static analyzers (ruff, CodeQL) the imports are intentional and used.
+__all__ = [
+    "_counts", "_changes_significant_impl",
+    "_build_resource_zip", "_slice_source_versions",
+    "_format_versions_for_prose", "_format_snapshot_table_md",
+    "_build_readme", "_build_metadata",
+]
 
 
 def _changes_significant(current: dict, last: Optional[dict], min_delta: int) -> bool:

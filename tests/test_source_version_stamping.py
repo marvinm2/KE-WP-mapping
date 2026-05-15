@@ -22,6 +22,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+import src.services.container as cont_mod
 
 from src.core.models import (
     Database,
@@ -35,18 +36,17 @@ from src.core.models import (
 # ---------- Container `source_versions` property ----------
 
 def _make_container(tmp_path: Path, manifest: dict | None):
-    """Mint a bare ServiceContainer with the manifest path overridden."""
-    from src.services.container import ServiceContainer
+    """Mint a bare cont_mod.ServiceContainer with the manifest path overridden."""
+    # ServiceContainer accessed via cont_mod to avoid mixed import styles
 
     class _StubConfig:
         DATABASE_PATH = str(tmp_path / "test.db")
 
-    c = ServiceContainer(_StubConfig())
+    c = cont_mod.ServiceContainer(_StubConfig())
 
     # Redirect the container's manifest lookup at the tmp_path directory.
-    # ServiceContainer.source_versions hard-codes the path under PROJECT_ROOT,
+    # cont_mod.ServiceContainer.source_versions hard-codes the path under PROJECT_ROOT,
     # so we monkeypatch the relevant module-level constant in-place.
-    import src.services.container as cont_mod
 
     if manifest is None:
         # Caller wants the "manifest missing" case — point PROJECT_ROOT at an
@@ -101,7 +101,6 @@ def test_source_versions_returns_empty_dict_when_file_unreadable(tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / "source_versions.json").write_text("not valid json{", encoding="utf-8")
-    import src.services.container as cont_mod
 
     class _StubConfig:
         DATABASE_PATH = str(tmp_path / "x.db")
