@@ -219,12 +219,18 @@ jobs:
         image-ref: 'scan-image:latest'
         format: 'sarif'
         output: 'trivy-results.sarif'
+        # Filter to actionable findings only — match the scheduled scan in security.yml.
+        # Without these the Security tab fills with base-image OS CVEs we cannot patch.
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
+        vuln-type: 'library'
 
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v4
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
+        category: 'trivy-docker-build'
 
     - name: Run Trivy filesystem scan
       uses: aquasecurity/trivy-action@0.34.0
