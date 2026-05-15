@@ -108,6 +108,10 @@ def _post_content_service(path, data, timeout=60):
         raise RuntimeError("Cannot resolve reactome.org — check network connectivity")
 
     ctx = ssl.create_default_context()
+    # Reactome's POST endpoint occasionally fails standard cert validation;
+    # this path is the documented workaround. Still pin the TLS floor so we
+    # never negotiate down to TLS <1.2.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 

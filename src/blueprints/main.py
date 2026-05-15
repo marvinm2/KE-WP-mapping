@@ -692,6 +692,12 @@ def downloads():
     return render_template("downloads.html", zenodo_meta=zenodo_meta)
 
 
+_VALID_MAPPING_TYPES = {
+    "wp", "wp-centric", "go", "go-centric", "reactome", "reactome-centric",
+}
+_VALID_MIN_CONFIDENCE = {None, "high", "medium", "low"}
+
+
 def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
     """Return (path, filename) for GMT file, generating it if not cached."""
     from src.exporters.gmt_exporter import (
@@ -699,6 +705,13 @@ def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
         generate_ke_centric_wp_gmt, generate_ke_centric_go_gmt,
         generate_ke_reactome_gmt, generate_ke_centric_reactome_gmt,
     )
+    # Whitelist user-controlled values that flow into the cache filename below —
+    # without this guard, a crafted min_confidence (e.g. "../etc/passwd") would
+    # let the cache write escape EXPORT_CACHE_DIR.
+    if mapping_type not in _VALID_MAPPING_TYPES:
+        abort(404)
+    if min_confidence not in _VALID_MIN_CONFIDENCE:
+        abort(400)
     today = datetime.today().date().isoformat()
     tier = min_confidence.capitalize() if min_confidence else "All"
     filename = f"KE-{mapping_type.upper()}_{today}_{tier}.gmt"
