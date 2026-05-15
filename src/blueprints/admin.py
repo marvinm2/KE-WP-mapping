@@ -1096,6 +1096,48 @@ def revoke_guest_code(code_id: int):
         return jsonify({"error": "Failed to revoke guest code."}), 500
 
 
+@admin_bp.route("/exports", methods=["GET"])
+@admin_required
+def admin_exports():
+    """Admin-facing dashboard for export regeneration + Zenodo publishing.
+
+    Surfaces current live mapping counts side-by-side with the last-recorded
+    Zenodo deposit (DOI, version, per-resource counts), and exposes two
+    actions: rebuild the on-disk export cache, and mint a new Zenodo
+    deposit. Both buttons POST to existing routes; this page is the only
+    place that ties them together for an admin user.
+    """
+    import json as json_lib
+    import os
+    from pathlib import Path
+
+    from src.exporters.zenodo_assembly import counts as count_rows
+
+    meta_path = Path("data/zenodo_meta.json")
+    zenodo_meta = {}
+    if meta_path.exists():
+        try:
+            zenodo_meta = json_lib.loads(meta_path.read_text())
+        except Exception as e:
+            logger.warning("Could not parse %s: %s", meta_path, e)
+
+    wp = mapping_model.get_all_mappings() if mapping_model else []
+    go = go_mapping_model.get_all_mappings() if go_mapping_model else []
+    rx = reactome_mapping_model.get_all_mappings() if reactome_mapping_model else []
+    live_counts = {
+        "wp": count_rows(wp),
+        "go": count_rows(go),
+        "reactome": count_rows(rx),
+    }
+
+    return render_template(
+        "admin_exports.html",
+        zenodo_meta=zenodo_meta,
+        live_counts=live_counts,
+        zenodo_token_configured=bool(os.environ.get("ZENODO_API_TOKEN")),
+    )
+
+
 @admin_bp.route("/exports/regenerate", methods=["POST"])
 @admin_required
 def regenerate_exports():
@@ -1155,13 +1197,26 @@ def regenerate_exports():
 @admin_bp.route("/exports/publish-zenodo", methods=["POST"])
 @admin_required
 def publish_zenodo():
-    """Publish current cached exports to Zenodo and store returned DOI."""
+    """Mint (or version-bump) a Zenodo deposit in the v3 per-resource ZIP shape.
+
+    Assembles three per-resource ZIPs (KE-WikiPathways.zip, KE-GO.zip,
+    KE-Reactome.zip) directly from the model layer using the shared
+    `zenodo_assembly` helpers — same artefacts the CLI script produces.
+    On successful publish, persists deposit metadata to
+    `data/zenodo_meta.json` (with EACCES fallback to /tmp/).
+    """
+    import datetime
     import json as json_lib
     import os
     from pathlib import Path
+
+    from src.exporters.zenodo_assembly import (
+        assemble_deposit_files,
+        build_metadata,
+        counts as count_rows,
+    )
     from src.exporters.zenodo_uploader import (
         zenodo_publish,
-        _build_zenodo_metadata,
         persist_meta_with_fallback,
         META_FALLBACK_PATH,
     )
@@ -1174,54 +1229,48 @@ def publish_zenodo():
         zenodo_meta = json_lib.loads(meta_path.read_text()) if meta_path.exists() else {}
     except Exception:
         zenodo_meta = {}
-
     existing_id = zenodo_meta.get("deposition_id")
 
-    # Collect export files from cache
-    cache_dir = Path("static/exports")
-    upload_files = {}
-    if cache_dir.exists():
-        for f in sorted(cache_dir.iterdir()):
-            if f.suffix in (".gmt", ".ttl"):
-                upload_files[f.name] = f.read_text(encoding="utf-8")
+    # Pull current approved mappings straight from the model layer — same
+    # source the CLI script uses. The flat static/exports/ cache is no
+    # longer the input; it's a separate UI download surface.
+    wp = mapping_model.get_all_mappings() if mapping_model else []
+    go = go_mapping_model.get_all_mappings() if go_mapping_model else []
+    rx = reactome_mapping_model.get_all_mappings() if reactome_mapping_model else []
+    if not (wp or go or rx):
+        return jsonify({
+            "status": "error",
+            "message": "No approved mappings found across WP / GO / Reactome — nothing to publish.",
+        }), 400
 
-    if not upload_files:
-        return jsonify({"status": "error", "message": "No cached export files found. Run Regenerate Exports first."}), 400
+    # Optional source-versions manifest for the per-resource sidecar and
+    # the README snapshot block. Missing manifest is fine — deposit still
+    # publishes, just without the snapshot pin.
+    source_versions = {}
+    sv_path = Path("data/source_versions.json")
+    if sv_path.exists():
+        try:
+            source_versions = json_lib.loads(sv_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning("Could not parse %s — deposit will omit snapshot block: %s", sv_path, e)
 
-    # Build README content
-    import datetime
     today = datetime.date.today().isoformat()
-    readme_content = f"""# KE-WP and KE-GO Mapping Database
-
-Published: {today}
-
-## Files
-
-- KE-WP_*.gmt — Key Event to WikiPathways mappings in GMT format (HGNC gene symbols)
-- KE-GO_*.gmt — Key Event to GO Biological Process mappings in GMT format (HGNC gene symbols)
-- ke-wp-mappings.ttl — Full KE-WP provenance in RDF/Turtle format
-- ke-go-mappings.ttl — Full KE-GO provenance in RDF/Turtle format
-
-## Usage
-
-GMT files are directly loadable by clusterProfiler (enricher()) and fgsea (gmtPathways()).
-Gene identifiers are HGNC symbols.
-
-## License
-
-CC0 1.0 Universal
-"""
-    upload_files["README.md"] = readme_content
-
-    metadata = _build_zenodo_metadata(today)
+    upload_files = assemble_deposit_files(
+        today, wp, go, rx,
+        source_versions=source_versions,
+        gmt_kwargs_wp={"cache_model": cache_model_ref} if cache_model_ref else None,
+    )
+    metadata = build_metadata(today, source_versions=source_versions)
 
     try:
         result = zenodo_publish(upload_files, metadata, existing_deposition_id=existing_id)
         zenodo_meta.update({
             "deposition_id": result["deposition_id"],
             "doi": result["doi"],
-            "concept_doi": result.get("concept_doi", result["doi"]),
+            "concept_doi": result.get("concept_doi", zenodo_meta.get("concept_doi", result["doi"])),
             "published_at": today,
+            "version": metadata["version"],
+            "counts": {"wp": count_rows(wp), "go": count_rows(go), "reactome": count_rows(rx)},
         })
         written_path = persist_meta_with_fallback(meta_path, zenodo_meta)
         logger.info("Zenodo publish complete: DOI=%s", result["doi"])
@@ -1229,6 +1278,8 @@ CC0 1.0 Universal
             "status": "ok",
             "doi": result["doi"],
             "concept_doi": result.get("concept_doi"),
+            "deposition_id": result["deposition_id"],
+            "counts": zenodo_meta["counts"],
         }
         if written_path == META_FALLBACK_PATH:
             response["meta_path_fallback"] = str(META_FALLBACK_PATH)

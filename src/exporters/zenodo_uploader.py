@@ -84,7 +84,31 @@ def zenodo_publish(files: dict, metadata: dict, existing_deposition_id: int = No
         # Get bucket URL for new draft
         r2 = requests.get(draft_url, headers=auth_header, timeout=30)
         r2.raise_for_status()
-        bucket_url = r2.json()["links"]["bucket"]
+        draft = r2.json()
+        bucket_url = draft["links"]["bucket"]
+        # Zenodo's newversion API inherits the previous version's files
+        # verbatim. Without deleting them, the new draft would publish with
+        # whatever shape the prior deposit used PLUS our new uploads — this
+        # is what broke v2. Delete each inherited file before we upload.
+        inherited = draft.get("files", [])
+        if inherited:
+            logger.info(
+                "Inherited %d file(s) from previous version — deleting before upload",
+                len(inherited),
+            )
+            for f in inherited:
+                fid = f["id"]
+                fname = f.get("filename", "<unknown>")
+                dr = requests.delete(
+                    f"{ZENODO_BASE}/deposit/depositions/{dep_id}/files/{fid}",
+                    headers=auth_header,
+                    timeout=30,
+                )
+                if dr.status_code not in (200, 204):
+                    raise RuntimeError(
+                        f"Failed to delete inherited Zenodo file {fname}: "
+                        f"{dr.status_code} {dr.text[:200]}"
+                    )
     else:
         # First-time deposit
         logger.info("Creating new Zenodo deposit")
@@ -134,35 +158,15 @@ def zenodo_publish(files: dict, metadata: dict, existing_deposition_id: int = No
 
 
 def _build_zenodo_metadata(published_at: str = None) -> dict:
+    """Back-compat shim — prefer `zenodo_assembly.build_metadata` directly.
+
+    The full v3 metadata builder (which can embed an upstream-snapshot
+    summary into the description when a source-versions manifest is
+    available) lives in `zenodo_assembly.build_metadata`. This shim is
+    kept for any third-party caller still importing the underscore-prefixed
+    name; it forwards to `build_metadata` without the source_versions
+    block.
+    """
+    from src.exporters.zenodo_assembly import build_metadata
     pub_date = published_at or datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    return {
-        "title": "Molecular AOP Builder — Curated KE → WikiPathways / GO / Reactome Mappings",
-        "upload_type": "dataset",
-        "description": (
-            "Curated database of Key Event (KE) mappings to three molecular-pathway and ontology "
-            "resources: WikiPathways (KE-WikiPathways), Gene Ontology Biological Process and "
-            "Molecular Function (KE-GO), and Reactome (KE-Reactome). Mappings are bundled in three "
-            "per-resource ZIP archives (KE-WikiPathways.zip, KE-GO.zip, KE-Reactome.zip), each "
-            "containing GMT gene-set files split by confidence level (All / High / Medium / Low) "
-            "for clusterProfiler and fgsea, and RDF/Turtle for SPARQL and linked-data consumption. "
-            "Each mapping carries a stable UUID and full curation provenance (proposer, approving "
-            "curator, approval timestamp, BioBERT suggestion score, confidence level, connection "
-            "type). Produced by the Molecular AOP Builder at https://molaop-builder.vhp4safety.nl ; "
-            "source at https://github.com/marvinm2/KE-WP-mapping ."
-        ),
-        "creators": [
-            {
-                "name": "Martens, Marvin",
-                "affiliation": "Department of Translational Genomics, Maastricht University",
-                "orcid": "0000-0003-2230-0840",
-            },
-        ],
-        "keywords": [
-            "Adverse Outcome Pathway", "AOP", "Key Event", "WikiPathways", "Gene Ontology",
-            "Reactome", "toxicology", "pathway analysis", "GMT", "RDF", "BioBERT", "curation",
-        ],
-        "license": "cc-zero",
-        "publication_date": pub_date,
-        "version": pub_date,
-        "access_right": "open",
-    }
+    return build_metadata(pub_date)

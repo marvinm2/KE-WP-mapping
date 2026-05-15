@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Admin "Exports & Zenodo" dashboard with in-app Zenodo trigger** (#158). A new `GET /admin/exports` page (`templates/admin_exports.html`, linked from the other admin pages' nav) renders a side-by-side view of the current live mapping counts and the last recorded Zenodo deposit, and exposes two action buttons. "Regenerate Exports" rebuilds the on-disk GMT + Turtle cache used by `/exports/...`. "Publish to Zenodo" mints a new versioned deposit under the existing concept DOI — same v3 per-resource ZIP shape that `scripts/publish_zenodo.py` produces. The button confirms before posting, disables itself while the request is in flight, and renders the returned DOI + counts on success. When `ZENODO_API_TOKEN` isn't configured on the container the button is disabled with an inline warning. Closes the missing-UI follow-up flagged in #158 comment 3.
+
+### Changed
+
+- **Zenodo deposit assembly extracted to `src/exporters/zenodo_assembly.py`** (#158). The pure-Python helpers that produce the v3 deposit shape — per-resource ZIPs (KE-WikiPathways / KE-GO / KE-Reactome with GMT-by-confidence + Turtle + optional `source_versions.json` sidecar), README with per-tier counts, snapshot table, Zenodo metadata block — now live in one shared module. Both `scripts/publish_zenodo.py` and the admin `POST /admin/exports/publish-zenodo` route import from it. Before this commit the admin route still bundled flat per-confidence GMT + Turtle from `static/exports/`, which would have produced a malformed v4 deposit mixing v3's inherited per-resource ZIPs (from Zenodo's `newversion` API) with new flat files — the exact failure that broke v2. The route now pulls live counts from the model layer, includes Reactome, and embeds the source-versions manifest into the README + Zenodo description when `data/source_versions.json` is present.
+- **`zenodo_uploader.zenodo_publish` now deletes inherited files on `newversion`** (#158). The Zenodo `newversion` API inherits the prior version's files verbatim; without an explicit delete pass the next deposit publishes with whatever shape the prior version used PLUS the new uploads (the v2 root cause). The fix matches the CLI script's behaviour and runs unconditionally on every `newversion` call: each inherited file is `DELETE`d via the bucket file API before any upload begins.
+
 ### Fixed
 
 - **#158 follow-ups: rdflib ISO-8601 warnings and EACCES on `data/zenodo_meta.json`**. Two operational bugs surfaced during the v3 deposit are closed.

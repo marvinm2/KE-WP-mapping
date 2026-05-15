@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/MolAOPlogo.png') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin: Exports & Zenodo - Molecular AOP Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        .panel {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 24px;
+            margin: 20px 0;
+        }
+        .panel h3 {
+            margin-top: 0;
+            color: #29235C;
+            border-bottom: 2px solid #E6007E;
+            padding-bottom: 8px;
+            display: inline-block;
+        }
+        .counts-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 16px;
+        }
+        .counts-card {
+            background: #f8f8fb;
+            border-left: 4px solid #307BBF;
+            padding: 12px 16px;
+            border-radius: 4px;
+        }
+        .counts-card h4 {
+            margin: 0 0 8px 0;
+            color: #29235C;
+        }
+        .counts-card .total {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: #E6007E;
+        }
+        .counts-card .tier {
+            font-size: 0.9em;
+            color: #555;
+        }
+        .actions {
+            display: flex;
+            gap: 16px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            color: #fff;
+            transition: opacity 0.15s;
+        }
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .action-btn.regenerate { background: #307BBF; }
+        .action-btn.publish    { background: #E6007E; }
+        .action-btn:hover:not(:disabled) { opacity: 0.85; }
+        .status-line {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 4px;
+            display: none;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .status-line.info    { background: #e8f0fa; color: #29235C; border-left: 4px solid #307BBF; }
+        .status-line.success { background: #e7f5ee; color: #15633b; border-left: 4px solid #2e8b57; }
+        .status-line.error   { background: #fbe7e7; color: #8b1c1c; border-left: 4px solid #c62828; }
+        .meta-fields dt {
+            font-weight: 600;
+            color: #29235C;
+            margin-top: 8px;
+        }
+        .meta-fields dd { margin: 0 0 4px 16px; }
+        .doi-pill {
+            display: inline-block;
+            background: #29235C;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .doi-pill a { color: #fff; text-decoration: none; }
+        .token-warning {
+            padding: 12px 16px;
+            background: #fff3cd;
+            border-left: 4px solid #f0ad4e;
+            color: #6d5810;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+<div class="page-container">
+    {% include 'components/navigation.html' %}
+    <div class="admin-header-banner">
+        <h2>Admin: Exports &amp; Zenodo Publishing</h2>
+    </div>
+
+    <div class="container">
+        <div style="margin: 16px 0;">
+            <a href="/admin/proposals">← KE-WP Proposals</a>
+            <a href="/admin/go-proposals" style="margin-left: 16px;">KE-GO Proposals</a>
+            <a href="/admin/reactome-proposals" style="margin-left: 16px;">KE-Reactome Proposals</a>
+        </div>
+
+        <!-- Live counts panel -->
+        <div class="panel">
+            <h3>Current approved mappings</h3>
+            <p style="color: #666; margin-top: 8px;">Live counts from the database. These are the mappings that would be bundled into the next Zenodo deposit.</p>
+            <div class="counts-grid">
+                <div class="counts-card">
+                    <h4>KE → WikiPathways</h4>
+                    <div class="total">{{ live_counts.wp.All }}</div>
+                    <div class="tier">High: <strong>{{ live_counts.wp.High }}</strong> · Medium: <strong>{{ live_counts.wp.Medium }}</strong> · Low: <strong>{{ live_counts.wp.Low }}</strong></div>
+                </div>
+                <div class="counts-card">
+                    <h4>KE → GO BP/MF</h4>
+                    <div class="total">{{ live_counts.go.All }}</div>
+                    <div class="tier">High: <strong>{{ live_counts.go.High }}</strong> · Medium: <strong>{{ live_counts.go.Medium }}</strong> · Low: <strong>{{ live_counts.go.Low }}</strong></div>
+                </div>
+                <div class="counts-card">
+                    <h4>KE → Reactome</h4>
+                    <div class="total">{{ live_counts.reactome.All }}</div>
+                    <div class="tier">High: <strong>{{ live_counts.reactome.High }}</strong> · Medium: <strong>{{ live_counts.reactome.Medium }}</strong> · Low: <strong>{{ live_counts.reactome.Low }}</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Last Zenodo deposit panel -->
+        <div class="panel">
+            <h3>Last Zenodo deposit</h3>
+            {% if zenodo_meta and zenodo_meta.doi %}
+                <dl class="meta-fields">
+                    <dt>Version DOI</dt>
+                    <dd>
+                        <span class="doi-pill">
+                            <a href="https://doi.org/{{ zenodo_meta.doi }}" target="_blank" rel="noopener">{{ zenodo_meta.doi }}</a>
+                        </span>
+                    </dd>
+                    {% if zenodo_meta.concept_doi %}
+                    <dt>Concept DOI (always-latest)</dt>
+                    <dd>
+                        <span class="doi-pill">
+                            <a href="https://doi.org/{{ zenodo_meta.concept_doi }}" target="_blank" rel="noopener">{{ zenodo_meta.concept_doi }}</a>
+                        </span>
+                    </dd>
+                    {% endif %}
+                    <dt>Published</dt>
+                    <dd>{{ zenodo_meta.published_at or '—' }}{% if zenodo_meta.version and zenodo_meta.version != zenodo_meta.published_at %} (version label: {{ zenodo_meta.version }}){% endif %}</dd>
+                    {% if zenodo_meta.counts %}
+                    <dt>Mappings at last deposit</dt>
+                    <dd>
+                        WP: {{ zenodo_meta.counts.wp.All if zenodo_meta.counts.wp else '?' }} ·
+                        GO: {{ zenodo_meta.counts.go.All if zenodo_meta.counts.go else '?' }} ·
+                        Reactome: {{ zenodo_meta.counts.reactome.All if zenodo_meta.counts.reactome else '?' }}
+                    </dd>
+                    {% endif %}
+                </dl>
+            {% else %}
+                <p style="color: #666;"><em>No Zenodo deposit recorded yet. Publishing for the first time will mint a fresh concept DOI.</em></p>
+            {% endif %}
+        </div>
+
+        <!-- Action panel -->
+        <div class="panel">
+            <h3>Actions</h3>
+            {% if not zenodo_token_configured %}
+            <div class="token-warning">
+                <strong>ZENODO_API_TOKEN is not configured</strong> on the running container. The "Publish to Zenodo" button will return HTTP 503 until the swarm service env var is set. Regenerate Exports is unaffected.
+            </div>
+            {% endif %}
+
+            <p style="color: #666;">
+                <strong>Regenerate Exports</strong> rebuilds the per-confidence GMT and Turtle files served under <code>/exports/...</code> on the live site. Use after a batch of new approvals.
+            </p>
+            <p style="color: #666;">
+                <strong>Publish to Zenodo</strong> mints a new versioned deposit under the existing concept DOI. The deposit contains three per-resource ZIPs (KE-WikiPathways, KE-GO, KE-Reactome) — each with GMT files split by confidence level plus a Turtle provenance export — and a README. The deposit reflects the current live counts shown above. Use sparingly; each deposit is permanent on Zenodo.
+            </p>
+
+            <div class="actions">
+                <button id="btn-regenerate" class="action-btn regenerate" onclick="doRegenerate()">Regenerate Exports</button>
+                <button id="btn-publish" class="action-btn publish" onclick="doPublish()" {% if not zenodo_token_configured %}disabled title="ZENODO_API_TOKEN not configured"{% endif %}>Publish to Zenodo</button>
+            </div>
+
+            <div id="status-line" class="status-line"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showStatus(kind, msg) {
+        const el = document.getElementById('status-line');
+        el.className = 'status-line ' + kind;
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    function setBusy(busy) {
+        document.getElementById('btn-regenerate').disabled = busy;
+        document.getElementById('btn-publish').disabled = busy;
+    }
+
+    async function postJson(url) {
+        const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrf, 'Accept': 'application/json'},
+            credentials: 'same-origin'
+        });
+        let body = null;
+        try { body = await res.json(); } catch (e) { body = {message: 'non-JSON response (' + res.status + ')'}; }
+        return {status: res.status, body};
+    }
+
+    async function doRegenerate() {
+        setBusy(true);
+        showStatus('info', 'Regenerating export cache… this can take ~30s for the WP GMT step.');
+        try {
+            const {status, body} = await postJson('/admin/exports/regenerate');
+            if (status === 200 && body.status === 'ok') {
+                const files = (body.files || []).join(', ');
+                showStatus('success', `Done. ${body.message || ''}\nFiles: ${files}`);
+            } else {
+                showStatus('error', `Regenerate failed (${status}): ${body.message || JSON.stringify(body)}`);
+            }
+        } catch (e) {
+            showStatus('error', 'Regenerate request failed: ' + e);
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function doPublish() {
+        if (!confirm("Mint a new Zenodo deposit with current live mappings?\n\nEach deposit is permanent on Zenodo. Only proceed if a noticeable batch of mappings has been approved since the last release.")) {
+            return;
+        }
+        setBusy(true);
+        showStatus('info', 'Publishing to Zenodo… assembling per-resource ZIPs + uploading. This usually takes 30–60s.');
+        try {
+            const {status, body} = await postJson('/admin/exports/publish-zenodo');
+            if (status === 200 && body.status === 'ok') {
+                let msg = `Published: ${body.doi}`;
+                if (body.concept_doi) msg += `\nConcept: ${body.concept_doi}`;
+                if (body.counts) msg += `\nCounts — WP: ${body.counts.wp.All} · GO: ${body.counts.go.All} · Reactome: ${body.counts.reactome.All}`;
+                if (body.meta_path_fallback) msg += `\n\nNOTE: ${body.meta_path_message}`;
+                showStatus('success', msg + '\n\nReload the page to refresh the "Last Zenodo deposit" panel.');
+            } else {
+                showStatus('error', `Publish failed (${status}): ${body.message || JSON.stringify(body)}`);
+            }
+        } catch (e) {
+            showStatus('error', 'Publish request failed: ' + e);
+        } finally {
+            setBusy(false);
+        }
+    }
+</script>
+</body>
+</html>
