@@ -15,6 +15,22 @@ VOCAB = Namespace("https://ke-wp-mapping.org/vocab#")
 MAPPING = Namespace("https://ke-wp-mapping.org/mapping/")
 
 
+def _to_iso8601_datetime(value):
+    """Coerce a SQLite-style "YYYY-MM-DD HH:MM:SS" string into ISO-8601.
+
+    The DB migration in core/models.py normalises legacy rows on startup,
+    but this defensive coercion guards against any stragglers (e.g.
+    fixtures, tests, future tables not yet listed in the backfill targets)
+    so the XSD.dateTime literal is always well-formed. No-op when the
+    value already contains 'T' or doesn't match the discriminator.
+    """
+    if not isinstance(value, str) or len(value) < 11:
+        return value
+    if value[10] == " ":
+        return value[:10] + "T" + value[11:]
+    return value
+
+
 def generate_ke_wp_turtle(mappings, min_confidence=None) -> str:
     """Generate Turtle content for KE-WP mappings.
 
@@ -66,7 +82,7 @@ def generate_ke_wp_turtle(mappings, min_confidence=None) -> str:
             g.add((
                 uri,
                 DCTERMS.date,
-                Literal(row["approved_at_curator"], datatype=XSD.dateTime),
+                Literal(_to_iso8601_datetime(row["approved_at_curator"]), datatype=XSD.dateTime),
             ))
 
         if row.get("suggestion_score") is not None:
@@ -146,7 +162,7 @@ def generate_ke_go_turtle(mappings, min_confidence=None) -> str:
             g.add((
                 uri,
                 DCTERMS.date,
-                Literal(row["approved_at_curator"], datatype=XSD.dateTime),
+                Literal(_to_iso8601_datetime(row["approved_at_curator"]), datatype=XSD.dateTime),
             ))
 
         if row.get("suggestion_score") is not None:
@@ -240,7 +256,7 @@ def generate_ke_reactome_turtle(mappings, min_confidence=None, reactome_metadata
             g.add((
                 uri,
                 DCTERMS.date,
-                Literal(row["approved_at_curator"], datatype=XSD.dateTime),
+                Literal(_to_iso8601_datetime(row["approved_at_curator"]), datatype=XSD.dateTime),
             ))
 
         if row.get("suggestion_score") is not None:

@@ -328,22 +328,16 @@ def _upload_files(bucket_url: str, files: dict, h_auth: dict) -> None:
 
 
 # ---------- meta file persistence ----------
-
+#
+# Shared implementation lives in src/exporters/zenodo_uploader.py so the
+# admin route (src/blueprints/admin.py:publish_zenodo) and this script
+# fall back identically when the container can't write the gluster mount.
+# Imported lazily — running this script straight off the filesystem
+# (outside the Flask app context) needs sys.path to point at /app.
 def _write_meta(meta_path: Path, payload: dict) -> Path:
-    """Try to write the meta file; on EACCES fall back to /tmp/ and log loudly."""
-    try:
-        meta_path.write_text(json.dumps(payload, indent=2) + "\n")
-        return meta_path
-    except PermissionError:
-        fallback = Path("/tmp/zenodo_meta_pending.json")
-        fallback.write_text(json.dumps(payload, indent=2) + "\n")
-        log.error(
-            "Could not write %s (EACCES). Saved to %s — operator must copy it to "
-            "%s on the host (or to /mnt/gluster/docker/molaop-builder/data/zenodo_meta.json "
-            "if the host filesystem differs from the container view). #158 follow-up.",
-            meta_path, fallback, meta_path,
-        )
-        return fallback
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from src.exporters.zenodo_uploader import persist_meta_with_fallback
+    return persist_meta_with_fallback(meta_path, payload)
 
 
 # ---------- main ----------

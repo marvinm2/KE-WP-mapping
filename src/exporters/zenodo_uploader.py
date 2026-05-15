@@ -7,12 +7,44 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 import requests
 
 logger = logging.getLogger(__name__)
 
 ZENODO_BASE = "https://zenodo.org/api"
+
+# #158 follow-up: container user lacks write bit on the gluster-backed
+# /app/data mount. Successful Zenodo publishes must never appear to fail
+# just because we can't persist the local meta file — fall back to /tmp/
+# and log loudly so the operator can copy it across.
+META_FALLBACK_PATH = Path("/tmp/zenodo_meta_pending.json")
+
+
+def persist_meta_with_fallback(meta_path, payload: dict) -> Path:
+    """Write zenodo_meta.json with an EACCES fallback to /tmp/.
+
+    Returns the actual Path written. On PermissionError the payload is
+    persisted to META_FALLBACK_PATH and an error log instructs the operator
+    to copy it back into place (uid alignment on the gluster mount is the
+    upstream fix; see issue #158).
+    """
+    path = Path(meta_path)
+    body = json.dumps(payload, indent=2) + "\n"
+    try:
+        path.write_text(body)
+        return path
+    except PermissionError:
+        META_FALLBACK_PATH.write_text(body)
+        logger.error(
+            "Could not write %s (EACCES). Saved to %s — operator must copy "
+            "it to %s on the host (or to "
+            "/mnt/gluster/docker/molaop-builder/data/zenodo_meta.json if the "
+            "host filesystem differs from the container view). #158 follow-up.",
+            path, META_FALLBACK_PATH, path,
+        )
+        return META_FALLBACK_PATH
 
 
 def zenodo_publish(files: dict, metadata: dict, existing_deposition_id: int = None) -> dict:

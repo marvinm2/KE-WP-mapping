@@ -16,7 +16,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl sqlite3 cr
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /install /usr/local
 COPY . .
-RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
+# #158 follow-up: align container uid/gid with the host owner of the bind-
+# mounted /app/data volume (currently /mnt/gluster/docker/molaop-builder/data
+# on tgx1, owned by mmartens uid=1000). Pass APP_UID/APP_GID at build time
+# if the host owner differs. Default 1000 covers the typical Linux uid and
+# matches the current production deployment, fixing the EACCES that prevents
+# the admin publish_zenodo route from persisting data/zenodo_meta.json.
+ARG APP_UID=1000
+ARG APP_GID=1000
+RUN addgroup --gid ${APP_GID} appuser \
+    && adduser --uid ${APP_UID} --gid ${APP_GID} --disabled-password --gecos '' appuser \
+    && chown -R appuser:appuser /app
 RUN mkdir -p /app/static/css /app/static/js /app/data /app/logs /app/data/backups \
     && chown -R appuser:appuser /app/logs /app/data
 # Install backup crontab

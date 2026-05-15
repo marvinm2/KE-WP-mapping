@@ -369,6 +369,12 @@ class Database:
             self._migrate_go_mappings_source_versions(conn)
             self._migrate_reactome_mappings_source_versions(conn)
 
+            # #158 follow-up: legacy timestamp rows persisted via SQLite
+            # CURRENT_TIMESTAMP land as "YYYY-MM-DD HH:MM:SS" (space, no 'T'),
+            # which trips rdflib XSD.dateTime parsing during Turtle export.
+            # Normalise once on startup so downstream exporters see ISO-8601.
+            self._migrate_iso8601_datetime_backfill(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -1283,6 +1289,74 @@ class Database:
             ],
             log_label="Reactome mappings source-version fields",
         )
+
+    # Tables whose timestamp columns flow into RDF/Turtle exports and must be
+    # ISO-8601. Centralised so future tables can be added in one place. Each
+    # entry lists only the columns that are (a) populated by SQLite
+    # CURRENT_TIMESTAMP and (b) reachable from an exporter or public API.
+    _ISO_DATETIME_BACKFILL_TARGETS = (
+        ("mappings", ("created_at", "updated_at", "approved_at_curator")),
+        ("ke_go_mappings", ("created_at", "updated_at", "approved_at_curator")),
+        ("ke_reactome_mappings", ("created_at", "updated_at", "approved_at_curator")),
+    )
+
+    def _migrate_iso8601_datetime_backfill(self, conn):
+        """
+        Normalise legacy SQLite CURRENT_TIMESTAMP rows to ISO-8601.
+
+        SQLite's CURRENT_TIMESTAMP produces "YYYY-MM-DD HH:MM:SS" — valid SQL
+        but rejected by rdflib when emitted as an XSD.dateTime literal, which
+        the RDF/Turtle exporter does for approved_at_curator. The user-visible
+        symptom under #158 was the noisy "ISO 8601 time designator 'T' missing"
+        WARNING during regenerate-exports. Fix is to replace the space with
+        'T' on rows that match the SQLite default shape, leaving correctly
+        ISO-formatted values (and any other shapes) untouched.
+
+        Idempotent: re-running selects zero rows on the second pass.
+        """
+        try:
+            total_updated = 0
+            for table, columns in self._ISO_DATETIME_BACKFILL_TARGETS:
+                # Skip tables that don't exist yet (fresh DB before sibling
+                # migrations ran, or environments that haven't created them).
+                cursor = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    (table,),
+                )
+                if cursor.fetchone() is None:
+                    continue
+
+                existing_cols = {
+                    r[1] for r in conn.execute(f"PRAGMA table_info({table})")
+                }
+                for col in columns:
+                    if col not in existing_cols:
+                        continue
+                    # GLOB matches "YYYY-MM-DD HH:MM:SS" (optional trailing
+                    # fractional seconds / timezone). The space-at-position-11
+                    # is the discriminator; ISO rows have 'T' there.
+                    result = conn.execute(
+                        f"""
+                        UPDATE {table}
+                        SET {col} = substr({col}, 1, 10) || 'T' || substr({col}, 12)
+                        WHERE {col} IS NOT NULL
+                          AND substr({col}, 11, 1) = ' '
+                        """
+                    )
+                    if result.rowcount:
+                        total_updated += result.rowcount
+                        logger.info(
+                            "ISO-8601 backfill: %s.%s normalised %d row(s)",
+                            table, col, result.rowcount,
+                        )
+            if total_updated:
+                logger.info(
+                    "ISO-8601 backfill: %d total datetime value(s) normalised",
+                    total_updated,
+                )
+        except Exception as e:
+            logger.error("Error in _migrate_iso8601_datetime_backfill: %s", e)
+            raise
 
     def _add_columns_if_missing(self, conn, *, table, fields, log_label):
         """

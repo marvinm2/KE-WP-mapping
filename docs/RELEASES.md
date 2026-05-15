@@ -90,15 +90,21 @@ flip it on:
 
 These are tracked under GitHub [issue #158](https://github.com/marvinm2/KE-WP-mapping/issues/158):
 
-- **`data/zenodo_meta.json` write fails with EACCES from inside the container.** The
-  gluster mount is owned by host uid `mmartens` and the container user has no write
-  bit. The release script catches this and writes to `/tmp/zenodo_meta_pending.json`
-  with a clear log line, but until the uid/gid alignment is fixed, every release
-  needs an out-of-band copy step (`scp` from the tmp path back into git).
-- **`rdflib` emits `WARNING: ISO 8601 time designator 'T' missing`** during Turtle
-  generation for a handful of legacy mapping rows. Turtle output is still correct —
-  warnings only — but the log is briefly noisy. Schema-level backfill on legacy rows
-  is the cleanest fix.
+- **`data/zenodo_meta.json` write may fall back to `/tmp/`** if the container uid
+  doesn't match the host owner of the gluster mount. The `Dockerfile` now accepts
+  `APP_UID` / `APP_GID` build args (default `1000`) so a rebuild aligned with the
+  host owner clears the original EACCES. Both the release script and the admin
+  `publish_zenodo` route share `persist_meta_with_fallback`: a successful Zenodo
+  deposit never appears to fail; on a write block the payload lands at
+  `/tmp/zenodo_meta_pending.json` (loud log, response includes `meta_path_fallback`).
+  Operator then `scp`s it back into git. Confirm the host owner with
+  `ssh tgx1 stat -c '%u %g' /mnt/gluster/docker/molaop-builder/data` and rebuild
+  with `docker build --build-arg APP_UID=<uid> --build-arg APP_GID=<gid> ...` if
+  it isn't 1000:1000.
+- **`rdflib` ISO-8601 warnings** are resolved. The DB startup migration
+  (`_migrate_iso8601_datetime_backfill`) normalises legacy `"YYYY-MM-DD HH:MM:SS"`
+  rows to ISO-8601 across the three mapping tables, and the RDF exporter applies
+  a defensive coercion so any future stragglers still emit valid `xsd:dateTime`.
 - **No failure alerting on cron path.** Until that's added, monthly cron must be
   paired with a periodic eyeball of `/var/log/molaop-zenodo.log` or a small wrapper
   that emails / Slack-pings on non-zero exit.

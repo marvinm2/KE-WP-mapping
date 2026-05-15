@@ -1159,7 +1159,12 @@ def publish_zenodo():
     import json as json_lib
     import os
     from pathlib import Path
-    from src.exporters.zenodo_uploader import zenodo_publish, _build_zenodo_metadata
+    from src.exporters.zenodo_uploader import (
+        zenodo_publish,
+        _build_zenodo_metadata,
+        persist_meta_with_fallback,
+        META_FALLBACK_PATH,
+    )
 
     if not os.environ.get("ZENODO_API_TOKEN"):
         return jsonify({"status": "error", "message": "ZENODO_API_TOKEN not configured"}), 503
@@ -1218,9 +1223,21 @@ CC0 1.0 Universal
             "concept_doi": result.get("concept_doi", result["doi"]),
             "published_at": today,
         })
-        meta_path.write_text(json_lib.dumps(zenodo_meta, indent=2))
+        written_path = persist_meta_with_fallback(meta_path, zenodo_meta)
         logger.info("Zenodo publish complete: DOI=%s", result["doi"])
-        return jsonify({"status": "ok", "doi": result["doi"], "concept_doi": result.get("concept_doi")})
+        response = {
+            "status": "ok",
+            "doi": result["doi"],
+            "concept_doi": result.get("concept_doi"),
+        }
+        if written_path == META_FALLBACK_PATH:
+            response["meta_path_fallback"] = str(META_FALLBACK_PATH)
+            response["meta_path_message"] = (
+                "Zenodo publish succeeded but data/zenodo_meta.json was not "
+                "writable (gluster uid mismatch — issue #158). Pending payload "
+                f"saved to {META_FALLBACK_PATH}; copy it back into place."
+            )
+        return jsonify(response)
     except EnvironmentError as e:
         return jsonify({"status": "error", "message": str(e)}), 503
     except Exception as e:
