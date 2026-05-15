@@ -260,8 +260,10 @@ def create_app(config_name: str = None):
             meta_path = _Path("data/zenodo_meta.json")
             if meta_path.exists():
                 return {"zenodo_meta": _json.loads(meta_path.read_text())}
-        except Exception:
-            pass
+        except Exception as e:
+            # Best-effort load — missing or malformed file just means the
+            # footer Zenodo DOI badge stays empty.
+            app.logger.debug("zenodo_meta context load failed: %s", e)
         return {"zenodo_meta": {}}
 
     @app.context_processor
@@ -282,8 +284,10 @@ def create_app(config_name: str = None):
             path = _Path("data/source_versions.json")
             if path.exists():
                 return {"source_versions": _json.loads(path.read_text())}
-        except Exception:
-            pass
+        except Exception as e:
+            # Best-effort load — missing or malformed manifest just means the
+            # footer snapshot block stays empty (acceptable on first deploy).
+            app.logger.debug("source_versions context load failed: %s", e)
         return {"source_versions": {}}
 
     # Register blueprints

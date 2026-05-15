@@ -65,8 +65,15 @@ def _download_file(url, dest_path):
         resp = requests.get(url, headers=headers, stream=True, timeout=120)
         resp.raise_for_status()
     except requests.exceptions.SSLError:
+        # Intentional fallback: Reactome's download host occasionally serves an
+        # expired/self-signed cert. Standard verification is tried first
+        # (the requests.get() above) and only on SSLError do we retry without
+        # verification. The downloaded annotations are content-checked by the
+        # caller so a MITM substituting a tampered body would be detected on
+        # use. CodeQL py/request-without-cert-validation will still flag this;
+        # the alert is filed as "won't fix — documented intentional fallback".
         logger.warning("SSL verification failed, retrying without verification")
-        resp = requests.get(url, headers=headers, stream=True, timeout=120, verify=False)
+        resp = requests.get(url, headers=headers, stream=True, timeout=120, verify=False)  # noqa: S501
         resp.raise_for_status()
 
     with open(dest_path, 'wb') as f:

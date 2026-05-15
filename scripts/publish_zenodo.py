@@ -161,11 +161,15 @@ def main() -> int:
     p.add_argument("--meta-path", type=Path, default=DEFAULT_META_PATH, help="Path to zenodo_meta.json")
     args = p.parse_args()
 
-    # Acquire lock first to avoid concurrent runs.
+    # Acquire lock first to avoid concurrent runs. lock_fp is held for the
+    # lifetime of this main() call and released in the finally block below.
+    lock_fp = None
     try:
-        lock_fp = open(LOCK_PATH, "w")
+        lock_fp = open(LOCK_PATH, "w")  # noqa: SIM115 — process-lifetime lock, closed in finally
         fcntl.flock(lock_fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except (BlockingIOError, OSError) as e:
+        if lock_fp is not None:
+            lock_fp.close()
         log.error("Could not acquire lock %s — another publish in progress? %s", LOCK_PATH, e)
         return 3
 
@@ -317,11 +321,15 @@ def main() -> int:
         log.error("Unhandled exception:\n%s", traceback.format_exc())
         return 1
     finally:
-        try:
-            fcntl.flock(lock_fp.fileno(), fcntl.LOCK_UN)
-            lock_fp.close()
-        except Exception:
-            pass
+        if lock_fp is not None:
+            try:
+                fcntl.flock(lock_fp.fileno(), fcntl.LOCK_UN)
+            except Exception as e:
+                log.debug("flock release failed (process exit will clear it): %s", e)
+            try:
+                lock_fp.close()
+            except Exception as e:
+                log.debug("lock_fp close failed: %s", e)
 
 
 if __name__ == "__main__":
