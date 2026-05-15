@@ -3,12 +3,8 @@ Tests for the public REST API v1 Reactome surface (/api/v1/reactome-mappings).
 
 Phase 26-05: Mirrors test_v1_api.py for the Reactome read endpoints.
 """
-import csv
-import io
-import json
 import os
 import tempfile
-from unittest.mock import patch
 
 import pytest
 

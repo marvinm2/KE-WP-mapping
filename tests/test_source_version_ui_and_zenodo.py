@@ -58,7 +58,7 @@ def app_with_manifest(tmp_path, monkeypatch):
     }
     # The context processor reads "data/source_versions.json" relative to
     # CWD, so chdir into a tmp dir that has our manifest in place.
-    proj_root = Path(__file__).resolve().parent.parent
+    Path(__file__).resolve().parent.parent
     work = tmp_path / "work"
     work.mkdir()
     (work / "data").mkdir()

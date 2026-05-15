@@ -8,7 +8,6 @@ import pandas as pd
 import json
 from typing import Dict, List
 import matplotlib.pyplot as plt
-from datetime import datetime
 
 
 class KEWPDatasetClient:
@@ -231,7 +230,7 @@ def advanced_analysis():
     
     # Load data with Parquet for better performance
     try:
-        import pyarrow.parquet as pq
+        import pyarrow.parquet as pq  # noqa: F401 — availability probe for the example block
         
         # Download Parquet file
         parquet_response = client.export_data("parquet", include_metadata_columns="true")

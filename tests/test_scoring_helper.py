@@ -10,7 +10,6 @@ These tests ensure:
 Tests 1-4: combine_scored_items() behaviour (Task 1 — plan 29-01)
 Tests 5-7: ConfigLoader v1.5 compatibility (Task 3 — plan 29-01)
 """
-import pytest
 from src.suggestions.scoring import combine_scored_items
 
 

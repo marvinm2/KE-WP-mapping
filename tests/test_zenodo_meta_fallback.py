@@ -8,7 +8,6 @@ loudly so the operator can copy it back.
 import os
 import stat
 
-import pytest
 
 from src.exporters import zenodo_uploader
 from src.exporters.zenodo_uploader import persist_meta_with_fallback

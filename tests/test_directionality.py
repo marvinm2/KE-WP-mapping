@@ -5,7 +5,6 @@ Tests both detect_go_direction() and detect_ke_direction() covering
 all behavioral categories: positive, negative, unspecified, and ambiguous.
 """
 
-import pytest
 from src.utils.text import detect_go_direction, detect_ke_direction
 
 

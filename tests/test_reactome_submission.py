@@ -71,7 +71,6 @@ class TestSubmitReactomeCreatesProposal:
         from app import app as flask_app
         import src.blueprints.api as api_mod
         from src.core.models import (
-            CacheModel,
             Database,
             ReactomeMappingModel,
             ReactomeProposalModel,

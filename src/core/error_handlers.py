@@ -7,14 +7,6 @@ from functools import wraps
 
 from flask import jsonify, render_template, request
 from src.utils.text import sanitize_log
-from werkzeug.exceptions import (
-    BadRequest,
-    Forbidden,
-    HTTPException,
-    InternalServerError,
-    NotFound,
-    Unauthorized,
-)
 
 logger = logging.getLogger(__name__)
 

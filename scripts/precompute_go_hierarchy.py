@@ -25,7 +25,7 @@ import math
 import os
 import sys
 from collections import defaultdict, deque
-from urllib.request import urlretrieve, Request, urlopen
+from urllib.request import Request, urlopen
 
 # Setup project path (same pattern as precompute_go_embeddings.py)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

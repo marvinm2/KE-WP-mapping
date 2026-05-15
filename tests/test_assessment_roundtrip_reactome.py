@@ -14,7 +14,6 @@ Asserts:
 """
 import inspect
 
-import pytest
 
 from src.core.models import (
     Database,

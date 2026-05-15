@@ -19,8 +19,6 @@ model to keep this test module focused on the new wiring.
 """
 import json
 import sqlite3
-import sys
-import types
 from pathlib import Path
 
 import pytest

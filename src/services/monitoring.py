@@ -9,7 +9,7 @@ import time
 from collections import defaultdict, deque
 from typing import Any, Dict
 
-from flask import g, request
+from flask import request
 
 logger = logging.getLogger(__name__)
 

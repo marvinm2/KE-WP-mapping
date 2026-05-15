@@ -21,7 +21,7 @@ Strategy:
 """
 import pytest
 import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from app import app as flask_app
 

@@ -16,7 +16,6 @@ The fix is to mirror ``download_ke_reactome_rdf``'s guard:
     else:
         cache_path.write_text("", encoding="utf-8")
 """
-import pytest
 
 import src.blueprints.main as main_bp_mod
 

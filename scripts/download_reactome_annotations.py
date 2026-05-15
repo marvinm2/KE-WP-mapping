@@ -21,11 +21,8 @@ import argparse
 import json
 import logging
 import os
-import re
 import sys
-import time
 import zipfile
-from collections import defaultdict
 
 import requests
 
@@ -163,7 +160,7 @@ def parse_gmt_file(gmt_path):
                 continue
             col1 = parts[1] if len(parts) > 1 else ''
             col2 = parts[2] if len(parts) > 2 else ''
-            col3 = parts[3] if len(parts) > 3 else ''
+            parts[3] if len(parts) > 3 else ''
             if col1.startswith('R-'):
                 # col 1 is stableId; decide gene start col
                 # If col2 is "Reactome Pathway" or a URL or empty, genes start at 3

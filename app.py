@@ -4,7 +4,6 @@ Refactored Flask application using modular blueprint architecture
 """
 import logging
 import os
-import time
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
@@ -33,7 +32,6 @@ from src.core.config import get_config
 from src.core.error_handlers import register_error_handlers
 
 # Import monitoring
-from src.services.monitoring import monitor_performance
 from src.services.rate_limiter import general_rate_limit
 from src.services.container import ServiceContainer
 
@@ -163,7 +161,7 @@ def create_app(config_name: str = None):
         }), 429
 
     # Initialize OAuth
-    oauth = services.init_oauth(app)
+    services.init_oauth(app)
 
     # Set up models for blueprints
     set_auth_models(services.provider_clients, guest_code=services.guest_code_model)

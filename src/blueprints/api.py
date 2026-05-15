@@ -12,8 +12,7 @@ from functools import wraps
 import requests
 from flask import Blueprint, jsonify, request, session
 
-from src.core.models import CacheModel, GoProposalModel, MappingModel, ProposalModel
-from src.services.monitoring import monitor_performance
+from src.core.models import GoProposalModel, ProposalModel
 from src.services.rate_limiter import general_rate_limit, sparql_rate_limit, submission_rate_limit
 from src.core.schemas import (
     CheckEntrySchema,
