@@ -1189,9 +1189,9 @@ def regenerate_exports():
 
         logger.info("Export cache rebuilt: %s", files_written)
         return jsonify({"status": "ok", "files": files_written, "message": f"Rebuilt {len(files_written)} export file(s). Note: KE-WP GMT generation requires WikiPathways SPARQL — may be slow on first run."})
-    except Exception as e:
-        logger.error("Export regeneration failed: %s", e)
-        return jsonify({"status": "error", "message": str(e)}), 500
+    except Exception:
+        logger.exception("Export regeneration failed")
+        return jsonify({"status": "error", "message": "Export regeneration failed"}), 500
 
 
 @admin_bp.route("/exports/publish-zenodo", methods=["POST"])
@@ -1289,11 +1289,18 @@ def publish_zenodo():
                 f"saved to {META_FALLBACK_PATH}; copy it back into place."
             )
         return jsonify(response)
-    except EnvironmentError as e:
-        return jsonify({"status": "error", "message": str(e)}), 503
-    except Exception as e:
-        logger.error("Zenodo publish failed: %s", e)
-        return jsonify({"status": "error", "message": str(e)}), 500
+    except EnvironmentError:
+        logger.exception("Zenodo publish blocked by environment (token / config missing)")
+        return jsonify({
+            "status": "error",
+            "message": "Zenodo publish blocked — check server logs for the missing token or config",
+        }), 503
+    except Exception:
+        logger.exception("Zenodo publish failed")
+        return jsonify({
+            "status": "error",
+            "message": "Zenodo publish failed — see server logs for details",
+        }), 500
 
 
 @admin_bp.route("/ke-descriptions")

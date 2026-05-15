@@ -243,6 +243,10 @@ def _get_content_service(path, timeout=60):
         raise RuntimeError("Cannot resolve reactome.org")
 
     ctx = ssl.create_default_context()
+    # Reactome's download path occasionally serves self-signed certs that fail
+    # standard validation; this path is the documented workaround. Still pin
+    # the TLS floor so we never negotiate down to TLS <1.2.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
