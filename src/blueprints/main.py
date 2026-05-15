@@ -715,7 +715,15 @@ def _get_or_generate_gmt(mapping_type: str, min_confidence: str = None):
     today = datetime.today().date().isoformat()
     tier = min_confidence.capitalize() if min_confidence else "All"
     filename = f"KE-{mapping_type.upper()}_{today}_{tier}.gmt"
-    cache_path = EXPORT_CACHE_DIR / filename
+    # CodeQL sanitizer pattern: resolve and verify containment, even though the
+    # whitelist above already constrains the inputs to a finite set. CodeQL's
+    # taint analysis doesn't recognise the `not in` check and would otherwise
+    # still flag this as path-injection.
+    cache_root = EXPORT_CACHE_DIR.resolve()
+    candidate = (EXPORT_CACHE_DIR / filename).resolve()
+    if not candidate.is_relative_to(cache_root):
+        abort(404)
+    cache_path = candidate
     if not cache_path.exists():
         EXPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         if mapping_type == "wp":
