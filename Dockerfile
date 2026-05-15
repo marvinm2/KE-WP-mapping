@@ -3,8 +3,10 @@ FROM python:3.12-slim-bookworm AS builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY requirements.txt .
+# torch's +cpu wheel index URL is needed at install time, but the version
+# itself is pinned in requirements.txt — listing it here too would conflict
+# with bumps (see CI failure on commit 1c51bec). Single source of truth.
 RUN pip install --no-cache-dir --prefix=/install \
-    torch==2.6.0+cpu \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
 
