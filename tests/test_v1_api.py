@@ -387,7 +387,7 @@ class TestAssessmentShape:
 
     def test_csv_fields_present(self):
         """Phase 34 fields appended at the END of _MAPPING_CSV_FIELDS."""
-        from src.blueprints.v1_api import _MAPPING_CSV_FIELDS
+        _MAPPING_CSV_FIELDS = v1_mod._MAPPING_CSV_FIELDS
 
         for required in ("connection_type", "assessment_version",
                           "proposed_relationship", "proposed_basis",
@@ -406,7 +406,7 @@ class TestAssessmentShape:
 
     def test_serialize_emits_assessment(self):
         """v2 row (all four answers + version='v2') round-trips through serializer."""
-        from src.blueprints.v1_api import _serialize_mapping
+        _serialize_mapping = v1_mod._serialize_mapping
 
         row = {
             "uuid": "x", "ke_id": "KE 1", "ke_title": "t",
@@ -429,7 +429,7 @@ class TestAssessmentShape:
 
     def test_legacy_v1_serializes_with_null_answers(self):
         """Pre-Phase-34 row (no proposed_*, no assessment_version) → version='v1', NULLs."""
-        from src.blueprints.v1_api import _serialize_mapping
+        _serialize_mapping = v1_mod._serialize_mapping
 
         row = {
             "uuid": "x", "ke_id": "KE 1", "ke_title": "t",
@@ -447,7 +447,7 @@ class TestAssessmentShape:
 
     def test_flatten_for_csv_lifts_assessment(self):
         """_flatten_for_csv lifts the nested assessment object to top-level columns."""
-        from src.blueprints.v1_api import _flatten_for_csv
+        _flatten_for_csv = v1_mod._flatten_for_csv
 
         serialized = {
             "uuid": "x", "ke_id": "KE 1", "ke_name": "t",
@@ -481,7 +481,7 @@ class TestAssessmentShape:
 
     def test_flatten_for_csv_handles_missing_assessment(self):
         """_flatten_for_csv defaults assessment_version='v1' when block is absent."""
-        from src.blueprints.v1_api import _flatten_for_csv
+        _flatten_for_csv = v1_mod._flatten_for_csv
 
         serialized = {
             "uuid": "x", "ke_id": "KE 1", "ke_name": "t",
