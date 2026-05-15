@@ -295,7 +295,7 @@ def admin_proposal_detail(proposal_id: int):
         return jsonify(proposal)
 
     except Exception as e:
-        logger.error("Error getting proposal %s: %s", proposal_id, sanitize_log(str(e)))
+        logger.error("Error getting proposal %s: %s", sanitize_log(proposal_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to load proposal"}), 500
 
 
@@ -443,7 +443,7 @@ def approve_proposal(proposal_id: int):
             )
 
             logger.info(
-                "Proposal %s approved by %s, mapping %s", proposal_id, sanitize_log(admin_username), action
+                "Proposal %s approved by %s, mapping %s", sanitize_log(proposal_id), sanitize_log(admin_username), action
             )
             return (
                 jsonify(
@@ -458,7 +458,7 @@ def approve_proposal(proposal_id: int):
             return jsonify({"error": f"Failed to {action.rstrip('d')} mapping"}), 500
 
     except Exception as e:
-        logger.error("Error approving proposal %s: %s", proposal_id, sanitize_log(str(e)))
+        logger.error("Error approving proposal %s: %s", sanitize_log(proposal_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to approve proposal"}), 500
 
 
@@ -519,13 +519,13 @@ def reject_proposal(proposal_id: int):
         )
 
         if success:
-            logger.info("Proposal %s rejected by %s", proposal_id, sanitize_log(admin_username))
+            logger.info("Proposal %s rejected by %s", sanitize_log(proposal_id), sanitize_log(admin_username))
             return jsonify({"message": "Proposal rejected successfully."}), 200
         else:
             return jsonify({"error": "Failed to reject proposal"}), 500
 
     except Exception as e:
-        logger.error("Error rejecting proposal %s: %s", proposal_id, sanitize_log(str(e)))
+        logger.error("Error rejecting proposal %s: %s", sanitize_log(proposal_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to reject proposal"}), 500
 
 
@@ -608,7 +608,7 @@ def admin_go_proposal_detail(proposal_id: int):
         return jsonify(proposal)
 
     except Exception as e:
-        logger.error("Error getting GO proposal %s: %s", proposal_id, sanitize_log(str(e)))
+        logger.error("Error getting GO proposal %s: %s", sanitize_log(proposal_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to load GO proposal"}), 500
 
 
@@ -727,7 +727,7 @@ def approve_go_proposal(proposal_id: int):
             )
             logger.info(
                 "GO proposal %s approved by %s, mapping %s created",
-                proposal_id, sanitize_log(admin_username), new_mapping_id,
+                sanitize_log(proposal_id), sanitize_log(admin_username), sanitize_log(new_mapping_id),
             )
             return jsonify({
                 "message": "GO proposal approved successfully. Mapping created.",
@@ -737,7 +737,7 @@ def approve_go_proposal(proposal_id: int):
             return jsonify({"error": "Failed to create GO mapping (pair may already exist)"}), 500
 
     except Exception as e:
-        logger.error("Error approving GO proposal %s: %s", proposal_id, sanitize_log(str(e)))
+        logger.error("Error approving GO proposal %s: %s", sanitize_log(proposal_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to approve GO proposal"}), 500
 
 
@@ -780,13 +780,13 @@ def reject_go_proposal(proposal_id: int):
         )
 
         if success:
-            logger.info("GO proposal %s rejected by %s", proposal_id, sanitize_log(admin_username))
+            logger.info("GO proposal %s rejected by %s", sanitize_log(proposal_id), sanitize_log(admin_username))
             return jsonify({"message": "GO proposal rejected successfully."}), 200
         else:
             return jsonify({"error": "Failed to reject GO proposal"}), 500
 
     except Exception as e:
-        logger.error("Error rejecting GO proposal %s: %s", proposal_id, sanitize_log(str(e)))
+        logger.error("Error rejecting GO proposal %s: %s", sanitize_log(proposal_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to reject GO proposal"}), 500
 
 
@@ -850,7 +850,7 @@ def admin_reactome_proposal_detail(proposal_id: int):
 
     except Exception as e:
         logger.error("Error getting Reactome proposal %s: %s",
-                     proposal_id, sanitize_log(str(e)))
+                     sanitize_log(proposal_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to load Reactome proposal"}), 500
 
 
@@ -925,7 +925,7 @@ def approve_reactome_proposal(proposal_id: int):
             logger.error(
                 "Reactome proposal %s status flip failed after mapping %s "
                 "created; rolling back mapping",
-                proposal_id, new_mapping_id,
+                sanitize_log(proposal_id), sanitize_log(new_mapping_id),
             )
             reactome_mapping_model.delete_mapping(new_mapping_id)
             return jsonify({
@@ -934,7 +934,7 @@ def approve_reactome_proposal(proposal_id: int):
 
         logger.info(
             "Reactome proposal %s approved by %s, mapping %s created",
-            proposal_id, sanitize_log(admin_username), new_mapping_id,
+            sanitize_log(proposal_id), sanitize_log(admin_username), sanitize_log(new_mapping_id),
         )
         return jsonify({
             "message": "Reactome proposal approved successfully. Mapping created.",
@@ -943,7 +943,7 @@ def approve_reactome_proposal(proposal_id: int):
 
     except Exception as e:
         logger.error("Error approving Reactome proposal %s: %s",
-                     proposal_id, sanitize_log(str(e)))
+                     sanitize_log(proposal_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to approve Reactome proposal"}), 500
 
 
@@ -988,14 +988,14 @@ def reject_reactome_proposal(proposal_id: int):
 
         if success:
             logger.info("Reactome proposal %s rejected by %s",
-                        proposal_id, sanitize_log(admin_username))
+                        sanitize_log(proposal_id), sanitize_log(admin_username))
             return jsonify({"message": "Reactome proposal rejected successfully."}), 200
         else:
             return jsonify({"error": "Failed to reject Reactome proposal"}), 500
 
     except Exception as e:
         logger.error("Error rejecting Reactome proposal %s: %s",
-                     proposal_id, sanitize_log(str(e)))
+                     sanitize_log(proposal_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to reject Reactome proposal"}), 500
 
 
@@ -1086,13 +1086,13 @@ def revoke_guest_code(code_id: int):
         success = guest_code_model.revoke_code(code_id, admin_username)
 
         if success:
-            logger.info("Guest code %d revoked by %s", code_id, sanitize_log(admin_username))
+            logger.info("Guest code %d revoked by %s", sanitize_log(code_id), sanitize_log(admin_username))
             return jsonify({"message": "Guest code revoked."}), 200
         else:
             return jsonify({"error": "Failed to revoke guest code."}), 500
 
     except Exception as e:
-        logger.error("Error revoking guest code %d: %s", code_id, sanitize_log(str(e)))
+        logger.error("Error revoking guest code %d: %s", sanitize_log(code_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to revoke guest code."}), 500
 
 
@@ -1388,5 +1388,5 @@ def toggle_ke_description(ke_id: str):
             return jsonify({"error": "Failed to save override"}), 500
 
     except Exception as e:
-        logger.error("Error toggling KE description for %s: %s", ke_id, e)
+        logger.error("Error toggling KE description for %s: %s", sanitize_log(ke_id), sanitize_log(str(e)))
         return jsonify({"error": "Failed to toggle description"}), 500
