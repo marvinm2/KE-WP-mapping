@@ -233,6 +233,9 @@ def create_app(config_name: str = None):
         orcid_configured = bool(os.getenv("ORCID_CLIENT_ID") and os.getenv("ORCID_CLIENT_SECRET"))
         ls_configured = bool(os.getenv("LS_CLIENT_ID") and os.getenv("LS_CLIENT_SECRET"))
         surf_configured = bool(os.getenv("SURF_CLIENT_ID") and os.getenv("SURF_CLIENT_SECRET"))
+        # Feature flag: SURFconext is gated until the production tenant is approved.
+        # Set SURF_ENABLED=true on tgx1 only after the SURFconext production tenant is live.
+        surf_enabled = os.getenv("SURF_ENABLED", "false").lower() == "true"
 
         return dict(
             is_admin=is_admin,
@@ -240,6 +243,7 @@ def create_app(config_name: str = None):
             orcid_configured=orcid_configured,
             ls_configured=ls_configured,
             surf_configured=surf_configured,
+            surf_enabled=surf_enabled,
         )
 
     @app.template_filter("display_username")

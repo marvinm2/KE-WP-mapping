@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 # Multi-provider OAuth configuration.
 # Each entry maps a provider name to its env-var keys and OIDC discovery URL.
 # Providers are only registered when their CLIENT_ID and CLIENT_SECRET env vars are set.
+# NOTE: default_discovery_url values below are TEST/sandbox endpoints. Production discovery
+# URLs are supplied via the *_DISCOVERY_URL env vars set on tgx1 — never hard-coded here.
 PROVIDER_CONFIGS = {
     "orcid": {
         "env_client_id": "ORCID_CLIENT_ID",

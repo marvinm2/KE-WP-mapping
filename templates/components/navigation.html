@@ -55,7 +55,7 @@
         <svg class="btn-provider__icon" width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
         </svg>
-        Continue with GitHub
+        Sign in with GitHub
       </a>
       {% if orcid_configured %}
       <a href="{{ url_for('auth.login_provider', provider='orcid') }}" class="btn-provider btn-provider--orcid">
@@ -63,18 +63,38 @@
           <circle cx="128" cy="128" r="128" fill="#A6CE39"/>
           <path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zm2.4-129.4c0 5.5-4.5 10.1-10.1 10.1-5.6 0-10.1-4.6-10.1-10.1 0-5.6 4.5-10.1 10.1-10.1 5.6 0 10.1 4.6 10.1 10.1zm20.2 22.3h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.2-13.2-39.7-42.9-39.7h-24.5v79.4z"/>
         </svg>
-        Continue with ORCID
+        Sign in with ORCID
       </a>
       {% endif %}
       {% if ls_configured %}
       <a href="{{ url_for('auth.login_provider', provider='ls') }}" class="btn-provider btn-provider--ls">
-        Continue with LS Login
+        <svg class="btn-provider__icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <rect width="20" height="20" rx="3" fill="#6CAC3D"/>
+          <text x="10" y="14" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="bold" fill="#fff">LS</text>
+        </svg>
+        Sign in with LS Login
       </a>
       {% endif %}
       {% if surf_configured %}
-      <a href="{{ url_for('auth.login_provider', provider='surf') }}" class="btn-provider btn-provider--surf">
-        Continue with SURFconext
-      </a>
+        {% if surf_enabled %}
+        <a href="{{ url_for('auth.login_provider', provider='surf') }}" class="btn-provider btn-provider--surf">
+          <svg class="btn-provider__icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+            <rect width="20" height="20" rx="3" fill="#007BC7"/>
+            <text x="10" y="14" text-anchor="middle" font-family="sans-serif" font-size="7" font-weight="bold" fill="#fff">SURF</text>
+          </svg>
+          Sign in with SURFconext
+        </a>
+        {% else %}
+        <button type="button" disabled class="btn-provider btn-provider--surf btn-provider--disabled"
+                title="SURFconext login is coming soon">
+          <svg class="btn-provider__icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+            <rect width="20" height="20" rx="3" fill="#007BC7" opacity="0.5"/>
+            <text x="10" y="14" text-anchor="middle" font-family="sans-serif" font-size="7" font-weight="bold" fill="#fff">SURF</text>
+          </svg>
+          Sign in with SURFconext
+          <span class="btn-provider__hint">(coming soon)</span>
+        </button>
+        {% endif %}
       {% endif %}
     </div>
     <hr class="login-modal__divider">
