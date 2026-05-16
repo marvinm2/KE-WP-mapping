@@ -274,23 +274,42 @@ def create_app(config_name: str = None):
         Inject the upstream source-versions manifest globally so templates
         can display the snapshot the running container is serving.
 
-        Surfaced as `source_versions` in every template. Built from the
-        same data/source_versions.json file that approval-time stamping
-        reads (Phase C); reading it directly here instead of through the
-        service container so the context processor stays a pure read with
-        no service-graph dependency.
+        Surfaced as two template variables:
+          - ``source_versions`` — static snapshot from data/source_versions.json
+            (used for per-approval stamping; kept unchanged).
+          - ``live_versions``   — live upstream release identifiers from
+            SourceVersionService.snapshot() with a 24 h in-process TTL; each
+            entry is {"version": str, "unavailable": bool}.
+
+        Reading source_versions.json directly here keeps the context processor
+        a pure read with no service-graph dependency. live_versions failure is
+        caught so a service outage never breaks any page render.
         """
         import json as _json
         from pathlib import Path as _Path
+        ctx: dict = {}
+
+        # Static file read (source_versions — unchanged)
         try:
             path = _Path("data/source_versions.json")
             if path.exists():
-                return {"source_versions": _json.loads(path.read_text())}
+                ctx["source_versions"] = _json.loads(path.read_text())
         except Exception as e:
             # Best-effort load — missing or malformed manifest just means the
             # footer snapshot block stays empty (acceptable on first deploy).
             app.logger.debug("source_versions context load failed: %s", e)
-        return {"source_versions": {}}
+        if "source_versions" not in ctx:
+            ctx["source_versions"] = {}
+
+        # Live version service (live_versions — new, wraps SourceVersionService)
+        try:
+            from src.services.source_versions import snapshot as _sv_snapshot
+            ctx["live_versions"] = _sv_snapshot()
+        except Exception as e:
+            app.logger.debug("live_versions service call failed: %s", e)
+            ctx["live_versions"] = {}
+
+        return ctx
 
     # Register blueprints
     app.register_blueprint(main_bp)
