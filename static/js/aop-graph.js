@@ -1,12 +1,44 @@
 /**
- * AOP Network Graph — Standalone Adapter
+ * AOP Explorer Graph — Standalone Adapter
  * Consumes AOPGraphCore (aop-graph-core.js) for all graph rendering logic.
  *
  * Handles page-specific concerns: card grid, Select2 dropdown, AOP selection
- * flow, side panel population, and KE redirect — all specific to /aop-network.
+ * flow, side panel population, gap filter, OECD badge/filter, and KE redirect.
  *
  * Requires: aop-graph-core.js loaded before this script.
  */
+
+// OECD development-status colour ramp — all 8 OECD buckets enumerated for
+// forward-compatibility even if live data only populates a subset.
+var OECD_STATUS_CONFIG = {
+    ordinal: {
+        'Under Development: Contributions and Comments Welcome': 1,
+        'Under Development': 2,
+        'Open for Adoption': 3,
+        'Under Review / Internal Review': 3,
+        'Under Review': 3,
+        'EAGMST Under Review': 4,
+        'EAGMST Approved': 5,
+        'WPHA/WNT Endorsed': 6,
+        'Unknown': 0
+    },
+    color: {
+        0: '#9e9e9e',
+        1: '#d32f2f',
+        2: '#e64a19',
+        3: '#f57c00',
+        4: '#fbc02d',
+        5: '#7cb342',
+        6: '#388e3c'
+    }
+};
+
+function oecdBadgeColor(status) {
+    var ord = OECD_STATUS_CONFIG.ordinal[status];
+    var ordinal = (ord !== undefined) ? ord : 0;
+    return OECD_STATUS_CONFIG.color[ordinal] || OECD_STATUS_CONFIG.color[0];
+}
+
 var AOPGraph = (function () {
     'use strict';
 
@@ -17,6 +49,17 @@ var AOPGraph = (function () {
     var selectedKEId = null;
     var geneCountMap = {};
 
+    // Mapped KE ID sets (one per resource) — populated by loadMappedKeIds()
+    var wpMappedKeIds = new Set();
+    var goMappedKeIds = new Set();
+    var reactomeMappedKeIds = new Set();
+
+    // Gap filter state — sticky across AOP switches
+    var currentGapFilter = 'all';
+
+    // OECD status data — keyed by "AOP N"
+    var oecdStatusData = {};
+
     // ---------------------------------------------------------------------------
     // Init
     // ---------------------------------------------------------------------------
@@ -24,7 +67,9 @@ var AOPGraph = (function () {
         AOPGraphCore.resolveNodeColors();
         wireBackButton();
         wireCloseButton();
+        wireGapFilterButtons();
         loadData();
+        loadOecdStatus();
     }
 
     function loadData() {
@@ -41,6 +86,9 @@ var AOPGraph = (function () {
                 populateCardGrid(data);
                 loadGeneCountMap(function () {
                     // gene count data ready — will be applied on each graph render
+                });
+                loadMappedKeIds(function () {
+                    // mapped KE ID sets ready — will be applied on each graph render
                 });
             })
             .catch(function (err) {
@@ -120,6 +168,133 @@ var AOPGraph = (function () {
                 geneCountMap = {};
                 callback();
             });
+    }
+
+    // Fetch all three mapped-KE-ID sets from the backend (one request per resource).
+    // Mirrors loadGeneCountMap() — caches into module-level Sets, fires callback when done.
+    function loadMappedKeIds(callback) {
+        var resources = [
+            { type: 'wp',       target: 'wpMappedKeIds' },
+            { type: 'go',       target: 'goMappedKeIds' },
+            { type: 'reactome', target: 'reactomeMappedKeIds' }
+        ];
+        var pending = resources.length;
+
+        function done() {
+            pending -= 1;
+            if (pending === 0 && callback) { callback(); }
+        }
+
+        resources.forEach(function (res) {
+            fetch('/api/mapped-ke-ids?type=' + res.type)
+                .then(function (resp) { return resp.ok ? resp.json() : { ke_ids: [] }; })
+                .then(function (data) {
+                    var ids = Array.isArray(data.ke_ids) ? data.ke_ids : [];
+                    if (res.type === 'wp')       { wpMappedKeIds       = new Set(ids); }
+                    if (res.type === 'go')       { goMappedKeIds       = new Set(ids); }
+                    if (res.type === 'reactome') { reactomeMappedKeIds = new Set(ids); }
+                    done();
+                })
+                .catch(function () {
+                    done();
+                });
+        });
+    }
+
+    // Load OECD development-status data and wire the OECD multi-select filter.
+    function loadOecdStatus() {
+        fetch('/api/aop-oecd-status')
+            .then(function (resp) { return resp.ok ? resp.json() : {}; })
+            .then(function (data) {
+                oecdStatusData = data || {};
+                // Render OECD badges on AOP cards after card grid is populated
+                // (cards are rendered asynchronously — use a small poll to wait)
+                renderOecdBadgesOnCards();
+                wireOecdFilter();
+            })
+            .catch(function () {
+                oecdStatusData = {};
+            });
+    }
+
+    function oecdBadgeHtml(aopId) {
+        var entry = oecdStatusData[aopId];
+        var status = (entry && entry.status) ? entry.status : 'Unknown';
+        var color = oecdBadgeColor(status);
+        var label = status.length > 32 ? status.slice(0, 30) + '…' : status;
+        return '<span class="aop-oecd-badge" style="background:' + color + ';" ' +
+               'title="OECD development status: ' + AOPGraphCore.escapeHtml(status) + '">' +
+               AOPGraphCore.escapeHtml(label) + '</span>';
+    }
+
+    function renderOecdBadgesOnCards() {
+        var grid = document.getElementById('aop-card-grid');
+        if (!grid) return;
+        var cards = grid.querySelectorAll('.aop-card');
+        if (cards.length === 0) {
+            // Cards not yet rendered — retry after short delay
+            setTimeout(renderOecdBadgesOnCards, 200);
+            return;
+        }
+        cards.forEach(function (card) {
+            var aopId = card.getAttribute('data-aop-id');
+            if (!aopId) return;
+            var existing = card.querySelector('.aop-oecd-badge');
+            if (existing) return; // already rendered
+            card.insertAdjacentHTML('beforeend', oecdBadgeHtml(aopId));
+        });
+    }
+
+    function wireOecdFilter() {
+        var sel = document.getElementById('oecd-status-filter');
+        if (!sel) return;
+
+        // Populate options from the 8-bucket vocabulary (all selected by default)
+        var vocab = Object.keys(OECD_STATUS_CONFIG.ordinal).filter(function (s) {
+            return s !== 'Under Review'; // alias — skip duplicate display
+        });
+        vocab.forEach(function (status) {
+            var opt = document.createElement('option');
+            opt.value = status;
+            opt.textContent = status;
+            opt.selected = true;
+            sel.appendChild(opt);
+        });
+
+        // Init Select2
+        if (window.$ && $.fn.select2) {
+            $(sel).select2({
+                placeholder: 'Filter by OECD status...',
+                width: '100%',
+                closeOnSelect: false
+            });
+            $(sel).on('change', applyOecdFilter);
+        } else {
+            sel.addEventListener('change', applyOecdFilter);
+        }
+    }
+
+    function applyOecdFilter() {
+        var sel = document.getElementById('oecd-status-filter');
+        if (!sel) return;
+        var selected = Array.from(sel.options)
+            .filter(function (o) { return o.selected; })
+            .map(function (o) { return o.value; });
+
+        // Include "Under Review" alias alongside "Under Review / Internal Review"
+        if (selected.indexOf('Under Review / Internal Review') > -1) {
+            selected.push('Under Review');
+        }
+
+        var grid = document.getElementById('aop-card-grid');
+        if (!grid) return;
+        var cards = grid.querySelectorAll('.aop-card');
+        cards.forEach(function (card) {
+            var aopId = card.getAttribute('data-aop-id');
+            var entry = aopId ? oecdStatusData[aopId] : null;
+            var status = (entry && entry.status) ? entry.status : 'Unknown';
+            card.style.display = (selected.indexOf(status) > -1) ? '' : 'none';
+        });
     }
 
     // ---------------------------------------------------------------------------
@@ -280,6 +455,88 @@ var AOPGraph = (function () {
     }
 
     // ---------------------------------------------------------------------------
+    // Gap filter — applied within the current graph
+    // ---------------------------------------------------------------------------
+    function applyGapFilter(filterMode) {
+        currentGapFilter = filterMode;
+        if (!cy) return;
+
+        cy.batch(function () {
+            cy.nodes().forEach(function (node) {
+                var keId = node.data('id');
+                var show = false;
+                switch (filterMode) {
+                    case 'all':
+                        show = true;
+                        break;
+                    case 'unmapped':
+                        show = !wpMappedKeIds.has(keId) &&
+                               !goMappedKeIds.has(keId) &&
+                               !reactomeMappedKeIds.has(keId);
+                        break;
+                    case 'gap-wp':
+                        show = !wpMappedKeIds.has(keId);
+                        break;
+                    case 'gap-go':
+                        show = !goMappedKeIds.has(keId);
+                        break;
+                    case 'gap-reactome':
+                        show = !reactomeMappedKeIds.has(keId);
+                        break;
+                    default:
+                        show = true;
+                }
+                node.style('opacity', show ? 1 : 0.2);
+            });
+            // Never dim edges
+            cy.edges().style('opacity', 1);
+        });
+
+        updateGapFilterCounts();
+    }
+
+    function updateGapFilterCounts() {
+        if (!cy) return;
+        var nodes = cy.nodes();
+        var counts = {
+            all:          nodes.length,
+            unmapped:     0,
+            'gap-wp':     0,
+            'gap-go':     0,
+            'gap-reactome': 0
+        };
+        nodes.forEach(function (node) {
+            var keId = node.data('id');
+            if (!wpMappedKeIds.has(keId) && !goMappedKeIds.has(keId) && !reactomeMappedKeIds.has(keId)) {
+                counts.unmapped++;
+            }
+            if (!wpMappedKeIds.has(keId))       { counts['gap-wp']++; }
+            if (!goMappedKeIds.has(keId))       { counts['gap-go']++; }
+            if (!reactomeMappedKeIds.has(keId)) { counts['gap-reactome']++; }
+        });
+
+        document.querySelectorAll('.gap-filter-btn').forEach(function (btn) {
+            var filter = btn.getAttribute('data-filter');
+            var countEl = btn.querySelector('.gap-filter-count');
+            if (countEl && counts[filter] !== undefined) {
+                countEl.textContent = '(' + counts[filter] + ')';
+            }
+        });
+    }
+
+    function wireGapFilterButtons() {
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.gap-filter-btn');
+            if (!btn) return;
+            document.querySelectorAll('.gap-filter-btn').forEach(function (b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+            applyGapFilter(btn.getAttribute('data-filter'));
+        });
+    }
+
+    // ---------------------------------------------------------------------------
     // Graph rendering — delegates to AOPGraphCore
     // ---------------------------------------------------------------------------
     function renderGraph(aopId) {
@@ -292,8 +549,9 @@ var AOPGraph = (function () {
             cy = null;
         }
 
-        // Standalone page does not pass mappedKeIds — no mapping-status borders
+        // Pass mappedKeIds so AOPGraphCore adds green-border styling on mapped KEs (AOPX-05)
         cy = AOPGraphCore.renderGraph('cy', aopData, {
+            mappedKeIds: wpMappedKeIds,
             onNodeTap: function (nodeData, cyInst) {
                 cyInst.elements().removeClass('active-node');
                 cyInst.$('#' + nodeData.id).addClass('active-node');
@@ -304,9 +562,18 @@ var AOPGraph = (function () {
             }
         });
 
-        // Apply gene-count badges
+        // Apply gene-count badges (AOPX-04 — already functional)
         if (cy && Object.keys(geneCountMap).length > 0) {
             AOPGraphCore.applyGeneBadges(cy, geneCountMap);
+        }
+
+        // Re-apply sticky gap filter and update counts
+        applyGapFilter(currentGapFilter);
+
+        // Update OECD badge in graph header
+        var headerBadge = document.getElementById('aop-oecd-badge');
+        if (headerBadge) {
+            headerBadge.innerHTML = oecdBadgeHtml(aopId);
         }
     }
 
@@ -411,6 +678,25 @@ var AOPGraph = (function () {
             });
         }
 
+        // Show "Map this KE" shortcut for KEs that are gaps in at least one resource
+        var actionsEl = document.querySelector('.ke-side-panel__actions');
+        if (actionsEl) {
+            var existingLink = actionsEl.querySelector('.ke-map-gap-link');
+            if (existingLink) { existingLink.remove(); }
+
+            var isGap = !wpMappedKeIds.has(nodeData.id) ||
+                        !goMappedKeIds.has(nodeData.id) ||
+                        !reactomeMappedKeIds.has(nodeData.id);
+            if (isGap) {
+                var mapLink = document.createElement('a');
+                mapLink.className = 'ke-map-gap-link';
+                mapLink.href = '/mapper?ke_id=' + encodeURIComponent(nodeData.id);
+                mapLink.textContent = 'Map this KE';
+                mapLink.title = 'Open this KE in the mapper to add pathway mappings';
+                actionsEl.appendChild(mapLink);
+            }
+        }
+
         // Open panel
         panel.classList.add('ke-side-panel--open');
     }
@@ -439,7 +725,7 @@ var AOPGraph = (function () {
     // KE selection redirect
     // ---------------------------------------------------------------------------
     function redirectToKE(keId) {
-        window.location.href = '/?ke_id=' + encodeURIComponent(keId);
+        window.location.href = '/mapper?ke_id=' + encodeURIComponent(keId);
     }
 
     // Public API
