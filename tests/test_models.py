@@ -45,7 +45,7 @@ class TestMappingModel:
             wp_title="Test WP",
             connection_type="causative",
             confidence_level="high",
-            created_by="testuser",
+            created_by="github:testuser",
         )
 
         assert mapping_id is not None
@@ -114,7 +114,7 @@ class TestProposalModel:
             user_name="Test User",
             user_email="test@example.com",
             user_affiliation="Test Org",
-            provider_username="testuser",
+            provider_username="github:testuser",
             proposed_confidence="high",
         )
 
