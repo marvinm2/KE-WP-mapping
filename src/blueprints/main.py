@@ -710,8 +710,8 @@ def ke_genes_for_ke(ke_id):
 def stats():
     """Public dataset metrics dashboard — no login required."""
     mapping_stats = get_mapping_stats() if mapping_model else {
-        "wp_total": 0, "go_total": 0, "total": 0,
-        "wp_by_confidence": {}, "go_by_confidence": {}
+        "wp_total": 0, "go_total": 0, "reactome_total": 0, "total": 0,
+        "wp_by_confidence": {}, "go_by_confidence": {}, "reactome_by_confidence": {}
     }
     return render_template("stats.html", stats=mapping_stats)
 

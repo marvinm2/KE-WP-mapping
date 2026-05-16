@@ -17,9 +17,9 @@
 {% include 'components/navigation.html' %}
 <div class="container">
     <h1>Dataset Metrics</h1>
-    <p class="text-muted" style="margin-bottom:24px;">Public overview of the curated KE-WP and KE-GO mapping database. No login required.</p>
+    <p class="text-muted" style="margin-bottom:24px;">Public overview of the curated KE-WP, KE-GO, and KE-Reactome mapping database. No login required.</p>
 
-    <!-- Metric Cards -->
+    <!-- Metric Cards: four resources (WP, GO, Reactome, Total) -->
     <div class="stat-cards-grid">
         <div class="stat-card stat-card--blue">
             <div class="stat-card__value">{{ stats.wp_total }}</div>
@@ -29,20 +29,25 @@
             <div class="stat-card__value">{{ stats.go_total }}</div>
             <div class="stat-card__label">KE-GO Mappings</div>
         </div>
+        <div class="stat-card stat-card--orange">
+            <div class="stat-card__value">{{ stats.reactome_total }}</div>
+            <div class="stat-card__label">KE-Reactome Mappings</div>
+        </div>
         <div class="stat-card stat-card--dark">
             <div class="stat-card__value">{{ stats.total }}</div>
             <div class="stat-card__label">Total Mappings</div>
         </div>
     </div>
 
-    <!-- Confidence Breakdown Table -->
+    <!-- Confidence Breakdown Table: WP, GO, Reactome columns -->
     <h2 style="font-size:18px;margin-bottom:12px;">Confidence Breakdown</h2>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:32px;max-width:480px;">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:32px;max-width:640px;">
         <thead>
             <tr>
                 <th style="padding:10px 14px;text-align:left;">Level</th>
                 <th style="padding:10px 14px;text-align:right;">KE-WP</th>
                 <th style="padding:10px 14px;text-align:right;">KE-GO</th>
+                <th style="padding:10px 14px;text-align:right;">KE-Reactome</th>
                 <th style="padding:10px 14px;text-align:right;">Total</th>
             </tr>
         </thead>
@@ -50,84 +55,71 @@
             {% for level in ['high', 'medium', 'low'] %}
             {% set wp_n = stats.wp_by_confidence.get(level, 0) %}
             {% set go_n = stats.go_by_confidence.get(level, 0) %}
+            {% set reactome_n = stats.reactome_by_confidence.get(level, 0) %}
             <tr>
                 <td style="padding:8px 14px;text-transform:capitalize;">{{ level }}</td>
                 <td style="padding:8px 14px;text-align:right;">{{ wp_n }}</td>
                 <td style="padding:8px 14px;text-align:right;">{{ go_n }}</td>
-                <td style="padding:8px 14px;text-align:right;font-weight:600;">{{ wp_n + go_n }}</td>
+                <td style="padding:8px 14px;text-align:right;">{{ reactome_n }}</td>
+                <td style="padding:8px 14px;text-align:right;font-weight:600;">{{ wp_n + go_n + reactome_n }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <!-- Phase E.2: Upstream source-version snapshot table. Anchored as
-         #source-versions so the site-footer snapshot link lands here. -->
-    <h2 id="source-versions" style="font-size:18px;margin-bottom:8px;">Upstream resource snapshot</h2>
-    <p class="text-muted" style="font-size:14px;margin-bottom:16px;">
-        The release of each upstream resource the running container is currently serving.
-        New approvals are stamped with these values on the approved mapping row,
-        so downstream consumers can pin analyses against a specific upstream release.
+    <!-- Data sources: consolidated live version-badge strip (VER-03) -->
+    <h2 id="source-versions" style="font-size:18px;margin-bottom:8px;">Data sources</h2>
+    <p class="text-muted" style="font-size:14px;margin-bottom:12px;">
+        Live upstream resource versions the running container is currently serving.
+        New approvals are stamped with these values so downstream consumers can pin analyses
+        against a specific upstream release.
         See <a href="https://github.com/marvinm2/KE-WP-mapping/blob/main/docs/DMP.md" target="_blank" rel="noopener">DMP §2.4</a> for the rationale.
     </p>
-    {% set _sv = (source_versions.sources if source_versions else {}) %}
-    {% if _sv %}
-    <table style="width:100%;border-collapse:collapse;margin-bottom:32px;max-width:720px;">
-        <thead>
-            <tr>
-                <th style="padding:10px 14px;text-align:left;">Resource</th>
-                <th style="padding:10px 14px;text-align:left;">Release</th>
-                <th style="padding:10px 14px;text-align:left;">Method</th>
-                <th style="padding:10px 14px;text-align:left;">Captured</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% set _resource_labels = [
-                ('wikipathways', 'WikiPathways', 'release_date'),
-                ('gene_ontology', 'Gene Ontology', 'release_date'),
-                ('reactome', 'Reactome', 'release_version'),
-                ('aopwiki', 'AOP-Wiki', 'snapshot_date'),
-            ] %}
-            {% for key, label, primary_field in _resource_labels %}
-              {% set _entry = _sv.get(key, {}) %}
-              <tr>
-                <td style="padding:8px 14px;font-weight:600;">{{ label }}</td>
-                <td style="padding:8px 14px;">
-                  {% if _entry.get('status') == 'ok' %}
-                    {% if key == 'reactome' %}
-                      v{{ _entry.release_version }}{% if _entry.release_date %} ({{ _entry.release_date }}){% endif %}
-                    {% else %}
-                      {{ _entry.get(primary_field, '—') }}
-                    {% endif %}
-                  {% else %}
-                    <span class="text-muted">unknown</span>{% if _entry.get('reason') %} <span class="text-muted" style="font-size:0.85em;">— {{ _entry.reason }}</span>{% endif %}
-                  {% endif %}
-                </td>
-                <td style="padding:8px 14px;font-size:0.9em;color:var(--color-text-muted, #666);">
-                  {{ _entry.get('method', '—') }}
-                </td>
-                <td style="padding:8px 14px;font-size:0.9em;color:var(--color-text-muted, #666);">
-                  {{ (_entry.get('captured_at') or '')[:10] or '—' }}
-                </td>
-              </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p class="text-muted" style="font-size:14px;margin-bottom:32px;">
-        <em>Snapshot manifest not available — the container may not have a
-        <code>data/source_versions.json</code> yet. Run <code>make capture-versions</code>
-        on the deployed image to generate it.</em>
-    </p>
-    {% endif %}
+    <div class="landing__version-badges" style="margin-bottom:32px;">
+        {% set _lv = live_versions or {} %}
+        {% set _wp = _lv.get('wikipathways', {}) %}
+        {% if _wp.get('unavailable') %}
+            <span class="version-badge version-badge--unavailable" title="Could not reach upstream source">WikiPathways — unavailable</span>
+        {% else %}
+            <span class="version-badge">WikiPathways {{ _wp.get('version', '—') }}</span>
+        {% endif %}
+        {% set _go = _lv.get('gene_ontology', {}) %}
+        {% if _go.get('unavailable') %}
+            <span class="version-badge version-badge--unavailable" title="Could not reach upstream source">GO — unavailable</span>
+        {% else %}
+            <span class="version-badge">GO {{ _go.get('version', '—') }}</span>
+        {% endif %}
+        {% set _re = _lv.get('reactome', {}) %}
+        {% if _re.get('unavailable') %}
+            <span class="version-badge version-badge--unavailable" title="Could not reach upstream source">Reactome — unavailable</span>
+        {% else %}
+            <span class="version-badge">Reactome {{ _re.get('version', '—') }}</span>
+        {% endif %}
+        {% set _aw = _lv.get('aopwiki', {}) %}
+        {% if _aw.get('unavailable') %}
+            <span class="version-badge version-badge--unavailable" title="Could not reach upstream source">AOP-Wiki — unavailable</span>
+        {% else %}
+            <span class="version-badge">AOP-Wiki {{ _aw.get('version', '—') }}</span>
+        {% endif %}
+    </div>
 
     <!-- Filter + Export Section -->
     <h2 style="font-size:18px;margin-bottom:12px;">Filter and Export</h2>
     <p class="text-muted" style="font-size:14px;margin-bottom:16px;">
         Filter the dataset by AOP and/or confidence level, then download the matching subset as JSON or CSV.
-        Downloads come from the <a href="/api/v1/mappings" target="_blank">/api/v1/mappings</a> endpoint.
+        Select a resource below to target the export.
     </p>
 
     <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
+        <!-- Resource selector -->
+        <div>
+            <label class="form-label" style="font-size:13px;">Resource</label>
+            <div id="stats-resource-btns" style="display:flex;gap:4px;">
+                <button type="button" class="conf-filter-btn active" data-resource="wp">KE-WP</button>
+                <button type="button" class="conf-filter-btn" data-resource="go">KE-GO</button>
+                <button type="button" class="conf-filter-btn" data-resource="reactome">KE-Reactome</button>
+            </div>
+        </div>
         <!-- AOP filter -->
         <div style="min-width:200px;max-width:360px;flex:1;">
             <label for="stats-aop-select" class="form-label" style="font-size:13px;">Filter by AOP</label>
@@ -148,7 +140,7 @@
     </div>
 
     <!-- Export buttons -->
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
         <a id="export-json-btn" href="/api/v1/mappings" target="_blank" class="btn-link-blue" style="padding:10px 20px;">
             Download JSON
         </a>
@@ -156,14 +148,14 @@
             Download CSV
         </a>
     </div>
+    <p id="stats-resource-note" style="font-size:12px;margin-bottom:16px;" class="text-muted">
+        Exporting KE-WP mappings via <code>/api/v1/mappings</code>.
+        For KE-GO use <a href="/api/v1/go-mappings" target="_blank">/api/v1/go-mappings</a>;
+        for KE-Reactome use <a href="/api/v1/reactome-mappings" target="_blank">/api/v1/reactome-mappings</a>.
+    </p>
 
     <!-- AOP coverage indicator -->
     <div id="aop-coverage-indicator" class="coverage-indicator"></div>
-
-    <p style="font-size:12px;" class="text-muted">
-        Note: Export downloads KE-WP mappings only. For KE-GO mappings, use
-        <a href="/api/v1/go-mappings" target="_blank">/api/v1/go-mappings</a>.
-    </p>
 
     <!-- Export Downloads -->
     <h2 style="font-size:18px;margin-bottom:12px;margin-top:32px;">Export Formats</h2>
@@ -174,8 +166,10 @@
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:32px;">
         <a href="/exports/gmt/ke-wp" class="btn-link-blue" style="padding:10px 18px;">KE-WP GMT</a>
         <a href="/exports/gmt/ke-go" class="btn-link-teal" style="padding:10px 18px;">KE-GO GMT</a>
+        <a href="/exports/gmt/ke-reactome" class="btn-link-orange" style="padding:10px 18px;">KE-Reactome GMT</a>
         <a href="/exports/rdf/ke-wp" class="btn-link-dark" style="padding:10px 18px;">KE-WP Turtle</a>
         <a href="/exports/rdf/ke-go" class="btn-link-dark" style="padding:10px 18px;">KE-GO Turtle</a>
+        <a href="/exports/rdf/ke-reactome" class="btn-link-dark" style="padding:10px 18px;">KE-Reactome Turtle</a>
     </div>
 </div>
 
@@ -183,7 +177,14 @@
 
 <script>
 $(document).ready(function() {
-    const statsState = { aopId: null, confidence: null };
+    const statsState = { aopId: null, confidence: null, resource: 'wp' };
+
+    // Endpoint map per resource
+    const RESOURCE_ENDPOINTS = {
+        'wp':       '/api/v1/mappings',
+        'go':       '/api/v1/go-mappings',
+        'reactome': '/api/v1/reactome-mappings'
+    };
 
     // Load AOP options into select
     $.getJSON('/get_aop_options').done(function(options) {
@@ -191,15 +192,24 @@ $(document).ready(function() {
             // /get_aop_options returns {aopId, aopTitle} objects
             if (opt.aopId) {
                 $('#stats-aop-select').append(
-                    new Option(opt.aopId + ' \u2014 ' + opt.aopTitle, opt.aopId, false, false)
+                    new Option(opt.aopId + ' — ' + opt.aopTitle, opt.aopId, false, false)
                 );
             }
         });
         $('#stats-aop-select').select2({
-            placeholder: 'Search AOP by name or ID\u2026',
+            placeholder: 'Search AOP by name or ID…',
             allowClear: true,
             width: '100%'
         });
+    });
+
+    // Resource selector
+    $('#stats-resource-btns .conf-filter-btn').on('click', function() {
+        $('#stats-resource-btns .conf-filter-btn').removeClass('active');
+        $(this).addClass('active');
+        statsState.resource = $(this).data('resource') || 'wp';
+        updateExportLinks();
+        updateAopCoverage();
     });
 
     $('#stats-aop-select').on('change', function() {
@@ -216,19 +226,21 @@ $(document).ready(function() {
     });
 
     function updateExportLinks() {
+        const endpoint = RESOURCE_ENDPOINTS[statsState.resource] || '/api/v1/mappings';
         const params = new URLSearchParams();
         if (statsState.aopId) params.set('aop_id', statsState.aopId);
         if (statsState.confidence) params.set('confidence_level', statsState.confidence);
 
         const baseParams = params.toString();
-        $('#export-json-btn').attr('href', '/api/v1/mappings' + (baseParams ? '?' + baseParams : ''));
+        $('#export-json-btn').attr('href', endpoint + (baseParams ? '?' + baseParams : ''));
 
         params.set('format', 'csv');
-        $('#export-csv-btn').attr('href', '/api/v1/mappings?' + params.toString());
+        $('#export-csv-btn').attr('href', endpoint + '?' + params.toString());
     }
 
     function updateAopCoverage() {
         const aopId = statsState.aopId;
+        const endpoint = RESOURCE_ENDPOINTS[statsState.resource] || '/api/v1/mappings';
         if (!aopId) {
             $('#aop-coverage-indicator').hide().text('');
             return;
@@ -236,11 +248,13 @@ $(document).ready(function() {
         $.getJSON('/get_aop_kes/' + encodeURIComponent(aopId))
             .done(function(aopKes) {
                 const totalKes = Array.isArray(aopKes) ? aopKes.length : 0;
-                $.getJSON('/api/v1/mappings?aop_id=' + encodeURIComponent(aopId) + '&per_page=1')
+                $.getJSON(endpoint + '?aop_id=' + encodeURIComponent(aopId) + '&per_page=1')
                     .done(function(response) {
                         const mappedCount = response.pagination ? response.pagination.total : 0;
+                        const label = statsState.resource === 'reactome' ? 'KE-Reactome'
+                                    : statsState.resource === 'go' ? 'KE-GO' : 'KE-WP';
                         $('#aop-coverage-indicator')
-                            .text('Coverage: ' + mappedCount + ' of ' + totalKes + ' KEs in AOP ' + aopId + ' have approved KE-WP mappings.')
+                            .text('Coverage: ' + mappedCount + ' of ' + totalKes + ' KEs in AOP ' + aopId + ' have approved ' + label + ' mappings.')
                             .show();
                     })
                     .fail(function() {

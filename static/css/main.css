@@ -1923,6 +1923,7 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
 .stat-card--blue { border-top: 4px solid var(--color-primary-blue); }
 .stat-card--teal { border-top: 4px solid var(--color-teal-accent); }
 .stat-card--dark { border-top: 4px solid var(--color-primary-dark); }
+.stat-card--orange { border-top: 4px solid var(--color-secondary-orange); }
 
 .stat-card__value {
     font-size: 36px;
@@ -1932,6 +1933,7 @@ table.dataTable tbody td { padding: 8px 12px; font-size: var(--font-size-sm); bo
 .stat-card--blue .stat-card__value { color: var(--color-primary-blue); }
 .stat-card--teal .stat-card__value { color: var(--color-teal-accent); }
 .stat-card--dark .stat-card__value { color: var(--color-primary-dark); }
+.stat-card--orange .stat-card__value { color: var(--color-secondary-orange); }
 
 .stat-card__label {
     font-size: var(--font-size-sm);
