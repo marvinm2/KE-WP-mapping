@@ -1532,6 +1532,9 @@ select:focus:not(:focus-visible),
 .btn-provider--orcid { background: #A6CE39; color: #fff; }
 .btn-provider--ls { background: #2B579A; }
 .btn-provider--surf { background: #0077C8; }
+.btn-provider--disabled { opacity: 0.55; cursor: not-allowed; border: none; font-family: inherit; }
+.btn-provider--disabled:hover { opacity: 0.55; }
+.btn-provider__hint { font-size: 0.7rem; font-weight: 400; opacity: 0.9; }
 
 /* WikiPathways embed viewer */
 .wp-explore-modal {

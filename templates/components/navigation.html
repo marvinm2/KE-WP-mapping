@@ -65,6 +65,16 @@
         </svg>
         Sign in with ORCID
       </a>
+      {% else %}
+      <button type="button" disabled class="btn-provider btn-provider--orcid btn-provider--disabled"
+              title="ORCID login is coming soon">
+        <svg class="btn-provider__icon" width="20" height="20" viewBox="0 0 256 256">
+          <circle cx="128" cy="128" r="128" fill="#A6CE39"/>
+          <path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zm2.4-129.4c0 5.5-4.5 10.1-10.1 10.1-5.6 0-10.1-4.6-10.1-10.1 0-5.6 4.5-10.1 10.1-10.1 5.6 0 10.1 4.6 10.1 10.1zm20.2 22.3h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.2-13.2-39.7-42.9-39.7h-24.5v79.4z"/>
+        </svg>
+        Sign in with ORCID
+        <span class="btn-provider__hint">(coming soon)</span>
+      </button>
       {% endif %}
       {% if ls_configured %}
       <a href="{{ url_for('auth.login_provider', provider='ls') }}" class="btn-provider btn-provider--ls">
@@ -74,6 +84,16 @@
         </svg>
         Sign in with LS Login
       </a>
+      {% else %}
+      <button type="button" disabled class="btn-provider btn-provider--ls btn-provider--disabled"
+              title="LS Login is coming soon">
+        <svg class="btn-provider__icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <rect width="20" height="20" rx="3" fill="#6CAC3D"/>
+          <text x="10" y="14" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="bold" fill="#fff">LS</text>
+        </svg>
+        Sign in with LS Login
+        <span class="btn-provider__hint">(coming soon)</span>
+      </button>
       {% endif %}
       {% if surf_configured %}
         {% if surf_enabled %}
@@ -88,7 +108,7 @@
         <button type="button" disabled class="btn-provider btn-provider--surf btn-provider--disabled"
                 title="SURFconext login is coming soon">
           <svg class="btn-provider__icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-            <rect width="20" height="20" rx="3" fill="#007BC7" opacity="0.5"/>
+            <rect width="20" height="20" rx="3" fill="#007BC7"/>
             <text x="10" y="14" text-anchor="middle" font-family="sans-serif" font-size="7" font-weight="bold" fill="#fff">SURF</text>
           </svg>
           Sign in with SURFconext
