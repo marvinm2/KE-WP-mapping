@@ -40,6 +40,9 @@ migrate:	## Run database migration
 go-hierarchy:	## Build GO hierarchy data (IC scores, ancestors, depths)
 	python scripts/precompute_go_hierarchy.py
 
+oecd-status:	## Regenerate data/aop_oecd_status.json from AOP-Wiki RDF SPARQL (run quarterly)
+	python scripts/precompute_oecd_status.py
+
 capture-versions:	## Refresh data/source_versions.json from WP / GO / Reactome / AOP-Wiki
 	python scripts/capture_source_versions.py
 
