@@ -2950,3 +2950,203 @@ mark.search-highlight {
     background-color: #fff3cd;
     padding: 1px 2px;
 }
+
+/* =============================================================================
+   Landing Page — all selectors scoped under .landing or .version-badge
+   (v1.4 precedent: no bare element selectors to avoid global cascade bleed)
+   ============================================================================= */
+
+/* ---- Hero ---- */
+.landing__hero {
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, #3d3480 100%);
+    padding: 60px 24px;
+    text-align: center;
+    color: var(--color-white);
+}
+
+.landing__hero-inner {
+    max-width: var(--layout-max-width);
+    margin: 0 auto;
+}
+
+.landing__hero-title {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 700;
+    margin: 0 0 16px;
+    line-height: 1.2;
+    color: var(--color-white);
+}
+
+.landing__hero-subtitle {
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 660px;
+    margin: 0 auto;
+    opacity: 0.9;
+    color: var(--color-white);
+}
+
+/* ---- Stat cards grid ---- */
+.landing__stats {
+    background: var(--color-bg-light);
+    padding: 40px 24px 24px;
+}
+
+.landing__stats-inner {
+    margin: 0 auto;
+}
+
+.landing__stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .landing__stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .landing__stat-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.landing .stat-card--purple {
+    border-top: 4px solid var(--color-secondary-purple);
+}
+
+.landing .stat-card--purple .stat-card__value {
+    color: var(--color-secondary-purple);
+}
+
+/* ---- Version badges ---- */
+.landing__version-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.version-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 500;
+    background-color: var(--color-primary-blue);
+    color: var(--color-white);
+    letter-spacing: 0.01em;
+}
+
+.version-badge--unavailable {
+    background-color: var(--color-bg-gray);
+    color: var(--color-text-gray);
+    cursor: help;
+    text-decoration: line-through;
+    text-decoration-color: var(--color-text-muted);
+}
+
+/* ---- CTAs ---- */
+.landing__ctas {
+    padding: 32px 24px;
+    background: var(--color-bg-lighter);
+    text-align: center;
+}
+
+.landing__ctas-inner {
+    margin: 0 auto;
+}
+
+.landing__cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+}
+
+.landing__cta-btn {
+    display: inline-block;
+    padding: 14px 32px;
+    border-radius: var(--radius-lg);
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.15s, transform 0.1s;
+}
+
+.landing__cta-btn:hover {
+    opacity: 0.88;
+    transform: translateY(-1px);
+}
+
+.landing__cta-btn--primary {
+    background-color: var(--color-primary-pink);
+    color: var(--color-white);
+}
+
+.landing__cta-btn--secondary {
+    background-color: var(--color-white);
+    color: var(--color-primary-dark);
+    border: 2px solid var(--color-primary-dark);
+}
+
+/* ---- How it works ---- */
+.landing__how {
+    padding: 40px 24px 48px;
+    background: var(--color-bg-light);
+}
+
+.landing__how-inner {
+    margin: 0 auto;
+}
+
+.landing__how-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    margin: 0 0 24px;
+    text-align: center;
+}
+
+.landing__how-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 660px;
+    margin: 0 auto;
+}
+
+.landing__how-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.landing__how-step-num {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background-color: var(--color-primary-dark);
+    color: var(--color-white);
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.landing__how-step strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--color-primary-dark);
+    font-weight: 600;
+}
