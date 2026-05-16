@@ -39,9 +39,6 @@
             <button type="button" class="explore-tab tab-btn" data-tab="reactome">
                 KE-Reactome Mappings ({{ reactome_count }})
             </button>
-            <button type="button" class="explore-tab tab-btn" data-tab="gaps">
-                Coverage Gaps
-            </button>
         </div>
 
         <!-- KE-WP Mappings Table -->
@@ -156,33 +153,6 @@
             </table>
         </div>
 
-        <!-- Coverage Gaps Tab -->
-        <div id="gaps-explore-content" style="display:none;">
-            <div style="margin-bottom:16px;">
-                <label for="gaps-aop-select" class="form-label" style="font-size:13px;">Select AOP to view coverage gaps</label>
-                <select id="gaps-aop-select" style="width:100%;max-width:400px;">
-                    <option value="">-- Select an AOP --</option>
-                </select>
-            </div>
-            <div id="gaps-placeholder" class="text-muted-italic" style="padding:20px 0;">
-                Select an AOP above to see which KEs have no approved KE-WP mapping.
-            </div>
-            <div id="gaps-content" style="display:none;">
-                <p id="gaps-summary" style="font-size:14px;margin-bottom:12px;"></p>
-                <table id="gapsTable" class="display" width="100%" style="display:none;">
-                    <thead>
-                        <tr>
-                            <th>KE ID</th>
-                            <th>KE Title</th>
-                            <th>Biological Level</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-                <p id="gaps-all-mapped" style="display:none;" class="confidence-high">All KEs in this AOP have at least one approved KE-WP mapping.</p>
-            </div>
-        </div>
     </div>
 
     <!-- Proposal Modal -->
@@ -414,17 +384,11 @@
                     var label = opt.aopTitle || opt.aopLabel || id;
                     if (id) {
                         $('#aop-filter-select').append(new Option(label, id, false, false));
-                        $('#gaps-aop-select').append(new Option(label, id, false, false));
                     }
                 });
                 $('#aop-filter-select').select2({
                     placeholder: 'Search AOP by name or ID...',
                     allowClear: true,
-                    width: '100%'
-                });
-                $('#gaps-aop-select').select2({
-                    placeholder: '-- Select an AOP --',
-                    allowClear: false,
                     width: '100%'
                 });
             });
@@ -444,100 +408,6 @@
                 applyWpFilters();
             });
 
-            // Coverage Gaps tab: AOP selection handler
-            $('#gaps-aop-select').on('change', function() {
-                var aopId = $(this).val();
-                if (!aopId) {
-                    $('#gaps-placeholder').show();
-                    $('#gaps-content').hide();
-                    return;
-                }
-                $('#gaps-placeholder').hide();
-                $('#gaps-content').show();
-                $('#gaps-summary').text('Loading...');
-                loadCoverageGaps(aopId);
-            });
-
-            function loadCoverageGaps(aopId) {
-                // /get_aop_kes returns [{KElabel, KEtitle, biolevel, KEpage}, ...]
-                var encodedAopId = encodeURIComponent(aopId);
-                $.getJSON('/get_aop_kes/' + encodedAopId)
-                    .done(function(aopKes) {
-                        // Get all mapped KE IDs for this AOP from v1 API
-                        $.getJSON('/api/v1/mappings?aop_id=' + encodedAopId + '&per_page=200')
-                            .done(function(response) {
-                                var mappedKeIds = {};
-                                (response.data || []).forEach(function(m) {
-                                    mappedKeIds[m.ke_id] = true;
-                                });
-                                var gapKes = aopKes.filter(function(ke) {
-                                    var keId = ke.KElabel || ke.ke_id || ke.keId || '';
-                                    return !mappedKeIds[keId];
-                                });
-                                renderGapsTable(gapKes, aopKes.length, Object.keys(mappedKeIds).length);
-                            })
-                            .fail(function() {
-                                $('#gaps-summary').text('Error loading mapped KEs. Please try again.');
-                            });
-                    })
-                    .fail(function() {
-                        $('#gaps-summary').text('Error loading KEs for this AOP. Please try again.');
-                    });
-            }
-
-            function renderGapsTable(gapKes, totalKes, mappedCount) {
-                var gapCount = gapKes.length;
-                var gapClass = gapCount > 0 ? 'confidence-low' : 'confidence-high';
-                var gapLabel = gapCount + ' KE' + (gapCount !== 1 ? 's' : '');
-                var gapWord = gapCount > 0 ? 'have no mapping yet.' : 'all mapped!';
-
-                $('#gaps-summary').html(
-                    '<strong>' + mappedCount + '</strong> of <strong>' + totalKes + '</strong> KEs in this AOP have approved KE-WP mappings. ' +
-                    '<strong class="' + gapClass + '">' + gapLabel + '</strong> ' + gapWord
-                );
-
-                if (gapCount === 0) {
-                    $('#gapsTable').hide();
-                    $('#gaps-all-mapped').show();
-                    return;
-                }
-
-                $('#gaps-all-mapped').hide();
-
-                // Destroy existing DataTable if already initialized
-                if ($.fn.DataTable.isDataTable('#gapsTable')) {
-                    $('#gapsTable').DataTable().destroy();
-                    $('#gapsTable tbody').empty();
-                }
-
-                // /get_aop_kes uses KElabel, KEtitle, biolevel field names
-                gapKes.forEach(function(ke) {
-                    var keId = ke.KElabel || ke.ke_id || ke.keId || '';
-                    var keTitle = ke.KEtitle || ke.ke_title || ke.keTitle || '';
-                    var biolevel = ke.biolevel || '';
-                    var encodedKe = encodeURIComponent(keId);
-                    $('#gapsTable tbody').append(
-                        '<tr>' +
-                        '<td>' + keId + '</td>' +
-                        '<td>' + keTitle + '</td>' +
-                        '<td>' + biolevel + '</td>' +
-                        '<td><a href="/?ke_id=' + encodedKe + '" class="btn-map-link">Map</a></td>' +
-                        '</tr>'
-                    );
-                });
-
-                $('#gapsTable').show().DataTable({
-                    order: [[0, 'asc']],
-                    pageLength: 25,
-                    columnDefs: [
-                        { width: '10%', targets: 0, className: 'dt-center' },
-                        { width: '50%', targets: 1 },
-                        { width: '20%', targets: 2, className: 'dt-center' },
-                        { width: '20%', targets: 3, className: 'dt-center' }
-                    ]
-                });
-            }
-
             // KE-GO DataTable (lazy init, server-rendered rows)
             var goTableInitialized = false;
 
@@ -545,7 +415,7 @@
             var reactomeState = { aopId: null, aopLabel: null, confidence: null };
             var reactomeTableInitialized = false;
 
-            // Tab switching (4 tabs: wp, go, reactome, gaps)
+            // Tab switching (3 tabs: wp, go, reactome — Coverage Gaps merged into AOP Explorer)
             $('.explore-tab').on('click', function() {
                 var tab = $(this).data('tab');
 
@@ -559,12 +429,10 @@
                     $('#wp-explore-content').show();
                     $('#go-explore-content').hide();
                     $('#reactome-explore-content').hide();
-                    $('#gaps-explore-content').hide();
                 } else if (tab === 'go') {
                     $('#wp-explore-content').hide();
                     $('#go-explore-content').show();
                     $('#reactome-explore-content').hide();
-                    $('#gaps-explore-content').hide();
 
                     if (!goTableInitialized) {
                         $('#goDatasetTable').DataTable(
@@ -587,7 +455,6 @@
                     $('#wp-explore-content').hide();
                     $('#go-explore-content').hide();
                     $('#reactome-explore-content').show();
-                    $('#gaps-explore-content').hide();
 
                     if (!reactomeTableInitialized) {
                         $('#reactomeDatasetTable').DataTable({
@@ -637,11 +504,6 @@
                         });
                         reactomeTableInitialized = true;
                     }
-                } else if (tab === 'gaps') {
-                    $('#wp-explore-content').hide();
-                    $('#go-explore-content').hide();
-                    $('#reactome-explore-content').hide();
-                    $('#gaps-explore-content').show();
                 }
             });
 
@@ -688,9 +550,9 @@
                 renderReactomeFilterChips();
             }
 
-            // Populate Reactome AOP Select2 from same /get_aop_options source as WP/gaps selects.
-            // Note: the WP loader (above) already fetches and appends to #aop-filter-select and
-            // #gaps-aop-select; we duplicate the request here so the Reactome select gets the same
+            // Populate Reactome AOP Select2 from same /get_aop_options source as WP select.
+            // Note: the WP loader (above) already fetches and appends to #aop-filter-select;
+            // we duplicate the request here so the Reactome select gets the same
             // option list and a Select2 init. Cheap enough — endpoint is fast and cached client-side.
             $.getJSON('/get_aop_options').done(function(options) {
                 options.forEach(function(opt) {
