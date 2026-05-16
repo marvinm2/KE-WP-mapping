@@ -31,11 +31,19 @@
         </div>
 
         <!-- AOP Selector Bar -->
-        <div class="aop-selector-bar">
+        <div class="aop-selector-bar aop-explorer">
             <label for="aop-selector" class="aop-selector-bar__label">Find an AOP</label>
             <select id="aop-selector" class="aop-selector-bar__select" style="width: 100%;">
                 <option value="">Search by AOP title or ID...</option>
             </select>
+
+            <!-- OECD development-status multi-select filter (all 8 buckets selected by default) -->
+            <div class="aop-explorer__oecd-filter-wrap" style="margin-top:10px;">
+                <label for="oecd-status-filter" class="aop-selector-bar__label" style="font-size:13px;">Filter by OECD status</label>
+                <select id="oecd-status-filter" multiple style="width:100%;">
+                    <!-- Options populated dynamically by aop-graph.js wireOecdFilter() -->
+                </select>
+            </div>
         </div>
 
         <!-- Card Grid Area (shown before AOP is selected) -->
@@ -60,6 +68,21 @@
             <button id="aop-back-btn" class="aop-back-btn" type="button">
                 &larr; Back to all AOPs
             </button>
+
+            <!-- Graph header: AOP title + OECD badge -->
+            <div class="aop-explorer__graph-header">
+                <span id="aop-oecd-badge"></span>
+            </div>
+
+            <!-- Gap segmented control — visible above graph when an AOP is selected -->
+            <div class="aop-gap-filter" role="group" aria-label="KE coverage filter">
+                <button type="button" class="gap-filter-btn active" data-filter="all">All KEs <span class="gap-filter-count">(0)</span></button>
+                <button type="button" class="gap-filter-btn" data-filter="unmapped">Unmapped only <span class="gap-filter-count">(0)</span></button>
+                <button type="button" class="gap-filter-btn" data-filter="gap-wp">Gaps in WikiPathways <span class="gap-filter-count">(0)</span></button>
+                <button type="button" class="gap-filter-btn" data-filter="gap-go">Gaps in GO <span class="gap-filter-count">(0)</span></button>
+                <button type="button" class="gap-filter-btn" data-filter="gap-reactome">Gaps in Reactome <span class="gap-filter-count">(0)</span></button>
+            </div>
+
             <div id="cy"></div>
             <div class="aop-graph-legend">
                 <span class="aop-graph-legend__badge-sample">5</span>
