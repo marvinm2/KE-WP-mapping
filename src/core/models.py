@@ -375,6 +375,11 @@ class Database:
             # Normalise once on startup so downstream exporters see ISO-8601.
             self._migrate_iso8601_datetime_backfill(conn)
 
+            # Phase 35 (AUTH-04): DB-level provider-prefixed identity enforcement.
+            # Creates BEFORE INSERT/UPDATE triggers that abort writes where an
+            # identity-bearing column is non-NULL and lacks a ':' prefix separator.
+            self._migrate_identity_check_constraint(conn)
+
             conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -1357,6 +1362,87 @@ class Database:
         except Exception as e:
             logger.error("Error in _migrate_iso8601_datetime_backfill: %s", e)
             raise
+
+    def _migrate_identity_check_constraint(self, conn):
+        """
+        Phase 35 (AUTH-04): Create BEFORE INSERT and BEFORE UPDATE triggers
+        that enforce the provider-prefixed identity invariant at the DB layer.
+
+        SQLite does not support ALTER TABLE ... ADD CONSTRAINT, so we use
+        triggers (RESEARCH.md Pitfall 2). Each trigger aborts the write with
+        RAISE(ABORT, ...) when an identity-bearing column is non-NULL and does
+        not contain a ':' separator.
+
+        Covered columns:
+            proposals.provider_username
+            mappings.created_by
+            ke_go_mappings.created_by
+            ke_reactome_mappings.created_by
+
+        NULL values are allowed (guest/legacy rows where the column is genuinely
+        empty). This is purely forward-looking: _migrate_provider_prefix
+        (Phase 14) already backfills existing rows.
+
+        Idempotent: uses CREATE TRIGGER IF NOT EXISTS on all trigger definitions.
+        If a target table does not yet exist (partial DB) the error is logged as
+        a WARNING rather than raising, matching the defensive style of sibling
+        migrations.
+        """
+        # Each entry: (table_name, column_name)
+        identity_columns = [
+            ("proposals", "provider_username"),
+            ("mappings", "created_by"),
+            ("ke_go_mappings", "created_by"),
+            ("ke_reactome_mappings", "created_by"),
+        ]
+
+        for table, col in identity_columns:
+            # Check the table exists before creating triggers — skip with warning
+            # if absent (partial DB / fresh environment mid-migration-chain).
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                (table,),
+            )
+            if cursor.fetchone() is None:
+                logger.warning(
+                    "_migrate_identity_check_constraint: table '%s' not found, "
+                    "skipping trigger creation for %s.%s",
+                    table, table, col,
+                )
+                continue
+
+            trigger_ins = f"enforce_identity_prefix_{table}_{col}_ins"
+            trigger_upd = f"enforce_identity_prefix_{table}_{col}_upd"
+
+            try:
+                conn.execute(f"""
+                    CREATE TRIGGER IF NOT EXISTS {trigger_ins}
+                    BEFORE INSERT ON {table}
+                    WHEN NEW.{col} IS NOT NULL AND NEW.{col} NOT LIKE '%:%'
+                    BEGIN
+                        SELECT RAISE(ABORT,
+                            '{col} must contain a provider: prefix (e.g. github:user)');
+                    END
+                """)
+                conn.execute(f"""
+                    CREATE TRIGGER IF NOT EXISTS {trigger_upd}
+                    BEFORE UPDATE OF {col} ON {table}
+                    WHEN NEW.{col} IS NOT NULL AND NEW.{col} NOT LIKE '%:%'
+                    BEGIN
+                        SELECT RAISE(ABORT,
+                            '{col} must contain a provider: prefix (e.g. github:user)');
+                    END
+                """)
+            except Exception as e:
+                logger.warning(
+                    "_migrate_identity_check_constraint: could not create triggers "
+                    "for %s.%s: %s", table, col, e,
+                )
+
+        logger.info(
+            "Phase 35 (AUTH-04): identity-prefix triggers ensured for %d column(s)",
+            len(identity_columns),
+        )
 
     def _add_columns_if_missing(self, conn, *, table, fields, log_label):
         """

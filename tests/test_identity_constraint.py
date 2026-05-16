@@ -29,11 +29,12 @@ def _open(db_path):
 
 
 def _insert_proposal(conn, provider_username):
-    """Minimal proposals INSERT — only provider_username is constrained here."""
+    """Minimal proposals INSERT — satisfies NOT NULL columns, sets provider_username."""
     conn.execute(
-        "INSERT INTO proposals (ke_id, ke_title, wp_id, wp_title, provider_username) "
-        "VALUES (?, ?, ?, ?, ?)",
-        ("KE:1", "Test KE", "WP1", "Test Pathway", provider_username),
+        "INSERT INTO proposals "
+        "(ke_id, ke_title, wp_id, wp_title, user_name, user_email, user_affiliation, provider_username) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("KE:1", "Test KE", "WP1", "Test Pathway", "Alice", "alice@example.com", "Test Org", provider_username),
     )
     conn.commit()
 
