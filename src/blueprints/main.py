@@ -8,7 +8,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from flask import Blueprint, abort, current_app, make_response, render_template, send_file, send_from_directory, session, request, jsonify
+from flask import Blueprint, abort, current_app, make_response, redirect, render_template, send_file, send_from_directory, session, request, jsonify, url_for
 from werkzeug.security import safe_join
 
 from src.blueprints.admin import _get_admin_users
@@ -30,6 +30,16 @@ reactome_mapping_model = None
 reactome_metadata = None  # {reactome_id: {description: str, ...}} — passed to the RDF generator for pathway_description triples
 
 EXPORT_CACHE_DIR = Path("static/exports")
+
+# Precomputed OECD development-status map — gitignored, lives on Gluster mount.
+# Degrades to {} when absent (e.g. fresh CI checkout) — never raises.
+oecd_status_data = {}
+_oecd_status_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'aop_oecd_status.json')
+try:
+    with open(_oecd_status_path, 'r') as _f:
+        oecd_status_data = json_lib.load(_f).get('aops', {})
+except (FileNotFoundError, json_lib.JSONDecodeError):
+    oecd_status_data = {}
 
 
 def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None, cache_model=None, ker_adjacency_data=None,
@@ -565,8 +575,15 @@ def mapping_detail(mapping_uuid):
 
 @main_bp.route("/aop-network")
 def aop_network():
-    """AOP Network Graph visualization page"""
-    return render_template("aop-network.html")
+    """Permanent redirect: /aop-network -> /aop-explorer (AOPX-02).
+    Route registration MUST stay — ~10 weeks of inbound links from papers/Slack/slides."""
+    return redirect(url_for('main.aop_explorer'), 301)
+
+
+@main_bp.route("/aop-explorer")
+def aop_explorer():
+    """AOP Explorer visualization page (renamed from aop-network, AOPX-01)."""
+    return render_template("aop-explorer.html")
 
 
 @main_bp.route("/api/ker-adjacency")
@@ -585,9 +602,18 @@ def mapped_ke_ids():
         ke_ids = go_mapping_model.get_mapped_ke_ids()
     elif mapping_type == "wp" and mapping_model:
         ke_ids = mapping_model.get_mapped_ke_ids()
+    elif mapping_type == "reactome" and reactome_mapping_model:
+        ke_ids = reactome_mapping_model.get_mapped_ke_ids()
     else:
         ke_ids = []
     return jsonify({"type": mapping_type, "ke_ids": ke_ids})
+
+
+@main_bp.route("/api/aop-oecd-status")
+def api_aop_oecd_status():
+    """Serve precomputed per-AOP OECD development-status map (AOPX-06/07).
+    Degrades to an empty object when the gitignored data file is absent."""
+    return jsonify(oecd_status_data)
 
 
 @main_bp.route("/api/ke-biolevels")
