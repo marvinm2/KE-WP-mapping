@@ -11,9 +11,21 @@
 </head>
 <body>
 {% include 'components/navigation.html' %}
+
+{# Macro: render a source-version accent-pill badge for a given live_versions key #}
+{% macro version_pill(resource_key) %}
+    {%- set _lv = live_versions or {} -%}
+    {%- set _rv = _lv.get(resource_key, {}) -%}
+    {%- if _rv.get('unavailable') -%}
+        <span class="version-badge version-badge--unavailable" title="Could not reach upstream source">unavailable</span>
+    {%- else -%}
+        <span class="version-badge">{{ _rv.get('version', '—') }}</span>
+    {%- endif -%}
+{% endmacro %}
+
 <div class="container">
     <h1>Downloads</h1>
-    <p class="text-muted" style="margin-bottom:24px;">Export the curated KE-WP and KE-GO mapping database in bioinformatics-ready formats.</p>
+    <p class="text-muted" style="margin-bottom:24px;">Export the curated KE-WP, KE-GO, and KE-Reactome mapping database in bioinformatics-ready formats.</p>
 
     {% if zenodo_meta and zenodo_meta.doi %}
     <div class="info-banner">
@@ -30,6 +42,7 @@
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-WP GMT</h2>
                 <span class="download-card__badge download-card__badge--blue">.gmt</span>
+                {{ version_pill('wikipathways') }}
             </div>
             <p class="download-card__desc">
                 Key Event to WikiPathways mappings in GMT format. One row per KE-pathway pair.
@@ -47,6 +60,7 @@
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-GO GMT</h2>
                 <span class="download-card__badge download-card__badge--teal">.gmt</span>
+                {{ version_pill('gene_ontology') }}
             </div>
             <p class="download-card__desc">
                 Key Event to GO Biological Process mappings in GMT format. Gene symbols from
@@ -64,6 +78,7 @@
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-Reactome GMT</h2>
                 <span class="download-card__badge download-card__badge--orange">.gmt</span>
+                {{ version_pill('reactome') }}
             </div>
             <p class="download-card__desc">
                 Key Event to Reactome pathway mappings in GMT format. One row per KE-pathway pair.
@@ -81,6 +96,7 @@
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-Centric WP GMT</h2>
                 <span class="download-card__badge download-card__badge--blue">.gmt</span>
+                {{ version_pill('wikipathways') }}
             </div>
             <p class="download-card__desc">
                 One row per Key Event. Gene symbols unioned across all approved WikiPathways
@@ -98,6 +114,7 @@
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-Centric GO GMT</h2>
                 <span class="download-card__badge download-card__badge--teal">.gmt</span>
+                {{ version_pill('gene_ontology') }}
             </div>
             <p class="download-card__desc">
                 One row per Key Event. Gene symbols unioned across all approved GO Biological Process
@@ -114,6 +131,7 @@
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-Centric Reactome GMT</h2>
                 <span class="download-card__badge download-card__badge--orange">.gmt</span>
+                {{ version_pill('reactome') }}
             </div>
             <p class="download-card__desc">
                 One row per Key Event. Genes unioned across all Reactome mappings for that KE,
@@ -131,6 +149,7 @@
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-WP RDF/Turtle</h2>
                 <span class="download-card__badge download-card__badge--dark">.ttl</span>
+                {{ version_pill('wikipathways') }}
             </div>
             <p class="download-card__desc">
                 Full KE-WP provenance in RDF/Turtle format. Includes curator GitHub username,
@@ -147,6 +166,7 @@
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-GO RDF/Turtle</h2>
                 <span class="download-card__badge download-card__badge--dark">.ttl</span>
+                {{ version_pill('gene_ontology') }}
             </div>
             <p class="download-card__desc">
                 Full KE-GO provenance in RDF/Turtle format. Same provenance fields as KE-WP
@@ -162,6 +182,7 @@
             <div class="download-card__header">
                 <h2 class="download-card__title">KE-Reactome RDF/Turtle</h2>
                 <span class="download-card__badge download-card__badge--dark">.ttl</span>
+                {{ version_pill('reactome') }}
             </div>
             <p class="download-card__desc">
                 Full KE-Reactome provenance in RDF/Turtle format. Includes curator identity,
