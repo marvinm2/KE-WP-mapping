@@ -9,7 +9,7 @@ the #reactome-inline-embed block exists in the rendered DOM and sits between
 
 def test_reactome_inline_embed_block_present(client):
     """RVIEW-01 (a): #reactome-inline-embed and its frame exist in rendered HTML."""
-    response = client.get("/")
+    response = client.get("/mapper")
     assert response.status_code == 200
     body = response.data
     assert b'id="reactome-inline-embed"' in body
@@ -20,7 +20,7 @@ def test_reactome_inline_embed_block_present(client):
 
 def test_reactome_inline_embed_block_placement(client):
     """RVIEW-01 (a): block sits between #duplicate-warning-reactome and #reactome-confidence-guide."""
-    response = client.get("/")
+    response = client.get("/mapper")
     assert response.status_code == 200
     body = response.data.decode("utf-8")
     idx_dup = body.find('id="duplicate-warning-reactome"')

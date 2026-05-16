@@ -49,15 +49,18 @@ def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None, cac
 
 def get_mapping_stats():
     """
-    Compute aggregate mapping statistics from both mapping tables.
-    Returns a dict with wp_total, go_total, total, wp_by_confidence, go_by_confidence.
+    Compute aggregate mapping statistics from all three mapping tables.
+    Returns a dict with wp_total, go_total, reactome_total, total,
+    wp_by_confidence, go_by_confidence, reactome_by_confidence.
     """
     stats = {
         "wp_total": 0,
         "go_total": 0,
+        "reactome_total": 0,
         "total": 0,
         "wp_by_confidence": {},
         "go_by_confidence": {},
+        "reactome_by_confidence": {},
     }
     try:
         conn = mapping_model.db.get_connection()
@@ -84,7 +87,23 @@ def get_mapping_stats():
                 conn.close()
     except Exception as e:
         logger.warning("Failed to query GO mapping stats: %s", e)
-    stats["total"] = stats["wp_total"] + stats["go_total"]
+    try:
+        if reactome_mapping_model:
+            conn = reactome_mapping_model.db.get_connection()
+            try:
+                stats["reactome_total"] = conn.execute(
+                    "SELECT COUNT(*) FROM ke_reactome_mappings"
+                ).fetchone()[0]
+                for row in conn.execute(
+                    "SELECT LOWER(confidence_level), COUNT(*) FROM ke_reactome_mappings"
+                    " GROUP BY LOWER(confidence_level)"
+                ).fetchall():
+                    stats["reactome_by_confidence"][row[0]] = row[1]
+            finally:
+                conn.close()
+    except Exception as e:
+        logger.warning("Failed to query Reactome mapping stats: %s", e)
+    stats["total"] = stats["wp_total"] + stats["go_total"] + stats["reactome_total"]
     return stats
 
 
@@ -106,8 +125,24 @@ def is_admin(username: str = None) -> bool:
 
 @main_bp.route("/")
 @monitor_performance
-def index():
-    """Main application page"""
+def landing():
+    """Public landing page — mission-first funnel with hero, four headline counts, CTAs."""
+    stats = get_mapping_stats() if mapping_model else {
+        "wp_total": 0,
+        "go_total": 0,
+        "reactome_total": 0,
+        "total": 0,
+        "wp_by_confidence": {},
+        "go_by_confidence": {},
+        "reactome_by_confidence": {},
+    }
+    return render_template("landing.html", stats=stats)
+
+
+@main_bp.route("/mapper")
+@monitor_performance
+def mapper():
+    """Main mapping application page (formerly at /)."""
     return render_template("index.html")
 
 

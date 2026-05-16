@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/MolAOPlogo.png') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molecular AOP Builder — Connecting Key Events to Molecular Pathways</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+{% include 'components/navigation.html' %}
+
+<div class="landing">
+
+  <!-- 1. Hero -->
+  <section class="landing__hero">
+    <div class="landing__hero-inner">
+      <h1 class="landing__hero-title">Connecting Key Events to Molecular Pathways</h1>
+      <p class="landing__hero-subtitle">
+        A curated, FAIR database linking AOP Key Events to WikiPathways, Gene Ontology,
+        and Reactome — enabling gene-set enrichment and mechanistic network analysis in toxicology.
+      </p>
+    </div>
+  </section>
+
+  <!-- 2. Four headline stat cards -->
+  <section class="landing__stats">
+    <div class="landing__stats-inner container">
+      <div class="landing__stat-grid">
+
+        <div class="stat-card stat-card--blue">
+          <div class="stat-card__value" data-target="{{ stats.wp_total }}">0</div>
+          <div class="stat-card__label">KE → WikiPathways</div>
+        </div>
+
+        <div class="stat-card stat-card--teal">
+          <div class="stat-card__value" data-target="{{ stats.go_total }}">0</div>
+          <div class="stat-card__label">KE → Gene Ontology</div>
+        </div>
+
+        <div class="stat-card stat-card--purple">
+          <div class="stat-card__value" data-target="{{ stats.reactome_total }}">0</div>
+          <div class="stat-card__label">KE → Reactome</div>
+        </div>
+
+        <div class="stat-card stat-card--dark">
+          <div class="stat-card__value" data-target="{{ stats.total }}">0</div>
+          <div class="stat-card__label">Total Mappings</div>
+        </div>
+
+      </div>
+
+      <!-- Source-version badges -->
+      <div class="landing__version-badges">
+        {% for key, label in [
+            ('wikipathways', 'WikiPathways'),
+            ('reactome', 'Reactome'),
+            ('gene_ontology', 'GO'),
+            ('aopwiki', 'AOP-Wiki')
+          ] %}
+          {% set entry = live_versions.get(key, {}) %}
+          {% if entry.get('unavailable') %}
+            <span class="version-badge version-badge--unavailable"
+                  title="Could not reach upstream source">{{ label }}: unavailable</span>
+          {% elif entry.get('version') %}
+            <span class="version-badge">{{ label }}: {{ entry.version }}</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 3. Three CTAs -->
+  <section class="landing__ctas">
+    <div class="landing__ctas-inner container">
+      <div class="landing__cta-row">
+        <a href="/mapper" class="landing__cta-btn landing__cta-btn--primary">Start mapping</a>
+        <a href="/aop-network" class="landing__cta-btn landing__cta-btn--secondary">Explore AOPs</a>
+        <a href="/stats" class="landing__cta-btn landing__cta-btn--secondary">View statistics</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. How it works -->
+  <section class="landing__how">
+    <div class="landing__how-inner container">
+      <h2 class="landing__how-title">How it works</h2>
+      <ol class="landing__how-steps">
+        <li class="landing__how-step">
+          <span class="landing__how-step-num">1</span>
+          <div>
+            <strong>Pick a Key Event</strong>
+            Browse AOP Key Events retrieved from the AOP-Wiki knowledge base.
+          </div>
+        </li>
+        <li class="landing__how-step">
+          <span class="landing__how-step-num">2</span>
+          <div>
+            <strong>Review AI-ranked suggestions</strong>
+            BioBERT semantic similarity ranks candidate WikiPathways, GO terms, and Reactome pathways.
+          </div>
+        </li>
+        <li class="landing__how-step">
+          <span class="landing__how-step-num">3</span>
+          <div>
+            <strong>Propose a mapping</strong>
+            Submit and justify your chosen connection — curators approve, and the mapping enters the FAIR database.
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+</div><!-- /.landing -->
+
+{% include 'components/footer.html' ignore missing %}
+<script src="{{ url_for('static', filename='js/landing.js') }}" defer></script>
+</body>
+</html>
