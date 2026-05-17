@@ -1604,20 +1604,6 @@ class KEWPApp {
         // Store selected KE info for assessment info cards (#103)
         this.selectedKEInfo = keId ? { keId, title, biolevel } : null;
 
-        // Update upstream AOP-Wiki link for the selected KE
-        const $keLink = $('#ke-upstream-link');
-        if (keId) {
-            // Strip non-numeric prefix so "KE 123" or "Event:123" → "123"
-            const numericKeId = keId.toString().replace(/\D/g, '');
-            if (numericKeId) {
-                $keLink.attr('href', 'https://aopwiki.org/events/' + numericKeId).show();
-            } else {
-                $keLink.hide();
-            }
-        } else {
-            $keLink.hide();
-        }
-
         // Pre-fetch KE genes for mapping modal gene highlighting
         if (keId) {
             this.prefetchKeGenes(keId);
