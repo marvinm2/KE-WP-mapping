@@ -692,7 +692,8 @@ var AOPGraph = (function () {
             }
         }
 
-        // Wire Select this KE button
+        // Wire the "Map this KE" button — opens the KE in the resource-correct
+        // mapper tab via redirectToKE() (tab derived from the active gap filter).
         var selectBtn = document.getElementById('ke-panel-select-btn');
         if (selectBtn) {
             // Replace the button to clear any previous listener
@@ -701,32 +702,6 @@ var AOPGraph = (function () {
             newBtn.addEventListener('click', function () {
                 redirectToKE(nodeData.id);
             });
-        }
-
-        // Show "Map this KE" shortcut for KEs that are gaps in at least one resource
-        var actionsEl = document.querySelector('.ke-side-panel__actions');
-        if (actionsEl) {
-            var existingLink = actionsEl.querySelector('.ke-map-gap-link');
-            if (existingLink) { existingLink.remove(); }
-
-            var isGap = !wpMappedKeIds.has(nodeData.id) ||
-                        !goMappedKeIds.has(nodeData.id) ||
-                        !reactomeMappedKeIds.has(nodeData.id);
-            if (isGap) {
-                var mapLink = document.createElement('a');
-                mapLink.className = 'ke-map-gap-link';
-                // Deep-link to the resource-specific mapper tab based on the active gap filter
-                var tabParam = 'wp';
-                if (currentGapFilter === 'gap-go') {
-                    tabParam = 'go';
-                } else if (currentGapFilter === 'gap-reactome') {
-                    tabParam = 'reactome';
-                }
-                mapLink.href = '/mapper?ke_id=' + encodeURIComponent(nodeData.id) + '&tab=' + tabParam;
-                mapLink.textContent = 'Map this KE';
-                mapLink.title = 'Open this KE in the mapper to add pathway mappings';
-                actionsEl.appendChild(mapLink);
-            }
         }
 
         // Open panel
