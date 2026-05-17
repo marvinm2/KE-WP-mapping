@@ -249,11 +249,36 @@ var AOPGraph = (function () {
         var sel = document.getElementById('oecd-status-filter');
         if (!sel) return;
 
-        // Populate options from the 8-bucket vocabulary (all selected by default)
-        var vocab = Object.keys(OECD_STATUS_CONFIG.ordinal).filter(function (s) {
-            return s !== 'Under Review'; // alias — skip duplicate display
+        // Collect distinct statuses actually present in the loaded data,
+        // normalising the "Under Review" alias into "Under Review / Internal Review".
+        var presentSet = {};
+        Object.keys(oecdStatusData).forEach(function (aopKey) {
+            if (aopKey === '_meta') return;
+            var entry = oecdStatusData[aopKey];
+            if (!entry) return;
+            var st = (entry.status && entry.status !== '') ? entry.status : 'Unknown';
+            // Collapse alias so both map to the canonical bucket
+            if (st === 'Under Review') { st = 'Under Review / Internal Review'; }
+            presentSet[st] = true;
         });
-        vocab.forEach(function (status) {
+
+        // Always include 'Unknown' when data is empty or any AOP lacks a status
+        if (Object.keys(oecdStatusData).filter(function (k) { return k !== '_meta'; }).length === 0) {
+            // No data at all — no options; the filter stays empty without erroring
+            return;
+        }
+
+        // Sort present statuses by OECD_STATUS_CONFIG ordinal so dropdown is logically ordered
+        var presentStatuses = Object.keys(presentSet).sort(function (a, b) {
+            var ordA = OECD_STATUS_CONFIG.ordinal[a];
+            var ordB = OECD_STATUS_CONFIG.ordinal[b];
+            if (ordA === undefined) ordA = 0;
+            if (ordB === undefined) ordB = 0;
+            return ordA - ordB;
+        });
+
+        // Populate options — all selected by default
+        presentStatuses.forEach(function (status) {
             var opt = document.createElement('option');
             opt.value = status;
             opt.textContent = status;
