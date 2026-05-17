@@ -12,6 +12,7 @@
     </div>
     <nav class="site-nav">
       <ul class="site-nav__list">
+        <li><a href="/" class="site-nav__link {{ 'active' if request.path == '/' else '' }}">Home</a></li>
         <li><a href="/mapper" class="site-nav__link {{ 'active' if request.path == '/mapper' else '' }}">Map</a></li>
         <li><a href="/explore" class="site-nav__link {{ 'active' if request.path == '/explore' else '' }}">Explore</a></li>
         <li><a href="/aop-explorer" class="site-nav__link {{ 'active' if request.path == '/aop-explorer' else '' }}">AOP Explorer</a></li>
