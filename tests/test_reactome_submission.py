@@ -579,10 +579,102 @@ def test_check_reactome_entry_blocks_approved_mapping(_plan_05_check_client):
     assert "admin_notes" not in existing
 
 
+@pytest.fixture
+def _reactome_auth_client():
+    """Authenticated curator on a fresh Reactome DB (for round-trip tests)."""
+    from app import app as flask_app
+    import src.blueprints.api as api_mod
+    from src.core.models import (
+        CacheModel,
+        Database,
+        ReactomeMappingModel,
+        ReactomeProposalModel,
+    )
+
+    fd, db_path = tempfile.mkstemp()
+    db = Database(db_path)
+    rm = ReactomeMappingModel(db)
+    rpm = ReactomeProposalModel(db)
+    cm = CacheModel(db)
+
+    orig_rm = api_mod.reactome_mapping_model
+    orig_rpm = api_mod.reactome_proposal_model
+    orig_cm = api_mod.cache_model
+    api_mod.reactome_mapping_model = rm
+    api_mod.reactome_proposal_model = rpm
+    api_mod.cache_model = cm
+
+    flask_app.config["TESTING"] = True
+    flask_app.config["WTF_CSRF_ENABLED"] = False
+    os.environ["ADMIN_USERS"] = "github:testuser"
+
+    with flask_app.test_client() as test_client:
+        with flask_app.app_context():
+            with test_client.session_transaction() as sess:
+                sess["user"] = {
+                    "username": "github:testuser",
+                    "email": "test@example.com",
+                }
+            yield test_client, rpm, db
+
+    api_mod.reactome_mapping_model = orig_rm
+    api_mod.reactome_proposal_model = orig_rpm
+    api_mod.cache_model = orig_cm
+    os.close(fd)
+    os.unlink(db_path)
+
+
+def test_submit_reactome_assessment_roundtrip(_reactome_auth_client):
+    """Phase 37 ASMT-04 — HTTP-level Reactome assessment round-trip.
+
+    POST /submit_reactome_mapping with step1-4 -> assert the four
+    proposed_* columns on the ke_reactome_proposals row are non-NULL and
+    match the submitted values. Mirrors test_assessment_roundtrip_wp from
+    tests/test_assessment_roundtrip_wp.py (two parallel functions, NOT
+    parametrized — Phase 25/32 precedent for clear CI attribution).
+    """
+    client, rpm, db = _reactome_auth_client
+
+    resp = client.post(
+        "/submit_reactome_mapping",
+        data={
+            "ke_id": "KE 400",
+            "ke_title": "Test KE Reactome roundtrip",
+            "reactome_id": "R-HSA-4001",
+            "pathway_name": "MAPK signaling roundtrip",
+            "species": "Homo sapiens",
+            "confidence_level": "high",
+            "suggestion_score": "0.85",
+            "step1": "causative",
+            "step2": "known",
+            "step3": "specific",
+            "step4": "complete",
+        },
+    )
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    body = resp.get_json()
+    proposal_id = body.get("proposal_id")
+    assert proposal_id is not None, f"Expected proposal_id in response: {body}"
+
+    # Read back via the model (get_proposal_by_id) and assert the four columns.
+    proposal = rpm.get_proposal_by_id(proposal_id)
+    assert proposal is not None, "get_proposal_by_id returned None"
+    assert proposal["proposed_relationship"] == "causative", (
+        f"proposed_relationship not persisted: {proposal}"
+    )
+    assert proposal["proposed_basis"] == "known"
+    assert proposal["proposed_specificity"] == "specific"
+    assert proposal["proposed_coverage"] == "complete"
+
+
 def test_submit_reactome_form_field_set_matches_schema():
     """Plan 25-05 Task 3 — Static-source verification that the JS submit handler's
     payload object contains exactly the fields the /submit_reactome_mapping endpoint
     and ReactomeMappingSchema accept (per CONTEXT.md D-18). Pure regex over the JS source.
+
+    Phase 37 ASMT-04 update: step1-4 added to required_keys after Task 3 wires
+    them into handleReactomeFormSubmission (Pitfall 2 — static-source test must
+    stay green after the JS payload gains the four fields).
     """
     import re
     here = os.path.dirname(os.path.abspath(__file__))
@@ -613,6 +705,12 @@ def test_submit_reactome_form_field_set_matches_schema():
         "confidence_level",
         "suggestion_score",
         "csrf_token",
+        # Phase 37 ASMT-04: step1-4 added after handleReactomeFormSubmission
+        # gains these keys in Task 3 (closes Pitfall 2).
+        "step1",
+        "step2",
+        "step3",
+        "step4",
     }
     for key in required_keys:
         # Match `key:` at start of token (ignoring whitespace)
