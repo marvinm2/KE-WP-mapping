@@ -2121,30 +2121,43 @@ class KEWPApp {
         this.updateAssessmentStatus();
     }
 
-    createPathwayAssessment(pathway, index) {
-        const assessmentId = `assessment-${pathway.index}`;
-        const keInfo = this.selectedKEInfo || {};
-        const keId = keInfo.keId || $('#ke_id').val() || '';
-        const keTitle = keInfo.title || $('#ke_id option:selected').data('title') || '';
-        const keBiolevel = keInfo.biolevel || this.selectedBiolevel || '';
+    // -------------------------------------------------------------------------
+    // Shared 4-question assessment card renderer (WP + Reactome)
+    // -------------------------------------------------------------------------
 
-        // Gene overlap data from suggestion item
-        const $suggItem = $(`.suggestion-item[data-pathway-id="${pathway.id}"]`);
-        const matchingGenesStr = $suggItem.length > 0 ? ($suggItem.attr('data-matching-genes') || '') : '';
-        const matchingGenes = matchingGenesStr.split(',').filter(Boolean);
-        const geneScore = $suggItem.length > 0 ? ($suggItem.attr('data-gene-score') || '0') : '0';
+    /**
+     * Build the HTML string for a 4-question KE-pathway assessment card.
+     *
+     * @param {Object} opts
+     * @param {string}   opts.assessmentId      - Prefix for data-assessment attributes
+     *                                            (e.g. "assessment-0" for WP, "assessment-reactome" for Reactome)
+     * @param {string}   opts.pathwayId         - Canonical pathway identifier stored on the
+     *                                            .pathway-assessment wrapper data-pathway-id
+     * @param {string}   opts.pathwayIndex      - Value for data-pathway-index (WP uses numeric index;
+     *                                            Reactome can reuse pathwayId)
+     * @param {string}   opts.pathwayTitle      - Human-readable pathway title for the heading
+     * @param {Object}   opts.keInfo            - { keId, keTitle, keBiolevel }
+     * @param {string}   opts.pathwayCardHtml   - Pre-rendered HTML for the resource-specific
+     *                                            pathway info card (slots into .assessment-info-card.pw-card)
+     * @param {Object}   opts.geneOverlap       - { matchingGenes: string[], genePercent: number|string }
+     *                                            Caller resolves this; renderer does NOT read DOM attributes.
+     */
+    buildAssessmentCard({ assessmentId, pathwayId, pathwayIndex, pathwayTitle, keInfo, pathwayCardHtml, geneOverlap }) {
+        const { keId = '', keTitle = '', keBiolevel = '' } = keInfo || {};
+        const { matchingGenes = [], genePercent = 0 } = geneOverlap || {};
+        const hasOverlapData = geneOverlap !== null && geneOverlap !== undefined;
 
         // Gene overlap HTML
         let geneOverlapHtml = '';
-        if ($suggItem.length > 0 && matchingGenes.length > 0) {
+        if (hasOverlapData && matchingGenes.length > 0) {
             geneOverlapHtml = `
                 <div class="assessment-gene-overlap gene-overlap-found">
-                    <strong>Gene Overlap:</strong> ${matchingGenes.length} shared gene${matchingGenes.length !== 1 ? 's' : ''} (${geneScore}%)
+                    <strong>Gene Overlap:</strong> ${matchingGenes.length} shared gene${matchingGenes.length !== 1 ? 's' : ''} (${genePercent}%)
                     <details style="margin-top: 4px;"><summary style="cursor: pointer; font-size: 12px;">View genes</summary>
                         <span style="font-size: 11px; word-break: break-word;">${this.escapeHtml(matchingGenes.join(', '))}</span>
                     </details>
                 </div>`;
-        } else if ($suggItem.length > 0) {
+        } else if (hasOverlapData) {
             geneOverlapHtml = `
                 <div class="assessment-gene-overlap gene-overlap-empty">
                     <strong>Gene Overlap:</strong> No shared genes detected
@@ -2156,26 +2169,8 @@ class KEWPApp {
                 </div>`;
         }
 
-        // Pathway diagram preview button (replaces SVG thumbnail)
-        const diagramHtml = `
-            <div style="margin-top: 6px;">
-                <button type="button" class="btn-link-blue" style="font-size: 12px; padding: 4px 10px;"
-                        onclick="window.KEWPApp.showPathwayPreview('${this.escapeHtml(pathway.id)}', '${this.escapeHtml(pathway.title)}', '')">
-                    Preview pathway
-                </button>
-            </div>`;
-
-        // Pathway description HTML
-        const descriptionHtml = pathway.description ? `
-            <details style="margin-top: 10px;">
-                <summary class="text-dark-heading" style="cursor: pointer; font-weight: bold; font-size: 13px;">Pathway Description</summary>
-                <div class="text-subtle" style="margin-top: 6px; font-size: 13px; line-height: 1.5; max-height: 150px; overflow-y: auto;">
-                    ${this.escapeHtml(pathway.description)}
-                </div>
-            </details>` : '';
-
         return `
-            <div class="pathway-assessment pathway-assessment-container" data-pathway-id="${pathway.id}" data-pathway-index="${pathway.index}">
+            <div class="pathway-assessment pathway-assessment-container" data-pathway-id="${pathwayId}" data-pathway-index="${pathwayIndex}">
 
                 <!-- Info Cards (#103) -->
                 <div class="assessment-info-cards">
@@ -2186,20 +2181,16 @@ class KEWPApp {
                         <a href="/ke-details?ke_id=${encodeURIComponent(keId)}" target="_blank">View details &rarr;</a>
                     </div>
                     <div class="assessment-info-card pw-card">
-                        <h4>Pathway</h4>
-                        <p><strong>${this.escapeHtml(pathway.id)} — ${this.escapeHtml(pathway.title)}</strong></p>
-                        ${diagramHtml}
-                        ${descriptionHtml}
-                        <a href="/pw-details?pathway_id=${encodeURIComponent(pathway.id)}" target="_blank">View details &rarr;</a>
+                        ${pathwayCardHtml}
                     </div>
                 </div>
                 ${geneOverlapHtml}
 
                 <h3 style="margin: 0 0 15px 0; border-bottom: 1px solid var(--color-border-light); padding-bottom: 8px;" class="text-dark-heading">
-                    Assessment for: ${pathway.title}
-                    <span class="text-muted" style="font-size: 14px; font-weight: normal;">(${pathway.id})</span>
+                    Assessment for: ${this.escapeHtml(pathwayTitle)}
+                    <span class="text-muted" style="font-size: 14px; font-weight: normal;">(${this.escapeHtml(pathwayId)})</span>
                 </h3>
-                
+
                 <div class="assessment-steps" data-assessment-id="${assessmentId}">
                     <div class="assessment-step" data-step="step1">
                         <h4>1. What is the relationship between the pathway and Key Event?
@@ -2266,14 +2257,65 @@ This helps identify gaps in existing pathways for future development.">❓</span
                         </div>
                     </div>
                 </div>
-                
-                <div class="assessment-result">
+
+                <div class="assessment-result" style="display: none;">
                     <p><strong>Result:</strong> <span class="confidence-result">—</span></p>
                     <p><strong>Connection:</strong> <span class="connection-result">—</span></p>
                     <p class="score-details text-muted" style="font-size: 12px; margin: 5px 0 0 0;">—</p>
                 </div>
             </div>
         `;
+    }
+
+    // Thin WP-side caller of buildAssessmentCard.
+    // Resolves WP-specific pathway card HTML and gene overlap from DOM, then delegates.
+    createPathwayAssessment(pathway, index) {
+        const keInfo = this.selectedKEInfo || {};
+        const keId = keInfo.keId || $('#ke_id').val() || '';
+        const keTitle = keInfo.title || $('#ke_id option:selected').data('title') || '';
+        const keBiolevel = keInfo.biolevel || this.selectedBiolevel || '';
+
+        // Gene overlap: WP suggestion items carry data-matching-genes on the DOM element
+        const $suggItem = $(`.suggestion-item[data-pathway-id="${pathway.id}"]`);
+        const matchingGenesStr = $suggItem.length > 0 ? ($suggItem.attr('data-matching-genes') || '') : '';
+        const matchingGenes = matchingGenesStr.split(',').filter(Boolean);
+        const geneScore = $suggItem.length > 0 ? ($suggItem.attr('data-gene-score') || '0') : '0';
+        // null signals "data not available" (manually selected); [] signals "found, but empty"
+        const geneOverlap = $suggItem.length > 0
+            ? { matchingGenes, genePercent: geneScore }
+            : null;
+
+        // WP-specific pathway card content
+        const diagramHtml = `
+            <div style="margin-top: 6px;">
+                <button type="button" class="btn-link-blue" style="font-size: 12px; padding: 4px 10px;"
+                        onclick="window.KEWPApp.showPathwayPreview('${this.escapeHtml(pathway.id)}', '${this.escapeHtml(pathway.title)}', '')">
+                    Preview pathway
+                </button>
+            </div>`;
+        const descriptionHtml = pathway.description ? `
+            <details style="margin-top: 10px;">
+                <summary class="text-dark-heading" style="cursor: pointer; font-weight: bold; font-size: 13px;">Pathway Description</summary>
+                <div class="text-subtle" style="margin-top: 6px; font-size: 13px; line-height: 1.5; max-height: 150px; overflow-y: auto;">
+                    ${this.escapeHtml(pathway.description)}
+                </div>
+            </details>` : '';
+        const pathwayCardHtml = `
+                        <h4>Pathway</h4>
+                        <p><strong>${this.escapeHtml(pathway.id)} — ${this.escapeHtml(pathway.title)}</strong></p>
+                        ${diagramHtml}
+                        ${descriptionHtml}
+                        <a href="/pw-details?pathway_id=${encodeURIComponent(pathway.id)}" target="_blank">View details &rarr;</a>`;
+
+        return this.buildAssessmentCard({
+            assessmentId: `assessment-${pathway.index}`,
+            pathwayId: pathway.id,
+            pathwayIndex: pathway.index,
+            pathwayTitle: pathway.title,
+            keInfo: { keId, keTitle, keBiolevel },
+            pathwayCardHtml,
+            geneOverlap,
+        });
     }
 
     updateAssessmentStatus() {
