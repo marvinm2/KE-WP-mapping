@@ -493,10 +493,17 @@ class KEWPApp {
         // URL param pre-fill: read ?ke_id= and store for after dropdown populates
         const urlParams = new URLSearchParams(window.location.search);
         this.preselectedKE = urlParams.get('ke_id') || null;
+        const tabParam = urlParams.get('tab') || null;
         if (this.preselectedKE && window.history.replaceState) {
             // Clean URL without triggering navigation
             const cleanUrl = window.location.pathname;
             window.history.replaceState({}, '', cleanUrl);
+        }
+
+        // Activate the requested tab if provided via ?tab= deep-link
+        if (tabParam && ['wp', 'go', 'reactome'].includes(tabParam)) {
+            // Defer until after setupEventListeners completes so handleTabSwitch listeners are wired
+            setTimeout(() => { this.handleTabSwitch(tabParam); }, 0);
         }
 
         this.loadDropdownOptions();

@@ -715,7 +715,14 @@ var AOPGraph = (function () {
             if (isGap) {
                 var mapLink = document.createElement('a');
                 mapLink.className = 'ke-map-gap-link';
-                mapLink.href = '/mapper?ke_id=' + encodeURIComponent(nodeData.id);
+                // Deep-link to the resource-specific mapper tab based on the active gap filter
+                var tabParam = 'wp';
+                if (currentGapFilter === 'gap-go') {
+                    tabParam = 'go';
+                } else if (currentGapFilter === 'gap-reactome') {
+                    tabParam = 'reactome';
+                }
+                mapLink.href = '/mapper?ke_id=' + encodeURIComponent(nodeData.id) + '&tab=' + tabParam;
                 mapLink.textContent = 'Map this KE';
                 mapLink.title = 'Open this KE in the mapper to add pathway mappings';
                 actionsEl.appendChild(mapLink);
@@ -750,7 +757,13 @@ var AOPGraph = (function () {
     // KE selection redirect
     // ---------------------------------------------------------------------------
     function redirectToKE(keId) {
-        window.location.href = '/mapper?ke_id=' + encodeURIComponent(keId);
+        var tabParam = 'wp';
+        if (currentGapFilter === 'gap-go') {
+            tabParam = 'go';
+        } else if (currentGapFilter === 'gap-reactome') {
+            tabParam = 'reactome';
+        }
+        window.location.href = '/mapper?ke_id=' + encodeURIComponent(keId) + '&tab=' + tabParam;
     }
 
     // Public API
