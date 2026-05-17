@@ -1818,11 +1818,11 @@ class MappingModel:
             conn.close()
 
     def get_mapped_ke_ids(self) -> list:
-        """Return distinct KE IDs that have at least one approved mapping."""
+        """Return distinct KE IDs that have at least one WP mapping."""
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
-                "SELECT DISTINCT ke_id FROM mappings WHERE approved_by_curator IS NOT NULL"
+                "SELECT DISTINCT ke_id FROM mappings"
             )
             return [row["ke_id"] for row in cursor.fetchall()]
         finally:
@@ -2732,11 +2732,11 @@ class GoMappingModel:
             conn.close()
 
     def get_mapped_ke_ids(self) -> list:
-        """Return distinct KE IDs that have at least one approved GO mapping."""
+        """Return distinct KE IDs that have at least one GO mapping."""
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
-                "SELECT DISTINCT ke_id FROM ke_go_mappings WHERE approved_by_curator IS NOT NULL"
+                "SELECT DISTINCT ke_id FROM ke_go_mappings"
             )
             return [row["ke_id"] for row in cursor.fetchall()]
         finally:
@@ -4099,11 +4099,11 @@ class ReactomeMappingModel:
             conn.close()
 
     def get_mapped_ke_ids(self) -> list:
-        """Return distinct KE IDs that have at least one approved Reactome mapping."""
+        """Return distinct KE IDs that have at least one Reactome mapping."""
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
-                "SELECT DISTINCT ke_id FROM ke_reactome_mappings WHERE approved_by_curator IS NOT NULL"
+                "SELECT DISTINCT ke_id FROM ke_reactome_mappings"
             )
             return [row["ke_id"] for row in cursor.fetchall()]
         finally:
