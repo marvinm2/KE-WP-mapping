@@ -1604,6 +1604,20 @@ class KEWPApp {
         // Store selected KE info for assessment info cards (#103)
         this.selectedKEInfo = keId ? { keId, title, biolevel } : null;
 
+        // Update upstream AOP-Wiki link for the selected KE
+        const $keLink = $('#ke-upstream-link');
+        if (keId) {
+            // Strip non-numeric prefix so "KE 123" or "Event:123" → "123"
+            const numericKeId = keId.toString().replace(/\D/g, '');
+            if (numericKeId) {
+                $keLink.attr('href', 'https://aopwiki.org/events/' + numericKeId).show();
+            } else {
+                $keLink.hide();
+            }
+        } else {
+            $keLink.hide();
+        }
+
         // Pre-fetch KE genes for mapping modal gene highlighting
         if (keId) {
             this.prefetchKeGenes(keId);
@@ -1629,6 +1643,8 @@ class KEWPApp {
         } else {
             this.hidePathwaySuggestions();
             this.hideGoSuggestions();
+            // Reset upstream pathway link when KE is cleared
+            this.updatePathwayUpstreamLink(null, null);
             // Reset Reactome suggestions panel to default if KE is cleared
             $('#reactome-suggestions-container').html(
                 '<p class="text-muted-italic">Select a Key Event above to see Reactome pathway suggestions.</p>'
@@ -1753,6 +1769,9 @@ class KEWPApp {
             $('#suggestion_score').val('');
             setTimeout(() => this.checkForDuplicatePair(), 100);
             this.loadInlineEmbed(pathwayId);
+            this.updatePathwayUpstreamLink('wp', pathwayId);
+        } else {
+            this.updatePathwayUpstreamLink(null, null);
         }
     }
 
@@ -3176,6 +3195,38 @@ This helps identify gaps in existing pathways for future development.">❓</span
         return '';
     }
 
+    /**
+     * Update the #pw-upstream-link anchor to point at the resource-correct upstream page
+     * for the currently selected pathway/GO term. Pass null/falsy to hide the link.
+     *
+     * @param {string|null} resourceType - 'wp' | 'go' | 'reactome'
+     * @param {string|null} resourceId   - WPxxxx | GO:xxxxxxx | R-HSA-xxx
+     */
+    updatePathwayUpstreamLink(resourceType, resourceId) {
+        const $link = $('#pw-upstream-link');
+        if (!resourceType || !resourceId) {
+            $link.hide();
+            return;
+        }
+        let href = '';
+        let label = '';
+        if (resourceType === 'wp') {
+            href = 'https://www.wikipathways.org/pathways/' + resourceId + '.html';
+            label = 'View on WikiPathways ↗';
+        } else if (resourceType === 'go') {
+            href = 'https://amigo.geneontology.org/amigo/term/' + resourceId;
+            label = 'View on AmiGO ↗';
+        } else if (resourceType === 'reactome') {
+            href = 'https://reactome.org/content/detail/' + resourceId;
+            label = 'View on Reactome ↗';
+        }
+        if (href) {
+            $link.attr('href', href).text(label).show();
+        } else {
+            $link.hide();
+        }
+    }
+
     escapeHtml(text) {
         if (!text) return '';
         return text
@@ -3215,6 +3266,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
 
             // Load inline pathway embed
             this.loadInlineEmbed(pathwayId);
+
+            // Update upstream pathway link
+            this.updatePathwayUpstreamLink('wp', pathwayId);
 
             // Ensure the assessment section is triggered with a slight delay
             setTimeout(() => {
@@ -3897,6 +3951,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Hide all three panels first; show the selected one below
         $('#wp-tab-content, #go-tab-content, #reactome-tab-content').hide();
 
+        // Reset upstream pathway link on tab switch — a fresh tab has no selection yet
+        this.updatePathwayUpstreamLink(null, null);
+
         if (tab === 'wp') {
             $('#wp-tab-content').show();
             // Reload WP suggestions if a KE is selected
@@ -4216,6 +4273,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
         // Highlight selected item
         $('.go-suggestion-item').removeClass('go-suggestion-item--selected');
         $(`.go-suggestion-item[data-go-id="${goId}"]`).addClass('go-suggestion-item--selected');
+
+        // Update upstream AmiGO link
+        this.updatePathwayUpstreamLink('go', goId);
 
         // Fire live duplicate check for the KE-GO pair
         this.checkForDuplicatePair_go();
@@ -4852,6 +4912,9 @@ This helps identify gaps in existing pathways for future development.">❓</span
         $('#reactome-suggestions-container .suggestion-card').removeClass('go-suggestion-item--selected');
         $(`#reactome-suggestions-container .suggestion-card[data-reactome-id="${this.escapeHtml(reactomeId)}"]`)
             .addClass('go-suggestion-item--selected');
+
+        // Update upstream Reactome link
+        this.updatePathwayUpstreamLink('reactome', reactomeId);
 
         this.checkForDuplicatePair_reactome();
         this.revealReactomeConfidenceStep();
