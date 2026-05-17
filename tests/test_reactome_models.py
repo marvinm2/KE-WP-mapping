@@ -131,6 +131,70 @@ class TestReactomeProposalUpdateStatus:
 
 
 # ---------------------------------------------------------------------------
+# ReactomeProposalModel.get_proposal_by_id — Phase 37 ASMT-04
+# ---------------------------------------------------------------------------
+
+
+class TestReactomeProposalGetById:
+    """get_proposal_by_id must return the four step-answer columns so the
+    admin detail JSON (Plan 03) can surface them without em-dashes."""
+
+    def test_get_proposal_by_id_returns_four_step_columns(
+        self, reactome_proposal_model
+    ):
+        """Round-trip: create with step answers, retrieve by id, assert columns present."""
+        proposal_id = reactome_proposal_model.create_new_pair_reactome_proposal(
+            ke_id="KE 500",
+            ke_title="Step-answer test",
+            reactome_id="R-HSA-5001",
+            pathway_name="Pathway step test",
+            confidence_level="high",
+            species="Homo sapiens",
+            provider_username="github:user",
+            suggestion_score=0.75,
+            proposed_relationship="causative",
+            proposed_basis="known",
+            proposed_specificity="specific",
+            proposed_coverage="complete",
+        )
+        assert isinstance(proposal_id, int)
+
+        row = reactome_proposal_model.get_proposal_by_id(proposal_id)
+        assert row is not None, "get_proposal_by_id returned None"
+        assert row["proposed_relationship"] == "causative", (
+            "proposed_relationship missing from get_proposal_by_id result; "
+            "extend the SELECT column list in ReactomeProposalModel."
+        )
+        assert row["proposed_basis"] == "known"
+        assert row["proposed_specificity"] == "specific"
+        assert row["proposed_coverage"] == "complete"
+
+    def test_get_proposal_by_id_none_step_columns_allowed(
+        self, reactome_proposal_model
+    ):
+        """Proposals without step answers return NULL (v1 legacy) — not KeyError."""
+        proposal_id = reactome_proposal_model.create_new_pair_reactome_proposal(
+            ke_id="KE 501",
+            ke_title="Legacy step test",
+            reactome_id="R-HSA-5002",
+            pathway_name="Pathway legacy",
+            confidence_level="low",
+            species="Homo sapiens",
+            provider_username="github:user",
+        )
+        row = reactome_proposal_model.get_proposal_by_id(proposal_id)
+        assert row is not None
+        # Columns must be present (not missing from SELECT) even if NULL
+        for col in ("proposed_relationship", "proposed_basis",
+                    "proposed_specificity", "proposed_coverage"):
+            assert col in row, (
+                f"Column '{col}' missing from get_proposal_by_id dict; "
+                "extend the SELECT list in ReactomeProposalModel.get_proposal_by_id."
+            )
+        assert row["proposed_relationship"] is None
+
+
+# ---------------------------------------------------------------------------
 # ReactomeProposalModel.get_all_proposals
 # ---------------------------------------------------------------------------
 

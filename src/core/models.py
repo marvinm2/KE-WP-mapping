@@ -4470,7 +4470,13 @@ class ReactomeProposalModel:
             conn.close()
 
     def get_proposal_by_id(self, proposal_id: int) -> Optional[Dict]:
-        """Get a specific Reactome proposal by ID"""
+        """Get a specific Reactome proposal by ID.
+
+        Phase 37 ASMT-04: extended SELECT to include proposed_relationship,
+        proposed_basis, proposed_specificity, proposed_coverage so the admin
+        detail route (Plan 03) can surface the four step-answer columns. The
+        original explicit column list omitted them (Pitfall 5 in 37-RESEARCH.md).
+        """
         conn = self.db.get_connection()
         try:
             cursor = conn.execute(
@@ -4480,7 +4486,9 @@ class ReactomeProposalModel:
                        status, admin_notes, approved_by, approved_at,
                        rejected_by, rejected_at, uuid, suggestion_score,
                        ke_id, ke_title, reactome_id, pathway_name, species,
-                       new_pair_confidence_level, created_at
+                       new_pair_confidence_level, created_at,
+                       proposed_relationship, proposed_basis,
+                       proposed_specificity, proposed_coverage
                 FROM ke_reactome_proposals
                 WHERE id = ?
                 """,

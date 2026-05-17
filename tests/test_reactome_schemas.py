@@ -79,6 +79,80 @@ class TestReactomeMappingSchema:
         loaded = schema.load(data)
         assert loaded["species"] == "Homo sapiens"
 
+    # Phase 37 ASMT-04: step1-4 + connection_type optional fields
+    def test_accepts_step1_to_step4(self, schema):
+        """ReactomeMappingSchema should accept step1-4 with valid option keys."""
+        data = {
+            "ke_id": "KE 12345",
+            "ke_title": "x",
+            "reactome_id": "R-HSA-1234",
+            "pathway_name": "x",
+            "confidence_level": "high",
+            "step1": "causative",
+            "step2": "known",
+            "step3": "specific",
+            "step4": "complete",
+        }
+        loaded = schema.load(data)
+        assert loaded["step1"] == "causative"
+        assert loaded["step2"] == "known"
+        assert loaded["step3"] == "specific"
+        assert loaded["step4"] == "complete"
+
+    def test_accepts_connection_type_optional(self, schema):
+        """ReactomeMappingSchema should accept connection_type as optional."""
+        data = {
+            "ke_id": "KE 12345",
+            "ke_title": "x",
+            "reactome_id": "R-HSA-1234",
+            "pathway_name": "x",
+            "confidence_level": "high",
+            "connection_type": "causative",
+        }
+        loaded = schema.load(data)
+        assert loaded["connection_type"] == "causative"
+
+    def test_rejects_invalid_step1(self, schema):
+        """Step1 out-of-whitelist value should raise ValidationError."""
+        data = {
+            "ke_id": "KE 12345",
+            "ke_title": "x",
+            "reactome_id": "R-HSA-1234",
+            "pathway_name": "x",
+            "confidence_level": "high",
+            "step1": "banana",
+        }
+        with pytest.raises(ValidationError) as exc:
+            schema.load(data)
+        assert "step1" in exc.value.messages
+
+    def test_rejects_invalid_step2(self, schema):
+        """Step2 out-of-whitelist value should raise ValidationError."""
+        data = {
+            "ke_id": "KE 12345",
+            "ke_title": "x",
+            "reactome_id": "R-HSA-1234",
+            "pathway_name": "x",
+            "confidence_level": "high",
+            "step2": "invalid_basis",
+        }
+        with pytest.raises(ValidationError) as exc:
+            schema.load(data)
+        assert "step2" in exc.value.messages
+
+    def test_step1_to_step4_are_optional(self, schema):
+        """Payload without step1-4 should still validate (back-compat v1)."""
+        data = {
+            "ke_id": "KE 12345",
+            "ke_title": "x",
+            "reactome_id": "R-HSA-1234",
+            "pathway_name": "x",
+            "confidence_level": "high",
+        }
+        loaded = schema.load(data)
+        # step fields should not appear if not sent
+        assert "step1" not in loaded or loaded.get("step1") is None
+
 
 class TestReactomeCheckEntrySchema:
     def test_valid_payload(self):

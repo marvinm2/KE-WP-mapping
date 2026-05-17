@@ -1578,7 +1578,16 @@ def check_go_entry():
 @submission_rate_limit
 @login_required
 def submit_reactome_mapping():
-    """Submit a new KE-Reactome mapping proposal (Phase 25)."""
+    """Submit a new KE-Reactome mapping proposal (Phase 25).
+
+    Phase 37 ASMT-04: reads step1-4 + connection_type from the form payload,
+    mirrors the WP /submit handler pattern (api.py:143-268). The four step*
+    values are renamed to proposed_relationship/basis/specificity/coverage
+    before forwarding to the model (which already accepts them). If
+    connection_type is absent it is derived server-side from step1 using the
+    same step1->connection_type identity mapping as the WP evaluatePathway-
+    Confidence JS function (step1 IS the raw connection type).
+    """
     try:
         submit_data = {
             "ke_id": request.form.get("ke_id"),
@@ -1587,7 +1596,15 @@ def submit_reactome_mapping():
             "pathway_name": request.form.get("pathway_name"),
             "species": request.form.get("species", "Homo sapiens"),
             "confidence_level": request.form.get("confidence_level"),
+            "step1": request.form.get("step1"),
+            "step2": request.form.get("step2"),
+            "step3": request.form.get("step3"),
+            "step4": request.form.get("step4"),
+            "connection_type": request.form.get("connection_type"),
         }
+        # Drop None values so Marshmallow's required=False semantics fire
+        # (mirror WP /submit handler at api.py:164).
+        submit_data = {k: v for k, v in submit_data.items() if v is not None}
 
         is_valid, validated_data, errors = validate_request_data(
             ReactomeMappingSchema, submit_data
@@ -1605,6 +1622,25 @@ def submit_reactome_mapping():
             validated_data.get("species", "Homo sapiens")
         )
         confidence_level = validated_data["confidence_level"]
+
+        # Phase 37 ASMT-04: extract step answers and rename to DB column names
+        # (mirror WP /submit handler at api.py:188-203).
+        step1 = validated_data.get("step1")
+        step2 = validated_data.get("step2")
+        step3 = validated_data.get("step3")
+        step4 = validated_data.get("step4")
+        proposed_relationship = (
+            SecurityValidation.sanitize_string(step1) if step1 else None
+        )
+        proposed_basis = (
+            SecurityValidation.sanitize_string(step2) if step2 else None
+        )
+        proposed_specificity = (
+            SecurityValidation.sanitize_string(step3) if step3 else None
+        )
+        proposed_coverage = (
+            SecurityValidation.sanitize_string(step4) if step4 else None
+        )
 
         created_by = session.get("user", {}).get("username", "anonymous")
 
@@ -1629,6 +1665,10 @@ def submit_reactome_mapping():
             species=species,
             provider_username=created_by,
             suggestion_score=suggestion_score,
+            proposed_relationship=proposed_relationship,
+            proposed_basis=proposed_basis,
+            proposed_specificity=proposed_specificity,
+            proposed_coverage=proposed_coverage,
         )
 
         # Phase 25 review H-2: the partial-unique index on

@@ -256,7 +256,18 @@ class GoCheckEntrySchema(Schema):
 
 
 class ReactomeMappingSchema(Schema):
-    """Schema for KE-Reactome mapping submissions (Phase 25)."""
+    """Schema for KE-Reactome mapping submissions (Phase 25).
+
+    Phase 37 ASMT-04: four assessment-question answer fields (step1-4) and
+    an optional connection_type mirror MappingSchema (WP) for sibling parity.
+    All four step fields are optional for backward-compat with v1 (legacy)
+    proposals that predate the assessment UI. Out-of-whitelist values raise a
+    Marshmallow ValidationError surfaced as HTTP 400 by the submit handler.
+
+    The submit handler renames step1..step4 to the DB column conventions
+    (proposed_relationship/basis/specificity/coverage) and derives
+    connection_type from step1 if absent.
+    """
 
     ke_id = fields.Str(
         required=True,
@@ -290,6 +301,44 @@ class ReactomeMappingSchema(Schema):
             ["low", "medium", "high"], error="Invalid confidence level"
         ),
     )
+    # Phase 37 ASMT-04: four assessment-question answers — optional for
+    # back-compat; same KE_WP_*_OPTIONS constants as MappingSchema (single
+    # source of truth, canonical option-key whitelists).
+    step1 = fields.Str(
+        required=False,
+        allow_none=True,
+        validate=validate.OneOf(
+            list(KE_WP_RELATIONSHIP_OPTIONS),
+            error="Invalid step1 option (relationship)",
+        ),
+    )
+    step2 = fields.Str(
+        required=False,
+        allow_none=True,
+        validate=validate.OneOf(
+            list(KE_WP_BASIS_OPTIONS),
+            error="Invalid step2 option (basis)",
+        ),
+    )
+    step3 = fields.Str(
+        required=False,
+        allow_none=True,
+        validate=validate.OneOf(
+            list(KE_WP_SPECIFICITY_OPTIONS),
+            error="Invalid step3 option (specificity)",
+        ),
+    )
+    step4 = fields.Str(
+        required=False,
+        allow_none=True,
+        validate=validate.OneOf(
+            list(KE_WP_COVERAGE_OPTIONS),
+            error="Invalid step4 option (coverage)",
+        ),
+    )
+    # connection_type is optional for Reactome (unlike WP where it is
+    # required). The handler derives it from step1 when absent.
+    connection_type = fields.Str(required=False, allow_none=True)
 
 
 class ReactomeCheckEntrySchema(Schema):
