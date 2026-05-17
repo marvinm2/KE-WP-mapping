@@ -3162,8 +3162,8 @@ mark.search-highlight {
    ========================================================================== */
 
 .aop-gap-filter {
-    display: flex;
-    flex-wrap: wrap;
+    display: inline-flex;
+    flex-wrap: nowrap;
     gap: 0;
     margin: 12px 0 8px;
     border: 1.5px solid var(--color-primary-dark);
@@ -3172,9 +3172,9 @@ mark.search-highlight {
 }
 
 .aop-gap-filter .gap-filter-btn {
-    flex: 1 1 auto;
-    padding: 7px 14px;
-    font-size: 13px;
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    font-size: 12px;
     font-family: var(--font-family-base);
     font-weight: 500;
     background: var(--color-white);
@@ -3237,6 +3237,24 @@ mark.search-highlight {
 
 .aop-explorer__oecd-filter-wrap {
     margin-top: 10px;
+}
+
+/* Compact Select2 choice pills — scoped so they cannot affect other Select2 instances */
+.aop-explorer__oecd-filter-wrap .select2-container--default .select2-selection--multiple .select2-selection__choice {
+    padding: 1px 6px;
+    font-size: 11px;
+    line-height: 1.5;
+    margin-top: 3px;
+}
+
+.aop-explorer__oecd-filter-wrap .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    font-size: 11px;
+    margin-right: 3px;
+}
+
+.aop-explorer__oecd-filter-wrap .select2-container--default .select2-selection--multiple {
+    min-height: 32px;
+    padding: 2px 4px;
 }
 
 /* Gap KE mapper shortcut link in side panel */
