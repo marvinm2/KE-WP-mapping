@@ -631,7 +631,7 @@ def ke_biolevels():
 
 @main_bp.route("/api/ke-gene-counts")
 def ke_gene_counts():
-    """Return a map of KE ID to de-duplicated gene count from approved WP+GO mappings."""
+    """Return a map of KE ID to de-duplicated gene count from WP+GO mappings."""
     from src.exporters.gmt_exporter import _fetch_pathway_genes_batch
 
     mapping_type = request.args.get("type", "all").lower()
@@ -639,8 +639,7 @@ def ke_gene_counts():
 
     # WP gene data
     if mapping_type in ("wp", "all"):
-        wp_mappings = [m for m in (mapping_model.get_all_mappings() if mapping_model else [])
-                       if m.get('approved_by_curator') is not None]
+        wp_mappings = list(mapping_model.get_all_mappings() if mapping_model else [])
         wp_ids = list({m['wp_id'] for m in wp_mappings})
         genes_by_wp = _fetch_pathway_genes_batch(wp_ids, cache_model=cache_model_ref) if wp_ids else {}
 
@@ -651,8 +650,7 @@ def ke_gene_counts():
 
     # GO gene data
     if mapping_type in ("go", "all"):
-        go_mappings = [m for m in (go_mapping_model.get_all_mappings() if go_mapping_model else [])
-                       if m.get('approved_by_curator') is not None]
+        go_mappings = list(go_mapping_model.get_all_mappings() if go_mapping_model else [])
         go_annotations = {}
         try:
             go_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json')
@@ -683,7 +681,7 @@ def ke_genes_for_ke(ke_id):
     # WP gene data
     if mapping_type in ("wp", "all"):
         wp_mappings = [m for m in (mapping_model.get_all_mappings() if mapping_model else [])
-                       if m.get('approved_by_curator') is not None and m.get('ke_id') == ke_id]
+                       if m.get('ke_id') == ke_id]
         wp_ids = list({m['wp_id'] for m in wp_mappings})
         genes_by_wp = _fetch_pathway_genes_batch(wp_ids, cache_model=cache_model_ref) if wp_ids else {}
 
@@ -702,7 +700,7 @@ def ke_genes_for_ke(ke_id):
     # GO gene data
     if mapping_type in ("go", "all"):
         go_mappings = [m for m in (go_mapping_model.get_all_mappings() if go_mapping_model else [])
-                       if m.get('approved_by_curator') is not None and m.get('ke_id') == ke_id]
+                       if m.get('ke_id') == ke_id]
         go_annotations = {}
         try:
             go_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'go_bp_gene_annotations.json')
