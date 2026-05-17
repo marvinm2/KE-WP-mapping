@@ -3040,7 +3040,7 @@ mark.search-highlight {
 .version-badge {
     display: inline-block;
     padding: 3px 10px;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-sm);
     font-size: 12px;
     font-weight: 500;
     background-color: var(--color-primary-blue);
