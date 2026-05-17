@@ -623,11 +623,16 @@ class KEWPApp {
             const pathwayName = $card.data('pathway-name');
             const species = $card.data('species');
             const score = $card.data('score');
+            const matchingGenesAttr = $card.attr('data-matching-genes') || '';
+            const matchingGenes = matchingGenesAttr.split(',').filter(Boolean);
+            const geneScore = $card.attr('data-gene-score') || '0';
             this.selectReactomePathway({
                 reactomeId: reactomeId,
                 pathwayName: pathwayName,
                 species: species,
                 suggestionScore: (score === '' || score == null) ? null : Number(score),
+                matchingGenes: matchingGenes,
+                genePercent: geneScore,
             });
         });
 
@@ -668,13 +673,15 @@ class KEWPApp {
             });
         });
 
-        // Reactome confidence button click
-        $(document).on('click', '#reactome-confidence-select-group .btn-option', (e) => {
+        // Reactome confidence confirm/override button click
+        // (#reactome-confidence-select-group was the old 3-button selector — removed in 37-01.
+        //  #reactome-confidence-confirm-group is the new confirm/override control.)
+        $(document).on('click', '#reactome-confidence-confirm-group .btn-option', (e) => {
             const $btn = $(e.currentTarget);
-            $('#reactome-confidence-select-group .btn-option').removeClass('selected');
+            $('#reactome-confidence-confirm-group .btn-option').removeClass('selected');
             $btn.addClass('selected');
             this.selectedReactomeConfidence = $btn.data('value');
-            $('#reactome-confidence-select-error').hide();
+            $('#reactome-confidence-confirm-error').hide();
             $('#reactome-step-submit').show();
             this.enableReactomeSubmitIfReady();
         });
@@ -1450,6 +1457,10 @@ class KEWPApp {
 
         if (s1 && s2 && s3 && s4) {
             this.evaluatePathwayConfidence($pathwayAssessment, pathwayId);
+            // If this is the Reactome assessment, reveal the confirm/override step
+            if (this.selectedReactomePathway && pathwayId === this.selectedReactomePathway.reactomeId) {
+                this.revealReactomeConfirmStep(pathwayId);
+            }
         }
     }
 
@@ -1473,6 +1484,13 @@ class KEWPApp {
         // Remove stored result
         if (this.pathwayResults) {
             delete this.pathwayResults[pathwayId];
+        }
+
+        // If editing a Reactome assessment step, hide the confirm/override step again
+        if (this.selectedReactomePathway && pathwayId === this.selectedReactomePathway.reactomeId) {
+            $('#reactome-confidence-confirm').hide();
+            $('#reactome-step-submit').hide();
+            this.selectedReactomeConfidence = null;
         }
 
         // Re-run progression to rebuild collapsed/expanded state
@@ -4785,13 +4803,18 @@ This helps identify gaps in existing pathways for future development.">❓</span
             const reactomeGeneChip = this.renderGeneOverlapChip(s, data.genes_found || 0);
             const hiddenClass      = index >= 3 ? 'suggestion-item-hidden' : '';
 
+            const matchingGenesStr = esc((s.matching_genes || []).join(','));
+            const geneScorePct = Math.round(((s.gene_overlap_ratio || 0) * 100));
+
             cardsHtml += `
                 <div class="suggestion-card panel-outlined ${borderClass} ${hiddenClass}"
                      style="padding: 12px; margin-bottom: 10px; border-radius: 6px;"
                      data-reactome-id="${reactomeId}"
                      data-pathway-name="${pathwayName}"
                      data-species="${species}"
-                     data-score="${scoreNumeric != null ? scoreNumeric : ''}">
+                     data-score="${scoreNumeric != null ? scoreNumeric : ''}"
+                     data-matching-genes="${matchingGenesStr}"
+                     data-gene-score="${geneScorePct}">
                     <div style="display: flex; gap: 12px; align-items: flex-start;">
                         <div style="flex: 1;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -4929,12 +4952,16 @@ This helps identify gaps in existing pathways for future development.">❓</span
     // Reactome pathway selection (from Suggested or Search) and step reveal
     // -------------------------------------------------------------------------
 
-    selectReactomePathway({ reactomeId, pathwayName, species, suggestionScore }) {
+    selectReactomePathway({ reactomeId, pathwayName, species, suggestionScore, matchingGenes, genePercent }) {
         this.selectedReactomePathway = {
             reactomeId: reactomeId,
             pathwayName: pathwayName,
             species: species || 'Homo sapiens',
             suggestionScore: suggestionScore != null ? suggestionScore : null,
+            // Gene overlap resolved from the suggestion card's data attributes at selection time.
+            // null means no card data (e.g. search result with no gene data attribute).
+            matchingGenes: matchingGenes != null ? matchingGenes : null,
+            genePercent: genePercent != null ? genePercent : '0',
         };
         // Highlight the matching suggestion card if present
         $('#reactome-suggestions-container .suggestion-card').removeClass('go-suggestion-item--selected');
@@ -5002,10 +5029,80 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     revealReactomeConfidenceStep() {
-        $('#reactome-confidence-guide').show();
-        // Scroll to confidence section so curator sees the next step
+        const rp = this.selectedReactomePathway;
+        if (!rp) return;
+
+        const keInfo = this.selectedKEInfo || {};
+        const keId = keInfo.keId || $('#ke_id').val() || '';
+        const keTitle = keInfo.title || $('#ke_id option:selected').data('title') || '';
+        const keBiolevel = keInfo.biolevel || this.selectedBiolevel || '';
+
+        // Resolve gene overlap from the stored suggestion data (no DOM read needed)
+        const geneOverlap = (rp.matchingGenes != null)
+            ? { matchingGenes: rp.matchingGenes, genePercent: rp.genePercent || '0' }
+            : null;
+
+        // Build Reactome-specific pathway card HTML
+        const pathwayCardHtml = `
+                        <h4>Reactome Pathway</h4>
+                        <p><strong>${this.escapeHtml(rp.reactomeId)} — ${this.escapeHtml(rp.pathwayName)}</strong></p>
+                        <p class="text-muted" style="font-size: 12px;">Species: ${this.escapeHtml(rp.species || 'Homo sapiens')}</p>
+                        <a href="https://reactome.org/PathwayBrowser/#/${encodeURIComponent(rp.reactomeId)}" target="_blank">View on Reactome &rarr;</a>`;
+
+        const cardHtml = this.buildAssessmentCard({
+            assessmentId: 'assessment-reactome',
+            pathwayId: rp.reactomeId,
+            pathwayIndex: rp.reactomeId,
+            pathwayTitle: rp.pathwayName,
+            keInfo: { keId, keTitle, keBiolevel },
+            pathwayCardHtml,
+            geneOverlap,
+        });
+
+        // Initialise pathwayAssessments slot for the Reactome pathway
+        if (!this.pathwayAssessments) this.pathwayAssessments = {};
+        if (!this.pathwayAssessments[rp.reactomeId]) {
+            this.pathwayAssessments[rp.reactomeId] = {};
+        }
+
+        $('#reactome-assessment-container').html(cardHtml);
+        $('#reactome-confidence-confirm').hide();
+        $('#reactome-confidence-confirm-group .btn-option').removeClass('selected');
+        $('#reactome-step-submit').hide();
+        $('#reactome-assessment-guide').show();
+
+        // Scroll to assessment section
         setTimeout(() => {
-            const section = document.getElementById('reactome-confidence-guide');
+            const section = document.getElementById('reactome-assessment-guide');
+            if (section && section.scrollIntoView) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 80);
+    }
+
+    /**
+     * Called when all four Reactome assessment answers are collected.
+     * Evaluates confidence via the shared rubric and reveals #reactome-confidence-confirm.
+     */
+    revealReactomeConfirmStep(reactomeId) {
+        const result = this.pathwayResults && this.pathwayResults[reactomeId];
+        if (!result) return;
+
+        const recommended = result.confidence.toLowerCase();
+        const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+        $('#reactome-confidence-recommendation').text(cap(recommended));
+        $('#reactome-confidence-confirm-group .btn-option').removeClass('selected');
+        $(`#reactome-confidence-confirm-group .btn-option[data-value="${recommended}"]`).addClass('selected');
+        // Pre-select the recommended value so the submit button can enable immediately
+        this.selectedReactomeConfidence = recommended;
+        $('#reactome-confidence-confirm-error').hide();
+        $('#reactome-confidence-confirm').show();
+        $('#reactome-step-submit').show();
+        this.enableReactomeSubmitIfReady();
+
+        setTimeout(() => {
+            const section = document.getElementById('reactome-confidence-confirm');
             if (section && section.scrollIntoView) {
                 section.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
@@ -5059,7 +5156,7 @@ This helps identify gaps in existing pathways for future development.">❓</span
             return;
         }
         if (!this.selectedReactomeConfidence) {
-            $('#reactome-confidence-select-error').show();
+            $('#reactome-confidence-confirm-error').show();
             return;
         }
         if (!this.isLoggedIn) {
@@ -5118,11 +5215,21 @@ This helps identify gaps in existing pathways for future development.">❓</span
     }
 
     resetReactomeTab() {
+        // Clear Reactome assessment answers keyed by reactomeId (if any)
+        if (this.pathwayAssessments && this.selectedReactomePathway) {
+            delete this.pathwayAssessments[this.selectedReactomePathway.reactomeId];
+        }
+        if (this.pathwayResults && this.selectedReactomePathway) {
+            delete this.pathwayResults[this.selectedReactomePathway.reactomeId];
+        }
+
         this.selectedReactomePathway = null;
         this.selectedReactomeConfidence = null;
-        $('#reactome-confidence-select-group .btn-option').removeClass('selected');
-        $('#reactome-confidence-select-error').hide();
-        $('#reactome-confidence-guide').hide();
+        $('#reactome-assessment-guide').hide();
+        $('#reactome-assessment-container').empty();
+        $('#reactome-confidence-confirm').hide();
+        $('#reactome-confidence-confirm-group .btn-option').removeClass('selected');
+        $('#reactome-confidence-confirm-error').hide();
         $('#reactome-step-submit').hide();
         $('#duplicate-warning-reactome').hide().empty();
         // Phase 27 (RVIEW-01 / D-09): hide inline DiagramJS embed and clear stale flags.
