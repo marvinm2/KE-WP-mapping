@@ -2,8 +2,11 @@
 
 Phase 27 (Reactome Pathway Viewer) — Wave 0 verification of RVIEW-01 (a):
 the #reactome-inline-embed block exists in the rendered DOM and sits between
-#duplicate-warning-reactome and #reactome-confidence-guide inside
+#duplicate-warning-reactome and #reactome-assessment-guide inside
 #reactome-tab-content.
+
+Phase 37 (ASMT-04): #reactome-confidence-guide replaced by #reactome-assessment-guide
+(4-question assessment) and #reactome-confidence-confirm (confirm/override step).
 """
 
 
@@ -19,17 +22,20 @@ def test_reactome_inline_embed_block_present(client):
 
 
 def test_reactome_inline_embed_block_placement(client):
-    """RVIEW-01 (a): block sits between #duplicate-warning-reactome and #reactome-confidence-guide."""
+    """RVIEW-01 (a): block sits between #duplicate-warning-reactome and #reactome-assessment-guide.
+
+    Phase 37 (ASMT-04): anchor is now #reactome-assessment-guide (was #reactome-confidence-guide).
+    """
     response = client.get("/mapper")
     assert response.status_code == 200
     body = response.data.decode("utf-8")
     idx_dup = body.find('id="duplicate-warning-reactome"')
     idx_embed = body.find('id="reactome-inline-embed"')
-    idx_guide = body.find('id="reactome-confidence-guide"')
+    idx_guide = body.find('id="reactome-assessment-guide"')
     assert idx_dup != -1 and idx_embed != -1 and idx_guide != -1
     assert idx_dup < idx_embed < idx_guide, (
         f"Expected order duplicate-warning-reactome < reactome-inline-embed < "
-        f"reactome-confidence-guide; got positions {idx_dup}, {idx_embed}, {idx_guide}"
+        f"reactome-assessment-guide; got positions {idx_dup}, {idx_embed}, {idx_guide}"
     )
 
 

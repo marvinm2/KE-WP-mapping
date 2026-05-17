@@ -386,15 +386,21 @@
             <div id="reactome-inline-embed-error" style="display:none;"></div>
         </div>
 
-        <section id="reactome-confidence-guide" style="display: none;">
-            <h2>Step 3: Select Confidence Level</h2>
+        <section id="reactome-assessment-guide" style="display: none;">
+            <h2>Step 3: Assess KE-Reactome Relationship</h2>
+            <div id="reactome-assessment-container"></div>
+        </section>
+
+        <section id="reactome-confidence-confirm" style="display: none;">
+            <h2>Confirm Confidence Level</h2>
+            <p>The assessment recommends: <strong><span id="reactome-confidence-recommendation">--</span></strong></p>
             <p>Select the confidence level for this Reactome mapping: <span style="color: var(--color-status-low);">*</span></p>
-            <div class="btn-group" id="reactome-confidence-select-group" data-step="confidence">
+            <div class="btn-group" id="reactome-confidence-confirm-group" data-step="confidence">
                 <button type="button" class="btn-option" data-value="high">High</button>
                 <button type="button" class="btn-option" data-value="medium">Medium</button>
                 <button type="button" class="btn-option" data-value="low">Low</button>
             </div>
-            <p id="reactome-confidence-select-error" style="color: var(--color-status-low); display: none;">Please select a confidence level before submitting.</p>
+            <p id="reactome-confidence-confirm-error" style="color: var(--color-status-low); display: none;">Please select a confidence level before submitting.</p>
         </section>
 
         <section id="reactome-step-submit" style="display: none;">
