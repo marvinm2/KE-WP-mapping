@@ -3327,6 +3327,33 @@ mark.search-highlight {
     flex-shrink: 0;
 }
 
+/* Short subtitle under the card heading (replaces per-format descriptions) */
+.downloads-page .download-card__subtitle {
+    font-size: 12px;
+    color: var(--color-text-gray);
+    line-height: 1.5;
+    margin: 0 0 14px 0;
+}
+
+/* Compact format group inside a converged card: small label + button row */
+.downloads-page__format-group {
+    margin-bottom: 12px;
+}
+
+.downloads-page__format-group:last-of-type {
+    margin-bottom: 0;
+}
+
+.downloads-page__format-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-text-gray);
+    margin-bottom: 6px;
+}
+
 /* Preview toggle button */
 .downloads-page__preview-toggle {
     margin-top: 10px;

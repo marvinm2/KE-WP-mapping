@@ -41,23 +41,28 @@
         <div class="downloads-page__column">
             <h2 class="downloads-page__column-heading downloads-page__column-heading--blue">WikiPathways</h2>
 
-            <!-- Card: KE-WikiPathways GMT -->
+            <!-- Card 1: Gene-set files -->
             <div class="download-card download-card--blue">
                 <div class="download-card__header">
-                    <h3 class="download-card__title">KE-WikiPathways GMT</h3>
+                    <h3 class="download-card__title">Gene-set files</h3>
                     <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--blue">.gmt</span>
                         {{ version_pill('wikipathways') }}
                     </div>
                 </div>
-                <p class="download-card__desc">
-                    Key Event to WikiPathways mappings in GMT format. One row per KE-pathway pair.
-                    Gene symbols from WikiPathways (HGNC). Directly loadable by clusterProfiler
-                    <code>enricher()</code> and fgsea <code>gmtPathways()</code>.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/exports/gmt/ke-wp" class="btn-link-blue">All mappings</a>
-                    <a href="/exports/gmt/ke-wp?min_confidence=High" class="btn-link-blue">High confidence</a>
+                <p class="download-card__subtitle">For enrichment, e.g. fgsea / clusterProfiler.</p>
+                <div class="downloads-page__format-group">
+                    <span class="downloads-page__format-label">KE-WikiPathways GMT</span>
+                    <div class="download-card__actions">
+                        <a href="/exports/gmt/ke-wp" class="btn-link-blue">All mappings</a>
+                        <a href="/exports/gmt/ke-wp?min_confidence=High" class="btn-link-blue">High confidence</a>
+                    </div>
+                </div>
+                <div class="downloads-page__format-group">
+                    <span class="downloads-page__format-label">KE-Centric GMT</span>
+                    <div class="download-card__actions">
+                        <a href="/exports/gmt/ke-wp-centric" class="btn-link-blue">All mappings</a>
+                        <a href="/exports/gmt/ke-wp-centric?min_confidence=High" class="btn-link-blue">High confidence</a>
+                    </div>
                 </div>
                 <div class="download-card__preview-wrap" data-resource="wp" data-format="gmt">
                     <button class="downloads-page__preview-toggle" aria-expanded="false">Preview</button>
@@ -67,48 +72,19 @@
                 </div>
             </div>
 
-            <!-- Card: KE-Centric WikiPathways GMT -->
-            <div class="download-card download-card--blue">
-                <div class="download-card__header">
-                    <h3 class="download-card__title">KE-Centric WikiPathways GMT</h3>
-                    <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--blue">.gmt</span>
-                        {{ version_pill('wikipathways') }}
-                    </div>
-                </div>
-                <p class="download-card__desc">
-                    One row per Key Event. Gene symbols unioned across all approved WikiPathways
-                    mappings for each KE. Use with fgsea <code>gmtPathways()</code> or clusterProfiler
-                    <code>read.gmt()</code> for KE-level enrichment testing.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/exports/gmt/ke-wp-centric" class="btn-link-blue">All mappings</a>
-                    <a href="/exports/gmt/ke-wp-centric?min_confidence=High" class="btn-link-blue">High confidence</a>
-                </div>
-                <div class="download-card__preview-wrap" data-resource="wp" data-format="gmt-centric">
-                    <button class="downloads-page__preview-toggle" aria-expanded="false">Preview</button>
-                    <div class="downloads-page__preview-box" hidden>
-                        <pre class="download-preview"></pre>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card: KE-WikiPathways RDF/Turtle -->
+            <!-- Card 2: Full database export -->
             <div class="download-card download-card--dark">
                 <div class="download-card__header">
-                    <h3 class="download-card__title">KE-WikiPathways RDF/Turtle</h3>
+                    <h3 class="download-card__title">Full database export</h3>
                     <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--dark">.ttl</span>
                         {{ version_pill('wikipathways') }}
                     </div>
                 </div>
-                <p class="download-card__desc">
-                    Full KE-WikiPathways provenance in RDF/Turtle format. Includes curator GitHub username,
-                    approval timestamp, confidence level, suggestion score, and UUID per mapping.
-                    Parseable by rdflib, Protege, and any Turtle-compatible tool.
-                </p>
+                <p class="download-card__subtitle">Complete KE-WikiPathways mappings with full provenance.</p>
                 <div class="download-card__actions">
-                    <a href="/exports/rdf/ke-wp" class="btn-link-dark">Download ke-wp-mappings.ttl</a>
+                    <a href="/exports/rdf/ke-wp" class="btn-link-dark">RDF/Turtle</a>
+                    <a href="/api/v1/mappings?format=csv" class="btn-link-dark">CSV</a>
+                    <a href="/api/v1/mappings" class="btn-link-dark">JSON</a>
                 </div>
                 <div class="download-card__preview-wrap" data-resource="wp" data-format="ttl">
                     <button class="downloads-page__preview-toggle" aria-expanded="false">Preview</button>
@@ -117,67 +93,34 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Card: WikiPathways CSV -->
-            <div class="download-card download-card--blue">
-                <div class="download-card__header">
-                    <h3 class="download-card__title">KE-WikiPathways CSV</h3>
-                    <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--blue">.csv</span>
-                        {{ version_pill('wikipathways') }}
-                    </div>
-                </div>
-                <p class="download-card__desc">
-                    All approved KE-WikiPathways mappings as a flat CSV with confidence level,
-                    connection type, curator identity, and provenance fields. Suitable for
-                    spreadsheet analysis, R/Python import, or cross-database joins.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/api/v1/mappings?format=csv" class="btn-link-blue">Download CSV</a>
-                </div>
-            </div>
-
-            <!-- Card: WikiPathways JSON -->
-            <div class="download-card download-card--blue">
-                <div class="download-card__header">
-                    <h3 class="download-card__title">KE-WikiPathways JSON</h3>
-                    <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--blue">.json</span>
-                        {{ version_pill('wikipathways') }}
-                    </div>
-                </div>
-                <p class="download-card__desc">
-                    All approved KE-WikiPathways mappings as a paginated JSON response.
-                    Includes full metadata envelope with pagination info. Suitable for
-                    programmatic access, API integration, and downstream web tools.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/api/v1/mappings" class="btn-link-blue">Download JSON</a>
-                </div>
-            </div>
         </div><!-- /.downloads-page__column WikiPathways -->
 
         <!-- ===== GO column ===== -->
         <div class="downloads-page__column">
             <h2 class="downloads-page__column-heading downloads-page__column-heading--teal">Gene Ontology</h2>
 
-            <!-- Card: KE-GO GMT -->
+            <!-- Card 1: Gene-set files -->
             <div class="download-card download-card--teal">
                 <div class="download-card__header">
-                    <h3 class="download-card__title">KE-GO GMT</h3>
+                    <h3 class="download-card__title">Gene-set files</h3>
                     <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--teal">.gmt</span>
                         {{ version_pill('gene_ontology') }}
                     </div>
                 </div>
-                <p class="download-card__desc">
-                    Key Event to GO Biological Process mappings in GMT format. Gene symbols from
-                    GO biological process annotations (HGNC). Directly loadable by clusterProfiler
-                    and fgsea.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/exports/gmt/ke-go" class="btn-link-teal">All mappings</a>
-                    <a href="/exports/gmt/ke-go?min_confidence=High" class="btn-link-teal">High confidence</a>
+                <p class="download-card__subtitle">For enrichment, e.g. fgsea / clusterProfiler.</p>
+                <div class="downloads-page__format-group">
+                    <span class="downloads-page__format-label">KE-GO GMT</span>
+                    <div class="download-card__actions">
+                        <a href="/exports/gmt/ke-go" class="btn-link-teal">All mappings</a>
+                        <a href="/exports/gmt/ke-go?min_confidence=High" class="btn-link-teal">High confidence</a>
+                    </div>
+                </div>
+                <div class="downloads-page__format-group">
+                    <span class="downloads-page__format-label">KE-Centric GMT</span>
+                    <div class="download-card__actions">
+                        <a href="/exports/gmt/ke-go-centric" class="btn-link-teal">All mappings</a>
+                        <a href="/exports/gmt/ke-go-centric?min_confidence=High" class="btn-link-teal">High confidence</a>
+                    </div>
                 </div>
                 <div class="download-card__preview-wrap" data-resource="go" data-format="gmt">
                     <button class="downloads-page__preview-toggle" aria-expanded="false">Preview</button>
@@ -187,46 +130,19 @@
                 </div>
             </div>
 
-            <!-- Card: KE-Centric GO GMT -->
-            <div class="download-card download-card--teal">
-                <div class="download-card__header">
-                    <h3 class="download-card__title">KE-Centric GO GMT</h3>
-                    <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--teal">.gmt</span>
-                        {{ version_pill('gene_ontology') }}
-                    </div>
-                </div>
-                <p class="download-card__desc">
-                    One row per Key Event. Gene symbols unioned across all approved GO Biological Process
-                    mappings for each KE. Directly loadable by clusterProfiler and fgsea.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/exports/gmt/ke-go-centric" class="btn-link-teal">All mappings</a>
-                    <a href="/exports/gmt/ke-go-centric?min_confidence=High" class="btn-link-teal">High confidence</a>
-                </div>
-                <div class="download-card__preview-wrap" data-resource="go" data-format="gmt-centric">
-                    <button class="downloads-page__preview-toggle" aria-expanded="false">Preview</button>
-                    <div class="downloads-page__preview-box" hidden>
-                        <pre class="download-preview"></pre>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card: KE-GO RDF/Turtle -->
+            <!-- Card 2: Full database export -->
             <div class="download-card download-card--dark">
                 <div class="download-card__header">
-                    <h3 class="download-card__title">KE-GO RDF/Turtle</h3>
+                    <h3 class="download-card__title">Full database export</h3>
                     <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--dark">.ttl</span>
                         {{ version_pill('gene_ontology') }}
                     </div>
                 </div>
-                <p class="download-card__desc">
-                    Full KE-GO provenance in RDF/Turtle format. Same provenance fields as
-                    KE-WikiPathways Turtle.
-                </p>
+                <p class="download-card__subtitle">Complete KE-GO mappings with full provenance.</p>
                 <div class="download-card__actions">
-                    <a href="/exports/rdf/ke-go" class="btn-link-dark">Download ke-go-mappings.ttl</a>
+                    <a href="/exports/rdf/ke-go" class="btn-link-dark">RDF/Turtle</a>
+                    <a href="/api/v1/go-mappings?format=csv" class="btn-link-dark">CSV</a>
+                    <a href="/api/v1/go-mappings" class="btn-link-dark">JSON</a>
                 </div>
                 <div class="download-card__preview-wrap" data-resource="go" data-format="ttl">
                     <button class="downloads-page__preview-toggle" aria-expanded="false">Preview</button>
@@ -235,66 +151,34 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Card: GO CSV -->
-            <div class="download-card download-card--teal">
-                <div class="download-card__header">
-                    <h3 class="download-card__title">KE-GO CSV</h3>
-                    <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--teal">.csv</span>
-                        {{ version_pill('gene_ontology') }}
-                    </div>
-                </div>
-                <p class="download-card__desc">
-                    All approved KE-GO mappings as a flat CSV with confidence level, GO term ID,
-                    curator identity, and provenance fields. Suitable for spreadsheet analysis and
-                    cross-database joins.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/api/v1/go-mappings?format=csv" class="btn-link-teal">Download CSV</a>
-                </div>
-            </div>
-
-            <!-- Card: GO JSON -->
-            <div class="download-card download-card--teal">
-                <div class="download-card__header">
-                    <h3 class="download-card__title">KE-GO JSON</h3>
-                    <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--teal">.json</span>
-                        {{ version_pill('gene_ontology') }}
-                    </div>
-                </div>
-                <p class="download-card__desc">
-                    All approved KE-GO mappings as a paginated JSON response with full metadata
-                    envelope. Suitable for programmatic access and API integration.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/api/v1/go-mappings" class="btn-link-teal">Download JSON</a>
-                </div>
-            </div>
         </div><!-- /.downloads-page__column GO -->
 
         <!-- ===== Reactome column ===== -->
         <div class="downloads-page__column">
             <h2 class="downloads-page__column-heading downloads-page__column-heading--orange">Reactome</h2>
 
-            <!-- Card: KE-Reactome GMT -->
+            <!-- Card 1: Gene-set files -->
             <div class="download-card download-card--orange">
                 <div class="download-card__header">
-                    <h3 class="download-card__title">KE-Reactome GMT</h3>
+                    <h3 class="download-card__title">Gene-set files</h3>
                     <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--orange">.gmt</span>
                         {{ version_pill('reactome') }}
                     </div>
                 </div>
-                <p class="download-card__desc">
-                    Key Event to Reactome pathway mappings in GMT format. One row per KE-pathway pair.
-                    Gene symbols from Reactome (HGNC). Directly loadable by clusterProfiler
-                    <code>enricher()</code> and fgsea <code>gmtPathways()</code>.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/exports/gmt/ke-reactome" class="btn-link-orange">All mappings</a>
-                    <a href="/exports/gmt/ke-reactome?min_confidence=High" class="btn-link-orange">High confidence</a>
+                <p class="download-card__subtitle">For enrichment, e.g. fgsea / clusterProfiler.</p>
+                <div class="downloads-page__format-group">
+                    <span class="downloads-page__format-label">KE-Reactome GMT</span>
+                    <div class="download-card__actions">
+                        <a href="/exports/gmt/ke-reactome" class="btn-link-orange">All mappings</a>
+                        <a href="/exports/gmt/ke-reactome?min_confidence=High" class="btn-link-orange">High confidence</a>
+                    </div>
+                </div>
+                <div class="downloads-page__format-group">
+                    <span class="downloads-page__format-label">KE-Centric GMT</span>
+                    <div class="download-card__actions">
+                        <a href="/exports/gmt/ke-reactome-centric" class="btn-link-orange">All mappings</a>
+                        <a href="/exports/gmt/ke-reactome-centric?min_confidence=High" class="btn-link-orange">High confidence</a>
+                    </div>
                 </div>
                 <div class="download-card__preview-wrap" data-resource="reactome" data-format="gmt">
                     <button class="downloads-page__preview-toggle" aria-expanded="false">Preview</button>
@@ -304,84 +188,25 @@
                 </div>
             </div>
 
-            <!-- Card: KE-Centric Reactome GMT -->
-            <div class="download-card download-card--orange">
-                <div class="download-card__header">
-                    <h3 class="download-card__title">KE-Centric Reactome GMT</h3>
-                    <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--orange">.gmt</span>
-                        {{ version_pill('reactome') }}
-                    </div>
-                </div>
-                <p class="download-card__desc">
-                    One row per Key Event. Genes unioned across all Reactome mappings for that KE,
-                    deduplicated. Useful for KE-level enrichment analyses where pathway granularity
-                    is collapsed.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/exports/gmt/ke-reactome-centric" class="btn-link-orange">All mappings</a>
-                    <a href="/exports/gmt/ke-reactome-centric?min_confidence=High" class="btn-link-orange">High confidence</a>
-                </div>
-            </div>
-
-            <!-- Card: KE-Reactome RDF/Turtle -->
+            <!-- Card 2: Full database export -->
             <div class="download-card download-card--dark">
                 <div class="download-card__header">
-                    <h3 class="download-card__title">KE-Reactome RDF/Turtle</h3>
+                    <h3 class="download-card__title">Full database export</h3>
                     <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--dark">.ttl</span>
                         {{ version_pill('reactome') }}
                     </div>
                 </div>
-                <p class="download-card__desc">
-                    Full KE-Reactome provenance in RDF/Turtle format. Includes curator identity,
-                    approval timestamp, confidence level, suggestion score, species, and pathway
-                    description per mapping. Parseable by rdflib, Protege, and any Turtle-compatible tool.
-                </p>
+                <p class="download-card__subtitle">Complete KE-Reactome mappings with full provenance.</p>
                 <div class="download-card__actions">
-                    <a href="/exports/rdf/ke-reactome" class="btn-link-dark">Download ke-reactome-mappings.ttl</a>
+                    <a href="/exports/rdf/ke-reactome" class="btn-link-dark">RDF/Turtle</a>
+                    <a href="/api/v1/reactome-mappings?format=csv" class="btn-link-dark">CSV</a>
+                    <a href="/api/v1/reactome-mappings" class="btn-link-dark">JSON</a>
                 </div>
                 <div class="download-card__preview-wrap" data-resource="reactome" data-format="ttl">
                     <button class="downloads-page__preview-toggle" aria-expanded="false">Preview</button>
                     <div class="downloads-page__preview-box" hidden>
                         <pre class="download-preview"></pre>
                     </div>
-                </div>
-            </div>
-
-            <!-- Card: Reactome CSV -->
-            <div class="download-card download-card--orange">
-                <div class="download-card__header">
-                    <h3 class="download-card__title">KE-Reactome CSV</h3>
-                    <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--orange">.csv</span>
-                        {{ version_pill('reactome') }}
-                    </div>
-                </div>
-                <p class="download-card__desc">
-                    All approved KE-Reactome mappings as a flat CSV with confidence level,
-                    Reactome pathway ID, curator identity, and provenance fields.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/api/v1/reactome-mappings?format=csv" class="btn-link-orange">Download CSV</a>
-                </div>
-            </div>
-
-            <!-- Card: Reactome JSON -->
-            <div class="download-card download-card--orange">
-                <div class="download-card__header">
-                    <h3 class="download-card__title">KE-Reactome JSON</h3>
-                    <div class="download-card__header-badges">
-                        <span class="download-card__badge download-card__badge--orange">.json</span>
-                        {{ version_pill('reactome') }}
-                    </div>
-                </div>
-                <p class="download-card__desc">
-                    All approved KE-Reactome mappings as a paginated JSON response with full
-                    metadata envelope. Suitable for programmatic access and API integration.
-                </p>
-                <div class="download-card__actions">
-                    <a href="/api/v1/reactome-mappings" class="btn-link-orange">Download JSON</a>
                 </div>
             </div>
         </div><!-- /.downloads-page__column Reactome -->
