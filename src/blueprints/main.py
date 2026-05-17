@@ -31,6 +31,31 @@ reactome_metadata = None  # {reactome_id: {description: str, ...}} — passed to
 
 EXPORT_CACHE_DIR = Path("static/exports")
 
+# ---------------------------------------------------------------------------
+# Preview allowlist — the ONLY source of file paths opened by download_preview.
+# Keys are (resource, format_name) tuples matching the URL parameters.
+# Values are absolute paths; os.path.abspath resolves them relative to the
+# application root at import time so the endpoint never constructs a path
+# from user input.  Add new entries here to extend preview coverage.
+# ---------------------------------------------------------------------------
+_EXPORTS_BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'static', 'exports'))
+
+PREVIEW_ALLOWLIST = {
+    # WikiPathways
+    ("wp", "gmt"):          os.path.join(_EXPORTS_BASE, "KE-WP_2026-03-04_All.gmt"),
+    ("wp", "gmt-centric"):  os.path.join(_EXPORTS_BASE, "KE-WP-CENTRIC_2026-03-04_All.gmt"),
+    ("wp", "ttl"):          os.path.join(_EXPORTS_BASE, "ke-wp-mappings.ttl"),
+    # Gene Ontology
+    ("go", "gmt"):          os.path.join(_EXPORTS_BASE, "KE-GO_2026-03-04_All.gmt"),
+    ("go", "gmt-centric"):  os.path.join(_EXPORTS_BASE, "KE-GO-CENTRIC_2026-03-04_All.gmt"),
+    ("go", "ttl"):          os.path.join(_EXPORTS_BASE, "ke-go-mappings.ttl"),
+    # Reactome
+    ("reactome", "gmt"):    os.path.join(_EXPORTS_BASE, "KE-REACTOME_2026-03-04_All.gmt"),
+    ("reactome", "ttl"):    os.path.join(_EXPORTS_BASE, "ke-reactome-mappings.ttl"),
+    # CSV/JSON previews are not file-cached; preview is intentionally unavailable.
+    # Add ("wp","csv") etc. here once a static export file exists.
+}
+
 # Precomputed OECD development-status map — gitignored, lives on Gluster mount.
 # Degrades to {} when absent (e.g. fresh CI checkout) — never raises.
 oecd_status_data = {}
@@ -636,6 +661,28 @@ def api_aop_oecd_status():
     """Serve precomputed per-AOP OECD development-status map (AOPX-06/07).
     Degrades to an empty object when the gitignored data file is absent."""
     return jsonify(oecd_status_data)
+
+
+@main_bp.route("/api/preview/<resource>/<format_name>")
+def download_preview(resource, format_name):
+    """Return the first ≤20 lines of a cached export file for in-page preview.
+
+    Security: the file path is looked up exclusively from PREVIEW_ALLOWLIST.
+    The raw URL parameters (resource, format_name) are NEVER used to construct
+    a filesystem path — they are only dict keys.  Any (resource, format_name)
+    pair not present in the allowlist returns {"lines": [], "available": false}.
+    """
+    import itertools
+    file_path = PREVIEW_ALLOWLIST.get((resource, format_name))
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({"lines": [], "available": False})
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            lines = list(itertools.islice(f, 20))
+    except OSError as exc:
+        logger.warning("Preview read failed for %s/%s: %s", resource, format_name, exc)
+        return jsonify({"lines": [], "available": False})
+    return jsonify({"lines": lines, "available": True})
 
 
 @main_bp.route("/api/ke-biolevels")
