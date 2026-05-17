@@ -41,6 +41,17 @@ try:
 except (FileNotFoundError, json_lib.JSONDecodeError):
     oecd_status_data = {}
 
+# KE-to-AOP membership map for the Explore page AOP-context column.
+# Shape: {"KE 1": [{"aop_id": "AOP 1", "aop_title": "..."}], ...}
+# Degrades to {} when the file is absent (CI / fresh checkout).
+ke_aop_membership = {}
+_ke_aop_membership_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'ke_aop_membership.json')
+try:
+    with open(_ke_aop_membership_path, 'r') as _f:
+        ke_aop_membership = json_lib.load(_f)
+except (FileNotFoundError, json_lib.JSONDecodeError):
+    ke_aop_membership = {}
+
 
 def set_models(mapping, export_mgr=None, metadata_mgr=None, go_mapping=None, cache_model=None, ker_adjacency_data=None,
                reactome_mapping=None, reactome_meta=None):
@@ -175,11 +186,20 @@ def explore():
         except Exception as e:
             logger.warning("Failed to load Reactome mapping count: %s", e)
             reactome_count = 0
+        wp_count = 0
+        try:
+            if mapping_model:
+                wp_count = len(mapping_model.get_all_mappings())
+        except Exception as e:
+            logger.warning("Failed to load WP mapping count: %s", e)
+            wp_count = 0
         return render_template(
             "explore.html",
             go_dataset=go_data,
             user_info=user_info,
             reactome_count=reactome_count,
+            wp_count=wp_count,
+            ke_aop_membership=ke_aop_membership,
         )
     except Exception as e:
         logger.error("Error loading dataset: %s", e)
@@ -188,6 +208,8 @@ def explore():
             go_dataset=[],
             user_info={},
             reactome_count=0,
+            wp_count=0,
+            ke_aop_membership={},
             error="Failed to load dataset",
         )
 

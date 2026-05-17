@@ -31,7 +31,7 @@
         <!-- Tab Switcher -->
         <div id="explore-tab-switcher" class="tab-switcher">
             <button type="button" class="explore-tab tab-btn active" data-tab="wp">
-                KE-WikiPathways Mappings
+                KE-WikiPathways Mappings ({{ wp_count }})
             </button>
             <button type="button" class="explore-tab tab-btn" data-tab="go">
                 KE-GO Mappings ({{ go_dataset|length }})
@@ -76,7 +76,8 @@
                         <th>Confidence Level</th>
                         <th>Proposer</th>
                         <th>Curator</th>
-                        <th>Approved</th>
+                        <th>Last updated</th>
+                        <th>AOP context</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -96,7 +97,8 @@
                         <th>Connection Type</th>
                         <th>Confidence Level</th>
                         <th>Proposer</th>
-                        <th>Timestamp</th>
+                        <th>Last updated</th>
+                        <th>AOP context</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -107,9 +109,10 @@
                         <td><a href="https://www.ebi.ac.uk/QuickGO/term/{{ row['go_id'] }}" target="_blank">{{ row['go_id'] }}</a></td>
                         <td>{{ row['go_name'] }}</td>
                         <td>{{ row['connection_type'] }}</td>
-                        <td>{{ row['confidence_level'] }}</td>
+                        <td><span class="badge-status-{{ (row['confidence_level'] or '')|lower }}">{{ row['confidence_level'] }}</span></td>
                         <td>{{ row['proposed_by']|display_username if row['proposed_by'] else '-' }}</td>
-                        <td>{{ (row['created_at'] or '').split('.')[0] }}</td>
+                        <td>{{ (row['created_at'] or '')[:10] or '-' }}</td>
+                        <td>{% set aop_entries = ke_aop_membership.get(row['ke_id'], []) %}{% if aop_entries %}{{ aop_entries | map(attribute='aop_id') | list | join(', ') }}{% else %}-{% endif %}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -146,7 +149,8 @@
                         <th>Confidence</th>
                         <th>Proposer</th>
                         <th>Curator</th>
-                        <th>Approved</th>
+                        <th>Last updated</th>
+                        <th>AOP context</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -231,6 +235,21 @@
     <script src="{{ url_for('static', filename='js/datatable-config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
+        // KE-to-AOP membership map injected server-side.
+        // Shape: {"KE 142": [{"aop_id": "AOP 1", "aop_title": "..."}], ...}
+        var KE_AOP_MEMBERSHIP = {{ ke_aop_membership | tojson | safe }};
+
+        // Return a compact AOP-context string for a given ke_id.
+        function getAopContext(keId) {
+            var entries = KE_AOP_MEMBERSHIP[keId];
+            if (!entries || entries.length === 0) return '-';
+            if (entries.length <= 3) {
+                return entries.map(function(e) { return e.aop_id; }).join(', ');
+            }
+            return entries.slice(0, 2).map(function(e) { return e.aop_id; }).join(', ') +
+                   ' (+' + (entries.length - 2) + ' more)';
+        }
+
         $(document).ready(function () {
 
             // Filter state for KE-WP tab
@@ -277,7 +296,13 @@
                       }
                     },
                     { data: 'pathway_title' },
-                    { data: 'confidence_level' },
+                    { data: 'confidence_level',
+                      render: function(data) {
+                          if (!data) return '';
+                          var level = String(data).toLowerCase();
+                          return '<span class="badge-status-' + level + '">' + data + '</span>';
+                      }
+                    },
                     { data: 'provenance.proposed_by', defaultContent: '-',
                       render: function(data) {
                           if (!data) return '-';
@@ -294,19 +319,22 @@
                     },
                     { data: 'provenance.approved_at', defaultContent: '-',
                       render: function(d) { return d ? d.split('T')[0] : '-'; } },
+                    { data: 'ke_id', defaultContent: '-',
+                      render: function(data) { return getAopContext(data); } },
                     { data: null, orderable: false, defaultContent: '<button class="propose-change btn-sm">Propose Change</button>' }
                 ],
                 order: [[7, 'desc']],
                 columnDefs: [
-                    { width: '8%',  targets: 0, className: 'dt-center' },
-                    { width: '16%', targets: 1, className: 'dt-center' },
-                    { width: '8%',  targets: 2, className: 'dt-center' },
-                    { width: '16%', targets: 3, className: 'dt-center' },
-                    { width: '10%', targets: 4, className: 'dt-center' },
-                    { width: '10%', targets: 5, className: 'dt-center' },
-                    { width: '10%', targets: 6, className: 'dt-center' },
-                    { width: '12%', targets: 7, className: 'dt-center' },
-                    { width: '10%', targets: 8, className: 'dt-center' }
+                    { width: '7%',  targets: 0, className: 'dt-center' },
+                    { width: '14%', targets: 1, className: 'dt-center' },
+                    { width: '7%',  targets: 2, className: 'dt-center' },
+                    { width: '14%', targets: 3, className: 'dt-center' },
+                    { width: '9%',  targets: 4, className: 'dt-center' },
+                    { width: '9%',  targets: 5, className: 'dt-center' },
+                    { width: '9%',  targets: 6, className: 'dt-center' },
+                    { width: '10%', targets: 7, className: 'dt-center' },
+                    { width: '11%', targets: 8, className: 'dt-center' },
+                    { width: '10%', targets: 9, className: 'dt-center' }
                 ]
             });
 
@@ -378,10 +406,12 @@
 
             // Load AOP options into both Select2 dropdowns from /get_aop_options
             // Response shape: [{aopId: "AOP 1", aopTitle: "..."}, ...]
+            // Display text prefixed with AOP ID: "AOP N — Title" (EXPL-05)
             $.getJSON('/get_aop_options').done(function(options) {
                 options.forEach(function(opt) {
                     var id = opt.aopId || '';
-                    var label = opt.aopTitle || opt.aopLabel || id;
+                    var title = opt.aopTitle || opt.aopLabel || '';
+                    var label = title ? (id + ' — ' + title) : id;
                     if (id) {
                         $('#aop-filter-select').append(new Option(label, id, false, false));
                     }
@@ -437,15 +467,17 @@
                     if (!goTableInitialized) {
                         $('#goDatasetTable').DataTable(
                             DataTableConfig.merge('withFullExport', {
-                                order: [[6, 'desc']],
+                                order: [[7, 'desc']],
                                 columnDefs: [
-                                    { width: '10%', targets: 0, className: 'dt-center' },
-                                    { width: '20%', targets: 1, className: 'dt-center' },
-                                    { width: '10%', targets: 2, className: 'dt-center' },
-                                    { width: '25%', targets: 3, className: 'dt-center' },
-                                    { width: '12%', targets: 4, className: 'dt-center' },
-                                    { width: '12%', targets: 5, className: 'dt-center' },
-                                    { width: '11%', targets: 6, className: 'dt-center' }
+                                    { width: '8%',  targets: 0, className: 'dt-center' },
+                                    { width: '18%', targets: 1, className: 'dt-center' },
+                                    { width: '9%',  targets: 2, className: 'dt-center' },
+                                    { width: '21%', targets: 3, className: 'dt-center' },
+                                    { width: '10%', targets: 4, className: 'dt-center' },
+                                    { width: '10%', targets: 5, className: 'dt-center' },
+                                    { width: '10%', targets: 6, className: 'dt-center' },
+                                    { width: '9%',  targets: 7, className: 'dt-center' },
+                                    { width: '5%',  targets: 8, className: 'dt-center' }
                                 ]
                             })
                         );
@@ -483,7 +515,13 @@
                                   }
                                 },
                                 { data: 'pathway_name' },
-                                { data: 'confidence_level' },
+                                { data: 'confidence_level',
+                                  render: function(data) {
+                                      if (!data) return '';
+                                      var level = String(data).toLowerCase();
+                                      return '<span class="badge-status-' + level + '">' + data + '</span>';
+                                  }
+                                },
                                 { data: 'provenance.proposed_by', defaultContent: '-',
                                   render: function(data) {
                                       if (!data) return '-';
@@ -499,7 +537,9 @@
                                   }
                                 },
                                 { data: 'provenance.approved_at', defaultContent: '-',
-                                  render: function(d) { return d ? d.split('T')[0] : '-'; } }
+                                  render: function(d) { return d ? d.split('T')[0] : '-'; } },
+                                { data: 'ke_id', defaultContent: '-',
+                                  render: function(data) { return getAopContext(data); } }
                             ]
                         });
                         reactomeTableInitialized = true;
@@ -554,10 +594,12 @@
             // Note: the WP loader (above) already fetches and appends to #aop-filter-select;
             // we duplicate the request here so the Reactome select gets the same
             // option list and a Select2 init. Cheap enough — endpoint is fast and cached client-side.
+            // Display text prefixed with AOP ID: "AOP N — Title" (EXPL-05)
             $.getJSON('/get_aop_options').done(function(options) {
                 options.forEach(function(opt) {
                     var id = opt.aopId || '';
-                    var label = opt.aopTitle || opt.aopLabel || id;
+                    var title = opt.aopTitle || opt.aopLabel || '';
+                    var label = title ? (id + ' — ' + title) : id;
                     if (id) {
                         $('#reactome-aop-filter-select').append(new Option(label, id, false, false));
                     }
