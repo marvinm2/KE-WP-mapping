@@ -25,7 +25,7 @@
 
 <div class="container">
     <h1>Downloads</h1>
-    <p class="text-muted" style="margin-bottom:24px;">Export the curated KE-WP, KE-GO, and KE-Reactome mapping database in bioinformatics-ready formats.</p>
+    <p class="text-muted" style="margin-bottom:24px;">Export the curated KE-WikiPathways, KE-GO, and KE-Reactome mapping database in bioinformatics-ready formats.</p>
 
     {% if zenodo_meta and zenodo_meta.doi %}
     <div class="info-banner">
@@ -37,10 +37,10 @@
     <!-- Export format cards -->
     <div class="download-cards-grid">
 
-        <!-- Card 1: KE-WP GMT -->
+        <!-- Card 1: KE-WikiPathways GMT -->
         <div class="download-card download-card--blue">
             <div class="download-card__header">
-                <h2 class="download-card__title">KE-WP GMT</h2>
+                <h2 class="download-card__title">KE-WikiPathways GMT</h2>
                 <span class="download-card__badge download-card__badge--blue">.gmt</span>
                 {{ version_pill('wikipathways') }}
             </div>
@@ -91,10 +91,10 @@
             </div>
         </div>
 
-        <!-- Card 3: KE-Centric WP GMT -->
+        <!-- Card 3: KE-Centric WikiPathways GMT -->
         <div class="download-card download-card--blue">
             <div class="download-card__header">
-                <h2 class="download-card__title">KE-Centric WP GMT</h2>
+                <h2 class="download-card__title">KE-Centric WikiPathways GMT</h2>
                 <span class="download-card__badge download-card__badge--blue">.gmt</span>
                 {{ version_pill('wikipathways') }}
             </div>
@@ -144,15 +144,15 @@
             </div>
         </div>
 
-        <!-- Card 5: KE-WP RDF/Turtle -->
+        <!-- Card 5: KE-WikiPathways RDF/Turtle -->
         <div class="download-card download-card--dark">
             <div class="download-card__header">
-                <h2 class="download-card__title">KE-WP RDF/Turtle</h2>
+                <h2 class="download-card__title">KE-WikiPathways RDF/Turtle</h2>
                 <span class="download-card__badge download-card__badge--dark">.ttl</span>
                 {{ version_pill('wikipathways') }}
             </div>
             <p class="download-card__desc">
-                Full KE-WP provenance in RDF/Turtle format. Includes curator GitHub username,
+                Full KE-WikiPathways provenance in RDF/Turtle format. Includes curator GitHub username,
                 approval timestamp, confidence level, suggestion score, and UUID per mapping.
                 Parseable by rdflib, Protege, and any Turtle-compatible tool.
             </p>
@@ -169,7 +169,7 @@
                 {{ version_pill('gene_ontology') }}
             </div>
             <p class="download-card__desc">
-                Full KE-GO provenance in RDF/Turtle format. Same provenance fields as KE-WP
+                Full KE-GO provenance in RDF/Turtle format. Same provenance fields as KE-WikiPathways
                 Turtle.
             </p>
             <div>
