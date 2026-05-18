@@ -31,7 +31,7 @@ def db(tmp_path: Path) -> Database:
 def test_wp_get_all_mappings_returns_version_columns(db):
     mm = MappingModel(db)
     mm.create_mapping(
-        ke_id="KE 1", ke_title="t", wp_id="WP1", wp_title="t", created_by="u",
+        ke_id="KE 1", ke_title="t", wp_id="WP1", wp_title="t", created_by="github:u",
         wp_release_date="2026-05-10",
         aopwiki_snapshot_date="2026-05-06",
     )
@@ -46,7 +46,7 @@ def test_go_get_all_mappings_returns_version_columns(db):
     gm = GoMappingModel(db)
     gm.create_mapping(
         ke_id="KE 2", ke_title="t", go_id="GO:0001", go_name="t",
-        created_by="u",
+        created_by="github:u",
         go_release_date="2026-01-23",
         aopwiki_snapshot_date="2026-05-06",
     )
@@ -83,7 +83,7 @@ def test_legacy_rows_have_null_version_columns(db):
     """Rows created without the new kwargs surface NULL in the new fields."""
     mm = MappingModel(db)
     mm.create_mapping(
-        ke_id="KE 10", ke_title="t", wp_id="WP10", wp_title="t", created_by="u",
+        ke_id="KE 10", ke_title="t", wp_id="WP10", wp_title="t", created_by="github:u",
     )
     rows = mm.get_all_mappings()
     assert rows[0]["wp_release_date"] is None
@@ -98,7 +98,7 @@ def test_ke_wp_turtle_emits_version_triples(db):
     mm = MappingModel(db)
     mm.create_mapping(
         ke_id="KE 1", ke_title="oxidative stress", wp_id="WP1", wp_title="apoptosis",
-        confidence_level="high", created_by="u",
+        confidence_level="high", created_by="github:u",
         wp_release_date="2026-05-10",
         aopwiki_snapshot_date="2026-05-06",
     )
@@ -116,7 +116,7 @@ def test_ke_wp_turtle_skips_null_version_triples(db):
     mm = MappingModel(db)
     mm.create_mapping(
         ke_id="KE 2", ke_title="t", wp_id="WP2", wp_title="t",
-        confidence_level="high", created_by="u",
+        confidence_level="high", created_by="github:u",
     )
     ttl = generate_ke_wp_turtle(mm.get_all_mappings())
     assert "wpReleaseDate" not in ttl
@@ -129,7 +129,7 @@ def test_ke_go_turtle_emits_version_triples(db):
     gm = GoMappingModel(db)
     gm.create_mapping(
         ke_id="KE 5", ke_title="t", go_id="GO:0006915", go_name="apoptotic process",
-        confidence_level="high", created_by="u",
+        confidence_level="high", created_by="github:u",
         go_release_date="2026-01-23",
         aopwiki_snapshot_date="2026-05-06",
     )
@@ -173,7 +173,7 @@ def test_turtle_round_trip_with_rdflib(db):
     mm = MappingModel(db)
     mm.create_mapping(
         ke_id="KE 1", ke_title="t", wp_id="WP1", wp_title="t",
-        confidence_level="high", created_by="u",
+        confidence_level="high", created_by="github:u",
         wp_release_date="2026-05-10", aopwiki_snapshot_date="2026-05-06",
     )
     ttl = generate_ke_wp_turtle(mm.get_all_mappings())
@@ -202,7 +202,7 @@ def test_json_export_includes_version_fields_in_data_schema(db, monkeypatch):
 
     mm = MappingModel(db)
     mm.create_mapping(
-        ke_id="KE 1", ke_title="t", wp_id="WP1", wp_title="t", created_by="u",
+        ke_id="KE 1", ke_title="t", wp_id="WP1", wp_title="t", created_by="github:u",
         wp_release_date="2026-05-10",
         aopwiki_snapshot_date="2026-05-06",
     )

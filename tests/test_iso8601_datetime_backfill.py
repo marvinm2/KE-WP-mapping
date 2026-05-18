@@ -63,7 +63,7 @@ def _raw_insert_legacy_row(db_path):
                 connection_type, confidence_level, created_by, created_at,
                 updated_at, approved_at_curator, approved_by_curator)
             VALUES (?, 'KE 1', 'Test KE', 'WP1', 'Test pathway', 'causative',
-                'high', 'test', '2025-08-13 05:42:58', '2025-08-13 05:42:58',
+                'high', 'github:test', '2025-08-13 05:42:58', '2025-08-13 05:42:58',
                 '2025-08-13 05:42:58', 'curator1')
             """,
             (str(uuid.uuid4()),),
@@ -74,7 +74,7 @@ def _raw_insert_legacy_row(db_path):
                 connection_type, confidence_level, created_by, created_at,
                 updated_at, approved_at_curator, approved_by_curator)
             VALUES (?, 'KE 2', 'Test KE 2', 'GO:0001234', 'test go term',
-                'causative', 'high', 'test', '2025-08-13 05:42:58',
+                'causative', 'high', 'github:test', '2025-08-13 05:42:58',
                 '2025-08-13 05:42:58', '2025-08-13 05:42:58', 'curator1')
             """,
             (str(uuid.uuid4()),),
@@ -86,7 +86,7 @@ def _raw_insert_legacy_row(db_path):
                 created_by, created_at, updated_at, approved_at_curator,
                 approved_by_curator)
             VALUES (?, 'KE 3', 'Test KE 3', 'R-HSA-1', 'test reactome pathway',
-                'Homo sapiens', 'high', 'test', '2025-08-13 05:42:58',
+                'Homo sapiens', 'high', 'github:test', '2025-08-13 05:42:58',
                 '2025-08-13 05:42:58', '2025-08-13 05:42:58', 'curator1')
             """,
             (str(uuid.uuid4()),),
@@ -135,7 +135,7 @@ def test_backfill_leaves_iso_rows_untouched(tmp_path):
                 connection_type, confidence_level, created_by, created_at,
                 approved_at_curator, approved_by_curator)
             VALUES (?, 'KE A', 'KE A', 'WP-A', 'A', 'causative', 'high',
-                'test', '2025-08-13T05:42:58', '2025-08-13T05:42:58',
+                'github:test', '2025-08-13T05:42:58', '2025-08-13T05:42:58',
                 'curator1')
             """,
             (str(uuid.uuid4()),),

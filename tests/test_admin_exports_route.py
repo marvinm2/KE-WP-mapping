@@ -86,7 +86,7 @@ def _seed_one_approved_mapping(mm, ke="KE 1", wp="WP1", conf="high"):
             """,
             (
                 str(uuid.uuid4()), ke, f"Title for {ke}", wp, f"Title for {wp}",
-                "causative", conf, "test-user", "test-admin",
+                "causative", conf, "github:test-user", "test-admin",
                 "2026-05-14T10:00:00",
             ),
         )

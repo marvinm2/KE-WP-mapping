@@ -53,17 +53,17 @@ def _seed_legacy_rows(db_path: str) -> None:
         conn.execute(
             "INSERT INTO mappings (ke_id, ke_title, wp_id, wp_title, "
             "connection_type, confidence_level, created_by) "
-            "VALUES ('KE 1', 't', 'WP1', 't', 'causative', 'high', 'u')"
+            "VALUES ('KE 1', 't', 'WP1', 't', 'causative', 'high', 'github:u')"
         )
         conn.execute(
             "INSERT INTO ke_go_mappings (ke_id, ke_title, go_id, go_name, "
             "connection_type, confidence_level, created_by) "
-            "VALUES ('KE 2', 't', 'GO:0000001', 't', 'causative', 'high', 'u')"
+            "VALUES ('KE 2', 't', 'GO:0000001', 't', 'causative', 'high', 'github:u')"
         )
         conn.execute(
             "INSERT INTO ke_reactome_mappings (ke_id, ke_title, reactome_id, "
             "pathway_name, confidence_level, created_by) "
-            "VALUES ('KE 3', 't', 'R-HSA-1', 't', 'high', 'u')"
+            "VALUES ('KE 3', 't', 'R-HSA-1', 't', 'high', 'github:u')"
         )
         conn.commit()
     finally:
@@ -134,7 +134,7 @@ def test_backfill_preserves_already_stamped_rows(db: Database, manifest_path: Pa
             "INSERT INTO mappings (ke_id, ke_title, wp_id, wp_title, "
             "connection_type, confidence_level, created_by, "
             "wp_release_date) "
-            "VALUES ('KE 99', 't', 'WP99', 't', 'causative', 'high', 'u', "
+            "VALUES ('KE 99', 't', 'WP99', 't', 'causative', 'high', 'github:u', "
             "'2025-12-15')"
         )
         # Another row fully populated.
@@ -142,7 +142,7 @@ def test_backfill_preserves_already_stamped_rows(db: Database, manifest_path: Pa
             "INSERT INTO mappings (ke_id, ke_title, wp_id, wp_title, "
             "connection_type, confidence_level, created_by, "
             "wp_release_date, aopwiki_snapshot_date) "
-            "VALUES ('KE 100', 't', 'WP100', 't', 'causative', 'high', 'u', "
+            "VALUES ('KE 100', 't', 'WP100', 't', 'causative', 'high', 'github:u', "
             "'2025-12-15', '2025-12-20')"
         )
         conn.commit()

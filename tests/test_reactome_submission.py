@@ -287,7 +287,7 @@ class TestCheckReactomeEntry:
             species="Homo sapiens",
             confidence_level="high",
             suggestion_score=0.9,
-            created_by="curator",
+            created_by="github:curator",
         )
         assert mapping_id is not None
         rm.update_reactome_mapping(
@@ -546,7 +546,7 @@ def test_check_reactome_entry_blocks_approved_mapping(_plan_05_check_client):
         species="Homo sapiens",
         confidence_level="medium",
         suggestion_score=0.72,
-        created_by="curator",
+        created_by="github:curator",
     )
     assert mapping_id is not None
     rm.update_reactome_mapping(

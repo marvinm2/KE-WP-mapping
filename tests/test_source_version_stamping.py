@@ -197,7 +197,7 @@ def test_wp_create_mapping_persists_version_columns(db):
     mm = MappingModel(db)
     mid = mm.create_mapping(
         ke_id="KE 100", ke_title="t", wp_id="WP100", wp_title="t",
-        created_by="u",
+        created_by="github:u",
         wp_release_date="2026-05-10",
         aopwiki_snapshot_date="2026-05-06",
     )
@@ -214,7 +214,7 @@ def test_wp_create_mapping_persists_version_columns(db):
 def test_wp_update_mapping_persists_version_columns(db):
     mm = MappingModel(db)
     mid = mm.create_mapping(
-        ke_id="KE 101", ke_title="t", wp_id="WP101", wp_title="t", created_by="u",
+        ke_id="KE 101", ke_title="t", wp_id="WP101", wp_title="t", created_by="github:u",
     )
     assert mid is not None
     ok = mm.update_mapping(
@@ -238,7 +238,7 @@ def test_go_create_mapping_persists_version_columns(db):
     gm = GoMappingModel(db)
     mid = gm.create_mapping(
         ke_id="KE 102", ke_title="t", go_id="GO:0000001", go_name="t",
-        created_by="u",
+        created_by="github:u",
         go_release_date="2026-01-23",
         aopwiki_snapshot_date="2026-05-06",
     )
@@ -292,7 +292,7 @@ def test_reactome_create_mapping_persists_version_columns(db):
     mid = rm.create_mapping(
         ke_id="KE 201", ke_title="t",
         reactome_id="R-HSA-201", pathway_name="t",
-        created_by="u",
+        created_by="github:u",
         reactome_release_version="96",
         reactome_release_date="2026-03-25",
         aopwiki_snapshot_date="2026-05-06",
@@ -313,7 +313,7 @@ def test_omitting_version_kwargs_leaves_columns_null(db):
     kwargs continue to work, with NULL in the new columns."""
     mm = MappingModel(db)
     mid = mm.create_mapping(
-        ke_id="KE 300", ke_title="t", wp_id="WP300", wp_title="t", created_by="u",
+        ke_id="KE 300", ke_title="t", wp_id="WP300", wp_title="t", created_by="github:u",
     )
     assert mid is not None
     conn = sqlite3.connect(db.db_path)

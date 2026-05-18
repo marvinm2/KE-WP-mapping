@@ -103,15 +103,15 @@ def test_stats_page_has_source_versions_table(app_with_manifest):
     html = r.data.decode()
     # Anchor that the footer link points at
     assert 'id="source-versions"' in html
-    # Each upstream row
+    # The Data sources section renders a live version-badge strip — one
+    # badge per upstream resource. The badge labels are always present;
+    # the version values are pulled from a live service so they are not
+    # asserted here.
     assert "WikiPathways" in html
-    assert "2026-05-10" in html
-    assert "Gene Ontology" in html
-    assert "2026-01-23" in html
-    assert "v96" in html
-    assert "2026-03-25" in html
+    assert "GO" in html
+    assert "Reactome" in html
     assert "AOP-Wiki" in html
-    assert "2026-05-06" in html
+    assert "version-badge" in html
 
 
 def test_footer_omits_snapshot_when_manifest_missing(tmp_path, monkeypatch):

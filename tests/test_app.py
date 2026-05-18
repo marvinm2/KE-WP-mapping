@@ -14,7 +14,7 @@ class TestRoutes:
         """Test the index route"""
         response = client.get("/")
         assert response.status_code == 200
-        assert b"KE-WP Mapping" in response.data
+        assert b"Molecular AOP Builder" in response.data
 
     def test_explore_route(self, client):
         """Test the explore route"""
@@ -347,7 +347,7 @@ class TestSubmitCreatesProposal:
         with flask_app.test_client() as test_client:
             with flask_app.app_context():
                 with test_client.session_transaction() as sess:
-                    sess["user"] = {"username": "testuser", "email": "test@example.com"}
+                    sess["user"] = {"username": "github:testuser", "email": "test@example.com"}
                 yield test_client
 
         # Restore originals
@@ -433,7 +433,7 @@ class TestSubmitGoCreatesProposal:
         with flask_app.test_client() as test_client:
             with flask_app.app_context():
                 with test_client.session_transaction() as sess:
-                    sess["user"] = {"username": "testuser", "email": "test@example.com"}
+                    sess["user"] = {"username": "github:testuser", "email": "test@example.com"}
                 yield test_client
 
         # Restore originals

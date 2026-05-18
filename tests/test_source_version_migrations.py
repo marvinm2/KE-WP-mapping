@@ -68,21 +68,21 @@ def test_ke_reactome_mappings_gains_version_release_and_snapshot(fresh_db):
             "INSERT INTO mappings (ke_id, ke_title, wp_id, wp_title, "
             "connection_type, confidence_level, created_by) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("KE 1", "Test KE", "WP1", "Test pathway", "causative", "high", "test"),
+            ("KE 1", "Test KE", "WP1", "Test pathway", "causative", "high", "github:test"),
         ),
         (
             "ke_go_mappings",
             "INSERT INTO ke_go_mappings (ke_id, ke_title, go_id, go_name, "
             "connection_type, confidence_level, created_by) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("KE 2", "Test KE 2", "GO:0001234", "test GO term", "causative", "high", "test"),
+            ("KE 2", "Test KE 2", "GO:0001234", "test GO term", "causative", "high", "github:test"),
         ),
         (
             "ke_reactome_mappings",
             "INSERT INTO ke_reactome_mappings (ke_id, ke_title, reactome_id, "
             "pathway_name, confidence_level, created_by) "
             "VALUES (?, ?, ?, ?, ?, ?)",
-            ("KE 3", "Test KE 3", "R-HSA-1234", "Test reactome", "high", "test"),
+            ("KE 3", "Test KE 3", "R-HSA-1234", "Test reactome", "high", "github:test"),
         ),
     ],
 )
@@ -117,7 +117,7 @@ def test_reinitialising_database_preserves_row_count(fresh_db):
         conn.execute(
             "INSERT INTO mappings (ke_id, ke_title, wp_id, wp_title, "
             "connection_type, confidence_level, created_by) "
-            "VALUES ('KE 99', 'persist test', 'WP99', 'persist', 'causative', 'low', 'test')"
+            "VALUES ('KE 99', 'persist test', 'WP99', 'persist', 'causative', 'low', 'github:test')"
         )
         conn.commit()
     finally:
@@ -138,7 +138,7 @@ def test_round_trip_wp_release_date(fresh_db):
             "connection_type, confidence_level, created_by, "
             "wp_release_date, aopwiki_snapshot_date) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            ("KE 4", "rt", "WP4", "rt", "causative", "high", "test",
+            ("KE 4", "rt", "WP4", "rt", "causative", "high", "github:test",
              "2026-05-10", "2026-05-06"),
         )
         conn.commit()
@@ -160,7 +160,7 @@ def test_round_trip_reactome_version_and_release(fresh_db):
             "reactome_release_version, reactome_release_date, "
             "aopwiki_snapshot_date) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            ("KE 5", "rt", "R-HSA-5", "rt", "high", "test",
+            ("KE 5", "rt", "R-HSA-5", "rt", "high", "github:test",
              "96", "2026-03-25", "2026-05-06"),
         )
         conn.commit()

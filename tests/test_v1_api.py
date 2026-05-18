@@ -68,7 +68,7 @@ def _seed_mapping(mm, ke_id="KE 1", wp_id="WP123", confidence="High"):
         wp_id=wp_id,
         wp_title=f"Test Pathway {wp_id}",
         confidence_level=confidence,
-        created_by="test_curator",
+        created_by="github:test_curator",
     )
     if mapping_id is None:
         return None
@@ -97,7 +97,7 @@ def _seed_go_mapping(gm, ke_id="KE 1", go_id="GO:0001234", go_name="test process
         go_id=go_id,
         go_name=go_name,
         confidence_level=confidence,
-        created_by="test_curator",
+        created_by="github:test_curator",
     )
     if mapping_id is None:
         return None
