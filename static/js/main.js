@@ -945,14 +945,28 @@ class KEWPApp {
         const selectedPathwayOption = $("select[name='wp_id'] option:selected").first();
         const wpTitle = selectedPathwayOption.data("title") || selectedPathwayOption.text() || $("#wp_id").val();
         
+        const pathwayId = $("#wp_id").val();
+        // Phase 37 ASMT-06: append step1-4 from the assessment answers so new
+        // WP proposals persist them (closes the verified formData gap — without
+        // this, every new proposal lands with NULL step columns and the admin
+        // modal shows em-dashes for all of them). jQuery $.post skips undefined
+        // values, preserving Marshmallow optional semantics and the Drop-None
+        // filter on the server side.
+        const assessmentAnswers = (this.pathwayResults && this.pathwayResults[pathwayId])
+            ? this.pathwayResults[pathwayId].answers : {};
+
         const formData = {
             ke_id: $("#ke_id").val(),
             ke_title: $("#ke_id option:selected").data("title"),
-            wp_id: $("#wp_id").val(),
+            wp_id: pathwayId,
             wp_title: wpTitle,
             connection_type: this.mapConnectionTypeForServer($("#connection_type").val()),
             confidence_level: $("#confidence_level").val(),
-            csrf_token: this.csrfToken
+            csrf_token: this.csrfToken,
+            step1: assessmentAnswers.step1 || undefined,
+            step2: assessmentAnswers.step2 || undefined,
+            step3: assessmentAnswers.step3 || undefined,
+            step4: assessmentAnswers.step4 || undefined,
         };
 
         // Form data prepared for submission
@@ -5175,16 +5189,33 @@ This helps identify gaps in existing pathways for future development.">❓</span
             || $('meta[name="csrf-token"]').attr('content')
             || $('#reactome-mapping-form input[name="csrf_token"]').val();
 
+        // Phase 37 ASMT-04: read the four step answers from pathwayResults keyed
+        // by the Reactome pathway ID (stored by evaluatePathwayConfidence).
+        // jQuery $.post skips undefined values, so absent answers don't send
+        // empty strings that would fail Marshmallow's Optional semantics.
+        const reactomeId = this.selectedReactomePathway.reactomeId;
+        const reactomeResult = (this.pathwayResults && this.pathwayResults[reactomeId])
+            ? this.pathwayResults[reactomeId] : {};
+        const reactomeAnswers = reactomeResult.answers || {};
+        // connection_type is step1's raw value (the relationship type); the
+        // server also derives it from step1 as a fallback if absent.
+        const reactomeConnectionType = reactomeAnswers.step1 || undefined;
+
         const payload = {
             ke_id: keId,
             ke_title: keTitle,
-            reactome_id: this.selectedReactomePathway.reactomeId,
+            reactome_id: reactomeId,
             pathway_name: this.selectedReactomePathway.pathwayName,
             species: this.selectedReactomePathway.species || 'Homo sapiens',
             confidence_level: this.selectedReactomeConfidence,
             suggestion_score: this.selectedReactomePathway.suggestionScore != null
                 ? String(this.selectedReactomePathway.suggestionScore) : '',
             csrf_token: csrfToken,
+            step1: reactomeAnswers.step1 || undefined,
+            step2: reactomeAnswers.step2 || undefined,
+            step3: reactomeAnswers.step3 || undefined,
+            step4: reactomeAnswers.step4 || undefined,
+            connection_type: reactomeConnectionType,
         };
 
         const $btn = $('#reactome-mapping-form button[type=submit]');
