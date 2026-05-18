@@ -140,6 +140,17 @@
                 .replace(/'/g, '&#39;');
         }
 
+        // Phase 37 ASMT-05: key->label map for four-question assessment answers.
+        // Duplicated per-template (each admin template carries its own inline
+        // IIFE today — see 37-PLAN.md Task 3 note). Sourced verbatim from
+        // main.js:1394-1397.
+        const stepLabels = {
+            step1: { causative: 'Causative', responsive: 'Responsive', bidirectional: 'Bidirectional', unclear: 'Unclear' },
+            step2: { known: 'Known connection', likely: 'Likely connection', possible: 'Possible connection', uncertain: 'Uncertain connection' },
+            step3: { specific: 'KE-specific', includes: 'Includes KE', loose: 'Loosely related' },
+            step4: { complete: 'Complete mechanism', keysteps: 'Key steps only', minor: 'Minor aspects' }
+        };
+
         $(document).ready(function() {
             $('#reactomeProposalsTable').DataTable(
                 DataTableConfig.merge('base', {
@@ -217,6 +228,25 @@
                     ${proposal.admin_notes ? `<div><strong>Admin Notes:</strong> ${escapeHtml(proposal.admin_notes)}</div>` : ''}
                     ${proposal.approved_at_formatted ? `<div><strong>Reviewed At:</strong> ${escapeHtml(proposal.approved_at_formatted)}</div>` : ''}
                 </div>
+
+                ${(() => {
+                    const p = proposal;
+                    const hasAssessment = p.proposed_relationship != null
+                        || p.proposed_basis != null
+                        || p.proposed_specificity != null
+                        || p.proposed_coverage != null;
+                    const assessmentRows = hasAssessment
+                        ? `<div><strong>Relationship:</strong> ${escapeHtml(stepLabels.step1[p.proposed_relationship] || p.proposed_relationship || '—')}</div>
+                           <div><strong>Basis:</strong> ${escapeHtml(stepLabels.step2[p.proposed_basis] || p.proposed_basis || '—')}</div>
+                           <div><strong>Specificity:</strong> ${escapeHtml(stepLabels.step3[p.proposed_specificity] || p.proposed_specificity || '—')}</div>
+                           <div><strong>Coverage:</strong> ${escapeHtml(stepLabels.step4[p.proposed_coverage] || p.proposed_coverage || '—')}</div>`
+                        : `<div style="font-size: 13px; color: var(--color-text-muted, #6c757d);">No assessment submitted (legacy proposal)</div>`;
+                    return `<div style="margin-bottom: 20px; border-top: 1px solid var(--color-border-light); padding-top: 16px;">
+                        <h4 style="margin-bottom: 10px;">Assessment</h4>
+                        ${assessmentRows}
+                        <div><strong>Derived confidence:</strong> ${escapeHtml(confidence || '—')}</div>
+                    </div>`;
+                })()}
             `;
 
             if (proposal.status === 'pending') {
