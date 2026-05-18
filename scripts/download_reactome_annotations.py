@@ -3,7 +3,7 @@ Download and process Reactome gene annotations for Homo sapiens.
 
 Downloads the Reactome GMT file, parses it for Homo sapiens pathways,
 excludes Disease branch descendants via the Content Service API,
-filters by gene count (3-500), normalizes stable IDs, and saves
+filters by gene count (10-500), normalizes stable IDs, and saves
 the output as data/reactome_gene_annotations.json.
 
 Usage:
@@ -42,8 +42,11 @@ CONTENT_SERVICE = "https://reactome.org/ContentService"
 # Disease branch root — descendants are excluded from output
 DISEASE_ROOT = "R-HSA-1643685"
 
-# Gene count filter bounds
-MIN_GENES = 3
+# Gene count filter bounds.
+# Floor raised 3 -> 10: pathways with <10 genes are reaction-scale — too
+# specific to serve as a Key Event signature, and too small for reliable
+# over-representation testing downstream (clusterProfiler minGSSize default).
+MIN_GENES = 10
 MAX_GENES = 500
 
 # Output file paths
