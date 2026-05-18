@@ -674,3 +674,51 @@ class TestAdminReactomeStatusBadge:
         assert "status-approved" in body, (
             "Approved Reactome proposal must render with status-approved class"
         )
+
+
+# ---------------------------------------------------------------------------
+# Phase 37 Plan 03 — admin detail route carries four step-answer columns
+# ---------------------------------------------------------------------------
+
+
+def test_reactome_proposal_detail_includes_assessment_fields(admin_client):
+    """GET /admin/reactome-proposals/<id> JSON carries the four step-answer columns.
+
+    Guards the Plan 02 Task 1 SELECT-list extension (get_proposal_by_id now
+    explicitly selects proposed_relationship/basis/specificity/coverage) against
+    regression. The admin modal JS reads these keys directly from the JSON; if
+    they are absent, the Assessment section silently renders em-dashes for all
+    rows regardless of what was submitted.
+
+    Strategy: seed a new-pair Reactome proposal with all four step answers,
+    retrieve the admin detail JSON, assert each key is present with the
+    submitted value.
+    """
+    client, rm, rpm, db = admin_client
+    pid = rpm.create_new_pair_reactome_proposal(
+        ke_id="KE 9701",
+        ke_title="Oxidative stress signaling",
+        reactome_id="R-HSA-9701",
+        pathway_name="ROS signaling pathway",
+        confidence_level="high",
+        species="Homo sapiens",
+        provider_username="github:curator_asmt",
+        suggestion_score=0.88,
+        proposed_relationship="causative",
+        proposed_basis="known",
+        proposed_specificity="specific",
+        proposed_coverage="complete",
+    )
+    assert isinstance(pid, int), f"Expected proposal ID, got {pid!r}"
+
+    r = client.get(f"/admin/reactome-proposals/{pid}")
+    assert r.status_code == 200
+    data = r.get_json()
+
+    assert data["proposed_relationship"] == "causative", (
+        "Plan 02 Task 1 regression: proposed_relationship missing from "
+        "Reactome admin detail JSON — SELECT-list extension may have been dropped."
+    )
+    assert data["proposed_basis"] == "known"
+    assert data["proposed_specificity"] == "specific"
+    assert data["proposed_coverage"] == "complete"

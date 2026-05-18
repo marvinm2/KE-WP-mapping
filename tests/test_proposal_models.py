@@ -17,7 +17,7 @@ import tempfile
 
 import pytest
 
-from src.core.models import Database, ProposalModel
+from src.core.models import Database, ProposalModel, MappingModel
 
 
 # ---------------------------------------------------------------------------
@@ -472,3 +472,91 @@ class TestSubmitDuplicatePendingRoute:
         assert existing is not None
         assert existing.get("ke_id") == "KE 9501"
         assert existing.get("wp_id") == "WP9501"
+
+
+# ---------------------------------------------------------------------------
+# Phase 37 Plan 03 — WP admin detail route carries four step-answer columns
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def wp_admin_client():
+    """Test client wired with fresh WP models on a temp-file DB and an
+    authenticated admin session. Mirrors the admin_client fixture in
+    test_reactome_admin.py — same model-injection pattern.
+    """
+    os.environ["ADMIN_USERS"] = "github:testadmin_wp"
+
+    from app import app as flask_app
+    import src.blueprints.admin as admin_mod
+
+    fd, db_path = tempfile.mkstemp()
+    db = Database(db_path)
+    mm = MappingModel(db)
+    pm = ProposalModel(db)
+
+    orig_mm = admin_mod.mapping_model
+    orig_pm = admin_mod.proposal_model
+
+    admin_mod.mapping_model = mm
+    admin_mod.proposal_model = pm
+
+    flask_app.config["TESTING"] = True
+    flask_app.config["WTF_CSRF_ENABLED"] = False
+
+    with flask_app.test_client() as test_client:
+        with flask_app.app_context():
+            with test_client.session_transaction() as sess:
+                sess["user"] = {
+                    "username": "github:testadmin_wp",
+                    "email": "wpadmin@example.com",
+                }
+            yield test_client, mm, pm, db
+
+    admin_mod.mapping_model = orig_mm
+    admin_mod.proposal_model = orig_pm
+
+    os.close(fd)
+    os.unlink(db_path)
+
+
+def test_proposal_detail_includes_assessment_fields(wp_admin_client):
+    """GET /admin/proposals/<id> JSON carries the four step-answer columns.
+
+    The WP proposals table uses `p.*` in ProposalModel.get_proposal_by_id so
+    all columns (including the Phase 34 proposed_relationship/basis/specificity/
+    coverage columns) flow through automatically. This test pins that contract —
+    a future SELECT-list refactor that switches to explicit columns must not drop
+    these four fields, as the admin modal JS reads them directly.
+
+    Strategy: seed a new-pair WP proposal with all four step answers, retrieve
+    the admin detail JSON, assert each key is present with the submitted value.
+    """
+    client, mm, pm, db = wp_admin_client
+    pid = pm.create_new_pair_proposal(
+        ke_id="KE 9801",
+        ke_title="DNA damage response",
+        wp_id="WP9801",
+        wp_title="DDR pathway",
+        connection_type="causative",
+        confidence_level="high",
+        provider_username="github:curator_wp",
+        suggestion_score=0.91,
+        proposed_relationship="causative",
+        proposed_basis="known",
+        proposed_specificity="specific",
+        proposed_coverage="complete",
+    )
+    assert isinstance(pid, int), f"Expected proposal ID, got {pid!r}"
+
+    r = client.get(f"/admin/proposals/{pid}")
+    assert r.status_code == 200
+    data = r.get_json()
+
+    assert data["proposed_relationship"] == "causative", (
+        "Phase 37 regression: proposed_relationship missing from WP admin "
+        "detail JSON — proposals table p.* SELECT must include Phase 34 columns."
+    )
+    assert data["proposed_basis"] == "known"
+    assert data["proposed_specificity"] == "specific"
+    assert data["proposed_coverage"] == "complete"
