@@ -2,12 +2,15 @@
 # Gunicorn configuration for KE-WP Mapping application.
 # Source: https://gunicorn.org/reference/settings
 #
-# Worker count: 1 worker to ensure in-memory session consistency
-# (CSRF tokens, OAuth state). With preload_app=True the BioBERT model
-# is loaded once in the master process anyway.
+# Worker count: 3 workers for crash resilience. Session state (CSRF
+# tokens, OAuth state) lives in the Flask signed session cookie, not
+# server-side, so it is safe across workers. With preload_app=True the
+# BioBERT model is loaded once in the master and shared via fork COW, so
+# extra workers cost little memory. Trade-off: the in-memory rate limiter
+# becomes per-worker (effective limits scale with worker count).
 
 bind = "0.0.0.0:5000"
-workers = 1          # Single worker to ensure session consistency (CSRF, OAuth state)
+workers = 3          # 3 workers: a crashing worker no longer blanks the service
 worker_class = "sync"
 timeout = 120        # BioBERT inference can be slow on first request
 keepalive = 5
