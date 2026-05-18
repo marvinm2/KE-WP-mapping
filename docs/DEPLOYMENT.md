@@ -12,6 +12,33 @@ This guide covers deploying the KE-WP Mapping Application to various environment
 
 ## Production Deployment
 
+### Current production — Strato Docker Swarm (GHCR image)
+
+The live instance (`https://molaop-builder.vhp4safety.nl`) runs as the
+`molaop-builder` service on the VHP4Safety Strato Docker Swarm. It does **not**
+build on the server — the image is built by GitHub CI and pulled from GHCR:
+
+1. Push to `main` → `.github/workflows/docker.yml` builds and pushes
+   `ghcr.io/marvinm2/molaop-builder` (public package; tags `latest`, `main`,
+   `main-<sha>`).
+2. Cut over: `ssh tgx1 "docker service update --image ghcr.io/marvinm2/molaop-builder:main-<sha> molaop-builder"`.
+3. Verify `/health`.
+
+Key points:
+- The image is a portable registry image, so the service is **not pinned to a
+  node** — Swarm can schedule it on tgx1 or tgx2.
+- The GHCR package must be **public** so the swarm pulls without credentials.
+- Persistent data — the SQLite database (`ke_wp_mapping.db`) and the gitignored
+  corpus artifacts (`*.npz`/`*.json`) — lives on the GlusterFS bind mount
+  `/mnt/gluster/docker/molaop-builder/data` → `/app/data`, **not in the image**.
+  `docker service update --image` never touches the mount, so the database
+  survives image swaps. Back it up first regardless (`sqlite3 … ".backup …"`).
+- Use `docker service update` only; never `docker service rm`. Rollback:
+  `docker service rollback molaop-builder`.
+
+The sections below describe generic single-host / Docker / cloud deployment for
+other environments.
+
 ### Prerequisites
 - Python 3.10+ on production server
 - SSL certificate for HTTPS
