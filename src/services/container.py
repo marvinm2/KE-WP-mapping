@@ -316,7 +316,8 @@ class ServiceContainer:
     def go_hierarchy(self):
         """Load and cache GO hierarchy data from pre-computed JSON file"""
         if self._go_hierarchy is None:
-            path = os.path.join(PROJECT_ROOT, 'data', 'go_hierarchy.json')
+            # Filename matches precompute_go_hierarchy.py's actual output (go_{ns}_hierarchy.json).
+            path = os.path.join(PROJECT_ROOT, 'data', 'go_bp_hierarchy.json')
             if os.path.exists(path):
                 try:
                     with open(path, 'r', encoding='utf-8') as f:
@@ -326,10 +327,10 @@ class ServiceContainer:
                         len(self._go_hierarchy), path,
                     )
                 except Exception as e:
-                    logger.warning("Failed to load go_hierarchy.json: %s", e)
+                    logger.warning("Failed to load go_bp_hierarchy.json: %s", e)
                     self._go_hierarchy = {}
             else:
-                logger.info("go_hierarchy.json not found at %s — GO depth/IC will be unavailable", path)
+                logger.info("go_bp_hierarchy.json not found at %s — GO depth/IC will be unavailable", path)
                 self._go_hierarchy = {}
         return self._go_hierarchy
 

@@ -7,11 +7,19 @@ removing directionality terms and focusing on biological entities for more speci
 Usage:
     python scripts/precompute_pathway_title_embeddings.py
 
+Optional input:
+    data/wikipathways_filtered_ids.json - if present (from
+    download_wikipathways_annotations.py), the corpus is restricted to those
+    [10,500]-gene pathways; otherwise the full WP corpus is embedded.
+
 Output:
     pathway_title_embeddings.npz - NPZ file with 'ids' (Unicode) and 'matrix' (float32, normalized)
 """
 
+import json
 import logging
+import os
+
 import requests
 
 from embedding_utils import setup_project_path, init_embedding_service, compute_embeddings_batch, save_embeddings, save_metadata
@@ -25,6 +33,26 @@ logger = logging.getLogger(__name__)
 
 # WikiPathways SPARQL endpoint
 WIKIPATHWAYS_SPARQL_ENDPOINT = "https://sparql.wikipathways.org/sparql"
+
+# Gene-set-size filtered pathway-ID list (download_wikipathways_annotations.py)
+FILTERED_IDS_PATH = "data/wikipathways_filtered_ids.json"
+
+
+def load_filtered_pathway_ids(path=FILTERED_IDS_PATH):
+    """
+    Load the [10,500]-gene filtered pathway-ID set produced by
+    download_wikipathways_annotations.py.
+
+    Returns None if the file is absent — the corpus is then embedded unfiltered,
+    preserving pre-filter behaviour (graceful degradation).
+    """
+    if not os.path.exists(path):
+        logger.info("No filtered-ID list at %s — embedding the full WP corpus", path)
+        return None
+    with open(path, encoding="utf-8") as f:
+        ids = set(json.load(f))
+    logger.info("Loaded %d filtered pathway IDs from %s", len(ids), path)
+    return ids
 
 
 def fetch_all_pathways():
@@ -201,6 +229,14 @@ def precompute_pathway_title_embeddings(output_path='data/pathway_title_embeddin
             seen_ids.add(pathway['pathwayID'])
 
     logger.info(f"After removing duplicates: {len(unique_pathways)} unique pathways")
+
+    # Restrict to the [10,500]-gene filtered corpus, if the filter list exists.
+    # Everything downstream (metadata, embeddings) is then produced already-filtered.
+    filtered_ids = load_filtered_pathway_ids()
+    if filtered_ids is not None:
+        before = len(unique_pathways)
+        unique_pathways = [p for p in unique_pathways if p['pathwayID'] in filtered_ids]
+        logger.info("Gene-set-size filter: %d -> %d pathways", before, len(unique_pathways))
 
     # Fetch enrichment data (ontology tags and publications)
     logger.info("Fetching pathway ontology tags...")

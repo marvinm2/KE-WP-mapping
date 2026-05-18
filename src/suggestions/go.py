@@ -63,9 +63,10 @@ class GoSuggestionService:
         self._load_go_metadata(go_metadata_path)
         self._load_go_annotations(go_annotations_path)
 
-        # Load GO BP hierarchy for IC-based scoring and redundancy filtering
+        # Load GO BP hierarchy for IC-based scoring and redundancy filtering.
+        # Filename matches precompute_go_hierarchy.py's actual output (go_{ns}_hierarchy.json).
         self.go_hierarchy = {}
-        self._load_go_hierarchy('data/go_hierarchy.json')
+        self._load_go_hierarchy('data/go_bp_hierarchy.json')
 
         # Load pre-computed GO MF data (graceful degradation — BP-only mode if files absent)
         self.go_mf_embeddings = {}

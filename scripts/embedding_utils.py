@@ -109,6 +109,51 @@ def save_embeddings(embeddings: dict, path: str):
                 sample_id, float(np.linalg.norm(matrix[0])))
 
 
+def subset_embeddings(npz_path: str, keep_ids):
+    """
+    Subset an embeddings .npz (ids/matrix arrays) in place to keep_ids.
+
+    The retained rows are byte-identical to the original — this is an exact
+    subset of a precomputed corpus, NOT a recompute. Vectors stay unit-normalized.
+
+    Args:
+        npz_path: Path to the .npz file (overwritten in place).
+        keep_ids: Iterable of ID strings to retain.
+
+    Returns:
+        (original_count, kept_count)
+    """
+    keep = set(keep_ids)
+    with np.load(npz_path) as data:
+        ids = data['ids']
+        matrix = data['matrix']
+    mask = np.array([str(i) in keep for i in ids], dtype=bool)
+    np.savez(npz_path, ids=ids[mask], matrix=matrix[mask])
+    logger.info("subset_embeddings %s: %d -> %d rows", npz_path, len(ids), int(mask.sum()))
+    return len(ids), int(mask.sum())
+
+
+def subset_json(json_path: str, keep_ids):
+    """
+    Subset a top-level-dict JSON file in place, keeping only keys in keep_ids.
+
+    Args:
+        json_path: Path to the JSON file (overwritten in place).
+        keep_ids: Iterable of key strings to retain.
+
+    Returns:
+        (original_count, kept_count)
+    """
+    keep = set(keep_ids)
+    with open(json_path, encoding='utf-8') as f:
+        data = json.load(f)
+    subset = {k: v for k, v in data.items() if k in keep}
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(subset, f, indent=2)
+    logger.info("subset_json %s: %d -> %d entries", json_path, len(data), len(subset))
+    return len(data), len(subset)
+
+
 def save_metadata(metadata, path):
     """
     Save metadata list/dict to JSON file with size reporting.

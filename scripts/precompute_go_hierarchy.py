@@ -14,8 +14,12 @@ Usage:
                               writes data/go_mf_hierarchy.json
 
 Output:
-    data/go_bp_hierarchy.json - Per-term hierarchy data (depth, IC, ancestors) for BP
-    data/go_mf_hierarchy.json - Per-term hierarchy data (depth, IC, ancestors) for MF
+    data/go_bp_hierarchy.json       - Per-term hierarchy (depth, IC, ancestors,
+                                      propagated_gene_count) for BP
+    data/go_mf_hierarchy.json       - Same, for MF
+    data/go_bp_filtered_go_ids.json - Sorted GO IDs whose propagated gene set is
+                                      in [MIN_GENES, MAX_GENES] (suggestion-corpus
+                                      filter; consumed by subset_go_corpus.py)
 """
 
 import argparse
@@ -53,6 +57,15 @@ NAMESPACE_ROOTS = {
     'bp': 'GO:0008150',   # biological_process root
     'mf': 'GO:0003674',   # molecular_function root
 }
+
+# Gene-set size filter bounds for the suggestion corpus.
+# Terms whose PROPAGATED gene set (own genes + all descendant genes) falls
+# outside [MIN_GENES, MAX_GENES] are excluded: <10 is too specific to act as a
+# Key Event signature and too small for reliable over-representation testing
+# (10 is clusterProfiler's minGSSize default); >500 is too non-specific.
+# Mirrors the Reactome filter in download_reactome_annotations.py.
+MIN_GENES = 10
+MAX_GENES = 500
 
 
 def download_go_obo(url=GO_BASIC_OBO_URL, local_path=GO_BASIC_OBO_LOCAL, force=False):
@@ -311,6 +324,11 @@ def compute_ic_scores(terms, ancestors_cache, annotations_path, remap, root):
         for ancestor in ancestors_cache.get(go_id, set()):
             propagated[ancestor].update(genes)
 
+    # Propagated gene-set size per term — used downstream for the [MIN,MAX]
+    # corpus filter. Terms absent from `propagated` have no annotated genes
+    # anywhere in their subtree (count 0).
+    propagated_counts = {go_id: len(propagated.get(go_id, set())) for go_id in terms}
+
     # Compute IC
     root_freq = len(propagated.get(root, set()))
     if root_freq == 0:
@@ -351,10 +369,10 @@ def compute_ic_scores(terms, ancestors_cache, annotations_path, remap, root):
     logger.info(f"IC scores computed: {len(ic_scores)} terms, {non_zero} with IC > 0")
     logger.info(f"IC range: 0.0 to {max(ic_scores.values()):.4f} (normalized)")
 
-    return ic_scores
+    return ic_scores, propagated_counts
 
 
-def build_hierarchy_json(terms, ancestors_cache, depths, ic_scores):
+def build_hierarchy_json(terms, ancestors_cache, depths, ic_scores, propagated_counts):
     """Build the final hierarchy JSON structure."""
     hierarchy = {}
     for go_id, data in terms.items():
@@ -363,6 +381,7 @@ def build_hierarchy_json(terms, ancestors_cache, depths, ic_scores):
             'namespace': data['namespace'],
             'depth': depths.get(go_id, -1),
             'ic_score': round(ic_scores.get(go_id, 0.0), 6),
+            'propagated_gene_count': propagated_counts.get(go_id, 0),
             'ancestors': sorted(list(ancestors_cache.get(go_id, set()))),
             'is_obsolete': False,
         }
@@ -388,6 +407,7 @@ def main():
     root = NAMESPACE_ROOTS[namespace]
     annotations_path = f'data/go_{namespace}_gene_annotations.json'
     output_path = f'data/go_{namespace}_hierarchy.json'
+    filtered_ids_path = f'data/go_{namespace}_filtered_go_ids.json'
 
     logger.info(f"Processing GO hierarchy for namespace: {namespace_value} (root: {root})")
 
@@ -402,11 +422,13 @@ def main():
     ancestors_cache = compute_ancestors(terms, parents_map)
     depths = compute_depths(terms, parents_map, root=root)
 
-    # Compute IC scores
-    ic_scores = compute_ic_scores(terms, ancestors_cache, annotations_path, remap, root=root)
+    # Compute IC scores + propagated gene-set sizes
+    ic_scores, propagated_counts = compute_ic_scores(
+        terms, ancestors_cache, annotations_path, remap, root=root
+    )
 
-    # Build output
-    hierarchy = build_hierarchy_json(terms, ancestors_cache, depths, ic_scores)
+    # Build output — hierarchy keeps ALL terms (ancestor IC lookups need them)
+    hierarchy = build_hierarchy_json(terms, ancestors_cache, depths, ic_scores, propagated_counts)
 
     # Write output
     logger.info(f"Writing {len(hierarchy)} terms to {output_path}...")
@@ -415,6 +437,23 @@ def main():
 
     size_mb = os.path.getsize(output_path) / 1024 / 1024
     logger.info(f"Output: {output_path} ({size_mb:.1f} MB)")
+
+    # Write the filtered-ID list: terms whose propagated gene set is in
+    # [MIN_GENES, MAX_GENES]. Drives the embedding-corpus subset (subset_go_corpus.py).
+    in_range = sorted(
+        go_id for go_id, c in propagated_counts.items()
+        if MIN_GENES <= c <= MAX_GENES
+    )
+    dropped_zero = sum(1 for c in propagated_counts.values() if c == 0)
+    dropped_low = sum(1 for c in propagated_counts.values() if 0 < c < MIN_GENES)
+    dropped_high = sum(1 for c in propagated_counts.values() if c > MAX_GENES)
+    with open(filtered_ids_path, 'w', encoding='utf-8') as f:
+        json.dump(in_range, f, indent=2)
+    logger.info(
+        "Filter [%d,%d] genes: %d kept (of %d) | dropped: %d zero-gene, %d <%d, %d >%d -> %s",
+        MIN_GENES, MAX_GENES, len(in_range), len(propagated_counts),
+        dropped_zero, dropped_low, MIN_GENES, dropped_high, MAX_GENES, filtered_ids_path,
+    )
     logger.info("Done.")
 
 

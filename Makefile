@@ -1,4 +1,4 @@
-.PHONY: help install test lint run docker-build docker-run clean capture-versions backfill-versions
+.PHONY: help install test lint run docker-build docker-run clean capture-versions backfill-versions go-hierarchy go-corpus wp-corpus
 
 help:		## Show this help
 	@echo "Available targets:"
@@ -39,6 +39,15 @@ migrate:	## Run database migration
 
 go-hierarchy:	## Build GO hierarchy data (IC scores, ancestors, depths)
 	python scripts/precompute_go_hierarchy.py
+
+go-corpus:	## Rebuild + size-filter the GO BP suggestion corpus (hierarchy -> filtered IDs -> subset embeddings/metadata)
+	python scripts/precompute_go_hierarchy.py
+	python scripts/subset_go_corpus.py
+
+wp-corpus:	## Rebuild + size-filter the WikiPathways suggestion corpus (annotations -> title embeddings -> combined embeddings)
+	python scripts/download_wikipathways_annotations.py
+	python scripts/precompute_pathway_title_embeddings.py
+	python scripts/precompute_pathway_embeddings.py
 
 oecd-status:	## Regenerate data/aop_oecd_status.json from AOP-Wiki RDF SPARQL (run quarterly)
 	python scripts/precompute_oecd_status.py
