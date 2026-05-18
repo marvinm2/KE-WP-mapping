@@ -161,6 +161,17 @@
                 .replace(/'/g, '&#39;');
         }
 
+        // Phase 37 ASMT-06: key→label map for four-question assessment answers.
+        // Sourced verbatim from main.js:1394-1397 — single source of truth is
+        // the submit-side form; this copy enables read-only display in the admin
+        // modal without importing main.js into the admin template.
+        const stepLabels = {
+            step1: { causative: 'Causative', responsive: 'Responsive', bidirectional: 'Bidirectional', unclear: 'Unclear' },
+            step2: { known: 'Known connection', likely: 'Likely connection', possible: 'Possible connection', uncertain: 'Uncertain connection' },
+            step3: { specific: 'KE-specific', includes: 'Includes KE', loose: 'Loosely related' },
+            step4: { complete: 'Complete mechanism', keysteps: 'Key steps only', minor: 'Minor aspects' }
+        };
+
         $(document).ready(function() {
             // Setup DataTable using shared configuration
             $('#proposalsTable').DataTable(
@@ -265,6 +276,24 @@
                     <div><strong>Suggestion Score:</strong> ${proposal.suggestion_score !== null && proposal.suggestion_score !== undefined ? proposal.suggestion_score.toFixed(3) : '&mdash;'}</div>
                     <div><strong>Proposal UUID:</strong> <code style="font-size: 12px;">${escapeHtml(proposal.uuid || '&mdash;')}</code></div>
                 </div>
+
+                ${(() => {
+                    const p = proposal;
+                    const hasAssessment = p.proposed_relationship != null
+                        || p.proposed_basis != null
+                        || p.proposed_specificity != null
+                        || p.proposed_coverage != null;
+                    const body = hasAssessment
+                        ? `<div><strong>Relationship:</strong> ${escapeHtml(stepLabels.step1[p.proposed_relationship] || p.proposed_relationship || '—')}</div>
+                           <div><strong>Basis:</strong> ${escapeHtml(stepLabels.step2[p.proposed_basis] || p.proposed_basis || '—')}</div>
+                           <div><strong>Specificity:</strong> ${escapeHtml(stepLabels.step3[p.proposed_specificity] || p.proposed_specificity || '—')}</div>
+                           <div><strong>Coverage:</strong> ${escapeHtml(stepLabels.step4[p.proposed_coverage] || p.proposed_coverage || '—')}</div>`
+                        : `<div style="font-size: 13px; color: var(--color-text-muted, #6c757d);">No assessment submitted (legacy proposal)</div>`;
+                    return `<div style="margin-bottom: 20px; border-top: 1px solid var(--color-border-light); padding-top: 16px;">
+                        <h4 style="margin-bottom: 10px;">Assessment</h4>
+                        ${body}
+                    </div>`;
+                })()}
             `;
 
             // Show action buttons only for pending proposals
