@@ -31,7 +31,7 @@ def login_provider(provider):
     client = provider_clients.get(provider)
     if not client:
         logger.error("OAuth client not found for provider: %s", sanitize_log(provider))
-        return redirect(url_for("main.index"))
+        return redirect(url_for("main.landing"))
 
     next_url = request.args.get("next") or request.referrer
     if next_url:
@@ -47,7 +47,7 @@ def oauth_callback(provider):
     client = provider_clients.get(provider)
     if not client:
         logger.error("OAuth callback for unknown provider: %s", sanitize_log(provider))
-        return redirect(url_for("main.index"))
+        return redirect(url_for("main.landing"))
 
     try:
         token = client.authorize_access_token()
@@ -74,12 +74,12 @@ def oauth_callback(provider):
             "provider": provider,
         }
         logger.info("User %s logged in via %s", sanitize_log(prefixed_username), sanitize_log(provider))
-        next_url = session.pop("login_next_url", None) or url_for("main.index")
+        next_url = session.pop("login_next_url", None) or url_for("main.landing")
         return redirect(next_url)
     except Exception as e:
         logger.error("OAuth callback error for %s: %s", sanitize_log(provider), sanitize_log(str(e)))
         session.pop("login_next_url", None)
-        return redirect(url_for("main.index"))
+        return redirect(url_for("main.landing"))
 
 
 @auth_bp.route("/logout")
@@ -88,18 +88,18 @@ def logout():
     username = session.get("user", {}).get("username", "unknown")
     session.pop("user", None)
     logger.info("User %s logged out", username)
-    return redirect(url_for("main.index"))
+    return redirect(url_for("main.landing"))
 
 
 @auth_bp.route("/guest-login")
 def guest_login():
     """Redirect to index -- guest login form is now inside the login modal"""
     if session.get("user"):
-        return redirect(url_for("main.index"))
+        return redirect(url_for("main.landing"))
     next_url = request.args.get("next") or request.referrer
     if next_url:
         session["login_next_url"] = next_url
-    return redirect(url_for("main.index"))
+    return redirect(url_for("main.landing"))
 
 
 @auth_bp.route("/guest-login", methods=["POST"])
@@ -107,7 +107,7 @@ def guest_login():
 def guest_login_submit():
     """Validate guest access code and create session"""
     if session.get("user"):
-        return redirect(url_for("main.index"))
+        return redirect(url_for("main.landing"))
 
     code = request.form.get("code", "").strip()
     if not code or not guest_code_model:
@@ -124,5 +124,5 @@ def guest_login_submit():
         "is_guest": True,
     }
     logger.info("Guest user logged in with label=%s", result["label"])
-    next_url = session.pop("login_next_url", None) or url_for("main.index")
+    next_url = session.pop("login_next_url", None) or url_for("main.landing")
     return redirect(next_url)
