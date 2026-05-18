@@ -46,6 +46,17 @@ def test_capture_gene_ontology_missing_file(tmp_path: Path) -> None:
     assert "not found" in rec["reason"]
 
 
+def test_capture_gene_ontology_falls_back_to_go_obo(tmp_path: Path) -> None:
+    """When go-basic.obo is absent, the sibling go.obo is used (same header)."""
+    (tmp_path / "go.obo").write_text(
+        "format-version: 1.2\ndata-version: releases/2026-01-23\n",
+        encoding="utf-8",
+    )
+    rec = cap.capture_gene_ontology(tmp_path / "go-basic.obo")
+    assert rec["status"] == "ok"
+    assert rec["release_date"] == "2026-01-23"
+
+
 def test_capture_gene_ontology_no_data_version_line(tmp_path: Path) -> None:
     p = tmp_path / "no-data-version.obo"
     p.write_text("format-version: 1.2\nontology: go\n", encoding="utf-8")

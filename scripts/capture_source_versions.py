@@ -120,6 +120,14 @@ def capture_gene_ontology(obo_path: Path = DEFAULT_OBO_PATH) -> dict:
     raw label and the ISO date.
     """
     captured_at = _utcnow_iso()
+    # The data mount may carry the full `go.obo` instead of `go-basic.obo`
+    # (both share the same `data-version:` header). Fall back to the sibling
+    # `go.obo` so the version fetch doesn't fail purely on which OBO variant
+    # was provisioned on the mount.
+    if not obo_path.exists():
+        fallback = obo_path.with_name("go.obo")
+        if fallback != obo_path and fallback.exists():
+            obo_path = fallback
     if not obo_path.exists():
         return _unknown(
             "obo file not found",
