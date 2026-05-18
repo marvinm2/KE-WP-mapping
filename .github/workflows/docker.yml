@@ -13,7 +13,9 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Image name matches the Docker Swarm service (molaop-builder) and the sibling
+  # molaop-analyser, rather than the repo name. GHCR lowercases automatically.
+  IMAGE_NAME: marvinm2/molaop-builder
 
 jobs:
   build-test:

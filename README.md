@@ -198,13 +198,13 @@ All workflows run automatically on push to main branch and can be triggered manu
 ### Run with Docker
 
 ```bash
-docker pull ghcr.io/marvinm2/ke-wp-mapping:latest
+docker pull ghcr.io/marvinm2/molaop-builder:latest
 docker run -d -p 5000:5000 \
   -e FLASK_SECRET_KEY=your-secret-key \
   -e GITHUB_CLIENT_ID=your-client-id \
   -e GITHUB_CLIENT_SECRET=your-client-secret \
   -e ADMIN_USERS=your-github-username \
-  ghcr.io/marvinm2/ke-wp-mapping:latest
+  ghcr.io/marvinm2/molaop-builder:latest
 ```
 
 Or with Docker Compose (clone repo first):
